@@ -1,0 +1,82 @@
+<!-- ============================================================
+     BOSK-CAD — CALLTAKER PANEL (Phase 3)
+     View/Edit controlled by calltaker.js
+     ============================================================ -->
+
+<div id="calltaker-wrapper" class="calltaker-panel">
+
+    <!-- HEADER -->
+    <div class="ct-header">Calltaker</div>
+
+    <!-- INCIDENT INFO -->
+    <div class="ct-section">
+        <label>Incident #</label>
+        <input type="text" id="ctIncidentNumber" readonly>
+
+        <label>Date</label>
+        <input type="date" id="ctDate">
+
+        <label>Time</label>
+        <input type="time" id="ctTime">
+    </div>
+
+    <!-- INCIDENT TYPE -->
+    <div class="ct-section">
+        <label>Type</label>
+        <input type="text" id="ctType">
+
+        <label>Priority</label>
+        <select id="ctPriority">
+            <option value="1">1 (High)</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+        </select>
+    </div>
+
+    <!-- LOCATION -->
+    <div class="ct-section">
+        <label>Location</label>
+        <input type="text" id="ctLocation">
+
+        <label>Node</label>
+        <input type="text" id="ctNode">
+
+        <label>Pole</label>
+        <input type="text" id="ctPole">
+    </div>
+
+    <!-- CALLER INFO -->
+    <div class="ct-section">
+        <label>Caller Name</label>
+        <input type="text" id="ctCallerName">
+
+        <label>Caller Phone</label>
+        <input type="text" id="ctCallerPhone">
+    </div>
+
+    <!-- NARRATIVE (APPEND ONLY) -->
+    <div class="ct-section">
+        <label>Narrative</label>
+        <textarea id="ctNarrative" rows="3"
+                  placeholder="Enter remarks..."></textarea>
+    </div>
+
+    <!-- ISSUE FOUND (CONDITIONAL) -->
+    <div class="ct-section">
+        <button id="btn-issue-found"
+                class="pill-btn"
+                style="display:none;"
+                onclick="CALLTAKER.issueFound()">
+            Issue Found
+        </button>
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="ct-actions">
+        <button class="pill-btn" onclick="CALLTAKER.saveIncident()">Save</button>
+        <button class="pill-btn" onclick="CALLTAKER.clearForm()">Clear</button>
+        <button class="pill-btn" onclick="CALLTAKER.editMode()">Edit</button>
+    </div>
+
+</div>

@@ -1,0 +1,62 @@
+<!-- ============================================================
+     BOSK-CAD — HELD INCIDENTS PANEL
+     Phase-3 Canon • Full File
+     ============================================================ -->
+
+<div class="incident-panel-wrapper">
+
+    <div class="incident-header">
+        <h3>Held Incidents</h3>
+    </div>
+
+    <table class="incident-table">
+        <thead>
+            <tr>
+                <th style="width:32px;">⚠</th>
+                <th style="width:70px;">ID</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th style="width:50px;">P</th>
+                <th style="width:110px;">Updated</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% if incidents|length == 0 %}
+            <tr>
+                <td colspan="6" class="incident-empty">No held incidents.</td>
+            </tr>
+        {% else %}
+
+            {% for i in incidents %}
+            <tr class="incident-row incident-held"
+                hx-get="/incident_action_window/{{ i.incident_id }}"
+                hx-target="body"
+                style="cursor:pointer;">
+
+                <td class="issue-flag">
+                    {% if i.issue_found == 1 %}
+                        ⚠
+                    {% endif %}
+                </td>
+
+                <td class="incident-id">{{ i.incident_id }}</td>
+                <td class="incident-type">{{ i.type }}</td>
+                <td class="incident-location">{{ i.location }}</td>
+
+                <td class="incident-priority priority-{{ i.priority }}">
+                    {{ i.priority }}
+                </td>
+
+                <td class="incident-updated">{{ i.updated }}</td>
+
+            </tr>
+            {% endfor %}
+
+        {% endif %}
+
+        </tbody>
+    </table>
+
+</div>

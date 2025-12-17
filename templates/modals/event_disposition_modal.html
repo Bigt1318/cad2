@@ -1,0 +1,80 @@
+<!-- ============================================================
+     BOSK-CAD — EVENT DISPOSITION MODAL
+     Phase-3 Enterprise Edition (Full Version)
+============================================================ -->
+
+<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+
+<div class="bosk-modal disposition-modal" id="event-disposition-modal">
+
+    <!-- ========================================================
+         HEADER
+    ======================================================== -->
+    <div class="modal-header">
+        <div class="modal-title">Event Disposition</div>
+        <div class="modal-subtitle">Incident #{{ incident_id }}</div>
+        <div class="modal-close" onclick="BOSK_MODAL.close()">✖</div>
+    </div>
+
+
+    <!-- ========================================================
+         DISPATCHER IDENTITY
+    ======================================================== -->
+    {% include "modals/dispatcher_identity_block.html" %}
+
+
+    <!-- ========================================================
+         FORM BODY
+    ======================================================== -->
+    <div class="modal-body">
+        <form id="dispositionForm"
+              hx-post="/incident/disposition"
+              hx-trigger="submit"
+              hx-swap="none">
+
+            <input type="hidden" name="incident_id" value="{{ incident_id }}">
+
+
+            <!-- DISPOSITION CODE -->
+            <div class="modal-field">
+                <label class="modal-label">Disposition Code</label>
+                <select class="modal-select" name="code" required>
+                    <option value="">-- Select Code --</option>
+                    <option value="CANCELLED">Cancelled</option>
+                    <option value="NO INCIDENT FOUND">No Incident Found</option>
+                    <option value="FALSE ALARM">False Alarm</option>
+                    <option value="FULL RESPONSE">Full Response</option>
+                    <option value="UNFOUNDED">Unfounded</option>
+                    <option value="PUBLIC ASSIST">Public Assist</option>
+                    <option value="PATIENT TRANSPORTED">Patient Transported</option>
+                </select>
+            </div>
+
+
+            <!-- NARRATIVE DESCRIPTION -->
+            <div class="modal-field">
+                <label class="modal-label">Narrative (Required)</label>
+                <textarea class="modal-textarea"
+                          name="text"
+                          placeholder="Enter disposition narrative..."
+                          required></textarea>
+            </div>
+
+
+            <!-- FOOTER -->
+            <div class="modal-footer">
+                <button type="submit" class="pill-btn modal-submit-btn">
+                    Submit Disposition
+                </button>
+
+                <button type="button"
+                        onclick="BOSK_MODAL.close()"
+                        class="pill-btn modal-cancel-btn">
+                    Cancel
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>

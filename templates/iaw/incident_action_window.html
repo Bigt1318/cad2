@@ -1,0 +1,236 @@
+<!-- ============================================================
+     FORD CAD — INCIDENT ACTION WINDOW (IAW)
+     Phase-3 Canonical Edition
+     templates/iaw/incident_action_window.html
+============================================================ -->
+
+<!-- Modal Overlay -->
+<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+
+<!-- IAW Modal -->
+<div class="bosk-modal iaw-modal" id="iaw-modal">
+
+    <!-- ========================================================
+         HEADER / DRAG HANDLE
+    ============================================================ -->
+    <div class="iaw-header" onmousedown="IAW.startDrag?.(event)">
+
+        <div class="iaw-title">
+            Incident #{{ incident.incident_id }}
+        </div>
+
+        <div class="iaw-status-icons">
+            {% if incident.issue_found == 1 %}
+                <span class="iaw-flag issue">⚠ Issue Found</span>
+            {% endif %}
+            {% if incident.status == 'HELD' %}
+                <span class="iaw-flag held">HELD</span>
+            {% endif %}
+            {% if incident.status == 'CLOSED' %}
+                <span class="iaw-flag closed">CLOSED</span>
+            {% endif %}
+        </div>
+
+        <div class="iaw-close" onclick="BOSK_MODAL.close()">✖</div>
+    </div>
+
+    <!-- ========================================================
+         SECTION 1 — INCIDENT METADATA (READ ONLY)
+    ============================================================ -->
+    <div class="iaw-section iaw-metadata">
+        <div class="iaw-grid">
+
+            <div class="iaw-grid-label">Type</div>
+            <div class="iaw-grid-value">{{ incident.type }}</div>
+
+            <div class="iaw-grid-label">Priority</div>
+            <div class="iaw-grid-value priority-{{ incident.priority }}">
+                {{ incident.priority }}
+            </div>
+
+            <div class="iaw-grid-label">Date</div>
+            <div class="iaw-grid-value">{{ incident.incident_date }}</div>
+
+            <div class="iaw-grid-label">Time</div>
+            <div class="iaw-grid-value">{{ incident.incident_time }}</div>
+
+            <div class="iaw-grid-label">Location</div>
+            <div class="iaw-grid-value">{{ incident.location }}</div>
+
+            <div class="iaw-grid-label">Caller</div>
+            <div class="iaw-grid-value">{{ incident.caller_name }}</div>
+
+            <div class="iaw-grid-label">Updated</div>
+            <div class="iaw-grid-value">{{ incident.updated }}</div>
+
+        </div>
+    </div>
+
+    <!-- ========================================================
+         SECTION 2 — ASSIGNED UNITS (SERVER RENDERED)
+    ============================================================ -->
+    <div class="iaw-section iaw-units-section">
+
+        <div class="iaw-section-title">Assigned Units</div>
+
+        <table class="iaw-units-table">
+            <thead>
+                <tr>
+                    <th>Unit</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% for u in units %}
+                <tr>
+                    <td>{{ u.unit_id }}</td>
+                    <td>{{ u.status }}</td>
+
+                    <td class="iaw-unit-actions">
+
+                        {% if not u.arrived %}
+                            <button class="pill-btn"
+                                    onclick="IAW.arriveUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">
+                                Arrived
+                            </button>
+                        {% endif %}
+
+                        {% if u.arrived and not u.operating %}
+                            <button class="pill-btn"
+                                    onclick="IAW.operateUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">
+                                Operating
+                            </button>
+                        {% endif %}
+
+                        {% if u.arrived and not u.cleared %}
+                            <button class="pill-btn iaw-btn-warn"
+                                    onclick="IAW.clearUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">
+                                Clear
+                            </button>
+                        {% endif %}
+
+                        {% if u.cleared and not u.disposition %}
+                            <button class="pill-btn iaw-btn-info"
+                                    onclick="IAW.dispositionUnit({{ incident.incident_id }}, '{{ u.unit_id }}', 'R')">
+                                Disposition
+                            </button>
+                        {% endif %}
+
+                    </td>
+                </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+
+        <div class="iaw-dispatch-footer">
+            <button class="pill-btn"
+                    onclick="IAW.openDispatchPicker({{ incident.incident_id }})">
+                Dispatch Additional Units
+            </button>
+        </div>
+
+    </div>
+
+    <!-- ========================================================
+         SECTION 3 — NARRATIVE (SERVER RENDERED)
+    ============================================================ -->
+    <div class="iaw-section iaw-narrative-section">
+
+        <div class="iaw-section-title">
+            Narrative
+            <button class="iaw-add-btn"
+                    onclick="BOSK_MODAL.open('/incident/{{ incident.incident_id }}/remark')">
+                + Add Remark
+            </button>
+        </div>
+
+        <div class="iaw-narrative-box">
+            {% for n in narrative %}
+                <div class="iaw-narrative-entry">
+                    <span class="iaw-narrative-time">{{ n.timestamp }}</span>
+                    <span class="iaw-narrative-user">{{ n.user or '' }}</span>
+                    <span class="iaw-narrative-text">{{ n.entry }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <!-- ========================================================
+         SECTION 4 — INCIDENT ACTIONS
+    ============================================================ -->
+    <div class="iaw-section iaw-actions-section">
+
+        <div class="iaw-section-title">Incident Actions</div>
+
+        <div class="iaw-actions-row">
+
+            <button class="pill-btn"
+                    onclick="IAW.editInCalltaker({{ incident.incident_id }})">
+                Edit Incident
+            </button>
+
+            {% if incident.status != 'CLOSED' %}
+                <button class="pill-btn iaw-btn-info"
+                        onclick="IAW.dispositionIncident({{ incident.incident_id }}, 'FINAL')">
+                    Close Incident
+                </button>
+            {% endif %}
+
+            {% if incident.status == 'HELD' %}
+                <button class="pill-btn iaw-btn-warn"
+                        onclick="IAW.unholdIncident({{ incident.incident_id }})">
+                    Unhold
+                </button>
+            {% else %}
+                <button class="pill-btn iaw-btn-warn"
+                        onclick="IAW.holdIncident({{ incident.incident_id }})">
+                    Hold
+                </button>
+            {% endif %}
+
+            {% if incident.status == 'CLOSED' %}
+                <button class="pill-btn iaw-btn-info"
+                        onclick="IAW.reopenIncident({{ incident.incident_id }})">
+                    Reopen
+                </button>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <!-- ========================================================
+         SECTION 5 — ISSUE FOUND
+    ============================================================ -->
+    <div class="iaw-section iaw-issue-section">
+
+        <div class="iaw-section-title">Issue Found</div>
+
+        {% if incident.issue_found == 1 %}
+            <div class="iaw-issue-flagged">
+                <span>⚠ Issue recorded</span>
+            </div>
+        {% else %}
+            <button class="pill-btn"
+                    onclick="BOSK_MODAL.open('/incident/{{ incident.incident_id }}/issue')">
+                Record Issue Found
+            </button>
+        {% endif %}
+
+    </div>
+
+    <!-- ========================================================
+         FOOTER
+    ============================================================ -->
+    <div class="iaw-footer">
+        <button class="pill-btn iaw-footer-close"
+                onclick="BOSK_MODAL.close()">
+            Close
+        </button>
+    </div>
+
+</div>

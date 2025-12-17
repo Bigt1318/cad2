@@ -1,0 +1,76 @@
+{% if log_entries|length == 0 %}
+
+<tr>
+    <td colspan="5" class="log-empty">
+        No log entries for this date.
+    </td>
+</tr>
+
+{% else %}
+
+    {% for row in log_entries %}
+
+        {# ============================================================
+           Assign CSS class based on row.status
+           (Matches Phase-3 status color rules)
+           ============================================================ #}
+
+        {% set css = "" %}
+        {% if row.action == "DISPATCH" %}
+            {% set css = "status-dispatch" %}
+        {% elif row.action == "ENROUTE" %}
+            {% set css = "status-enroute" %}
+        {% elif row.action == "ARRIVED" %}
+            {% set css = "status-arrived" %}
+        {% elif row.action == "TRANSPORTING" %}
+            {% set css = "status-transporting" %}
+        {% elif row.action == "CLEARED" %}
+            {% set css = "status-cleared" %}
+        {% elif row.action == "ACTIVE" %}
+            {% set css = "status-active" %}
+        {% endif %}
+
+        <tr class="{{ css }}">
+
+            <!-- TIMESTAMP -->
+            <td class="ts">{{ row.timestamp }}</td>
+
+            <!-- UNIT -->
+            <td>
+                {% if row.unit_id %}
+                    <span class="log-link"
+                          hx-get="/unit_action_window/{{ row.unit_id }}"
+                          hx-target="body"
+                          hx-swap="beforeend">
+                        {{ row.unit_id }}
+                    </span>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <!-- INCIDENT -->
+            <td>
+                {% if row.incident_id %}
+                    <span class="log-link"
+                          hx-get="/incident_action_window/{{ row.incident_id }}"
+                          hx-target="body"
+                          hx-swap="beforeend">
+                        {{ row.incident_id }}
+                    </span>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <!-- ACTION -->
+            <td>{{ row.action }}</td>
+
+            <!-- DETAILS -->
+            <td>{{ row.details }}</td>
+
+        </tr>
+
+    {% endfor %}
+
+{% endif %}

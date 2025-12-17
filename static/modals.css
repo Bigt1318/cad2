@@ -1,0 +1,151 @@
+/* ============================================================
+   BOSK-CAD v3 — Phase-3 Core Stylesheet
+   Industrial Dark Theme (T1) + L2 Panel Layout
+   ============================================================ */
+
+:root {
+    --bosk-bg: #0c1118;
+    --bosk-bg-light: #16202c;
+    --bosk-panel: rgba(22, 32, 44, 0.78);
+
+    --bosk-accent: #5bc0ff;
+    --bosk-accent-soft: rgba(91, 192, 255, 0.25);
+
+    --bosk-text: #d9e6f2;
+    --bosk-text-soft: #94a9c1;
+
+    --panel-left-width: 420px;
+    --panel-center-width: 360px;
+}
+
+/* GLOBAL ---------------------------------------------------- */
+
+body {
+    margin: 0;
+    background: var(--bosk-bg);
+    color: var(--bosk-text);
+    font-family: Segoe UI, sans-serif;
+    overflow: hidden;
+}
+
+/* HEADER ---------------------------------------------------- */
+
+#bosk-header {
+    height: 72px;
+    background: var(--bosk-bg-light);
+    border-bottom: 1px solid #1d2733;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+}
+
+.header-inner {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.bosk-logo {
+    width: 50px;
+    height: 50px;
+    background: url('/static/images/bosk_logo.png') center/contain no-repeat;
+}
+
+.title-main {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.title-sub {
+    font-size: 14px;
+    color: var(--bosk-text-soft);
+}
+
+/* TOOLBAR --------------------------------------------------- */
+
+#bosk-toolbar {
+    height: 54px;
+    background: var(--bosk-panel);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #1c2833;
+    padding: 6px 12px;
+}
+
+.toolbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pill-btn {
+    background: var(--bosk-bg-light);
+    border: 1px solid #293744;
+    padding: 6px 18px;
+    border-radius: 20px;
+    color: var(--bosk-text);
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.15s;
+}
+
+.pill-btn:hover {
+    background: var(--bosk-accent-soft);
+    border-color: var(--bosk-accent);
+}
+
+/* WORKSPACE ------------------------------------------------- */
+
+#workspace {
+    display: flex;
+    height: calc(100vh - 72px - 54px - 40px);
+}
+
+.panel-left {
+    width: var(--panel-left-width);
+    background: var(--bosk-panel);
+    border-right: 1px solid #1c2833;
+    overflow-y: auto;
+}
+
+.panel-center {
+    width: var(--panel-center-width);
+    background: var(--bosk-panel);
+    border-right: 1px solid #1c2833;
+    overflow-y: auto;
+}
+
+.panel-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bosk-panel);
+}
+
+.subpanel {
+    flex: 1;
+    overflow-y: auto;
+    border-bottom: 1px solid #1c2833;
+}
+
+/* COMMAND LINE --------------------------------------------- */
+
+#commandline-wrapper {
+    height: 40px;
+    background: #0f161f;
+    border-top: 1px solid #1c2833;
+    padding: 6px;
+}
+
+/* HELD CALL ALERT ------------------------------------------ */
+
+.bosk-held-alert {
+    animation: heldPulse 1.4s infinite;
+    background: #7a1a1a !important;
+    color: #fff !important;
+}
+
+@keyframes heldPulse {
+    0% { box-shadow: 0 0 3px red; }
+    50% { box-shadow: 0 0 10px red; }
+    100% { box-shadow: 0 0 3px red; }
+}

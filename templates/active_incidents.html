@@ -1,0 +1,129 @@
+<!-- ============================================================
+     BOSK-CAD — ACTIVE INCIDENTS PANEL
+     Phase-3 Canon • Full File
+     ============================================================ -->
+
+<div class="incident-panel-wrapper">
+
+    <div class="incident-header">
+        <h3>Active Incidents</h3>
+    </div>
+
+    <table class="incident-table">
+        <thead>
+            <tr>
+                <th style="width:32px;">⚠</th>
+                <th style="width:70px;">ID</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th style="width:140px;">Units</th>
+                <th style="width:50px;">P</th>
+                <th style="width:110px;">Updated</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% if incidents|length == 0 %}
+            <tr>
+                <td colspan="7" class="incident-empty">No active incidents.</td>
+            </tr>
+        {% else %}
+
+            {% for i in incidents %}
+            <tr class="incident-row incident-active"
+                hx-get="/incident_action_window/{{ i.incident_id }}"
+                hx-target="body"
+                style="cursor:pointer;">
+
+                <!-- Issue Found flag -->
+                <td class="issue-flag">
+                    {% if i.issue_found == 1 %}
+                        ⚠
+                    {% endif %}
+                </td>
+
+                <td class="incident-id">{{ i.incident_id }}</td>
+                <td class="incident-type">{{ i.type }}</td>
+                <td class="incident-location">{{ i.location }}</td>
+
+                <!-- Unit icons -->
+                <td class="incident-units">
+                    {% if i.units %}
+                        {% for u in i.units %}
+                            <img src="/static/images/{{ u.icon }}"
+                                 class="unit-icon-sm"
+                                 title="{{ u.unit_id }}">
+                        {% endfor %}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+
+                <!-- Priority -->
+                <td class="incident-priority priority-{{ i.priority }}">
+                    {{ i.priority }}
+                </td>
+
+                <td class="incident-updated">{{ i.updated }}</td>
+
+            </tr>
+            {% endfor %}
+
+        {% endif %}
+
+        </tbody>
+    </table>
+
+</div>
+
+<style>
+.incident-panel-wrapper {
+    padding: 8px;
+    overflow-y: auto;
+}
+.incident-header h3 {
+    margin: 0 0 6px 0;
+    color: #e2e8f0;
+    font-size: 18px;
+}
+.incident-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.incident-table th {
+    padding: 3px 6px;
+    text-align: left;
+    background: rgba(255,255,255,0.06);
+    color: #e4e9f3;
+    border-bottom: 1px solid #253244;
+}
+.incident-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #1d2733;
+    color: #d7dde8;
+}
+
+.incident-empty {
+    text-align: center;
+    opacity: 0.55;
+    padding: 8px;
+}
+
+/* priority */
+.priority-1 { color:#ff4b4b; font-weight:700; }
+.priority-2 { color:#ffad33; font-weight:600; }
+.priority-3 { color:#c5d3f0; }
+
+/* issue flag */
+.issue-flag { width:32px; color:#ff4444; font-size:16px; text-align:center; }
+
+/* unit icons */
+.unit-icon-sm {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    margin-right: 2px;
+}
+</style>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BOSK-CAD Dispatch Console</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/modals.css">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Bootloader (loads modules.json → JS engine) -->
+    <script type="module" src="/static/js/bootloader.js"></script>
+</head>
+
+<body>
+
+<!-- ============================================================
+     BOSK HEADER — (C2/R1 Canon)
+     ============================================================ -->
+<header id="bosk-header">
+
+    <div class="header-left">
+        <div class="header-logo"></div>
+    </div>
+
+    <div class="header-center">
+        <div class="header-title">BOSK-CAD Dispatch Console</div>
+        <div class="header-subtitle">BlueOval SK — Fire & EMS Communications</div>
+    </div>
+
+    <div class="header-right">
+        <div id="clock" class="header-clock">00:00:00</div>
+        <div id="header-user" class="header-user">
+            {{ user }} (Shift {{ shift }})
+        </div>
+    </div>
+
+</header>
+
+
+<!-- ============================================================
+     GLASS TOOLBAR — CT3 Canon
+     ============================================================ -->
+<nav id="bosk-toolbar" class="glass-toolbar">
+
+    <!-- New Call -->
+    <button class="pill-btn" onclick="window.location='/calltaker/new'">
+        New Call
+    </button>
+
+    <!-- Active -->
+    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/active')">
+        Active
+    </button>
+
+    <!-- Open -->
+    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/open')">
+        Open
+    </button>
+
+    <!-- Held -->
+    <button id="btn-held-calls" class="pill-btn held-btn">
+        Held <span id="held-count-badge"></span>
+    </button>
+
+    <!-- Units -->
+    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/units')">
+        Units
+    </button>
+
+    <!-- Refresh -->
+    <button class="pill-btn" onclick="BOSK.panels.refreshAll()">
+        Refresh
+    </button>
+
+</nav>
+
+
+
+<!-- ============================================================
+     WORKSPACE — 3-Panel Flex Layout (Calltaker / Units / Incidents)
+     ============================================================ -->
+<div id="workspace">
+
+    <!-- Left Panel — Calltaker -->
+    <section id="panel-calltaker"
+             hx-get="/panel/calltaker"
+             hx-trigger="load"
+             hx-target="#panel-calltaker"
+             hx-swap="outerHTML">
+    </section>
+
+    <!-- Middle Panel — Units -->
+    <section id="panel-units"
+             hx-get="/panel/units"
+             hx-trigger="load"
+             hx-target="#panel-units"
+             hx-swap="outerHTML">
+    </section>
+
+    <!-- Right Panel — Incident Lists -->
+    <section id="panel-incidents">
+
+        <!-- Active -->
+        <div id="panel-active"
+             class="incident-panel"
+             hx-get="/panel/active"
+             hx-trigger="load"
+             hx-target="#panel-active"
+             hx-swap="outerHTML">
+        </div>
+
+        <!-- Open -->
+        <div id="panel-open"
+             class="incident-panel"
+             hx-get="/panel/open"
+             hx-trigger="load"
+             hx-target="#panel-open"
+             hx-swap="outerHTML">
+        </div>
+
+        <!-- Held -->
+        <div id="panel-held"
+             class="incident-panel"
+             hx-get="/panel/held"
+             hx-trigger="load"
+             hx-target="#panel-held"
+             hx-swap="outerHTML">
+        </div>
+
+    </section>
+
+</div>
+
+
+
+<!-- ============================================================
+     COMMAND LINE BAR (CLB)
+     ============================================================ -->
+<footer id="commandline-bar">
+    <input id="cmd-input"
+           type="text"
+           autocomplete="off"
+           placeholder="Enter CAD Command…">
+</footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    if (window.BOSK?.commandline?.init) {
+        window.BOSK.commandline.init();
+    }
+});
+</script>
+
+</body>
+</html>

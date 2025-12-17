@@ -1,0 +1,208 @@
+==============================================================
+   BOSK SERT CAD – LOCAL INSTALLATION & OPERATION GUIDE
+   Version: BOSK-CAD_v1.0_M1_2025-11-01
+==============================================================
+cd "C:\CAD-Sys\BOSK-CAD"
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+
+python -m uvicorn main:app --reload --port 8000
+
+
+to kill servers:  	Get-Process python | Stop-Process -Force
+
+
+python -m pip install --upgrade pip
+
+
+
+_________________________
+Powershell Splitter CODE
+-------------------------
+
+$FilePath = "C:\CAD-Sys\BOSK-CAD"
+$ZipPath  = "C:\CAD-Sys\boskcad.zip"
+$OutDir   = "C:\CAD-Sys\bosk_parts"
+$NumParts = 20
+
+# Create ZIP
+Write-Host "Creating ZIP..."
+if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory($FilePath, $ZipPath)
+
+Write-Host "ZIP created at $ZipPath"
+
+# Split ZIP
+Write-Host "Splitting ZIP..."
+New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+
+$size = (Get-Item $ZipPath).Length
+$partSize = [math]::Ceiling($size / $NumParts)
+
+$fs = [System.IO.File]::OpenRead($ZipPath)
+$buffer = New-Object byte[] $partSize
+$idx = 1
+
+while (($read = $fs.Read($buffer, 0, $buffer.Length)) -gt 0) {
+    $outFile = Join-Path $OutDir ("bosk_part_{0}.bin" -f $idx)
+    $fsOut = [System.IO.File]::OpenWrite($outFile)
+    $fsOut.Write($buffer, 0, $read)
+    $fsOut.Close()
+    Write-Host "Created: $outFile"
+    $idx++
+}
+
+$fs.Close()
+Write-Host "DONE — BOSK-CAD packaged into $($idx-1) blocks."
+
+
+PURPOSE
+-------
+This guide explains how to start and maintain the BOSK SERT CAD
+system on any Windows workstation.  It operates entirely offline.
+
+PROJECT FOLDER
+--------------
+C:\Dell\SYS-C\CAD-SYS\
+
+   ├── main.py
+   ├── templates\
+   │     ├── login.html
+   │     ├── index.html
+   │     ├── units.html
+   │     └── incidents.html
+   ├── static\
+   │     ├── style.css
+   │     └── images\   ←  logo.png, maps, etc.
+   ├── backups\
+   │     └── db_archive\
+   └── cad.db
+
+==============================================================
+1️⃣  INITIAL SETUP  (only once per computer)
+==============================================================
+
+1. Open Windows PowerShell **as Administrator**.
+
+2. Navigate to the CAD directory:
+      cd "C:\CAD-Sys\BOSK-CAD"
+
+3. Create a private Python environment:
+      python -m venv .venv
+
+4. Activate it:
+      .\.venv\Scripts\Activate.ps1
+
+5. Upgrade pip:
+      python -m pip install --upgrade pip
+
+6. Install all required packages:
+      python -m pip install fastapi uvicorn sqlalchemy jinja2 python-multipart passlib[bcrypt] aiofiles
+
+7. Confirm success:
+      pip list
+   (You should see the packages listed.)
+
+==============================================================
+2️⃣  STARTING THE CAD CONSOLE
+==============================================================
+
+### 1️⃣  Apply Database Migration
+Open PowerShell (in project root):
+
+```powershell
+cd "C:\CAD-Sys\BOSK-CAD"
+sqlite3 cad.db < db_migrate_M12.sql
+
+If sqlite3 is not on your PATH, run the Python equivalent:
+python -c "import sqlite3; db=sqlite3.connect('cad.db'); db.executescript(open('db_migrate_M12.sql').read()); db.close()"
+
+
+python main.py
+
+
+1. Make sure the virtual environment is active.  You should see
+   “(.venv)” at the start of your PowerShell prompt.
+
+2. Run the server:
+      python main.py
+
+3. Wait for the line:
+      “Uvicorn running on http://127.0.0.1:8000”
+
+4. Open a browser (Chrome or Edge) and go to:
+      http://127.0.0.1:8000
+
+5. Login credentials:
+      Username: admin
+      Password: bosk123
+
+6. Once logged in, you’ll see:
+      “Logged in as: admin | Shift: A (Day) | 14:07:23”
+
+7. The interface updates every 1 second.
+   * Left panel – Units
+   * Right panel – Incidents
+   * Top bar – Clock & shift selector
+   * Bottom bar – Version info
+
+==============================================================
+3️⃣  BACKUPS & RECOVERY
+==============================================================
+
+AUTOSAVE (every 5 s)
+   →  backups\autosave.json
+      Contains operational data: Units, Incidents, Assignments,
+      StatusLog, and Shift information.
+
+HOURLY SNAPSHOT
+   →  backups\db_archive\cad_backup_YYYYMMDD_HHMM.db
+      Full database copy including user accounts.
+
+AUTO-RECOVERY
+   On startup, the system automatically restores the most
+   recent valid snapshot if cad.db is missing or corrupted.
+
+==============================================================
+4️⃣  SHUTTING DOWN
+==============================================================
+
+• In PowerShell, press  Ctrl +C  once.
+• Wait for the message:
+      “[timestamp] BOSK SERT CAD shutting down.”
+• The autosave and snapshot threads will stop gracefully.
+
+==============================================================
+5️⃣  TROUBLESHOOTING
+==============================================================
+
+• If PowerShell freezes, press  Ctrl + C  twice, or close the
+  window.  No data will be lost—autosave protects all calls.
+
+• If the server fails to start, verify:
+      - .venv is activated
+      - cad.db exists (created automatically on first run)
+      - No other app is using port 8000
+
+• If the web page fails to load, open:
+      http://localhost:8000
+
+• To reset the login, delete cad.db and restart.
+  A new admin account will be seeded automatically.
+
+==============================================================
+6️⃣  DAILY OPERATION SUMMARY
+==============================================================
+
+• Log in at the start of shift.
+• Use left panel to change Unit statuses.
+• Use right panel to create and manage Incidents.
+• Remarks and actions are time-stamped in the StatusLog.
+• System runs completely offline; backups occur automatically.
+
+==============================================================
+END OF FILE
+==============================================================

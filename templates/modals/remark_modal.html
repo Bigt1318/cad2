@@ -1,0 +1,64 @@
+<!-- ============================================================
+     BOSK-CAD — ADD REMARK MODAL
+     Phase-3 Enterprise Edition (Full Version)
+============================================================ -->
+
+<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+
+<div class="bosk-modal remark-modal" id="remark-modal">
+
+    <!-- ========================================================
+         HEADER
+    ======================================================== -->
+    <div class="modal-header">
+        <div class="modal-title">Add Remark</div>
+        <div class="modal-subtitle">Incident #{{ incident_id }}</div>
+        <div class="modal-close" onclick="BOSK_MODAL.close()">✖</div>
+    </div>
+
+
+    <!-- ========================================================
+         DISPATCHER IDENTITY
+    ======================================================== -->
+    {% include "modals/dispatcher_identity_block.html" %}
+
+
+    <!-- ========================================================
+         FORM BODY
+    ======================================================== -->
+    <div class="modal-body">
+
+        <form id="remarkForm"
+              hx-post="/incident/remark"
+              hx-trigger="submit"
+              hx-swap="none">
+
+            <input type="hidden" name="incident_id" value="{{ incident_id }}">
+
+            <!-- REMARK TEXT -->
+            <div class="modal-field">
+                <label class="modal-label">Remark</label>
+                <textarea class="modal-textarea"
+                          name="remark"
+                          placeholder="Type remark..."
+                          required></textarea>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="modal-footer">
+                <button type="submit" class="pill-btn modal-submit-btn">
+                    Submit Remark
+                </button>
+
+                <button type="button"
+                        class="pill-btn modal-cancel-btn"
+                        onclick="BOSK_MODAL.close()">
+                    Cancel
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>

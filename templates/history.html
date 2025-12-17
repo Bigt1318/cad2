@@ -1,0 +1,58 @@
+<!-- ============================================================
+     BOSK-CAD — INCIDENT HISTORY LIST
+     Phase-3 Canon • Full File
+     ============================================================ -->
+
+<div class="history-panel">
+
+    <div class="history-header">
+        <h3>Incident History</h3>
+    </div>
+
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th style="width:80px;">ID</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% if incidents|length == 0 %}
+            <tr>
+                <td colspan="5" class="history-empty">No historical incidents.</td>
+            </tr>
+        {% else %}
+            {% for i in incidents %}
+            <tr class="history-row"
+                hx-get="/history/{{ i.incident_id }}"
+                hx-target="body"
+                style="cursor:pointer;">
+
+                <td>{{ i.incident_id }}</td>
+                <td>{{ i.incident_date }}</td>
+                <td>{{ i.type }}</td>
+                <td>{{ i.location }}</td>
+                <td>{{ i.status }}</td>
+
+            </tr>
+            {% endfor %}
+        {% endif %}
+
+        </tbody>
+    </table>
+
+</div>
+
+<style>
+.history-panel { padding: 8px; overflow-y:auto; }
+.history-header h3 { margin:0 0 6px 0; color:#e2e8f0; font-size:18px; }
+.history-table { width:100%; border-collapse:collapse; font-size:14px; }
+.history-table th { padding:3px 6px; background:rgba(255,255,255,0.06); border-bottom:1px solid #253244; }
+.history-table td { padding:4px 6px; border-bottom:1px solid #1d2733; color:#d7dde8; }
+.history-empty { text-align:center; opacity:0.5; padding:10px; }
+</style>

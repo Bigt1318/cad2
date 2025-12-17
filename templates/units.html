@@ -1,0 +1,90 @@
+<!-- ============================================================
+     BOSK-CAD — UNITS PANEL (Phase-3 Canon)
+     Full File — Icon + Unit ID Format (U2)
+     ============================================================ -->
+
+<div class="units-panel">
+
+    <div class="panel-header">
+        <h2>Units</h2>
+    </div>
+
+    <table class="units-table">
+        <thead>
+            <tr>
+                <th style="width:48px;">Icon</th>
+                <th style="width:60px;">Unit</th>
+                <th style="width:130px;">Role</th>
+                <th>Status</th>
+                <th>Updated</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% if units|length == 0 %}
+            <tr>
+                <td colspan="5" class="units-empty">No units found.</td>
+            </tr>
+        {% else %}
+
+            {% for u in units %}
+            <tr class="unit-row"
+                hx-get="/unit_action_window/{{ u.unit_id }}"
+                hx-target="body"
+                style="cursor: pointer;">
+
+                <td class="unit-icon-cell">
+                    <img src="/static/images/{{ u.icon }}"
+                         alt="{{ u.unit_id }}"
+                         class="unit-icon-sm">
+                </td>
+
+                <td class="unit-id">{{ u.unit_id }}</td>
+                <td class="unit-role">{{ u.role }}</td>
+
+                <td class="unit-status">
+                    <span class="status-badge status-{{ u.status|lower }}">
+                        {{ u.status }}
+                    </span>
+                </td>
+
+                <td class="unit-updated">{{ u.last_updated }}</td>
+
+            </tr>
+            {% endfor %}
+
+        {% endif %}
+
+        </tbody>
+    </table>
+</div>
+
+<style>
+.units-panel { padding: 8px; height: 100%; overflow-y: auto; }
+.panel-header h2 { color: #d0d6e0; margin: 0 0 6px 0; font-size: 18px; font-weight: 600; }
+.units-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.units-table th { padding: 4px 6px; color: #dde6f5; border-bottom: 1px solid #253244; }
+.units-table td { padding: 4px 6px; border-bottom: 1px solid #1d2733; color: #d8dee7; }
+.units-empty { opacity: 0.6; text-align: center; padding: 10px; }
+
+.unit-icon-sm {
+    width: 42px;
+    max-height: 42px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.unit-id { font-weight: 700; color: #fff; }
+
+.status-badge {
+    padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    color: #fff;
+}
+.status-available { background: #2e8b57; }
+.status-active { background: #d9534f; }
+.status-enroute { background: #0275d8; }
+.status-arrived { background: #5bc0de; }
+.status-held { background: #f0ad4e; color: #000; }
+</style>
