@@ -774,3 +774,22 @@ window.CAD.cli.pickIncident = (incidentId) => CLI.pickIncident(incidentId);
 console.log("[CLI] Professional command line loaded.");
 
 export default CLI;
+
+// Command hints click handler
+document.addEventListener("click", (e) => {
+    const hint = e.target.closest(".cmd-hint");
+    if (!hint) return;
+    
+    const input = document.getElementById("cmd-input");
+    if (!input) return;
+    
+    const cmd = hint.textContent.trim();
+    input.value = cmd;
+    input.focus();
+    
+    // If it's a complete command (no space), execute it
+    if (!cmd.includes(" ") && ["NEW", "HELD", "DAILY", "HELP", "HISTORY"].includes(cmd.toUpperCase())) {
+        const event = new KeyboardEvent("keydown", { key: "Enter" });
+        input.dispatchEvent(event);
+    }
+});
