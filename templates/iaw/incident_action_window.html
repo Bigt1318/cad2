@@ -14,21 +14,31 @@
 <!-- IAW Modal -->
 <div class="cad-modal iaw-modal" id="iaw-modal" data-incident-id="{{ incident.incident_id }}">
 
-  <!-- HEADER -->
+  <!-- HEADER (Mini-Calltaker Style - All Critical Info at Glance) -->
   <div class="iaw-header">
-    <div class="iaw-header-left">
-      <div class="iaw-title">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
-          <polyline points="14,2 14,8 20,8"></polyline>
-        </svg>
+    <div class="iaw-header-row">
+      <!-- Incident ID -->
+      <div class="iaw-id">
         {% if incident.incident_number %}
-          {{ incident.incident_number }}
+          <span class="iaw-id-number">{{ incident.incident_number }}</span>
         {% else %}
-          Draft #{{ incident.incident_id }}
+          <span class="iaw-id-draft">DRAFT #{{ incident.incident_id }}</span>
         {% endif %}
       </div>
 
+      <!-- Type Badge -->
+      <div class="iaw-type-pill">{{ incident.type or "UNKNOWN" }}</div>
+
+      <!-- Location (truncated) -->
+      <div class="iaw-loc">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <span class="iaw-loc-text">{{ (incident.location or "—")[:40] }}{% if incident.location and incident.location|length > 40 %}…{% endif %}</span>
+      </div>
+
+      <!-- Status + Priority + Issue Badges -->
       <div class="iaw-badges">
         {% if incident.status %}
           <span class="iaw-badge iaw-badge-status">{{ incident.status }}</span>
@@ -37,35 +47,33 @@
           <span class="iaw-badge iaw-badge-priority">P{{ incident.priority }}</span>
         {% endif %}
         {% if incident.issue_found == 1 %}
-          <span class="iaw-badge iaw-badge-issue">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-            ISSUE
-          </span>
+          <span class="iaw-badge iaw-badge-issue">⚠ ISSUE</span>
         {% endif %}
       </div>
-    </div>
 
-    <div class="iaw-header-right">
-      {% if not incident.incident_number %}
-        <button class="iaw-icon-btn" title="Assign Incident #" onclick="IAW.assignNumber({{ incident.incident_id }})">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="4" y1="9" x2="20" y2="9"></line>
-            <line x1="4" y1="15" x2="20" y2="15"></line>
-            <line x1="10" y1="3" x2="8" y2="21"></line>
-            <line x1="16" y1="3" x2="14" y2="21"></line>
-          </svg>
-        </button>
-      {% endif %}
-      <button class="iaw-icon-btn" title="Close (Esc)" onclick="CAD_MODAL.close()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+      <!-- Age Timer -->
+      <div class="iaw-age" title="Time since created">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12,6 12,12 16,14"></polyline>
         </svg>
-      </button>
+        <span class="iaw-age-text" data-created="{{ created }}">{{ created_ts[:5] if created_ts != "—" else "—" }}</span>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="iaw-header-actions">
+        {% if not incident.incident_number %}
+          <button class="iaw-icon-btn" title="Assign Incident #" onclick="IAW.assignNumber({{ incident.incident_id }})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="9" x2="20" y2="9"></line>
+              <line x1="4" y1="15" x2="20" y2="15"></line>
+              <line x1="10" y1="3" x2="8" y2="21"></line>
+              <line x1="16" y1="3" x2="14" y2="21"></line>
+            </svg>
+          </button>
+        {% endif %}
+        <button class="iaw-icon-btn" title="Close (Esc)" onclick="CAD_MODAL.close()">×</button>
+      </div>
     </div>
   </div>
 
@@ -73,45 +81,36 @@
   <div class="iaw-body">
     <div class="iaw-scroll">
 
-      <!-- INCIDENT SNAPSHOT -->
-      <div class="iaw-card">
-        <div class="iaw-card-header">
-          <span class="iaw-card-title">Incident Details</span>
-          <button class="iaw-btn iaw-btn-small" onclick="IAW.editInCalltaker({{ incident.incident_id }})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Edit
-          </button>
-        </div>
-
-        <div class="iaw-info-grid">
-          <div class="iaw-info-item">
-            <span class="iaw-info-label">Type</span>
-            <span class="iaw-info-value iaw-type-badge">{{ incident.type or "—" }}</span>
+      <!-- INCIDENT DETAILS (Compact - Key info in header) -->
+      <div class="iaw-card iaw-card-compact">
+        <div class="iaw-detail-row">
+          <div class="iaw-detail-cell">
+            <span class="iaw-detail-k">Caller</span>
+            <span class="iaw-detail-v">{{ incident.caller_name or "—" }}</span>
           </div>
-          <div class="iaw-info-item">
-            <span class="iaw-info-label">Priority</span>
-            <span class="iaw-info-value">{{ incident.priority or "—" }}</span>
+          <div class="iaw-detail-cell">
+            <span class="iaw-detail-k">Phone</span>
+            <span class="iaw-detail-v">{{ incident.caller_phone or "—" }}</span>
           </div>
-          <div class="iaw-info-item iaw-info-wide">
-            <span class="iaw-info-label">Location</span>
-            <span class="iaw-info-value">{{ incident.location or "—" }}</span>
+          <div class="iaw-detail-cell">
+            <span class="iaw-detail-k">Node</span>
+            <span class="iaw-detail-v">{{ incident.node or "—" }}</span>
           </div>
-          <div class="iaw-info-item">
-            <span class="iaw-info-label">Caller</span>
-            <span class="iaw-info-value">{{ incident.caller_name or "—" }}</span>
-          </div>
-          <div class="iaw-info-item">
-            <span class="iaw-info-label">Created</span>
-            <span class="iaw-info-value iaw-mono">{{ created_ts }}</span>
-          </div>
-          <div class="iaw-info-item iaw-info-wide">
-            <span class="iaw-info-label">Narrative</span>
-            <span class="iaw-info-value iaw-narrative-text">{{ incident.narrative or "—" }}</span>
+          <div class="iaw-detail-cell iaw-detail-actions">
+            <button class="iaw-btn iaw-btn-small" onclick="IAW.editInCalltaker({{ incident.incident_id }})" title="Edit incident details">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Edit
+            </button>
           </div>
         </div>
+        {% if incident.narrative %}
+        <div class="iaw-narrative-compact">
+          <span class="iaw-detail-k">Notes:</span> {{ incident.narrative }}
+        </div>
+        {% endif %}
       </div>
 
       <!-- ASSIGNED UNITS -->

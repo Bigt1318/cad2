@@ -642,16 +642,91 @@ input:disabled, textarea:disabled {
     font-size: 13px;
 }
 
-/* IAW Header - Compact dark bar */
+/* IAW Header - Mini-Calltaker Style (Single Row, All Critical Info) */
 .iaw-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    background: rgba(0,0,0,0.35);
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.45);
     border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
+.iaw-header-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.iaw-id {
+    flex-shrink: 0;
+}
+
+.iaw-id-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    font-family: "Consolas", "Monaco", monospace;
+}
+
+.iaw-id-draft {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fbbf24;
+    letter-spacing: 0.3px;
+}
+
+.iaw-type-pill {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    background: rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.iaw-loc {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+}
+
+.iaw-loc svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.iaw-loc-text {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iaw-age {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    font-size: 11px;
+    font-family: "Consolas", "Monaco", monospace;
+}
+
+.iaw-header-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+/* Legacy support */
 .iaw-header-left { display: flex; flex-direction: column; gap: 4px; }
 
 .iaw-title {
@@ -1637,3 +1712,51 @@ body.drawer-open { overflow: hidden; }
    UAW POPUP — Dark Glass Style (matches context menu)
    ============================================================ */
 /* Note: Main styles are in uaw2.js - these are overrides only if needed */
+
+/* IAW Compact Card (Mini-Calltaker Style) */
+.iaw-card-compact {
+    padding: 8px 10px;
+}
+
+.iaw-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.iaw-detail-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.iaw-detail-k {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    opacity: 0.5;
+}
+
+.iaw-detail-v {
+    font-size: 12px;
+    color: #e8f0f8;
+}
+
+.iaw-detail-actions {
+    margin-left: auto;
+}
+
+.iaw-narrative-compact {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+.iaw-narrative-compact .iaw-detail-k {
+    margin-right: 4px;
+}
