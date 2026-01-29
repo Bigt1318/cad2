@@ -1,22 +1,22 @@
 /* ============================================================================
-   FORD CAD — MODAL STYLESHEET (PHASE-3 CANONICAL)
-   Visual layer ONLY — no logic
+   FORD CAD — MODAL STYLESHEET V4
+   Uses ford-cad-v4.css design tokens for consistency
    ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   MODAL OVERLAY — Dark blur backdrop
+   MODAL OVERLAY
 --------------------------------------------------------------------------- */
 .cad-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: 1000;
+    z-index: var(--z-modal, 1000);
 }
 
 /* ---------------------------------------------------------------------------
-   MODAL CONTAINER — Dark glass style (matches context menu)
+   MODAL CONTAINER
 --------------------------------------------------------------------------- */
 .cad-modal {
     position: fixed;
@@ -27,30 +27,28 @@
     max-width: 90vw;
     max-height: 90vh;
 
-    background: rgba(15, 23, 34, 0.98);
-    color: #e8f0f8;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255,255,255,0.1);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--bg-surface, #161b22);
+    color: var(--text-primary, #f0f6fc);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: var(--radius-xl, 12px);
+    box-shadow: var(--shadow-xl, 0 20px 25px rgba(0, 0, 0, 0.6));
 
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    z-index: 1001;
-    font-family: "Segoe UI", system-ui, sans-serif;
-    font-size: 13px;
+    z-index: calc(var(--z-modal, 1000) + 1);
+    font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    font-size: var(--text-base, 14px);
 }
 
 /* ---------------------------------------------------------------------------
-   MODAL HEADER — Compact dark bar
+   MODAL HEADER
 --------------------------------------------------------------------------- */
 .cad-modal-header {
-    padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.35);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 14px;
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    background: var(--bg-elevated, #21262d);
+    border-bottom: 1px solid var(--border-default, #30363d);
+    font-size: var(--text-lg, 16px);
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -60,14 +58,35 @@
 .cad-modal-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2, 8px);
+    color: var(--text-primary, #f0f6fc);
+}
+
+.cad-modal-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #6e7681);
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: var(--radius-md, 6px);
+    transition: all 0.15s ease;
+}
+
+.cad-modal-close:hover {
+    background: var(--bg-hover, #30363d);
+    color: var(--text-primary, #f0f6fc);
 }
 
 /* ---------------------------------------------------------------------------
    MODAL BODY
 --------------------------------------------------------------------------- */
 .cad-modal-body {
-    padding: 14px 16px;
+    padding: var(--space-4, 16px);
     overflow-y: auto;
     flex: 1;
 }
@@ -76,864 +95,638 @@
    MODAL FOOTER
 --------------------------------------------------------------------------- */
 .cad-modal-footer {
-    padding: 10px 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.2);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border-top: 1px solid var(--border-default, #30363d);
+    background: var(--bg-elevated, #21262d);
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--space-2, 8px);
 }
 
 /* ---------------------------------------------------------------------------
-   BUTTONS INSIDE MODALS — Context menu style
+   MODAL BUTTONS
 --------------------------------------------------------------------------- */
-.cad-modal button {
-    background: transparent;
-    color: #e8f0f8;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    padding: 8px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
+.cad-modal-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: var(--space-2, 8px) var(--space-4, 16px);
+    background: var(--bg-hover, #30363d);
+    color: var(--text-secondary, #8b949e);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: var(--radius-md, 6px);
+    font-size: var(--text-sm, 12px);
     font-weight: 600;
-    transition: all 0.1s ease;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
-.cad-modal button:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.4);
+.cad-modal-btn:hover {
+    background: var(--bg-active, rgba(56, 139, 253, 0.1));
+    color: var(--text-primary, #f0f6fc);
+    border-color: var(--border-emphasis, #8b949e);
 }
 
-.cad-modal button:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+.cad-modal-btn.primary {
+    background: rgba(56, 139, 253, 0.15);
+    border-color: rgba(56, 139, 253, 0.4);
+    color: var(--text-link, #58a6ff);
 }
 
-.cad-modal button.primary,
-.cad-modal .btn-primary {
-    background: rgba(59, 130, 246, 0.25);
-    border-color: rgba(59, 130, 246, 0.4);
+.cad-modal-btn.primary:hover {
+    background: rgba(56, 139, 253, 0.25);
+    border-color: var(--ford-blue-light, #3b82f6);
 }
 
-.cad-modal button.primary:hover,
-.cad-modal .btn-primary:hover {
-    background: rgba(59, 130, 246, 0.4);
+.cad-modal-btn.danger {
+    background: rgba(218, 54, 51, 0.15);
+    border-color: rgba(218, 54, 51, 0.4);
+    color: var(--danger-text, #f85149);
 }
 
-.cad-modal button.danger,
-.cad-modal .btn-danger {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.35);
+.cad-modal-btn.danger:hover {
+    background: rgba(218, 54, 51, 0.25);
 }
 
-.cad-modal button.danger:hover,
-.cad-modal .btn-danger:hover {
-    background: rgba(239, 68, 68, 0.35);
+.cad-modal-btn.success {
+    background: rgba(35, 134, 54, 0.15);
+    border-color: rgba(35, 134, 54, 0.4);
+    color: var(--success-text, #3fb950);
 }
 
-/* Form inputs inside modals */
+.cad-modal-btn.success:hover {
+    background: rgba(35, 134, 54, 0.25);
+}
+
+/* ---------------------------------------------------------------------------
+   FORM ELEMENTS IN MODALS
+--------------------------------------------------------------------------- */
 .cad-modal input,
-.cad-modal textarea,
-.cad-modal select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: #e8f0f8;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.1s;
+.cad-modal select,
+.cad-modal textarea {
+    width: 100%;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-app, #0d1117);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: var(--radius-md, 6px);
+    color: var(--text-primary, #f0f6fc);
+    font-size: var(--text-base, 14px);
+    font-family: inherit;
+    transition: all 0.15s ease;
 }
 
 .cad-modal input:focus,
-.cad-modal textarea:focus,
-.cad-modal select:focus {
-    border-color: rgba(59, 130, 246, 0.5);
+.cad-modal select:focus,
+.cad-modal textarea:focus {
+    outline: none;
+    border-color: var(--ford-blue-light, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.2);
 }
 
 .cad-modal input::placeholder,
 .cad-modal textarea::placeholder {
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--text-muted, #6e7681);
+}
+
+.cad-modal select {
+    cursor: pointer;
 }
 
 .cad-modal select option {
-    background: #1a2535;
-    color: #e8f0f8;
+    background: var(--bg-surface, #161b22);
+    color: var(--text-primary, #f0f6fc);
 }
 
 .cad-modal label {
     display: block;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    opacity: 0.6;
-    margin-bottom: 4px;
-}
-
-/* ---------------------------------------------------------------------------
-   ANIMATIONS
---------------------------------------------------------------------------- */
-.modal-fade-in {
-    animation: modalFadeIn 0.25s ease-out forwards;
-}
-
-.modal-fade-out {
-    animation: modalFadeOut 0.25s ease-in forwards;
-}
-
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -55%);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-    }
-}
-
-@keyframes modalFadeOut {
-    from {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-    }
-    to {
-        opacity: 0;
-        transform: translate(-50%, -55%);
-    }
-}
-
-/* ---------------------------------------------------------------------------
-   UAW — SMALL COMMAND POPUP
---------------------------------------------------------------------------- */
-.uaw-mini-modal {
-    min-width: 320px !important;
-    width: 340px !important;
-    max-width: 92vw !important;
-}
-
-.uaw-mini-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    background: #111a24;
-    border-bottom: 1px solid #1c2833;
-    user-select: none;
-}
-
-.uaw-mini-title {
-    font-weight: 700;
-}
-
-.uaw-mini-close {
-    border: 0;
-    background: transparent;
-    color: #d9e6f2;
-    font-size: 18px;
-    padding: 0 6px;
-    cursor: pointer;
-}
-
-.uaw-mini-body {
-    padding: 12px;
-}
-
-.uaw-mini-meta .meta-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 6px;
-}
-
-.uaw-mini-meta .lbl {
-    opacity: 0.85;
-}
-
-.uaw-mini-meta .val {
+    font-size: var(--text-sm, 12px);
     font-weight: 600;
+    color: var(--text-muted, #6e7681);
+    margin-bottom: var(--space-1, 4px);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.uaw-mini-actions {
+/* ---------------------------------------------------------------------------
+   FORM GROUPS
+--------------------------------------------------------------------------- */
+.cad-form-group {
+    margin-bottom: var(--space-3, 12px);
+}
+
+.cad-form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3, 12px);
 }
 
-.uaw-mini-hint {
-    margin-top: 12px;
-    opacity: 0.85;
-    line-height: 1.3;
-}
-
-.uaw-mini-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 12px;
-}
-
-.cad-btn.secondary {
-    opacity: 0.95;
-}
-
-.cad-btn.danger {
-    border-color: #ff6b6b;
+.cad-form-row.three-col {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 /* ---------------------------------------------------------------------------
-   UAW — FULL DETAILS MODAL
+   SETTINGS MODAL SPECIFIC
 --------------------------------------------------------------------------- */
-.uaw-full-modal {
-    min-width: 520px !important;
-    max-width: 92vw !important;
-}
-
-.uaw-full-grid {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    gap: 14px;
-    align-items: start;
-}
-
-.uaw-full-icon img {
-    width: 80px;
-    height: 80px;
-    object-fit: contain;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid #1c2833;
-}
-
-.uaw-full-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-/* =======================================================================
-   UAW INLINE POPUP — Styles now in uaw2.js for consistency
-   These are fallback overrides only
-   ======================================================================= */
-
-/* UAW popup styles are injected by uaw2.js module */
-
-
-/* ============================================================================
-   EVENT LOG VIEWER — COMMERCIAL CAD-INSPIRED DESIGN
-   ============================================================================ */
-
-.eventlog-modal {
-  width: 1280px;
-  max-width: 96vw;
-  max-height: 92vh;
-}
-
-.eventlog-modal .cad-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-}
-
-.eventlog-modal .cad-modal-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.eventlog-modal .modal-icon {
-  width: 22px;
-  height: 22px;
-  opacity: 0.9;
-}
-
-.modal-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* ---------------------------------------------------------------------------
-   EVENT LOG BUTTONS
---------------------------------------------------------------------------- */
-.el-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(91, 192, 255, 0.12);
-  border: 1px solid rgba(91, 192, 255, 0.25);
-  border-radius: 8px;
-  color: #d9e6f2;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.el-btn:hover {
-  background: rgba(91, 192, 255, 0.22);
-  border-color: rgba(91, 192, 255, 0.45);
-}
-
-.el-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.el-btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.el-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.el-btn-icon {
-  padding: 8px;
-  background: transparent;
-  border: none;
-}
-
-.el-btn-icon:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.el-btn-close {
-  padding: 4px 10px;
-  font-size: 22px;
-  font-weight: 400;
-  background: transparent;
-  border: none;
-}
-
-.el-btn-close:hover {
-  color: #ff6b6b;
-}
-
-.el-btn-add {
-  background: rgba(76, 175, 80, 0.2);
-  border-color: rgba(76, 175, 80, 0.4);
-}
-
-.el-btn-add:hover {
-  background: rgba(76, 175, 80, 0.35);
-}
-
-/* ---------------------------------------------------------------------------
-   ADD ENTRY SECTION
---------------------------------------------------------------------------- */
-.el-add-section {
-  background: rgba(76, 175, 80, 0.06);
-  border: 1px solid rgba(76, 175, 80, 0.15);
-  border-radius: 10px;
-  margin-bottom: 14px;
-}
-
-.el-add-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  color: #8bc34a;
-  user-select: none;
-}
-
-.el-add-toggle::-webkit-details-marker {
-  display: none;
-}
-
-.el-add-toggle svg {
-  width: 16px;
-  height: 16px;
-}
-
-.el-add-form {
-  padding: 0 14px 14px;
-}
-
-.el-add-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-
-/* ---------------------------------------------------------------------------
-   FIELD STYLES
---------------------------------------------------------------------------- */
-.el-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 120px;
-}
-
-.el-field label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  opacity: 0.75;
-}
-
-.el-field input,
-.el-field select {
-  padding: 9px 12px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #e8f0f8;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.el-field input:focus,
-.el-field select:focus {
-  border-color: rgba(91, 192, 255, 0.5);
-}
-
-.el-field input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
-}
-
-.el-field-grow {
-  flex: 1;
-  min-width: 200px;
-}
-
-.el-field-check {
-  min-width: auto;
-  justify-content: flex-end;
-}
-
-.el-field-check label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  text-transform: none;
-  letter-spacing: 0;
-  opacity: 1;
-  cursor: pointer;
-}
-
-.el-field-check input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #ff6b6b;
-}
-
-.el-issue-label {
-  color: #ff8a80;
-}
-
-.el-req {
-  color: #ff6b6b;
-}
-
-/* ---------------------------------------------------------------------------
-   FILTERS SECTION
---------------------------------------------------------------------------- */
-.el-filters {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-.el-filter-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-
-.el-filter-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* ---------------------------------------------------------------------------
-   EVENT LOG — ACTION BAR + PANELS (Phase-3)
---------------------------------------------------------------------------- */
-.eventlog-modal .cad-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.el-topbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0 0;
-}
-
-.el-topbar-spacer {
-  flex: 1;
-}
-
-.el-panel[hidden] {
-  display: none !important;
-}
-
-.el-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px 0;
-}
-
-.el-panel-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  opacity: 0.85;
-}
-
-.eventlog-modal .el-add-section,
-.eventlog-modal .el-filters {
-  margin-bottom: 0;
-}
-
-.eventlog-modal .el-add-form {
-  padding-top: 10px;
-}
-
-.eventlog-modal .el-table-container {
-  flex: 1;
-  max-height: none;
-  overflow: auto;
-}
-
-/* ---------------------------------------------------------------------------
-   EVENT TABLE
---------------------------------------------------------------------------- */
-.el-table-container {
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  overflow: hidden;
-  max-height: calc(92vh - 340px);
-  overflow-y: auto;
-}
-
-.el-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.el-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.el-table th {
-  background: rgba(17, 26, 36, 0.98);
-  padding: 10px 12px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.el-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  vertical-align: middle;
-}
-
-.el-table tbody tr:hover {
-  background: rgba(91, 192, 255, 0.06);
-}
-
-/* Row with issue */
-.el-row-issue {
-  background: rgba(255, 107, 107, 0.08) !important;
-}
-
-.el-row-issue:hover {
-  background: rgba(255, 107, 107, 0.14) !important;
-}
-
-/* Column widths */
-.el-col-flag { width: 36px; text-align: center; }
-.el-col-time { width: 160px; }
-.el-col-cat { width: 160px; }
-.el-col-unit { width: 80px; }
-.el-col-inc { width: 120px; }
-.el-col-details { }
-.el-col-actions { width: 50px; text-align: center; }
-
-/* Cell styles */
-.el-ts {
-  font-family: "Consolas", "Monaco", monospace;
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.el-cat-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  background: rgba(91, 192, 255, 0.15);
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.el-cat-remark {
-  background: rgba(255, 193, 7, 0.2);
-  color: #ffd54f;
-}
-
-.el-cat-training {
-  background: rgba(76, 175, 80, 0.2);
-  color: #81c784;
-}
-
-.el-cat-maintenance {
-  background: rgba(156, 39, 176, 0.2);
-  color: #ce93d8;
-}
-
-.el-cat-building-riser-checks {
-  background: rgba(33, 150, 243, 0.2);
-  color: #64b5f6;
-}
-
-.el-unit {
-  font-weight: 700;
-  color: #81d4fa;
-}
-
-.el-empty {
-  opacity: 0.4;
-}
-
-.el-inc-link {
-  background: transparent;
-  border: none;
-  color: #64b5f6;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.el-inc-link:hover {
-  background: rgba(100, 181, 246, 0.15);
-  text-decoration: underline;
-}
-
-.el-details-text {
-  line-height: 1.4;
-}
-
-.el-user {
-  font-size: 11px;
-  opacity: 0.6;
-  margin-top: 2px;
-}
-
-/* Issue flag button */
-.el-issue-dot {
-  background: transparent;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  opacity: 0.3;
-  transition: opacity 0.15s;
-}
-
-.el-issue-dot:hover {
-  opacity: 0.7;
-}
-
-.el-issue-dot svg {
-  width: 16px;
-  height: 16px;
-}
-
-.el-issue-dot.el-issue-active {
-  opacity: 1;
-  color: #ff6b6b;
-}
-
-.el-issue-dot.el-issue-active:hover {
-  opacity: 0.8;
-}
-
-/* Action button */
-.el-action-btn {
-  background: transparent;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  opacity: 0.5;
-  color: #d9e6f2;
-}
-
-.el-action-btn:hover {
-  opacity: 1;
-  color: #64b5f6;
-}
-
-.el-action-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Empty state */
-.el-empty-state {
-  text-align: center;
-  padding: 50px 20px !important;
-}
-
-.el-empty-icon {
-  margin-bottom: 14px;
-  opacity: 0.3;
-}
-
-.el-empty-icon svg {
-  width: 48px;
-  height: 48px;
-}
-
-.el-empty-text {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.el-empty-hint {
-  font-size: 13px;
-  opacity: 0.6;
-}
-
-/* ---------------------------------------------------------------------------
-   STATUS BAR
---------------------------------------------------------------------------- */
-.el-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 4px 0;
-  font-size: 12px;
-  opacity: 0.7;
-}
-
-.el-issue-badge {
-  background: rgba(255, 107, 107, 0.2);
-  color: #ff8a80;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
-/* ============================================================
-   SETTINGS MODAL
-============================================================ */
 .settings-modal {
-  max-width: 500px;
-  width: 90%;
-}
-
-.settings-body {
-  padding: 20px;
+    width: 600px;
 }
 
 .settings-section {
-  margin-bottom: 24px;
+    margin-bottom: var(--space-4, 16px);
+    padding-bottom: var(--space-4, 16px);
+    border-bottom: 1px solid var(--border-default, #30363d);
 }
 
 .settings-section:last-child {
-  margin-bottom: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .settings-section-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted, #8a99a8);
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--panel-border, #cfd9e6);
+    font-size: var(--text-sm, 12px);
+    font-weight: 700;
+    color: var(--text-link, #58a6ff);
+    margin-bottom: var(--space-3, 12px);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2, 8px) 0;
 }
 
-.settings-row label {
-  font-size: 14px;
-  color: var(--text-primary, #1e2a36);
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.settings-item-label {
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--text-sm, 12px);
 }
 
-.settings-row select {
-  padding: 6px 12px;
-  border: 1px solid var(--panel-border, #cfd9e6);
-  border-radius: 6px;
-  background: var(--panel-surface, #fff);
-  color: var(--text-primary, #1e2a36);
-  font-size: 14px;
-  min-width: 150px;
+.settings-item-value {
+    color: var(--text-primary, #f0f6fc);
+    font-weight: 600;
 }
 
-.settings-row input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+/* Toggle switch */
+.toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-hover, #30363d);
+    border-radius: var(--radius-full, 9999px);
+    cursor: pointer;
+    transition: background 0.2s ease;
 }
 
-.settings-shortcuts {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+.toggle-switch.active {
+    background: var(--ford-blue-light, #3b82f6);
 }
 
-.shortcut-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--text-secondary, #5f6f82);
+.toggle-switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
 }
 
-.shortcut-row kbd {
-  display: inline-block;
-  padding: 3px 8px;
-  font-size: 12px;
-  font-family: monospace;
-  background: var(--panel-bg, #f4f7fb);
-  border: 1px solid var(--panel-border, #cfd9e6);
-  border-radius: 4px;
-  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
-  min-width: 32px;
-  text-align: center;
+.toggle-switch.active::after {
+    transform: translateX(20px);
+}
+
+/* ---------------------------------------------------------------------------
+   LOGIN MODAL SPECIFIC
+--------------------------------------------------------------------------- */
+.login-modal {
+    width: 420px;
+}
+
+.login-modal .cad-modal-body {
+    padding: var(--space-6, 24px);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: var(--space-4, 16px);
+}
+
+.login-logo img {
+    height: 40px;
+    filter: brightness(1.2);
+}
+
+.login-title {
+    text-align: center;
+    font-size: var(--text-xl, 18px);
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    margin-bottom: var(--space-4, 16px);
+}
+
+.login-subtitle {
+    text-align: center;
+    font-size: var(--text-sm, 12px);
+    color: var(--text-muted, #6e7681);
+    margin-bottom: var(--space-6, 24px);
+}
+
+/* ---------------------------------------------------------------------------
+   HELP MODAL SPECIFIC
+--------------------------------------------------------------------------- */
+.help-modal {
+    width: 700px;
+}
+
+.help-section {
+    margin-bottom: var(--space-4, 16px);
+}
+
+.help-section-title {
+    font-size: var(--text-sm, 12px);
+    font-weight: 700;
+    color: var(--text-link, #58a6ff);
+    margin-bottom: var(--space-2, 8px);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.help-commands {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--space-1, 4px) var(--space-3, 12px);
+}
+
+.help-cmd {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--text-sm, 12px);
+    color: var(--success-text, #3fb950);
+    font-weight: 600;
+}
+
+.help-desc {
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary, #8b949e);
+}
+
+/* ---------------------------------------------------------------------------
+   HELD CALLS MODAL
+--------------------------------------------------------------------------- */
+.held-modal {
+    width: 800px;
+}
+
+.held-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+}
+
+.held-item {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: var(--space-3, 12px);
+    align-items: center;
+    padding: var(--space-3, 12px);
+    background: var(--bg-elevated, #21262d);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: var(--radius-lg, 8px);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.held-item:hover {
+    background: var(--bg-hover, #30363d);
+    border-color: var(--border-emphasis, #8b949e);
+}
+
+.held-item-id {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    color: var(--text-link, #58a6ff);
+}
+
+.held-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+}
+
+.held-item-type {
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+}
+
+.held-item-location {
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary, #8b949e);
+}
+
+.held-item-time {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--text-sm, 12px);
+    color: var(--danger-text, #f85149);
+}
+
+/* ---------------------------------------------------------------------------
+   HISTORY MODAL
+--------------------------------------------------------------------------- */
+.history-modal {
+    width: 900px;
+}
+
+.history-filters {
+    display: flex;
+    gap: var(--space-3, 12px);
+    margin-bottom: var(--space-4, 16px);
+    padding-bottom: var(--space-4, 16px);
+    border-bottom: 1px solid var(--border-default, #30363d);
+}
+
+.history-filters input,
+.history-filters select {
+    flex: 1;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th {
+    text-align: left;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: var(--bg-hover, #30363d);
+    font-size: var(--text-xs, 11px);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #6e7681);
+    border-bottom: 1px solid var(--border-default, #30363d);
+}
+
+.history-table td {
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-bottom: 1px solid var(--border-muted, #21262d);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-primary, #f0f6fc);
+}
+
+.history-table tr:hover {
+    background: var(--bg-hover, #30363d);
+}
+
+/* ---------------------------------------------------------------------------
+   DAILY LOG MODAL
+--------------------------------------------------------------------------- */
+.dailylog-modal {
+    width: 850px;
+}
+
+.dailylog-entry {
+    display: grid;
+    grid-template-columns: 100px 100px 1fr;
+    gap: var(--space-3, 12px);
+    padding: var(--space-2, 8px) 0;
+    border-bottom: 1px solid var(--border-muted, #21262d);
+    font-size: var(--text-sm, 12px);
+}
+
+.dailylog-entry:last-child {
+    border-bottom: none;
+}
+
+.dailylog-time {
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted, #6e7681);
+}
+
+.dailylog-user {
+    color: var(--text-link, #58a6ff);
+    font-weight: 600;
+}
+
+.dailylog-event {
+    color: var(--text-primary, #f0f6fc);
+}
+
+/* ---------------------------------------------------------------------------
+   CONFIRMATION MODAL
+--------------------------------------------------------------------------- */
+.confirm-modal {
+    width: 420px;
+}
+
+.confirm-modal .cad-modal-body {
+    text-align: center;
+    padding: var(--space-6, 24px);
+}
+
+.confirm-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--space-4, 16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(218, 54, 51, 0.15);
+    border-radius: 50%;
+    color: var(--danger-text, #f85149);
+}
+
+.confirm-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.confirm-message {
+    font-size: var(--text-lg, 16px);
+    color: var(--text-primary, #f0f6fc);
+    margin-bottom: var(--space-2, 8px);
+}
+
+.confirm-submessage {
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary, #8b949e);
+}
+
+/* ---------------------------------------------------------------------------
+   TOAST NOTIFICATIONS
+--------------------------------------------------------------------------- */
+.cad-toast-container {
+    position: fixed;
+    top: var(--space-4, 16px);
+    right: var(--space-4, 16px);
+    z-index: calc(var(--z-tooltip, 1200) + 1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    pointer-events: none;
+}
+
+.cad-toast {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    background: var(--bg-surface, #161b22);
+    border: 1px solid var(--border-default, #30363d);
+    border-radius: var(--radius-lg, 8px);
+    box-shadow: var(--shadow-lg, 0 10px 15px rgba(0, 0, 0, 0.5));
+    min-width: 300px;
+    max-width: 450px;
+    pointer-events: auto;
+    animation: toast-in 0.3s ease;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.cad-toast.toast-out {
+    animation: toast-out 0.3s ease forwards;
+}
+
+@keyframes toast-out {
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.cad-toast-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cad-toast.success .cad-toast-icon {
+    background: rgba(35, 134, 54, 0.2);
+    color: var(--success-text, #3fb950);
+}
+
+.cad-toast.error .cad-toast-icon {
+    background: rgba(218, 54, 51, 0.2);
+    color: var(--danger-text, #f85149);
+}
+
+.cad-toast.warning .cad-toast-icon {
+    background: rgba(158, 106, 3, 0.2);
+    color: var(--warning-text, #d29922);
+}
+
+.cad-toast.info .cad-toast-icon {
+    background: rgba(56, 139, 253, 0.2);
+    color: var(--text-link, #58a6ff);
+}
+
+.cad-toast-content {
+    flex: 1;
+}
+
+.cad-toast-title {
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    font-size: var(--text-sm, 12px);
+}
+
+.cad-toast-message {
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary, #8b949e);
+    margin-top: 2px;
+}
+
+.cad-toast-close {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #6e7681);
+    cursor: pointer;
+    border-radius: var(--radius-sm, 4px);
+    transition: all 0.15s ease;
+}
+
+.cad-toast-close:hover {
+    background: var(--bg-hover, #30363d);
+    color: var(--text-primary, #f0f6fc);
+}
+
+/* ---------------------------------------------------------------------------
+   LOADING STATES
+--------------------------------------------------------------------------- */
+.cad-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8, 32px);
+}
+
+.cad-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-default, #30363d);
+    border-top-color: var(--ford-blue-light, #3b82f6);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---------------------------------------------------------------------------
+   RESPONSIVE
+--------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .cad-modal {
+        min-width: auto;
+        width: 95vw;
+        max-height: 95vh;
+    }
+    
+    .login-modal,
+    .settings-modal,
+    .help-modal,
+    .held-modal,
+    .history-modal,
+    .dailylog-modal,
+    .confirm-modal {
+        width: 95vw;
+    }
+    
+    .cad-form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .help-commands {
+        grid-template-columns: 1fr;
+    }
+    
+    .help-cmd {
+        margin-bottom: 0;
+    }
+    
+    .held-item {
+        grid-template-columns: 1fr;
+    }
 }
