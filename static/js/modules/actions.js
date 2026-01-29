@@ -42,10 +42,12 @@ const ACTIONS = {
 
         try {
             await CAD_UTIL.postJSON("/api/incident/reopen", { incident_id: Number(id) });
+            try { window.SOUNDS?.success?.(); } catch (_) {}
             CAD_UTIL.refreshPanels?.();
             IAW.open?.(id);
         } catch (err) {
             console.error("[ACTIONS] incident-reopen failed:", err);
+            try { window.SOUNDS?.error?.(); } catch (_) {}
             alert(err?.message || "Unable to reopen incident.");
         }
     }
