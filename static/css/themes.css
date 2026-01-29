@@ -1,0 +1,234 @@
+/* ============================================================
+   FORD-CAD — THEME SYSTEM
+   CSS Variables for Light/Dark/High-Contrast themes
+============================================================ */
+
+/* ============================================================
+   DEFAULT / LIGHT THEME (Ford Blue)
+============================================================ */
+:root,
+[data-theme="light"] {
+    /* Brand */
+    --ford-blue: #003a8f;
+    --ford-blue-dark: #002a6b;
+    --ford-blue-light: #e9f0fb;
+
+    /* Shell */
+    --shell-bg: #eef2f7;
+    --shell-surface: #ffffff;
+
+    /* Panels */
+    --panel-bg: #f4f7fb;
+    --panel-surface: #ffffff;
+    --panel-border: #cfd9e6;
+
+    /* Text */
+    --text-primary: #1e2a36;
+    --text-secondary: #5f6f82;
+    --text-muted: #8a99a8;
+    --text-inverse: #ffffff;
+
+    /* Header */
+    --header-bg: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
+    --header-text: #ffffff;
+
+    /* Toolbar */
+    --toolbar-bg: var(--ford-blue-light);
+    --toolbar-border: var(--panel-border);
+
+    /* Command line */
+    --cmd-bg: #0b1b2a;
+    --cmd-text: #e0e6ed;
+    --cmd-placeholder: #6b7b8a;
+
+    /* Modals */
+    --modal-bg: #ffffff;
+    --modal-header-bg: var(--ford-blue);
+    --modal-header-text: #ffffff;
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+
+    /* Status colors */
+    --status-available: #ffffff;
+    --status-available-text: var(--text-primary);
+    --status-dispatched: #f97316;
+    --status-enroute: #3b82f6;
+    --status-arrived: #14b8a6;
+    --status-operating: #22c55e;
+    --status-transporting: #eab308;
+    --status-busy: #ef4444;
+    --status-oos: #6b7280;
+
+    /* Alerts */
+    --alert-info: #3b82f6;
+    --alert-success: #22c55e;
+    --alert-warning: #f59e0b;
+    --alert-danger: #ef4444;
+
+    /* Interactive */
+    --focus-ring: rgba(59, 130, 246, 0.5);
+    --hover-bg: rgba(0, 0, 0, 0.04);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.10);
+
+    /* Borders */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+}
+
+/* ============================================================
+   DARK THEME
+============================================================ */
+[data-theme="dark"] {
+    /* Brand */
+    --ford-blue: #4a90d9;
+    --ford-blue-dark: #1a365d;
+    --ford-blue-light: #1e3a5f;
+
+    /* Shell */
+    --shell-bg: #0f172a;
+    --shell-surface: #1e293b;
+
+    /* Panels */
+    --panel-bg: #1e293b;
+    --panel-surface: #334155;
+    --panel-border: #475569;
+
+    /* Text */
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-inverse: #0f172a;
+
+    /* Header */
+    --header-bg: linear-gradient(to right, #1a365d, #2563eb);
+    --header-text: #ffffff;
+
+    /* Toolbar */
+    --toolbar-bg: #1e293b;
+    --toolbar-border: #475569;
+
+    /* Command line */
+    --cmd-bg: #0f172a;
+    --cmd-text: #e2e8f0;
+    --cmd-placeholder: #64748b;
+
+    /* Modals */
+    --modal-bg: #1e293b;
+    --modal-header-bg: #2563eb;
+    --modal-header-text: #ffffff;
+    --modal-overlay: rgba(0, 0, 0, 0.7);
+
+    /* Status colors (brighter for dark bg) */
+    --status-available: #334155;
+    --status-available-text: #f1f5f9;
+    --status-dispatched: #fb923c;
+    --status-enroute: #60a5fa;
+    --status-arrived: #2dd4bf;
+    --status-operating: #4ade80;
+    --status-transporting: #fbbf24;
+    --status-busy: #f87171;
+    --status-oos: #9ca3af;
+
+    /* Alerts */
+    --alert-info: #60a5fa;
+    --alert-success: #4ade80;
+    --alert-warning: #fbbf24;
+    --alert-danger: #f87171;
+
+    /* Interactive */
+    --focus-ring: rgba(96, 165, 250, 0.5);
+    --hover-bg: rgba(255, 255, 255, 0.05);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+   HIGH CONTRAST THEME (Accessibility)
+============================================================ */
+[data-theme="high-contrast"] {
+    /* Brand */
+    --ford-blue: #0066cc;
+    --ford-blue-dark: #003366;
+    --ford-blue-light: #e6f2ff;
+
+    /* Shell */
+    --shell-bg: #ffffff;
+    --shell-surface: #ffffff;
+
+    /* Panels */
+    --panel-bg: #ffffff;
+    --panel-surface: #ffffff;
+    --panel-border: #000000;
+
+    /* Text */
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #666666;
+    --text-inverse: #ffffff;
+
+    /* Header */
+    --header-bg: #000000;
+    --header-text: #ffffff;
+
+    /* Toolbar */
+    --toolbar-bg: #f0f0f0;
+    --toolbar-border: #000000;
+
+    /* Command line */
+    --cmd-bg: #000000;
+    --cmd-text: #ffffff;
+    --cmd-placeholder: #cccccc;
+
+    /* Modals */
+    --modal-bg: #ffffff;
+    --modal-header-bg: #000000;
+    --modal-header-text: #ffffff;
+    --modal-overlay: rgba(0, 0, 0, 0.8);
+
+    /* Status colors (high contrast) */
+    --status-available: #ffffff;
+    --status-available-text: #000000;
+    --status-dispatched: #ff6600;
+    --status-enroute: #0066ff;
+    --status-arrived: #009999;
+    --status-operating: #009900;
+    --status-transporting: #cccc00;
+    --status-busy: #cc0000;
+    --status-oos: #666666;
+
+    /* Alerts */
+    --alert-info: #0066ff;
+    --alert-success: #009900;
+    --alert-warning: #cc6600;
+    --alert-danger: #cc0000;
+
+    /* Interactive */
+    --focus-ring: #0066ff;
+    --hover-bg: #e6e6e6;
+
+    /* Shadows (minimal for clarity) */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4);
+
+    /* Borders thicker for visibility */
+    --radius-sm: 2px;
+    --radius-md: 4px;
+    --radius-lg: 6px;
+}
+
+/* High contrast uses thicker borders */
+[data-theme="high-contrast"] .workspace-panel,
+[data-theme="high-contrast"] .cad-modal,
+[data-theme="high-contrast"] input,
+[data-theme="high-contrast"] select,
+[data-theme="high-contrast"] button {
+    border-width: 2px !important;
+}

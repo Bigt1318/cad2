@@ -41,8 +41,8 @@
 body {
     margin: 0;
     font-family: "Segoe UI", system-ui, sans-serif;
-    background: #eef2f7;
-    color: var(--text-main);
+    background: var(--shell-bg, #eef2f7);
+    color: var(--text-primary, var(--text-main));
     overflow: hidden;
 }
 
@@ -53,8 +53,8 @@ a { color: inherit; }
 ------------------------------------------------------------ */
 #cad-header {
     height: var(--header-height);
-    background: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
-    color: #ffffff;
+    background: var(--header-bg, linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue)));
+    color: var(--header-text, #ffffff);
     display: flex;
     align-items: center;
     padding: 0 20px;
@@ -157,8 +157,8 @@ a { color: inherit; }
 ------------------------------------------------------------ */
 #cad-toolbar {
     height: var(--toolbar-height);
-    background: var(--ford-blue-light);
-    border-bottom: 1px solid var(--panel-border);
+    background: var(--toolbar-bg, var(--ford-blue-light));
+    border-bottom: 1px solid var(--toolbar-border, var(--panel-border));
     display: flex;
     align-items: center;
     padding: 0 14px;
@@ -596,8 +596,8 @@ input:disabled, textarea:disabled {
 ------------------------------------------------------------ */
 #command-line {
     height: var(--command-height);
-    background: #dde4ee;
-    border-top: 1px solid var(--panel-border);
+    background: var(--cmd-bg, #dde4ee);
+    border-top: 1px solid var(--toolbar-border, var(--panel-border));
     padding: 6px 10px;
     display: flex;
     align-items: center;

@@ -1,5 +1,6 @@
 [
   "/static/js/modules/utils.js",
+  "/static/js/modules/settings.js",
   "/static/js/modules/state.js",
   "/static/js/modules/toast.js",
   "/static/js/modules/modal.js",
