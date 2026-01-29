@@ -1113,10 +1113,17 @@ def sync_unit_roster_from_unitlog(unitlog_path: str = UNITLOG_PATH) -> None:
 def _shift_effective_from_letter(shift_letter: str) -> str:
     """
     Effective shift key (A/B) used by Phase-3 session + crew persistence.
-    With 2-shift system (A=day, B=night), effective = letter.
+    
+    4-shift rotation:
+      A-Shift and C-Shift work days (0600-1800) → effective "A"
+      B-Shift and D-Shift work nights (1800-0600) → effective "B"
     """
     s = (shift_letter or "").strip().upper()
-    return s if s in ("A", "B") else "A"
+    if s in ("A", "C"):
+        return "A"
+    if s in ("B", "D"):
+        return "B"
+    return "A"  # Default fallback
 
 
 def get_session_shift_letter(request: Request) -> str:
@@ -1238,10 +1245,14 @@ def roster_personnel_ids_all_shifts() -> set[str]:
 
 
 # Battalion chiefs are SHIFT-SCOPED (letter-based). 1578 and Car1 are always visible.
-# 2-shift system: A=day (Batt1), B=night (Batt2)
+# 4-shift rotation: A/C work days (0600-1800), B/D work nights (1800-0600)
+# Each shift has its own Battalion Chief:
+#   A-Shift → Batt1, B-Shift → Batt2, C-Shift → Batt3, D-Shift → Batt4
 BATTALION_BY_SHIFT = {
     "A": ["Batt1"],
     "B": ["Batt2"],
+    "C": ["Batt3"],
+    "D": ["Batt4"],
 }
 
 def visible_command_unit_ids(shift_letter: str, shift_effective: str) -> set[str]:
@@ -8050,8 +8061,8 @@ async def dailylog_modal(request: Request):
         {
             "request": request,
             "subtypes": DAILYLOG_SUBTYPES,
-            "default_from": (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d"),
-            "default_to": today.strftime("%Y-%m-%d"),
+            "default_from": "",  # No default = show all recent entries (running timeline)
+            "default_to": "",    # Filters are available but not pre-set
         },
     )
 
@@ -8221,8 +8232,10 @@ async def api_eventlog_add(request: Request):
     issue_found = 1 if data.get("issue_found") else 0
     user = (data.get("user") or "Dispatcher").strip()
 
-    if not details:
-        return JSONResponse({"ok": False, "error": "Details required"}, status_code=400)
+    # Note: Details are OPTIONAL for Daily Log entries (per FORD-CAD canon)
+    # The category (subtype) provides context even without narrative text
+    # if not details:
+    #     return JSONResponse({"ok": False, "error": "Details required"}, status_code=400)
 
     # Determine action based on category
     action = "REMARK" if subtype == "REMARK" else "DAILYLOG"

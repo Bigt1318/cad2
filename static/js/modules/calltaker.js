@@ -204,7 +204,7 @@ export const CALLTAKER = {
             return;
         }
 
-        // Daily Log incidents require subtype + narrative/details
+        // Daily Log incidents require subtype only (narrative is OPTIONAL per FORD-CAD canon)
         if (isDL) {
             const subtypeVal = (EL.dailySubtype?.value || "").trim();
             if (!subtypeVal) {
@@ -212,13 +212,7 @@ export const CALLTAKER = {
                 EL.dailySubtype?.focus();
                 return;
             }
-
-            const detailsVal = (EL.narrative?.value || "").trim();
-            if (!detailsVal) {
-                alert("Daily Log details are required (use Narrative).");
-                EL.narrative?.focus();
-                return;
-            }
+            // Note: narrative/details are OPTIONAL for Daily Log entries
         }
 
         const payload = {

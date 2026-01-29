@@ -302,12 +302,68 @@ LAYOUT.setRosterViewMode = async function (mode) {
 };
 
 // ---------------------------------------------------------------------------
+// Global Keyboard Shortcuts
+// ---------------------------------------------------------------------------
+function _wireGlobalShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    // Skip if user is typing in an input/textarea/select
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+    // Skip if modifier keys are pressed (except for specific combos)
+    const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
+
+    switch (e.key) {
+      case "F2":
+        // F2 = New Incident
+        e.preventDefault();
+        window.CALLTAKER?.startNewIncident?.();
+        break;
+
+      case "F5":
+        // F5 = Refresh panels (prevent browser refresh)
+        e.preventDefault();
+        CAD_UTIL.refreshPanels();
+        break;
+
+      case "F9":
+        // F9 = Daily Log
+        e.preventDefault();
+        CAD_MODAL.open("/modals/dailylog");
+        break;
+
+      case "Escape":
+        // ESC = Close modal (if open)
+        if (CAD_MODAL.isOpen?.()) {
+          e.preventDefault();
+          CAD_MODAL.close();
+        }
+        break;
+
+      case "h":
+        // H = Held calls (when no modifier)
+        if (!hasModifier) {
+          e.preventDefault();
+          CAD_MODAL.open("/modals/held");
+        }
+        break;
+
+      default:
+        break;
+    }
+  });
+
+  console.log("[LAYOUT] Global shortcuts: F2=New, F5=Refresh, F9=DailyLog, ESC=Close, H=Held");
+}
+
+// ---------------------------------------------------------------------------
 // Public init
 // ---------------------------------------------------------------------------
 LAYOUT.init = async () => {
   _wireDrawer();
   _wireToolbar();
   _wireSessionButtons();
+  _wireGlobalShortcuts();
   _startHeldWatcher();
   await _refreshSessionStatus();
   console.log("[LAYOUT] Module loaded (Ford-CAD — Canonical)");
