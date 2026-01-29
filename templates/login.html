@@ -1,0 +1,211 @@
+<!-- FILE: templates/login.html (NEW FILE) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FORD-CAD — Login</title>
+
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/modals.css">
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0b1622;
+      color: #e7edf5;
+      display: grid;
+      place-items: center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .login-shell {
+      width: min(520px, calc(100vw - 32px));
+      background: #131d27;
+      border: 1px solid #1f2a35;
+      border-radius: 14px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      overflow: hidden;
+    }
+    .login-top {
+      padding: 18px 18px 12px 18px;
+      background: linear-gradient(180deg, #122131, #0f1b28);
+      border-bottom: 1px solid #1f2a35;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .login-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #0b1622;
+      border: 1px solid #1f2a35;
+      padding: 6px;
+    }
+    .login-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .login-title h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+    .login-title div {
+      opacity: 0.85;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .login-body { padding: 16px 18px 18px 18px; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .field label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #9fb3c8;
+    }
+    .field input, .field select {
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid #1f2a35;
+      background: #0f1b28;
+      color: #e7edf5;
+      padding: 0 12px;
+      outline: none;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+    }
+    .hint {
+      font-size: 12px;
+      opacity: 0.85;
+      color: #9fb3c8;
+      margin-top: 2px;
+    }
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .checks {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 2px;
+      font-size: 12px;
+      color: #9fb3c8;
+      font-weight: 700;
+    }
+    .checks input { transform: translateY(1px); }
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .pill {
+      height: 40px;
+      border-radius: 999px;
+      border: 1px solid #1f2a35;
+      background: #162436;
+      color: #e7edf5;
+      padding: 0 16px;
+      font-weight: 900;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    .pill.primary {
+      background: #1b4b8a;
+      border-color: #2a6fbe;
+    }
+    .error {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #2a1212;
+      border: 1px solid #5b1f1f;
+      color: #ffd2d2;
+      font-weight: 800;
+      display: {% if error %}block{% else %}none{% endif %};
+    }
+  </style>
+</head>
+
+<body>
+  <div class="login-shell">
+    <div class="login-top">
+      <img class="login-logo" src="/static/images/logo.png" alt="Ford">
+      <div class="login-title">
+        <h1>FORD-CAD</h1>
+        <div>Dispatcher Login • Shift Context</div>
+      </div>
+    </div>
+
+    <div class="login-body">
+      <form method="post" action="/login" autocomplete="off">
+
+        <div class="field">
+          <label for="dispatcher_unit">Unit ID</label>
+          <input id="dispatcher_unit"
+                 name="dispatcher_unit"
+                 type="text"
+                 inputmode="text"
+                 autofocus
+                 placeholder="e.g., 17"
+                 value="{{ (dispatcher_unit or '') }}"
+                 list="dispatcher-options" />
+          <datalist id="dispatcher-options">
+            {% for opt in dispatcher_options %}
+              <option value="{{ opt.unit_id }}">{{ opt.label }}</option>
+            {% endfor %}
+          </datalist>
+          <div class="hint">Type your unit number. Example: 17 shows “17 - T. Williams”.</div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="shift_letter">Shift</label>
+            <select id="shift_letter" name="shift_letter">
+              {% for s in ["A","B","C","D"] %}
+                <option value="{{ s }}" {% if (shift_letter or suggested_shift_letter) == s %}selected{% endif %}>{{ s }} Shift</option>
+              {% endfor %}
+            </select>
+            <div class="hint">Defaults to the current on-duty shift.</div>
+          </div>
+
+          <div class="field">
+            <label for="password">Password (optional for non-admin)</label>
+            <input id="password"
+                   name="password"
+                   type="password"
+                   placeholder="Leave blank if not required" />
+            <div class="hint">Admins must set/enter a password.</div>
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input type="checkbox" name="require_password" value="1" {% if require_password %}checked{% endif %}> Require password next time</label>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="pill" onclick="window.location='/'">Cancel</button>
+          <button type="submit" class="pill primary">Enter Console</button>
+        </div>
+
+        <div class="error" id="login-error">{% if error %}{{ error }}{% endif %}</div>
+
+      </form>
+    </div>
+  </div>
+</body>
+</html>

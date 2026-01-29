@@ -1,5 +1,5 @@
 <!-- ============================================================
-     BOSK-CAD — DISPATCH PICKER (Phase-3 Enterprise)
+     FORD-CAD — DISPATCH PICKER (Phase-3 Enterprise)
      Canonical Order:
        1) Command
        2) Personnel
@@ -7,9 +7,9 @@
        4) Mutual Aid (collapsible)
 ============================================================= -->
 
-<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
-<div class="bosk-modal dispatch-picker-modal" id="dispatch-picker">
+<div class="cad-modal dispatch-picker-modal" id="dispatch-picker">
 
     <!-- ========================================================
          HEADER
@@ -18,121 +18,30 @@
         <div class="dp-title">
             Dispatch Units — Incident #{{ incident_id }}
         </div>
-        <div class="dp-close" onclick="BOSK_MODAL.close()">✖</div>
+        <div class="dp-close" onclick="CAD_MODAL.close()">✖</div>
     </div>
 
     <!-- ========================================================
          BODY
     ======================================================== -->
     <div class="dp-body">
-
-        <!-- ====================================================
-             SECTION 1 — COMMAND UNITS
-        ====================================================== -->
-        <div class="dp-section">
-            <div class="dp-section-title">Command Units</div>
-
-            {% if command_units|length == 0 %}
-                <div class="dp-empty">No command units found.</div>
-            {% else %}
-                {% for u in command_units %}
-                <div class="dp-unit-row"
-                     onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
-
-                    <img src="/static/images/{{ u.icon }}"
-                         class="dp-unit-icon"
-                         alt="{{ u.unit_id }}">
-
-                    <div class="dp-unit-id">{{ u.unit_id }}</div>
-
-                    <div class="dp-unit-status">
-                        <span class="status-badge status-{{ u.status|lower }}">
-                            {{ u.status }}
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
-            {% endif %}
-        </div>
-
-
-        <!-- ====================================================
-             SECTION 2 — PERSONNEL
-        ====================================================== -->
-        <div class="dp-section">
-            <div class="dp-section-title">Personnel</div>
-
-            {% if personnel_units|length == 0 %}
-                <div class="dp-empty">No personnel on shift.</div>
-            {% else %}
-                {% for u in personnel_units %}
-                <div class="dp-unit-row"
-                     onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
-
-                    <img src="/static/images/{{ u.icon }}"
-                         class="dp-unit-icon"
-                         alt="{{ u.unit_id }}">
-
-                    <div class="dp-unit-id">{{ u.unit_id }}</div>
-
-                    <div class="dp-unit-status">
-                        <span class="status-badge status-{{ u.status|lower }}">
-                            {{ u.status }}
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
-            {% endif %}
-        </div>
-
-
-        <!-- ====================================================
-             SECTION 3 — APPARATUS
-        ====================================================== -->
-        <div class="dp-section">
-            <div class="dp-section-title">Apparatus</div>
-
-            {% if apparatus_units|length == 0 %}
-                <div class="dp-empty">No apparatus found.</div>
-            {% else %}
-                {% for u in apparatus_units %}
-                <div class="dp-unit-row"
-                     onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
-
-                    <img src="/static/images/{{ u.icon }}"
-                         class="dp-unit-icon"
-                         alt="{{ u.unit_id }}">
-
-                    <div class="dp-unit-id">{{ u.unit_id }}</div>
-
-                    <div class="dp-unit-status">
-                        <span class="status-badge status-{{ u.status|lower }}">
-                            {{ u.status }}
-                        </span>
-                    </div>
-                </div>
-                {% endfor %}
-            {% endif %}
-        </div>
-
-
-        <!-- ====================================================
-             SECTION 4 — MUTUAL AID (COLLAPSIBLE)
-        ====================================================== -->
-        <div class="dp-section">
-
-            <div class="dp-section-title collapsible"
-                 onclick="PICKER.toggleMutualAid()">
-                Mutual Aid Units
-                <span id="mutual-aid-arrow">▼</span>
+        {% if login_required|default(false) %}
+            <div class="dp-empty dp-login-required">
+                <div>Login Required to dispatch units.</div>
+                <button class="pill-btn modal-submit-btn" onclick="window.location='/login'">Go to Login</button>
             </div>
+        {% else %}
 
-            <div id="mutual-aid-container" class="collapsed">
+            <!-- ====================================================
+                 SECTION 1 — COMMAND UNITS
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Command Units</div>
 
-                {% if mutual_aid_units|length == 0 %}
-                    <div class="dp-empty">No mutual-aid units.</div>
+                {% if command_units|length == 0 %}
+                    <div class="dp-empty">No command units found.</div>
                 {% else %}
-                    {% for u in mutual_aid_units %}
+                    {% for u in command_units %}
                     <div class="dp-unit-row"
                          onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
 
@@ -143,7 +52,7 @@
                         <div class="dp-unit-id">{{ u.unit_id }}</div>
 
                         <div class="dp-unit-status">
-                            <span class="status-badge status-{{ u.status|lower }}">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
                                 {{ u.status }}
                             </span>
                         </div>
@@ -152,16 +61,110 @@
                 {% endif %}
             </div>
 
-        </div>
+            <!-- ====================================================
+                 SECTION 2 — PERSONNEL
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Personnel</div>
 
+                {% if personnel_units|length == 0 %}
+                    <div class="dp-empty">No personnel on shift.</div>
+                {% else %}
+                    {% for u in personnel_units %}
+                    <div class="dp-unit-row"
+                         onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                        <img src="/static/images/{{ u.icon }}"
+                             class="dp-unit-icon"
+                             alt="{{ u.unit_id }}">
+
+                        <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                        <div class="dp-unit-status">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                {{ u.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ====================================================
+                 SECTION 3 — APPARATUS
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Apparatus</div>
+
+                {% if apparatus_units|length == 0 %}
+                    <div class="dp-empty">No apparatus found.</div>
+                {% else %}
+                    {% for u in apparatus_units %}
+                    <div class="dp-unit-row"
+                         onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                        <img src="/static/images/{{ u.icon }}"
+                             class="dp-unit-icon"
+                             alt="{{ u.unit_id }}">
+
+                        <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                        <div class="dp-unit-status">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                {{ u.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ====================================================
+                 SECTION 4 — MUTUAL AID (COLLAPSIBLE)
+            ====================================================== -->
+            <div class="dp-section">
+
+                <div class="dp-section-title collapsible"
+                     onclick="PICKER.toggleMutualAid()">
+                    Mutual Aid Units
+                    <span id="mutual-aid-arrow">▼</span>
+                </div>
+
+                <div id="mutual-aid-container" class="collapsed">
+
+                    {% if mutual_aid_units|length == 0 %}
+                        <div class="dp-empty">No mutual-aid units.</div>
+                    {% else %}
+                        {% for u in mutual_aid_units %}
+                        <div class="dp-unit-row"
+                             onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                            <img src="/static/images/{{ u.icon }}"
+                                 class="dp-unit-icon"
+                                 alt="{{ u.unit_id }}">
+
+                            <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                            <div class="dp-unit-status">
+                                <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                    {{ u.status }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+            </div>
+
+        {% endif %}
     </div> <!-- END body -->
-
 
     <!-- ========================================================
          FOOTER
     ======================================================== -->
     <div class="dp-footer">
-        <button class="pill-btn dp-cancel" onclick="BOSK_MODAL.close()">
+        <button class="pill-btn dp-cancel" onclick="CAD_MODAL.close()">
             Cancel
         </button>
     </div>

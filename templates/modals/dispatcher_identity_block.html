@@ -1,33 +1,8 @@
-<!-- ============================================================
-     BOSK-CAD — Dispatcher Identity Block
-     Included in ALL Modals
-     templates/modals/dispatcher_identity_block.html
-     ============================================================ -->
-
-<div class="modal-identity">
-
-    <div class="modal-identity-row">
-
-        <div class="modal-identity-label">
-            User
-        </div>
-
-        <div class="modal-identity-value">
-            {{ request.session.get("user", "Dispatcher") }}
-        </div>
-
-    </div>
-
-    <div class="modal-identity-row">
-
-        <div class="modal-identity-label">
-            Shift
-        </div>
-
-        <div class="modal-identity-value">
-            {{ request.session.get("shift", "X") }}
-        </div>
-
-    </div>
-
+<div class="dispatcher-identity">
+    <span class="dispatcher-identity-unit">
+        {{ request.session.get("dispatcher_unit") or request.session.get("unit") or "Dispatcher" }}
+    </span>
+    <span class="dispatcher-identity-shift">
+        Shift {{ request.session.get("shift_letter") or request.session.get("shift") or "X" }}
+    </span>
 </div>

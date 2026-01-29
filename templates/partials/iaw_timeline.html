@@ -1,0 +1,70 @@
+<!-- =====================================================
+     IAW — INCIDENT TIMELINE (EMBEDDED PARTIAL)
+     NOTE: In this build, /iaw/<id>/timeline returns Narrative rows.
+===================================================== -->
+
+<div class="iaw-timeline">
+
+    {% if timeline|length == 0 %}
+        <div class="iaw-empty">No timeline events recorded.</div>
+    {% endif %}
+
+    {% for e in timeline %}
+        <div class="iaw-event narrative">
+
+            <div class="iaw-event-header">
+                {{ e.timestamp }}
+                —
+                NARRATIVE
+                {% if e.user %} — {{ e.user }}{% endif %}
+            </div>
+
+            <div class="iaw-event-body">
+                <strong>{{ e.entry_type }}</strong>
+                {% if e.text %}
+                    <div>
+                        {% if e.unit_id %}{{ e.unit_id }} - {% endif %}{{ e.text }}
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+    {% endfor %}
+
+</div>
+
+<style>
+.iaw-timeline {
+    margin-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 8px;
+}
+
+.iaw-event {
+    margin-bottom: 8px;
+    padding-left: 10px;
+    border-left: 3px solid #2a3a52;
+}
+
+.iaw-event.history { border-color: #4da3ff; }
+.iaw-event.narrative { border-color: #5bd28c; }
+.iaw-event.dailylog { border-color: #f1c453; }
+
+.iaw-event-header {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-bottom: 2px;
+}
+
+.iaw-event-body {
+    font-size: 13px;
+    background: rgba(19,32,47,0.7);
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+
+.iaw-empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+</style>

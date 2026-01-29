@@ -1,121 +1,317 @@
 // ============================================================================
-// BOSK-CAD — LAYOUT CONTROLLER
-// Phase-3 Enterprise Edition
+// FORD-CAD — LAYOUT CONTROLLER
+// Phase-3 Canonical
 // ============================================================================
-// Controls:
-//   - Held Call Watcher (badge + animation)
-//   - Live Clock in Header
-//   - Toolbar interactions (Held button -> open modal)
-//   - Global refresh helpers
-//   - BOSK-wide UI behavior hooks
+// Responsibilities:
+//   • Left drawer open/close
+//   • Toolbar button wiring
+//   • Held calls watcher (badge + alert styling)
+//   • Refresh delegation (event-driven)
+//   • Phase-3 Session (Login = shift context initializer)
 // ============================================================================
 
-import { BOSK_MODAL } from "./modal.js";
-import { BOSK_UTIL } from "./utils.js";
-import PANELS from "./panels.js";
+import { CAD_MODAL } from "./modal.js";
+import CAD_UTIL from "./utils.js";
+import IAW from "./iaw.js";
 
-export const LAYOUT = {
+export const LAYOUT = {};
 
-    // ======================================================================
-    // INITIALIZATION (called automatically by bootloader.js)
-    // ======================================================================
-    init() {
-        this.startClock();
-        this.startHeldCallWatcher();
-        console.log("[LAYOUT] Layout initialized.");
-    },
+// ---------------------------------------------------------------------------
+// Drawer
+// ---------------------------------------------------------------------------
+function _drawerEls() {
+  return {
+    drawer: document.getElementById("left-drawer"),
+    backdrop: document.getElementById("left-drawer-backdrop"),
+    openBtn: document.getElementById("btn-app-menu"),
+    closeBtn: document.getElementById("btn-drawer-close"),
+  };
+}
 
-    // ======================================================================
-    // REAL-TIME CLOCK (header, top-right corner)
-    // ======================================================================
-    startClock() {
-        const clockEl = document.getElementById("clock");
-        if (!clockEl) {
-            console.warn("[LAYOUT] Clock element not found.");
-            return;
-        }
+function _drawerOpen() {
+  const { drawer, backdrop } = _drawerEls();
+  if (!drawer || !backdrop) return;
+  drawer.classList.add("is-open");
+  backdrop.classList.add("is-open");
+  drawer.setAttribute("aria-hidden", "false");
+}
 
-        const updateClock = () => {
-            const now = new Date();
-            clockEl.textContent = now.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit"
-            });
-        };
+function _drawerClose() {
+  const { drawer, backdrop } = _drawerEls();
+  if (!drawer || !backdrop) return;
+  drawer.classList.remove("is-open");
+  backdrop.classList.remove("is-open");
+  drawer.setAttribute("aria-hidden", "true");
+}
 
-        updateClock();
-        setInterval(updateClock, 1000);
-    },
+function _drawerToggle() {
+  const { drawer } = _drawerEls();
+  if (!drawer) return;
+  drawer.classList.contains("is-open") ? _drawerClose() : _drawerOpen();
+}
 
-    // ======================================================================
-    // HELD CALL WATCHER (every 5 seconds)
-    // Matches Phase-3 Canon Specification
-    // ======================================================================
-    startHeldCallWatcher() {
-        const badge = document.getElementById("held-count-badge");
-        const btn   = document.getElementById("btn-held-calls");
+function _wireDrawer() {
+  const { openBtn, closeBtn, backdrop } = _drawerEls();
 
-        if (!badge || !btn) {
-            console.warn("[LAYOUT] Held Call button elements missing.");
-            return;
-        }
+  if (openBtn) {
+    openBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      _drawerToggle();
+    });
+  }
 
-        const checkHeld = async () => {
-            try {
-                const res = await fetch("/held_count");
-                const js = await res.json();
-                const count = js.count || 0;
+  if (closeBtn) {
+    closeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      _drawerClose();
+    });
+  }
 
-                badge.textContent = count > 0 ? count : "";
+  if (backdrop) {
+    backdrop.addEventListener("click", (e) => {
+      e.preventDefault();
+      _drawerClose();
+    });
+  }
 
-                if (count > 0) {
-                    btn.classList.add("bosk-held-alert");
-                } else {
-                    btn.classList.remove("bosk-held-alert");
-                }
-            } catch (err) {
-                console.error("[LAYOUT] Held watcher failed:", err);
-            }
-        };
+  // Delegated actions
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-drawer-action]");
+    if (!el) return;
 
-        // Run once immediately + every 5 seconds
-        checkHeld();
-        setInterval(checkHeld, 5000);
-    },
+    e.preventDefault();
+    const action = (el.dataset.drawerAction || "").trim();
 
-    // ======================================================================
-    // TOOLBAR BEHAVIOR
-    // The Held button must open panel/held using modal
-    // ======================================================================
-    initToolbar() {
-        const btnHeld = document.getElementById("btn-held-calls");
-
-        if (!btnHeld) {
-            console.warn("[LAYOUT] Held Calls button not found.");
-            return;
-        }
-
-        btnHeld.addEventListener("click", () => {
-            btnHeld.classList.remove("bosk-held-alert");
-            BOSK_MODAL.open("/panel/held");
-        });
-    },
-
-    // ======================================================================
-    // OPTIONAL: Refresh All Panels (toolbar refresh button)
-    // ======================================================================
-    toolbarRefresh() {
-        PANELS.refreshAll();
+    try {
+      switch (action) {
+        case "new_incident":
+          window.CALLTAKER?.startNewIncident?.();
+          break;
+        case "refresh":
+          CAD_UTIL.refreshPanels();
+          break;
+        case "dailylog":
+          CAD_MODAL.open("/modals/dailylog");
+          break;
+        case "held":
+          CAD_MODAL.open("/modals/held");
+          break;
+        case "history":
+          CAD_MODAL.open("/history");
+          break;
+        case "noop":
+        default:
+          break;
+      }
+    } finally {
+      _drawerClose();
     }
+  });
+
+  // ESC closes drawer
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") _drawerClose();
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar
+// ---------------------------------------------------------------------------
+function _wireToolbar() {
+  const btnNew = document.getElementById("btn-new-incident");
+  const btnRefresh = document.getElementById("btn-refresh");
+  const btnRemark = document.getElementById("btn-add-remark");
+  const btnDaily = document.getElementById("btn-dailylog");
+  const btnHistory = document.getElementById("btn-history");
+  const btnHeld = document.getElementById("btn-held-calls");
+
+  if (btnNew) btnNew.addEventListener("click", () => window.CALLTAKER?.startNewIncident?.());
+  if (btnRefresh) btnRefresh.addEventListener("click", () => CAD_UTIL.refreshPanels());
+
+  if (btnRemark) {
+    btnRemark.addEventListener("click", async () => {
+      const inc = IAW?.getCurrentIncidentId?.();
+      if (!inc) {
+        alert("Open an incident first (IAW), then use Add Remark.");
+        return;
+      }
+      await CAD_MODAL.open(`/incident/${encodeURIComponent(inc)}/remark`);
+    });
+  }
+
+  if (btnDaily) btnDaily.addEventListener("click", () => CAD_MODAL.open("/modals/dailylog"));
+  if (btnHistory) btnHistory.addEventListener("click", () => CAD_MODAL.open("/history"));
+  if (btnHeld) btnHeld.addEventListener("click", () => CAD_MODAL.open("/modals/held"));
+}
+
+// ---------------------------------------------------------------------------
+// Held count watcher
+// ---------------------------------------------------------------------------
+async function _fetchHeldCount() {
+  try {
+    const res = await fetch("/api/held_count", { headers: { "Accept": "application/json" } });
+    const data = await res.json();
+    return Number(data?.count || 0);
+  } catch (e) {
+    return null;
+  }
+}
+
+function _applyHeldCount(count) {
+  const badge = document.getElementById("held-count-badge");
+  const drawerPill = document.getElementById("drawer-held-pill");
+  const btnHeld = document.getElementById("btn-held-calls");
+
+  if (badge) badge.textContent = count > 0 ? String(count) : "";
+
+  const alertOn = count > 0;
+  if (btnHeld) btnHeld.classList.toggle("cad-held-alert", alertOn);
+  if (drawerPill) drawerPill.classList.toggle("cad-held-alert", alertOn);
+}
+
+function _startHeldWatcher() {
+  const tick = async () => {
+    const count = await _fetchHeldCount();
+    if (count === null) return;
+    _applyHeldCount(count);
+  };
+
+  tick();
+  setInterval(tick, 6000);
+}
+
+// ---------------------------------------------------------------------------
+// Phase-3 Session (Login = shift context initializer)
+// ---------------------------------------------------------------------------
+let CAD_SESSION = {
+  logged_in: false,
+  shift_letter: "",
+  shift_effective: "",
+  user: "",
+  dispatcher_unit: "",
+  roster_view_mode: "CURRENT",
 };
 
+async function _postJSON(url, payload) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, data: j };
+}
 
-// ==========================================================================
-// Enterprise Protection (no accidental runtime mutation)
-// ==========================================================================
-Object.freeze(LAYOUT);
+function _applySessionToHeader() {
+  const headerLine = document.getElementById("header-userline");
+  const drawerName = document.getElementById("drawer-name") || document.querySelector(".drawer-name");
 
-console.log("[LAYOUT] Module loaded (Phase-3 Enterprise Edition)");
+  if (!CAD_SESSION.logged_in) {
+    if (headerLine) headerLine.textContent = "LOGIN REQUIRED";
+    if (drawerName) drawerName.textContent = "LOGIN REQUIRED";
+    return;
+  }
 
-export default LAYOUT;
+  const who = (CAD_SESSION.dispatcher_unit || CAD_SESSION.user || "Dispatcher");
+  const label = `${CAD_SESSION.shift_letter} Shift – ${who} – ${CAD_SESSION.user || who}`;
+
+  if (headerLine) headerLine.textContent = label;
+  if (drawerName) drawerName.textContent = who;
+}
+
+async function _refreshSessionStatus() {
+  const r = await fetch("/api/session/status", { headers: { "Accept": "application/json" } });
+  const j = await r.json().catch(() => ({}));
+
+  CAD_SESSION = {
+    logged_in: !!j.logged_in,
+    shift_letter: j.shift_letter || "",
+    shift_effective: j.shift_effective || "",
+    user: j.user || "",
+    dispatcher_unit: j.dispatcher_unit || "",
+    roster_view_mode: j.roster_view_mode || "CURRENT",
+  };
+
+  _applySessionToHeader();
+  return CAD_SESSION;
+}
+
+function _openLogin() {
+  CAD_MODAL.open("/modals/login");
+}
+
+function _wireSessionButtons() {
+  const btnLogin =
+    document.getElementById("btn-login") ||
+    document.querySelector(".login-btn");
+
+  const btnLogout =
+    document.getElementById("btn-logout") ||
+    document.querySelector(".logout-btn");
+
+  if (btnLogin) {
+    btnLogin.addEventListener("click", (e) => {
+      e.preventDefault();
+      _openLogin();
+    });
+  }
+
+  if (btnLogout) {
+    btnLogout.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await _postJSON("/api/session/logout", {});
+      await _refreshSessionStatus();
+      CAD_UTIL.refreshPanels();
+    });
+  }
+}
+
+// Expose modal submit handler (login modal calls this)
+LAYOUT.loginFromModal = async function () {
+  const du = document.getElementById("login-dispatcher-unit");
+  const sh = document.getElementById("login-shift-letter");
+  if (!du || !sh) return;
+
+  const dispatcher_unit = (du.value || "").trim();
+  const shift_letter = (sh.value || "").trim().toUpperCase();
+  if (!dispatcher_unit || !shift_letter) return;
+
+  const res = await _postJSON("/api/session/login", {
+    dispatcher_unit,
+    user: dispatcher_unit,
+    shift_letter,
+  });
+
+  if (!res.ok || !res.data || !res.data.ok) return;
+
+  await _refreshSessionStatus();
+
+  CAD_MODAL.close();
+  CAD_UTIL.refreshPanels();
+};
+
+// Roster view mode toggle (visibility/filter mode only)
+LAYOUT.setRosterViewMode = async function (mode) {
+  const view_mode = String(mode || "").trim().toUpperCase();
+  if (view_mode !== "CURRENT" && view_mode !== "ALL") return;
+
+  await _postJSON("/api/session/view_mode", { roster_view_mode: view_mode });
+  await _refreshSessionStatus();
+
+  CAD_UTIL.refreshPanels();
+};
+
+// ---------------------------------------------------------------------------
+// Public init
+// ---------------------------------------------------------------------------
+LAYOUT.init = async () => {
+  _wireDrawer();
+  _wireToolbar();
+  _wireSessionButtons();
+  _startHeldWatcher();
+  await _refreshSessionStatus();
+  console.log("[LAYOUT] Module loaded (Ford-CAD — Canonical)");
+};
+
+// Global exposure (debug + templates may refer to LAYOUT)
+window.LAYOUT = LAYOUT;

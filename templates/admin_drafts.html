@@ -1,0 +1,133 @@
+<!-- ============================================================
+     FORD-CAD — ADMIN DRAFT INCIDENT CLEANUP
+     Phase-3D • Admin-Only Utility
+     templates/admin_drafts.html
+============================================================ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin — Draft Incident Cleanup</title>
+
+    <style>
+        body {
+            background-color: #0b1119;
+            color: #e6e6e6;
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+
+        h1 {
+            margin: 0 0 12px 0;
+            font-size: 20px;
+            color: #ffcc00;
+        }
+
+        p.note {
+            margin: 0 0 16px 0;
+            font-size: 13px;
+            color: #bbbbbb;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #121a26;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #1f2a3a;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            background-color: #1a2433;
+            color: #9fd3ff;
+        }
+
+        tr:hover {
+            background-color: #1b2636;
+        }
+
+        .danger {
+            color: #ff6666;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: #7a1f1f;
+            color: #ffffff;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background-color: #a52828;
+        }
+
+        .empty {
+            padding: 12px;
+            color: #7fd17f;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Admin — Draft Incident Cleanup</h1>
+
+<p class="note">
+    Draft incidents have <strong>no incident number</strong> and were never saved.
+    Deleting a draft is permanent but <strong>does not affect run numbering</strong>.
+</p>
+
+{% if drafts and drafts|length > 0 %}
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Created</th>
+            <th>Type</th>
+            <th>Address</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in drafts %}
+        <tr>
+            <td>{{ d.incident_id }}</td>
+            <td>{{ d.created or "" }}</td>
+            <td>{{ d.type or "" }}</td>
+            <td>{{ d.address or "" }}</td>
+            <td class="danger">DRAFT</td>
+            <td>
+                <form method="post"
+                      action="/admin/draft/delete/{{ d.incident_id }}?user={{ user }}"
+                      onsubmit="return confirm('Delete draft incident {{ d.incident_id }} permanently?');">
+                    <button type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+
+<div class="empty">
+    ✔ No draft incidents found.
+</div>
+
+{% endif %}
+
+</body>
+</html>

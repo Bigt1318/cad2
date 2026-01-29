@@ -1,5 +1,7 @@
+<!-- FILE: templates/iaw/iaw_units_fragment.html -->
+
 <!-- ============================================================
-     BOSK-CAD — IAW UNITS FRAGMENT
+     FORD-CAD — IAW UNITS FRAGMENT
      Phase-3 Enterprise Edition
      templates/iaw/iaw_units_fragment.html
 ============================================================ -->
@@ -10,79 +12,82 @@
 
 {% else %}
 
-<table class="iaw-units-table">
-    <thead>
-        <tr>
-            <th style="width:40px;">Icon</th>
-            <th style="width:70px;">Unit</th>
-            <th>Dispatched</th>
-            <th>Enroute</th>
-            <th>Arrived</th>
-            <th>Clear</th>
-            <th style="width:160px;">Action</th>
-        </tr>
-    </thead>
+    <table class="iaw-units-table">
+        <thead>
+            <tr>
+                <th style="width:40px;">Icon</th>
+                <th style="width:70px;">Unit</th>
+                <th>Dispatched</th>
+                <th>Enroute</th>
+                <th>Arrived</th>
+                <th>Clear</th>
+                <th style="width:160px;">Action</th>
+            </tr>
+        </thead>
 
-    <tbody>
-        {% for u in units %}
-        <tr class="iaw-unit-row">
+        <tbody>
+            {% for u in units %}
+                <tr class="iaw-unit-row"
+                    draggable="true"
+                    data-unit-id="{{ u.unit_id }}"
+                    data-incident-id="{{ incident_id }}"
+                    onclick="event.stopPropagation(); UAW.openIncidentUnit({{ incident_id }}, '{{ u.unit_id }}', this)">
 
-            <!-- ICON -->
-            <td class="iaw-unit-icon">
-                <img src="/static/images/{{ u.icon }}"
-                     alt="{{ u.unit_id }}"
-                     class="unit-icon-20">
-            </td>
+                    <!-- ICON -->
+                    <td class="iaw-unit-icon">
+                        <img src="/static/images/{{ u.icon }}"
+                             alt="{{ u.unit_id }}"
+                             class="unit-icon-20">
+                    </td>
 
-            <!-- UNIT NAME -->
-            <td class="iaw-unit-name">
-                {{ u.unit_id }}
-            </td>
+                    <!-- UNIT NAME -->
+                    <td class="iaw-unit-name">
+                        {{ u.unit_id }}
+                    </td>
 
-            <!-- DISPATCHED -->
-            <td class="iaw-unit-time {{ 'time-active' if u.dispatched }}">
-                {{ u.dispatched or '' }}
-            </td>
+                    <!-- DISPATCHED -->
+                    <td class="iaw-unit-time {{ 'time-active' if u.dispatched }}">
+                        {{ u.dispatched or '' }}
+                    </td>
 
-            <!-- ENROUTE -->
-            <td class="iaw-unit-time {{ 'time-active' if u.enroute }}">
-                {{ u.enroute or '' }}
-            </td>
+                    <!-- ENROUTE -->
+                    <td class="iaw-unit-time {{ 'time-active' if u.enroute }}">
+                        {{ u.enroute or '' }}
+                    </td>
 
-            <!-- ARRIVED -->
-            <td class="iaw-unit-time {{ 'time-active' if u.arrived }}">
-                {{ u.arrived or '' }}
-            </td>
+                    <!-- ARRIVED -->
+                    <td class="iaw-unit-time {{ 'time-active' if u.arrived }}">
+                        {{ u.arrived or '' }}
+                    </td>
 
-            <!-- CLEAR -->
-            <td class="iaw-unit-time {{ 'time-active' if u.cleared }}">
-                {{ u.cleared or '' }}
-            </td>
+                    <!-- CLEAR -->
+                    <td class="iaw-unit-time {{ 'time-active' if u.cleared }}">
+                        {{ u.cleared or '' }}
+                    </td>
 
+                    <!-- ACTION BUTTONS -->
+                    <td class="iaw-unit-actions">
 
-            <!-- ACTION BUTTONS -->
-            <td class="iaw-unit-actions">
+                        <button class="iaw-unit-btn"
+                                onclick="event.stopPropagation(); IAW.unitStatus('{{ u.unit_id }}','ENROUTE',{{ incident_id }})">
+                            Enroute
+                        </button>
 
-                <button class="iaw-unit-btn"
-                        onclick="IAW.unitStatus('{{ u.unit_id }}','ENROUTE',{{ incident_id }})">
-                    Enroute
-                </button>
+                        <button class="iaw-unit-btn"
+                                onclick="event.stopPropagation(); IAW.unitStatus('{{ u.unit_id }}','ARRIVED',{{ incident_id }})">
+                            Arrived
+                        </button>
 
-                <button class="iaw-unit-btn"
-                        onclick="IAW.unitStatus('{{ u.unit_id }}','ARRIVED',{{ incident_id }})">
-                    Arrived
-                </button>
+                        <button class="iaw-unit-btn"
+                                onclick="event.stopPropagation(); IAW.unitStatus('{{ u.unit_id }}','CLEAR',{{ incident_id }})">
+                            Clear
+                        </button>
 
-                <button class="iaw-unit-btn"
-                        onclick="IAW.unitStatus('{{ u.unit_id }}','CLEAR',{{ incident_id }})">
-                    Clear
-                </button>
+                    </td>
 
-            </td>
-
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
 {% endif %}

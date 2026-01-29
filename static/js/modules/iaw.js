@@ -1,202 +1,476 @@
 // ============================================================================
-// FORD CAD — INCIDENT ACTION WINDOW (IAW) ENGINE
-// Phase-3 Canonical Edition
-// ============================================================================
-// ROLE:
-//   • Translate dispatcher intent into ONE backend action
-//   • Never manage state
-//   • Never decide narrative vs daily log
-//   • Never partially refresh fragments
-//
-// CONTRACT:
-//   ONE action → ONE backend call → ONE IAW reopen → ONE panel refresh
+// FORD CAD — INCIDENT ACTION WINDOW (IAW)
+// Phase-3 Canonical Controller (freeze-safe state via closure)
+// NON-MODAL DISPOSITIONS: inline expansion inside IAW (no extra overlays)
 // ============================================================================
 
-import { BOSK_MODAL } from "./modal.js";
-import { BOSK_UTIL } from "./utils.js";
+import CAD_UTIL from "./utils.js";
+import { CAD_MODAL } from "./modal.js";
 
 // ---------------------------------------------------------------------------
-// IAW ROOT OBJECT
+// Freeze-safe state (DO NOT store mutable state on a frozen object)
 // ---------------------------------------------------------------------------
-export const IAW = {};
+let _currentIncidentId = null;
 
+// ---------------------------------------------------------------------------
+// Inline UI state (module scoped, safe with Object.freeze)
+// ---------------------------------------------------------------------------
+let _openUnitDispoKey = null;      // `${incidentId}::${unitId}`
+let _eventDispoOpenFor = null;     // incidentId or null
 
-// ============================================================================
-// SECTION 1 — IAW OPEN / NAVIGATION
-// ============================================================================
+function _unitKey(incidentId, unitId) {
+  return `${String(incidentId)}::${String(unitId)}`;
+}
 
-// Open IAW for an incident
-IAW.open = async function (incident_id) {
-    await BOSK_MODAL.open(`/incident/${incident_id}/iaw`);
-};
+function _idSafe(unitId) {
+  // unit ids are already safe, but guard anyway
+  return String(unitId).replace(/[^a-zA-Z0-9_-]/g, "_");
+}
 
-// Edit incident in Calltaker (read-only handoff)
-IAW.editInCalltaker = function (incident_id) {
-    window.location.href = `/calltaker/edit/${incident_id}`;
-};
+function _closeAnyInline() {
+  // Close any open unit disposition row
+  if (_openUnitDispoKey) {
+    const [inc, uid] = _openUnitDispoKey.split("::");
+    const row = document.getElementById(`iaw-dispo-row-${inc}-${_idSafe(uid)}`);
+    if (row) row.style.display = "none";
+    _openUnitDispoKey = null;
+  }
 
+  // Close event disposition inline
+  if (_eventDispoOpenFor) {
+    const box = document.getElementById(`iaw-event-dispo-${_eventDispoOpenFor}`);
+    if (box) box.style.display = "none";
+    _eventDispoOpenFor = null;
+  }
+}
 
-// ============================================================================
-// SECTION 2 — UNIT LIFECYCLE ACTIONS (PHASE-3 CANONICAL)
-// ============================================================================
+function _setSelected(btn, groupSelector) {
+  document.querySelectorAll(groupSelector).forEach(b => b.classList.remove("iaw-code-selected"));
+  btn.classList.add("iaw-code-selected");
+}
 
-// ------------------------------------------------------------
-// ARRIVE UNIT
-// ------------------------------------------------------------
-IAW.arriveUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
-        `/incident/${incident_id}/unit/${unit_id}/arrive`
+function _getUnitDispoRow(incidentId, unitId) {
+  return document.getElementById(`iaw-dispo-row-${String(incidentId)}-${_idSafe(unitId)}`);
+}
+
+function _getUnitSelectedCode(incidentId, unitId) {
+  const row = _getUnitDispoRow(incidentId, unitId);
+  if (!row) return null;
+  return row.dataset.selectedCode || null;
+}
+
+function _setUnitSelectedCode(incidentId, unitId, code) {
+  const row = _getUnitDispoRow(incidentId, unitId);
+  if (!row) return;
+  row.dataset.selectedCode = code || "";
+  const submitBtn = row.querySelector(`[data-role="submit-unit-clear"]`);
+  if (submitBtn) submitBtn.disabled = !code;
+}
+
+function _getUnitRemark(incidentId, unitId) {
+  const row = _getUnitDispoRow(incidentId, unitId);
+  if (!row) return "";
+  const el = row.querySelector(`[data-role="unit-dispo-remark"]`);
+  return (el?.value || "").trim();
+}
+
+function _disableUnitRowControls(incidentId, unitId, disabled) {
+  const row = _getUnitDispoRow(incidentId, unitId);
+  if (!row) return;
+  row.querySelectorAll("button, input, textarea, select").forEach(el => {
+    el.disabled = !!disabled;
+  });
+}
+
+const IAW = {
+
+  // ---------------------------------------------------------------------
+  // STATE
+  // ---------------------------------------------------------------------
+  getCurrentIncidentId() {
+    return _currentIncidentId;
+  },
+
+  // ---------------------------------------------------------------------
+  // OPEN / CLOSE
+  // ---------------------------------------------------------------------
+  async open(incidentId) {
+    if (!incidentId) return;
+
+    _currentIncidentId = String(incidentId);
+
+    await CAD_MODAL.open(
+      `/incident_action_window/${_currentIncidentId}`,
+      { modalClass: "iaw-modal" }
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
+  },
 
-// ------------------------------------------------------------
-// OPERATE UNIT
-// ------------------------------------------------------------
-IAW.operateUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
-        `/incident/${incident_id}/unit/${unit_id}/operate`
+  close() {
+    _currentIncidentId = null;
+    _openUnitDispoKey = null;
+    _eventDispoOpenFor = null;
+    CAD_MODAL.close();
+  },
+
+  reopen() {
+    if (!_currentIncidentId) return;
+    this.open(_currentIncidentId);
+  },
+
+  async assignNumber(incident_id) {
+    if (!incident_id) return;
+
+    try {
+      const res = await CAD_UTIL.postJSON(`/api/incident/assign_number/${encodeURIComponent(incident_id)}`, {});
+      if (!res?.ok) {
+        alert(res?.error || "Unable to assign incident number.");
+        return;
+      }
+
+      // Refresh panels + reopen modal so header updates
+      CAD_UTIL.emitIncidentUpdated?.();
+      this.open(incident_id);
+
+    } catch (err) {
+      console.error("[IAW] assignNumber failed:", err);
+      alert("Unable to assign incident number.");
+    }
+  },
+
+
+  // ---------------------------------------------------------------------
+  // DISPATCH / CALLTAKER
+  // ---------------------------------------------------------------------
+  openDispatchPicker() {
+    if (!_currentIncidentId) return;
+
+    CAD_MODAL.open(
+      `/api/dispatch_picker/refresh/${_currentIncidentId}`,
+      { modalClass: "dispatch-picker-modal" }
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
+  },
 
-// ------------------------------------------------------------
-// CLEAR UNIT (ACTION — NOT STATUS)
-// ------------------------------------------------------------
-IAW.clearUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
-        `/incident/${incident_id}/unit/${unit_id}/clear`
+  editInCalltaker() {
+    if (!_currentIncidentId) return;
+
+    CAD_MODAL.open(
+      `/calltaker/edit/${_currentIncidentId}`,
+      { modalClass: "calltaker-edit-modal" }
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
+  },
 
-// ------------------------------------------------------------
-// UNIT DISPOSITION (POST-CLEAR)
-// ------------------------------------------------------------
-IAW.dispositionUnit = async function (incident_id, unit_id, disposition) {
-    const form = new FormData();
-    form.append("disposition", disposition);
+  // ---------------------------------------------------------------------
+  // UNIT STATUS (Direct, no UAW dependency)
+  // Backend: POST /incident/{incident_id}/unit/{unit_id}/status {status:"..."}
+  // ---------------------------------------------------------------------
+  async setUnitStatus(incident_id, unit_id, status) {
+    if (!incident_id || !unit_id || !status) return;
 
-    await fetch(
-        `/incident/${incident_id}/unit/${unit_id}/disposition`,
-        { method: "POST", body: form }
-    );
+    _closeAnyInline();
 
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-
-// ============================================================================
-// SECTION 3 — INCIDENT LIFECYCLE ACTIONS
-// ============================================================================
-
-// ------------------------------------------------------------
-// INCIDENT DISPOSITION (FINAL CLOSE)
-// ------------------------------------------------------------
-IAW.dispositionIncident = async function (incident_id, disposition) {
-    const form = new FormData();
-    form.append("disposition", disposition);
-
-    await fetch(
-        `/incident/${incident_id}/disposition`,
-        { method: "POST", body: form }
-    );
-
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-// ------------------------------------------------------------
-// HOLD INCIDENT
-// ------------------------------------------------------------
-IAW.holdIncident = async function (incident_id) {
-    await BOSK_UTIL.postJSON(`/incident/${incident_id}/hold`);
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-// ------------------------------------------------------------
-// UNHOLD INCIDENT
-// ------------------------------------------------------------
-IAW.unholdIncident = async function (incident_id) {
-    await BOSK_UTIL.postJSON(`/incident/${incident_id}/unhold`);
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-// ------------------------------------------------------------
-// REOPEN INCIDENT
-// ------------------------------------------------------------
-IAW.reopenIncident = async function (incident_id) {
-    await BOSK_UTIL.postJSON(`/incident/${incident_id}/reopen`);
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-
-// ============================================================================
-// SECTION 4 — REMARKS (IAW CONTEXT)
-// ============================================================================
-
-// Add remark tied to this incident (optional unit association)
-IAW.addRemark = async function (incident_id, text, unit_id = null) {
-    const form = new FormData();
-    form.append("text", text);
-    if (unit_id) form.append("unit_id", unit_id);
-
-    await fetch(
-        `/incident/${incident_id}/remark`,
-        { method: "POST", body: form }
+    await CAD_UTIL.postJSON(
+      `/incident/${encodeURIComponent(incident_id)}/unit/${encodeURIComponent(unit_id)}/status`,
+      { status: String(status).toUpperCase() }
     );
 
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
+    CAD_UTIL.refreshPanels();
+    this.reopen();
+  },
+
+  enrouteUnit(incident_id, unit_id) {
+    return this.setUnitStatus(incident_id, unit_id, "ENROUTE");
+  },
+
+  arriveUnit(incident_id, unit_id) {
+    // Canonical: ARRIVED == ON SCENE
+    return this.setUnitStatus(incident_id, unit_id, "ARRIVED");
+  },
+
+  transportUnit(incident_id, unit_id) {
+    return this.setUnitStatus(incident_id, unit_id, "TRANSPORTING");
+  },
+
+  atMedicalUnit(incident_id, unit_id) {
+    return this.setUnitStatus(incident_id, unit_id, "AT_MEDICAL");
+  },
+
+  // ---------------------------------------------------------------------
+  // INLINE DISPOSITION UI (Option B)
+  // Clear -> show inline disposition -> submit -> disposition save -> clear
+  // Backend:
+  //   POST /incident/{id}/unit/{unit}/disposition {disposition:"R", remark:"..."}
+  //   POST /api/uaw/clear_unit                    {incident_id, unit_id, disposition, comment}
+  // NOTE: backend currently ignores remark; we still send it for forward-compat.
+  // ---------------------------------------------------------------------
+  ui: {
+
+    toggleUnitDisposition(incident_id, unit_id) {
+      if (!incident_id || !unit_id) return;
+
+      const key = _unitKey(incident_id, unit_id);
+      const row = _getUnitDispoRow(incident_id, unit_id);
+      if (!row) return;
+
+      // If clicking the same one, toggle closed
+      if (_openUnitDispoKey === key) {
+        row.style.display = "none";
+        _openUnitDispoKey = null;
+        return;
+      }
+
+      // Close anything else, open this
+      _closeAnyInline();
+      row.style.display = "table-row";
+      _openUnitDispoKey = key;
+
+      // Reset selection state when opening
+      row.dataset.selectedCode = row.dataset.selectedCode || "";
+      const submitBtn = row.querySelector(`[data-role="submit-unit-clear"]`);
+      if (submitBtn) submitBtn.disabled = !row.dataset.selectedCode;
+
+      // Focus remark
+      const remark = row.querySelector(`[data-role="unit-dispo-remark"]`);
+      if (remark) remark.focus();
+    },
+
+    selectUnitDisposition(incident_id, unit_id, code, btnEl) {
+      if (!incident_id || !unit_id || !code) return;
+
+      // Visual highlight within this unit row only
+      const row = _getUnitDispoRow(incident_id, unit_id);
+      if (!row) return;
+
+      // Clear previous selection styling inside this row
+      row.querySelectorAll(".iaw-code-btn").forEach(b => b.classList.remove("iaw-code-selected"));
+      if (btnEl) btnEl.classList.add("iaw-code-selected");
+
+      _setUnitSelectedCode(incident_id, unit_id, String(code).toUpperCase());
+    },
+
+    async submitUnitClear(incident_id, unit_id) {
+      if (!incident_id || !unit_id) return;
+
+      const row = _getUnitDispoRow(incident_id, unit_id);
+      if (!row) return;
+
+      const code = _getUnitSelectedCode(incident_id, unit_id);
+      if (!code) return; // Submit disabled anyway (Option 1)
+
+      const remark = _getUnitRemark(incident_id, unit_id);
+      const alreadyCleared = (row.dataset.alreadyCleared === "1");
+
+      _disableUnitRowControls(incident_id, unit_id, true);
+
+      try {
+        // If already cleared, this is a disposition-only edit.
+        // If not cleared yet, clearing is a single canonical operation:
+        //   • requires disposition for command unit / last clearing unit
+        //   • records UnitAssignments.cleared + disposition + remark
+        //   • returns unit to AVAILABLE in UnitStatus
+        let res = null;
+
+        if (alreadyCleared) {
+          await CAD_UTIL.postJSON(
+            `/incident/${encodeURIComponent(incident_id)}/unit/${encodeURIComponent(unit_id)}/disposition`,
+            { disposition: code, remark }
+          );
+        } else {
+          res = await CAD_UTIL.postJSON(
+            `/api/uaw/clear_unit`,
+            {
+              incident_id: Number(incident_id),
+              unit_id: String(unit_id),
+              disposition: String(code),
+              comment: String(remark || "")
+            }
+          );
+        }
+
+        // Close inline UI, refresh, reopen IAW
+        row.style.display = "none";
+        _openUnitDispoKey = null;
+
+        CAD_UTIL.refreshPanels();
+        IAW.reopen();
+
+        // If the backend indicates the incident now requires Event Disposition,
+        // force the inline Event Dispo box open (do not toggle closed).
+        const needsEvent = !!(
+          res?.requires_event_disposition ||
+          res?.last_unit_cleared ||
+          res?.requires_disposition
+        );
+        if (needsEvent) {
+          try {
+            if (_eventDispoOpenFor !== String(incident_id)) {
+              IAW.ui.toggleEventDisposition(incident_id);
+            }
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.error("[IAW] submitUnitClear failed:", err);
+        alert("Disposition/Clear failed. See console.");
+        _disableUnitRowControls(incident_id, unit_id, false);
+      }
+    },
+
+    cancelUnitDisposition(incident_id, unit_id) {
+      const row = _getUnitDispoRow(incident_id, unit_id);
+      if (!row) return;
+      row.style.display = "none";
+      _openUnitDispoKey = null;
+    },
+
+    unitRemarkKeydown(ev, incident_id, unit_id) {
+      if (ev.key !== "Enter") return;
+      // Enter submits only if a code selected
+      ev.preventDefault();
+      const code = _getUnitSelectedCode(incident_id, unit_id);
+      if (!code) return;
+      IAW.ui.submitUnitClear(incident_id, unit_id);
+    },
+
+    // -----------------------------------------------------------------
+    // EVENT DISPOSITION INLINE (no modal)
+    // Backend: POST /incident/{id}/disposition {code:"MT", comment:"..."}
+    // -----------------------------------------------------------------
+    toggleEventDisposition(incident_id) {
+      if (!incident_id) return;
+
+      const box = document.getElementById(`iaw-event-dispo-${String(incident_id)}`);
+      if (!box) return;
+
+      // If open, close
+      if (_eventDispoOpenFor === String(incident_id)) {
+        box.style.display = "none";
+        _eventDispoOpenFor = null;
+        return;
+      }
+
+      // Close other inline sections and open this
+      _closeAnyInline();
+      box.style.display = "block";
+      _eventDispoOpenFor = String(incident_id);
+
+      // Disable submit until selection
+      const codeSel = box.querySelector(`[data-role="event-dispo-code"]`);
+      const submit = box.querySelector(`[data-role="submit-event-dispo"]`);
+      if (submit) submit.disabled = !(codeSel?.value);
+
+      // Focus comment
+      const comment = box.querySelector(`[data-role="event-dispo-comment"]`);
+      if (comment) comment.focus();
+    },
+
+    eventCodeChanged(incident_id) {
+      const box = document.getElementById(`iaw-event-dispo-${String(incident_id)}`);
+      if (!box) return;
+      const codeSel = box.querySelector(`[data-role="event-dispo-code"]`);
+      const submit = box.querySelector(`[data-role="submit-event-dispo"]`);
+      if (submit) submit.disabled = !(codeSel?.value);
+    },
+
+    async submitEventDisposition(incident_id) {
+      if (!incident_id) return;
+
+      const box = document.getElementById(`iaw-event-dispo-${String(incident_id)}`);
+      if (!box) return;
+
+      const code = (box.querySelector(`[data-role="event-dispo-code"]`)?.value || "").trim();
+      const comment = (box.querySelector(`[data-role="event-dispo-comment"]`)?.value || "").trim();
+
+      if (!code) return;
+
+      // Lock controls while posting
+      box.querySelectorAll("button, input, textarea, select").forEach(el => el.disabled = true);
+
+      try {
+        await CAD_UTIL.postJSON(`/incident/${encodeURIComponent(incident_id)}/disposition`, {
+          code,
+          comment
+        });
+
+        box.style.display = "none";
+        _eventDispoOpenFor = null;
+
+        CAD_UTIL.refreshPanels();
+        IAW.reopen();
+      } catch (err) {
+        console.error("[IAW] submitEventDisposition failed:", err);
+        alert("Event disposition failed. See console.");
+        box.querySelectorAll("button, input, textarea, select").forEach(el => el.disabled = false);
+      }
+    },
+
+    cancelEventDisposition(incident_id) {
+      const box = document.getElementById(`iaw-event-dispo-${String(incident_id)}`);
+      if (!box) return;
+      box.style.display = "none";
+      _eventDispoOpenFor = null;
+    }
+  },
+
+  // ---------------------------------------------------------------------
+  // HOLD / UNHOLD
+  // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // HOLD / UNHOLD
+  // ---------------------------------------------------------------------
+  async holdIncident() {
+    if (!_currentIncidentId) return;
+
+    // Canon: held incidents require a free-text reason
+    const reason = (prompt("Hold reason (required):", "") || "").trim();
+    if (!reason) return;
+
+    if (!CAD_UTIL.confirm(`Place this incident on HOLD?\n\nReason: ${reason}`)) return;
+
+    try {
+      await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/hold`, { reason });
+      CAD_UTIL.refreshPanels();
+      this.reopen();
+    } catch (err) {
+      console.error("[IAW] holdIncident failed:", err);
+      alert(err?.message || String(err));
+    }
+  },
+
+  async unholdIncident() {
+    if (!_currentIncidentId) return;
+
+    await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/unhold`, {});
+    CAD_UTIL.refreshPanels();
+    this.reopen();
+
+    // Hardening: if a modal reopen cancels an in-flight panel swap, run refresh again.
+    setTimeout(() => CAD_UTIL.refreshPanels(), 75);
+  },
+
+
+
+  // ---------------------------------------------------------------------
+  // REOPEN / ISSUE FOUND
+  // ---------------------------------------------------------------------
+  async reopenIncident() {
+    if (!_currentIncidentId) return;
+
+    await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/reopen`, {});
+    CAD_UTIL.refreshPanels();
+    this.reopen();
+  },
+
+  async markIssueFound() {
+    if (!_currentIncidentId) return;
+
+    await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/issue`, {});
+    CAD_UTIL.refreshPanels();
+    this.reopen();
+  }
 };
 
-
-// ============================================================================
-// SECTION 5 — ISSUE FOUND
-// ============================================================================
-
-IAW.addIssue = async function (incident_id, issue_text, followup_required = 0) {
-    const form = new FormData();
-    form.append("issue_text", issue_text);
-    form.append("followup_required", followup_required);
-
-    await fetch(
-        `/incident/${incident_id}/issue`,
-        { method: "POST", body: form }
-    );
-
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
-};
-
-
-// ============================================================================
-// SECTION 6 — DISPATCH (OUTSIDE IAW AUTHORITY)
-// ============================================================================
-
-// Dispatch picker entry point (does NOT dispatch directly)
-IAW.openDispatchPicker = function (incident_id) {
-    BOSK_MODAL.open(`/incident/${incident_id}/dispatch_picker`);
-};
-
-
-// ============================================================================
-// SECTION 7 — SAFETY & EXPORT
-// ============================================================================
-
-// Prevent accidental mutation
+window.IAW = IAW;
 Object.freeze(IAW);
 
-// Expose globally for templates
-window.IAW = IAW;
-
-console.log("[IAW] Phase-3 canonical IAW module loaded.");
+console.log("[IAW] Phase-3 IAW controller loaded (inline dispositions, no extra modals).");
 
 export default IAW;

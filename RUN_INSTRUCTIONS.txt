@@ -3,6 +3,10 @@
    Version: BOSK-CAD_v1.0_M1_2025-11-01
 ==============================================================
 cd "C:\CAD-Sys\BOSK-CAD"
+
+cd C:\Users\blueo\OneDrive\Desktop\cad2
+
+cd c:\cad2
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 

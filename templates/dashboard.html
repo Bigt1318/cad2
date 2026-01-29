@@ -1,0 +1,140 @@
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .emoji {
+            font-size: 4em;
+            margin: 20px 0;
+        }
+        
+        h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        
+        .info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info p {
+            color: #666;
+            font-size: 1.1em;
+            margin: 10px 0;
+        }
+        
+        .date {
+            color: #764ba2;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .status {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .endpoints {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .endpoints h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .endpoint {
+            background: white;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            font-family: 'Courier New', monospace;
+            color: #555;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emoji">🚨</div>
+        <h1>FORD-CAD Phase-3</h1>
+        <h2>{{ title }}</h2>
+        
+        <div class="status">✅ Server is Running</div>
+        
+        <div class="info">
+            <p><strong>Date:</strong> <span class="date">{{ today_date }}</span></p>
+            <p><strong>Status:</strong> Backend API Active</p>
+            <p><strong>Database:</strong> SQLite Connected</p>
+        </div>
+        
+        <div class="endpoints">
+            <h3>📡 Available API Endpoints:</h3>
+            <div class="endpoint">GET /health - Health Check</div>
+            <div class="endpoint">GET /api/units/refresh - Unit List</div>
+            <div class="endpoint">GET /api/dailylog - Daily Log</div>
+            <div class="endpoint">POST /remark - Submit Remark</div>
+            <div class="endpoint">POST /issue_found - Report Issue</div>
+        </div>
+        
+        <div class="footer">
+            <p>Ford CAD Dispatch System &bull; Phase-3 Enterprise Edition</p>
+            <p>Powered by FastAPI & SQLite</p>
+        </div>
+    </div>
+</body>
+</html>

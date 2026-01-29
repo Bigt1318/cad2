@@ -1,76 +1,64 @@
-{% if log_entries|length == 0 %}
+{# ============================================================
+   FILE: templates/partials/dailylog_rows.html
+   FORD-CAD — DAILY LOG ROWS (PARTIAL)
+   Canon: ONLY DAILYLOG journal entries (dl.action='DAILYLOG')
+   Columns: Timestamp | Subtype | Unit | Incident | Details
+   FIXES:
+     • Always show an incident reference if present (even if join fails)
+     • Only show IAW/Hist/Reopen when a resolved internal incident_id exists
+     • Remove dependency on row.label (DailyLog subtype is event_type)
+   ============================================================ #}
 
-<tr>
-    <td colspan="5" class="log-empty">
-        No log entries for this date.
-    </td>
-</tr>
+{% if rows and rows|length %}
+  {% for row in rows %}
+    <tr>
+      <td class="ts">{{ row.timestamp or "" }}</td>
 
-{% else %}
+      <td>{{ row.event_type or "OTHER" }}</td>
 
-    {% for row in log_entries %}
+      <td>{{ row.unit_id or "" }}</td>
 
-        {# ============================================================
-           Assign CSS class based on row.status
-           (Matches Phase-3 status color rules)
-           ============================================================ #}
+      <td>
+        {# Prefer resolved incident_number, then resolved incident_id, then raw stored reference #}
+        {% set display_incident = row.incident_number or row.incident_id or row.incident_ref or row.incident_id_raw or "" %}
 
-        {% set css = "" %}
-        {% if row.action == "DISPATCH" %}
-            {% set css = "status-dispatch" %}
-        {% elif row.action == "ENROUTE" %}
-            {% set css = "status-enroute" %}
-        {% elif row.action == "ARRIVED" %}
-            {% set css = "status-arrived" %}
-        {% elif row.action == "TRANSPORTING" %}
-            {% set css = "status-transporting" %}
-        {% elif row.action == "CLEARED" %}
-            {% set css = "status-cleared" %}
-        {% elif row.action == "ACTIVE" %}
-            {% set css = "status-active" %}
+        {% if display_incident %}
+          <div class="dl-incident-cell">
+            <span class="dl-incident-id">{{ display_incident }}</span>
+
+            {# Buttons ONLY if we have a real internal incident_id #}
+            {% if row.incident_id %}
+              <button class="dl-mini-btn" type="button"
+                      data-action="dailylog-open-iaw"
+                      data-incident-id="{{ row.incident_id }}">
+                IAW
+              </button>
+
+              <button class="dl-mini-btn" type="button"
+                      data-action="dailylog-open-history"
+                      data-incident-id="{{ row.incident_id }}">
+                Hist
+              </button>
+
+              {% if (row.incident_status or "")|upper == "CLOSED" %}
+                <button class="dl-mini-btn dl-mini-danger" type="button"
+                        data-action="incident-reopen"
+                        data-incident-id="{{ row.incident_id }}">
+                  Reopen
+                </button>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% else %}
+          —
         {% endif %}
+      </td>
 
-        <tr class="{{ css }}">
-
-            <!-- TIMESTAMP -->
-            <td class="ts">{{ row.timestamp }}</td>
-
-            <!-- UNIT -->
-            <td>
-                {% if row.unit_id %}
-                    <span class="log-link"
-                          hx-get="/unit_action_window/{{ row.unit_id }}"
-                          hx-target="body"
-                          hx-swap="beforeend">
-                        {{ row.unit_id }}
-                    </span>
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-
-            <!-- INCIDENT -->
-            <td>
-                {% if row.incident_id %}
-                    <span class="log-link"
-                          hx-get="/incident_action_window/{{ row.incident_id }}"
-                          hx-target="body"
-                          hx-swap="beforeend">
-                        {{ row.incident_id }}
-                    </span>
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-
-            <!-- ACTION -->
-            <td>{{ row.action }}</td>
-
-            <!-- DETAILS -->
-            <td>{{ row.details }}</td>
-
-        </tr>
-
-    {% endfor %}
-
+      <td>{{ row.details or "" }}</td>
+    </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="5" class="log-empty">No Daily Log entries.</td>
+  </tr>
 {% endif %}

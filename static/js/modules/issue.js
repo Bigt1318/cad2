@@ -1,115 +1,85 @@
 // ============================================================================
-// FORD CAD — ISSUE FOUND ENGINE (CANONICAL)
-// Phase-3 Stabilized Edition
+// FORD-CAD — ISSUE FOUND (DAILY LOG ONLY)
+// Phase-3 Canonical
 // ============================================================================
 // Responsibilities:
-//   • Open Issue Found modals (new / view)
-//   • Submit Issue Found report to canonical backend endpoint
-//   • Prevent double-submit
-//   • Refresh CAD panels after backend confirmation
+//   • Open Issue Found modal for an incident
+//   • Submit Issue Found payload to /api/* (JSON only)
+//   • Close modal + refresh panels + reopen IAW
 //
-// Explicitly Forbidden:
-//   • Writing narrative
-//   • Incident lifecycle control
-//   • Reopening IAW
-//   • Incident-scoped routing logic
+// Notes:
+//   • Issue Found is valid for DAILY/DAILY LOG type incidents only.
+//   • Backend enforces rules and sets incident.issue_flag.
 // ============================================================================
 
-import { BOSK_MODAL } from "./modal.js";
-import { BOSK_UTIL } from "./utils.js";
+import { CAD_MODAL } from "./modal.js";
+import { CAD_UTIL } from "./utils.js";
 
 export const ISSUE = {
+  startDrag(e) {
+    if (window.CAD_DRAG?.startDrag) window.CAD_DRAG.startDrag(e);
+  },
 
-    // ------------------------------------------------------------
-    // OPEN NEW ISSUE FOUND MODAL
-    // ------------------------------------------------------------
-    openNew(incident_id) {
-        if (!incident_id) {
-            alert("No incident selected.");
-            return;
-        }
+  open(incidentId) {
+    const id = Number(incidentId);
+    if (!id) return;
+    CAD_MODAL.open(`/incident/${encodeURIComponent(id)}/issue`);
+  },
 
-        try {
-            BOSK_MODAL.open("/modals/issue_found/new", { incident_id });
-        } catch (err) {
-            console.error("[ISSUE] Failed to open new issue modal:", err);
-        }
-    },
-
-    // ------------------------------------------------------------
-    // OPEN VIEW ISSUE FOUND MODAL
-    // ------------------------------------------------------------
-    openView(incident_id) {
-        if (!incident_id) {
-            alert("No incident selected.");
-            return;
-        }
-
-        try {
-            BOSK_MODAL.open("/modals/issue_found/view", { incident_id });
-        } catch (err) {
-            console.error("[ISSUE] Failed to open issue view modal:", err);
-        }
-    },
-
-    // ------------------------------------------------------------
-    // SUBMIT ISSUE FOUND REPORT (CANONICAL)
-    // payload = {
-    //   incident_id: number,
-    //   issue_text: string,
-    //   followup_required?: 0 | 1
-    // }
-    // ------------------------------------------------------------
-    async submit(payload) {
-
-        if (!payload?.incident_id || !payload?.issue_text) {
-            alert("Issue text is required.");
-            return;
-        }
-
-        try {
-            this.lockButtons();
-
-            await BOSK_UTIL.postJSON(
-                "/issue_found",
-                payload
-            );
-
-            // Close modal after successful submit
-            BOSK_MODAL.close();
-
-            // Refresh CAD panels to reflect issue flag state
-            if (window.BOSK?.panels?.refreshAll) {
-                window.BOSK.panels.refreshAll();
-            }
-
-        } catch (err) {
-            console.error("[ISSUE] Submit failed:", err);
-            alert("Unable to submit Issue Found report.");
-        } finally {
-            this.unlockButtons();
-        }
-    },
-
-    // ------------------------------------------------------------
-    // PREVENT DOUBLE SUBMIT
-    // ------------------------------------------------------------
-    lockButtons() {
-        document
-            .querySelectorAll(".issue-btn, .pill-btn, button[type='submit']")
-            .forEach(b => b.disabled = true);
-    },
-
-    unlockButtons() {
-        document
-            .querySelectorAll(".issue-btn, .pill-btn, button[type='submit']")
-            .forEach(b => b.disabled = false);
+  async submitIssue() {
+    const inc = Number((document.getElementById("issue-incident-id")?.value || "").trim());
+    if (!inc) {
+      alert("Missing incident id.");
+      return;
     }
+
+    const title = (document.getElementById("issue-title")?.value || "").trim();
+    const description = (document.getElementById("issue-description")?.value || "").trim();
+    const action_taken = (document.getElementById("issue-action")?.value || "").trim();
+    const followup_required = !!document.getElementById("issue-followup-required")?.checked;
+    const followup = (document.getElementById("issue-followup-notes")?.value || "").trim();
+    const severity = (document.getElementById("issue-severity")?.value || "MEDIUM").trim();
+    const location = (document.getElementById("issue-location")?.value || "").trim();
+
+    if (!title) {
+      alert("Issue title is required.");
+      return;
+    }
+
+    try {
+      const payload = {
+        title,
+        description,
+        action_taken,
+        followup_required,
+        followup,
+        severity,
+        location,
+      };
+
+      const res = await CAD_UTIL.postJSON(`/api/incident/${encodeURIComponent(inc)}/issue_found`, payload);
+
+      if (!res?.ok) {
+        alert(res?.error || "Unable to save Issue Found.");
+        return;
+      }
+
+      CAD_MODAL.close();
+
+      // Refresh panels + reopen IAW for immediate confirmation
+      CAD_UTIL.refreshPanels({ incident_id: inc, reason: "issue_found" });
+      CAD_UTIL.reopenIAW(inc);
+
+    } catch (err) {
+      console.error("[ISSUE] submitIssue failed:", err);
+      alert("Unable to save Issue Found.");
+    }
+  },
 };
 
-// Freeze for runtime safety
+window.ISSUE = ISSUE;
 Object.freeze(ISSUE);
 
-console.log("[ISSUE] Module loaded (Ford CAD — Phase-3 Canonical)");
+console.log("[ISSUE] Module loaded (Phase-3 Canonical)");
 
 export default ISSUE;

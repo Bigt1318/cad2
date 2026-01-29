@@ -1,82 +1,204 @@
 <!-- ============================================================
-     BOSK-CAD — CALLTAKER PANEL (Phase 3)
-     View/Edit controlled by calltaker.js
-     ============================================================ -->
+     FORD-CAD — CALLTAKER PANEL
+     Phase-3 Canonical (Keyboard-Polished)
+     IMPORTANT: MUST preserve #panel-calltaker for HTMX stability
+============================================================ -->
 
-<div id="calltaker-wrapper" class="calltaker-panel">
+<section id="panel-calltaker" class="workspace-panel panel-calltaker">
+  <div id="calltaker-wrapper" class="calltaker-panel">
 
-    <!-- HEADER -->
-    <div class="ct-header">Calltaker</div>
-
-    <!-- INCIDENT INFO -->
-    <div class="ct-section">
+    <!-- HEADER ROW -->
+    <div class="ct-header-row">
+      <div>
         <label>Incident #</label>
-        <input type="text" id="ctIncidentNumber" readonly>
-
+        <input type="text" id="ctIncidentNumber" readonly tabindex="-1">
+      </div>
+      <div>
         <label>Date</label>
-        <input type="date" id="ctDate">
-
+        <input type="date" id="ctDate" disabled tabindex="-1">
+      </div>
+      <div>
         <label>Time</label>
-        <input type="time" id="ctTime">
+        <input type="time" id="ctTime" disabled tabindex="-1">
+      </div>
     </div>
 
-    <!-- INCIDENT TYPE -->
+    <!-- LOCATION / GRID -->
     <div class="ct-section">
-        <label>Type</label>
-        <input type="text" id="ctType">
+      <div class="ct-section-title">Location / Grid</div>
 
-        <label>Priority</label>
-        <select id="ctPriority">
-            <option value="1">1 (High)</option>
-            <option value="2">2</option>
-            <option value="3" selected>3</option>
-            <option value="4">4</option>
+      <div class="ct-row">
+        <label for="ctLocation">Location *</label>
+        <input
+          type="text"
+          id="ctLocation"
+          autocomplete="off"
+        >
+
+        <label for="ctNode">Node</label>
+        <input
+          type="text"
+          id="ctNode"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="ct-row">
+        <label for="ctPoleAlpha">Pole Alpha</label>
+        <input
+          type="text"
+          id="ctPoleAlpha"
+          placeholder="A–X"
+          autocomplete="off"
+        >
+
+        <label for="ctPoleAlphaDec">Alpha Dec</label>
+        <input
+          type="text"
+          id="ctPoleAlphaDec"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="ct-row">
+        <label for="ctPoleNum">Pole #</label>
+        <input
+          type="text"
+          id="ctPoleNum"
+          placeholder="1–88"
+          autocomplete="off"
+        >
+
+        <label for="ctPoleNumDec">Num Dec</label>
+        <input
+          type="text"
+          id="ctPoleNumDec"
+          autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <!-- INCIDENT DETAILS -->
+    <div class="ct-section">
+      <div class="ct-section-title">Incident Details</div>
+
+      <div class="ct-row single">
+        <label for="ctType">Type *</label>
+
+        <select id="ctType" name="incident_type" required onchange="CALLTAKER.onTypeChange()">
+          <option value="" selected disabled>Select type…</option>
+
+          <optgroup label="FIRE">
+            <option value="THERMAL EVENT">THERMAL EVENT</option>
+            <option value="VEGETATION FIRE">VEGETATION FIRE</option>
+          </optgroup>
+
+          <optgroup label="EMS">
+            <option value="PERSONAL MEDICAL">PERSONAL MEDICAL</option>
+            <option value="INJURY">INJURY</option>
+            <option value="FALL">FALL</option>
+          </optgroup>
+
+          <optgroup label="RESCUE">
+            <option value="RESCUE">RESCUE</option>
+          </optgroup>
+
+          <optgroup label="OPS">
+            <option value="MVA">MVA</option>
+            <option value="TRANSPORT">TRANSPORT</option>
+            <option value="TEST">TEST</option>
+            <option value="DAILY LOG">DAILY LOG</option>
+          </optgroup>
         </select>
+      </div>
+
+      <!-- DAILY LOG SUBTYPE (only shown when Type = DAILY LOG) -->
+      <div class="ct-row single" id="ctDailySubtypeRow" style="display:none;">
+        <label for="ctDailySubtype">Daily Subtype *</label>
+        <select id="ctDailySubtype" name="daily_subtype" disabled>
+          <option value="" selected disabled>Select subtype…</option>
+          <option value="BUILDING/RISER CHECKS">BUILDING/RISER CHECKS</option>
+          <option value="TRAINING">TRAINING</option>
+          <option value="MAINTENANCE">MAINTENANCE</option>
+          <option value="SAFETY WALK">SAFETY WALK</option>
+          <option value="VEHICLE INSPECTION">VEHICLE INSPECTION</option>
+          <option value="BUMP TEST">BUMP TEST</option>
+          <option value="STANDBY">STANDBY</option>
+          <option value="AED CHECK">AED CHECK</option>
+          <option value="EXTINGUISHER CHECK">EXTINGUISHER CHECK</option>
+          <option value="OTHER">OTHER</option>
+        </select>
+      </div>
     </div>
 
-    <!-- LOCATION -->
-    <div class="ct-section">
-        <label>Location</label>
-        <input type="text" id="ctLocation">
-
-        <label>Node</label>
-        <input type="text" id="ctNode">
-
-        <label>Pole</label>
-        <input type="text" id="ctPole">
+    <!-- NARRATIVE -->
+    <div class="ct-section ct-narrative">
+      <div class="ct-section-title">Narrative</div>
+      <textarea
+        id="ctNarrative"
+        name="narrative"
+        rows="10"
+        autocomplete="off"
+        placeholder="Enter incident narrative…"
+      ></textarea>
     </div>
 
     <!-- CALLER INFO -->
     <div class="ct-section">
-        <label>Caller Name</label>
-        <input type="text" id="ctCallerName">
+      <div class="ct-section-title">Caller</div>
 
-        <label>Caller Phone</label>
-        <input type="text" id="ctCallerPhone">
+      <div class="ct-row">
+        <label for="ctCallerFirst">Caller First</label>
+        <input
+          type="text"
+          id="ctCallerFirst"
+          name="caller_first"
+          autocomplete="off"
+          maxlength="60"
+        >
+
+        <label for="ctCallerLast">Caller Last</label>
+        <input
+          type="text"
+          id="ctCallerLast"
+          name="caller_last"
+          autocomplete="off"
+          maxlength="60"
+        >
+      </div>
+
+      <div class="ct-row">
+        <label for="ctCallerPhone">Phone</label>
+        <input
+          type="tel"
+          id="ctCallerPhone"
+          name="caller_phone"
+          autocomplete="off"
+          inputmode="tel"
+          maxlength="25"
+          placeholder="###-###-####"
+        >
+
+        <label for="ctCallerLocation">Caller Location</label>
+        <input
+          type="text"
+          id="ctCallerLocation"
+          name="caller_location"
+          autocomplete="off"
+          maxlength="120"
+        >
+      </div>
     </div>
 
-    <!-- NARRATIVE (APPEND ONLY) -->
-    <div class="ct-section">
-        <label>Narrative</label>
-        <textarea id="ctNarrative" rows="3"
-                  placeholder="Enter remarks..."></textarea>
-    </div>
-
-    <!-- ISSUE FOUND (CONDITIONAL) -->
-    <div class="ct-section">
-        <button id="btn-issue-found"
-                class="pill-btn"
-                style="display:none;"
-                onclick="CALLTAKER.issueFound()">
-            Issue Found
-        </button>
-    </div>
-
-    <!-- ACTION BUTTONS -->
+    <!-- ACTIONS -->
     <div class="ct-actions">
-        <button class="pill-btn" onclick="CALLTAKER.saveIncident()">Save</button>
-        <button class="pill-btn" onclick="CALLTAKER.clearForm()">Clear</button>
-        <button class="pill-btn" onclick="CALLTAKER.editMode()">Edit</button>
+      <button type="button" class="pill-btn" onclick="CALLTAKER.saveIncident()">
+        Save
+      </button>
+      <button type="button" class="pill-btn secondary" onclick="CALLTAKER.cancelIncident()">
+        Cancel
+      </button>
     </div>
 
-</div>
+  </div>
+</section>

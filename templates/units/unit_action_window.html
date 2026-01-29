@@ -1,114 +1,61 @@
 <!-- ============================================================
-     BOSK-CAD — UNIT ACTION WINDOW (UAW)
-     Phase-3 Enterprise Edition
+     FORD CAD — UNIT ACTION POPUP (SMALL / COMMAND MENU)
      templates/units/unit_action_window.html
-     ============================================================ -->
+============================================================ -->
 
-<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+<!-- Modal Overlay -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
-<div class="bosk-modal uaw-modal" id="uaw-modal">
+<!-- Small UAW Modal -->
+<div class="cad-modal uaw-mini-modal" id="uaw-mini-modal">
 
-    <!-- ========================================================
-         HEADER / DRAG HANDLE
-    ============================================================ -->
-    <div class="uaw-header" onmousedown="UAW.startDrag(event)">
-
-        <div class="uaw-title">
-            Unit {{ unit.unit_id }}
-        </div>
-
-        <div class="uaw-role-badge">
-            {{ unit.role }}
-        </div>
-
-        <div class="uaw-close" onclick="BOSK_MODAL.close()">✖</div>
+  <div class="uaw-mini-header" onmousedown="UAW.startDrag?.(event)">
+    <div class="uaw-mini-title">
+      Unit {{ unit.unit_id }}
     </div>
 
+    <button class="uaw-mini-close" onclick="CAD_MODAL.close()" title="Close">✕</button>
+  </div>
 
-    <!-- ========================================================
-         SECTION 1 — UNIT METADATA
-    ============================================================ -->
-    <div class="uaw-section uaw-metadata">
+  <div class="uaw-mini-body">
 
-        <div class="uaw-meta-grid">
+    <div class="uaw-mini-meta">
+      <div class="meta-row">
+        <span class="lbl">Role</span>
+        <span class="val">{{ unit.role or "—" }}</span>
+      </div>
 
-            <div class="uaw-grid-label">Unit ID</div>
-            <div class="uaw-grid-value">{{ unit.unit_id }}</div>
+      <div class="meta-row">
+        <span class="lbl">Status</span>
+        <span class="val">{{ unit.status or "—" }}</span>
+      </div>
 
-            <div class="uaw-grid-label">Type</div>
-            <div class="uaw-grid-value">{{ unit.type }}</div>
-
-            <div class="uaw-grid-label">Role</div>
-            <div class="uaw-grid-value">{{ unit.role }}</div>
-
-            <div class="uaw-grid-label">Status</div>
-            <div class="uaw-grid-value">{{ unit.status }}</div>
-
-            <div class="uaw-grid-label">Last Updated</div>
-            <div class="uaw-grid-value">{{ unit.last_updated }}</div>
-
-            <div class="uaw-grid-label">Current Location</div>
-            <div class="uaw-grid-value">{{ unit.last_location }}</div>
-
-        </div>
-
+      {% if active_incident_id %}
+      <div class="meta-row">
+        <span class="lbl">Incident</span>
+        <span class="val">#{{ active_incident_id }}</span>
+      </div>
+      {% endif %}
     </div>
 
+    {% if active_incident_id %}
+      <div class="uaw-mini-actions">
+        <button class="cad-btn" onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'ENROUTE')">Enroute</button>
+        <button class="cad-btn" onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'ARRIVED')">Arrived</button>
+        <button class="cad-btn" onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'OPERATING')">Operating</button>
+        <button class="cad-btn danger" onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'CLEAR')">Clear</button>
+      </div>
+    {% else %}
+      <div class="uaw-mini-hint">
+        No active incident for this unit yet.<br>
+        Dispatch the unit to an incident first (via IAW / picker), then status buttons will work.
+      </div>
+    {% endif %}
 
-
-    <!-- ========================================================
-         SECTION 2 — ICON PREVIEW
-    ============================================================ -->
-    <div class="uaw-section uaw-icon-block">
-
-        <img src="/static/images/{{ unit.icon }}"
-             class="uaw-unit-icon"
-             alt="Unit Icon">
-
-        <div class="uaw-icon-note">
-            Icon: {{ unit.icon }}
-        </div>
-
+    <div class="uaw-mini-footer">
+      <button class="cad-btn secondary" onclick="UAW.openDetails('{{ unit.unit_id }}')">Full Unit Details</button>
+      <button class="cad-btn secondary" onclick="CAD_MODAL.close()">Close</button>
     </div>
 
-
-
-    <!-- ========================================================
-         SECTION 3 — STATUS ACTIONS
-    ============================================================ -->
-    <div class="uaw-section uaw-actions">
-
-        <div class="uaw-section-title">Status Actions</div>
-
-        <div class="uaw-actions-row">
-
-            <button class="pill-btn"
-                    onclick="UAW.updateStatus('{{ unit.unit_id }}', 'ENROUTE')">
-                Mark Enroute
-            </button>
-
-            <button class="pill-btn"
-                    onclick="UAW.updateStatus('{{ unit.unit_id }}', 'ARRIVED')">
-                Mark Arrived
-            </button>
-
-            <button class="pill-btn"
-                    onclick="UAW.updateStatus('{{ unit.unit_id }}', 'CLEAR')">
-                Mark Clear
-            </button>
-
-        </div>
-    </div>
-
-
-
-    <!-- ========================================================
-         SECTION 4 — CLOSE FOOTER
-    ============================================================ -->
-    <div class="uaw-footer">
-        <button class="pill-btn uaw-close-btn" onclick="BOSK_MODAL.close()">
-            Close
-        </button>
-    </div>
-
+  </div>
 </div>

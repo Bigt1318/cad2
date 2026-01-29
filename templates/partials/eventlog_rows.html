@@ -1,0 +1,119 @@
+{# ============================================================
+   FILE: templates/partials/eventlog_rows.html
+   FORD-CAD — EVENT LOG ROWS (PARTIAL)
+   Shows: DAILYLOG + REMARK entries
+   Columns: Flag | Timestamp | Category | Unit | Incident | Details | Actions
+   ============================================================ #}
+
+{% if rows and rows|length %}
+  {% for row in rows %}
+    <tr class="el-row{% if row.issue_found %} el-row-issue{% endif %}" data-log-id="{{ row.id }}">
+      
+      {# Issue Flag Column #}
+      <td class="el-col-flag">
+        {% if row.issue_found %}
+          <button class="el-issue-dot el-issue-active" 
+                  type="button"
+                  title="Issue flagged - click to clear"
+                  onclick="EL.toggleIssue({{ row.id }}, true)">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+          </button>
+        {% else %}
+          <button class="el-issue-dot" 
+                  type="button"
+                  title="Flag as issue"
+                  onclick="EL.toggleIssue({{ row.id }}, false)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+          </button>
+        {% endif %}
+      </td>
+      
+      {# Timestamp #}
+      <td class="el-col-time">
+        <span class="el-ts">{{ row.timestamp or "" }}</span>
+      </td>
+      
+      {# Category (event_type for DAILYLOG, action for REMARK) #}
+      <td class="el-col-cat">
+        <span class="el-cat-badge el-cat-{{ (row.category or 'other')|lower|replace('/', '-')|replace(' ', '-') }}">
+          {{ row.category or row.event_type or row.action or "OTHER" }}
+        </span>
+      </td>
+      
+      {# Unit #}
+      <td class="el-col-unit">
+        {% if row.unit_id %}
+          <span class="el-unit">{{ row.unit_id }}</span>
+        {% else %}
+          <span class="el-empty">—</span>
+        {% endif %}
+      </td>
+      
+      {# Incident #}
+      <td class="el-col-inc">
+        {% if row.incident_id %}
+          <button class="el-inc-link" type="button" onclick="EL.openIncident({{ row.incident_id }})">
+            {{ row.incident_number or row.incident_id }}
+          </button>
+        {% else %}
+          <span class="el-empty">—</span>
+        {% endif %}
+      </td>
+      
+      {# Details #}
+      <td class="el-col-details">
+        <div class="el-details-text">{{ row.details or "" }}</div>
+        {% if row.user %}
+          <div class="el-user">by {{ row.user }}</div>
+        {% endif %}
+      </td>
+      
+      {# Actions #}
+      <td class="el-col-actions">
+        {% if row.incident_id %}
+          <button class="el-action-btn" type="button" onclick="EL.openIncident({{ row.incident_id }})" title="Open Incident">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </button>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  
+  {# Status update script #}
+  <script>
+    (function() {
+      const count = {{ rows|length }};
+      const issueCount = {{ rows|selectattr('issue_found')|list|length }};
+      if (window.EL && EL.updateStatus) {
+        EL.updateStatus(count, issueCount);
+      }
+    })();
+  </script>
+  
+{% else %}
+  <tr>
+    <td colspan="7" class="el-empty-state">
+      <div class="el-empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div class="el-empty-text">No entries found</div>
+      <div class="el-empty-hint">Try adjusting your filters or add a new entry above</div>
+    </td>
+  </tr>
+  <script>
+    if (window.EL && EL.updateStatus) {
+      EL.updateStatus(0, 0);
+    }
+  </script>
+{% endif %}

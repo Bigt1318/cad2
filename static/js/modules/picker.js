@@ -1,23 +1,22 @@
 /* ============================================================================
    FORD CAD — DISPATCH PICKER ENGINE
-   Phase-3 Stabilized (Option A — UI Retained, Authority Removed)
+   Phase-3 Stabilized (Option A — UI Retained, Canonical Dispatch Wiring Restored)
 ===============================================================================
 Responsibilities:
   • Capture dispatcher intent
   • Allow unit selection (apparatus + crew)
   • Provide visual feedback
   • Submit ONE canonical dispatch request
+  • Close picker, refresh panels, and reopen IAW (if applicable)
 
 Explicitly NOT responsible for:
-  • Validating availability
-  • Writing narrative
-  • Managing incident lifecycle
-  • Reopening IAW
-  • Refresh orchestration decisions
+  • Deep availability validation logic (backend owns truth)
+  • Writing narrative directly (backend owns logging)
+  • Managing incident lifecycle beyond dispatch
 ============================================================================ */
 
-import { BOSK_MODAL } from "./modal.js";
-import { BOSK_UTIL } from "./utils.js";
+import { CAD_MODAL } from "./modal.js";
+import { CAD_UTIL } from "./utils.js";
 
 export const PICKER = {
 
@@ -28,6 +27,14 @@ export const PICKER = {
     apparatusCrewMap: {},     // { "Engine2": ["21","22"] }
     crewParent: {},
     mutualAidVisible: false,
+
+    /* ============================================================
+       DRAG HANDLE SUPPORT (templates call PICKER.startDrag)
+       ============================================================ */
+    startDrag(event) {
+        // Uses the canonical drag engine if it is globally exposed.
+        window.CAD_DRAG?.startDrag?.(event);
+    },
 
     /* ============================================================
        INIT — called after picker modal loads
@@ -133,7 +140,41 @@ export const PICKER = {
     },
 
     /* ============================================================
-       SUBMIT DISPATCH — SINGLE CANONICAL CALL
+       ONE-CLICK DISPATCH (templates call PICKER.dispatchUnit)
+       ============================================================ */
+    async dispatchUnit(unit_id, incident_id) {
+        if (!incident_id) {
+            alert("No incident selected.");
+            return;
+        }
+        if (!unit_id) {
+            alert("No unit selected.");
+            return;
+        }
+
+        try {
+            const res = await CAD_UTIL.postJSON("/dispatch/unit_to_incident", {
+                incident_id,
+                units: [unit_id]
+            });
+
+            if (res?.ok === false) {
+                alert(res?.error || "Dispatch rejected by backend.");
+                return;
+            }
+
+            CAD_MODAL.close();
+            CAD_UTIL.refreshPanels();
+            await CAD_UTIL.reopenIAW(incident_id);
+
+        } catch (err) {
+            console.error("[PICKER] Dispatch failed:", err);
+            alert(err?.message || "Dispatch failed.");
+        }
+    },
+
+    /* ============================================================
+       SUBMIT DISPATCH — MULTI SELECT
        ============================================================ */
     async submitSelection(incident_id) {
 
@@ -150,22 +191,44 @@ export const PICKER = {
         const units = Array.from(this.selected);
 
         try {
-            await BOSK_UTIL.postJSON("/dispatch/unit_to_incident", {
+            const res = await CAD_UTIL.postJSON("/dispatch/unit_to_incident", {
                 incident_id,
                 units
             });
 
-            // Close picker — backend handles everything else
-            BOSK_MODAL.close();
+            if (res?.ok === false) {
+                alert(res?.error || "Dispatch rejected by backend.");
+                return;
+            }
+
+            CAD_MODAL.close();
+            CAD_UTIL.refreshPanels();
+            await CAD_UTIL.reopenIAW(incident_id);
 
         } catch (err) {
             console.error("[PICKER] Dispatch failed:", err);
-            alert("Dispatch failed.");
+            alert(err?.message || "Dispatch failed.");
         }
     }
 };
 
+/* ============================================================
+   GLOBAL EXPOSURE — REQUIRED FOR onclick=""
+   ============================================================ */
 Object.freeze(PICKER);
-console.log("[PICKER] Module loaded (Ford CAD — Phase-3 Option A)");
+window.PICKER = PICKER;
+
+/* ============================================================
+   HARD GUARD — if something overwrites window.PICKER later,
+   put it back (this prevents "dispatchUnit is not a function")
+   ============================================================ */
+setTimeout(() => {
+    if (!window.PICKER || typeof window.PICKER.dispatchUnit !== "function") {
+        window.PICKER = PICKER;
+        console.warn("[PICKER] window.PICKER was missing/overwritten — restored.");
+    }
+}, 0);
+
+console.log("[PICKER] Module loaded (Ford CAD — Phase-3 Option A) :: v2026-01-06-A");
 
 export default PICKER;

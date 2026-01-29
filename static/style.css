@@ -1,151 +1,1639 @@
 /* ============================================================
-   BOSK-CAD v3 — Phase-3 Core Stylesheet
-   Industrial Dark Theme (T1) + L2 Panel Layout
-   ============================================================ */
+   FORD CAD — PHASE-3 CANONICAL UI
+   Ford Motor Company Rebrand
+============================================================ */
 
 :root {
-    --bosk-bg: #0c1118;
-    --bosk-bg-light: #16202c;
-    --bosk-panel: rgba(22, 32, 44, 0.78);
+    --ford-blue: #003a8f;
+    --ford-blue-dark: #002a6b;
+    --ford-blue-light: #e9f0fb;
 
-    --bosk-accent: #5bc0ff;
-    --bosk-accent-soft: rgba(91, 192, 255, 0.25);
+    --shell-bg: #0b1b2a;
 
-    --bosk-text: #d9e6f2;
-    --bosk-text-soft: #94a9c1;
+    --panel-bg: #f4f7fb;
+    --panel-border: #cfd9e6;
 
-    --panel-left-width: 420px;
-    --panel-center-width: 360px;
+    --text-main: #1e2a36;
+    --text-muted: #5f6f82;
+
+    --header-height: 64px;
+    --toolbar-height: 52px;
+    --command-height: 38px;
+
+    /* Workspace widths (tune here) */
+    --w-calltaker: 40%;
+    --w-units: 25%;
+    --w-incidents: 35%;
+
+    --radius: 12px;
+    --shadow: 0 10px 28px rgba(0,0,0,0.10);
+
+    /* Validation */
+    --req-border: #c62828;
+    --req-bg: #fdecea;
 }
 
-/* GLOBAL ---------------------------------------------------- */
+/* ------------------------------------------------------------
+   GLOBAL
+------------------------------------------------------------ */
+* { box-sizing: border-box; }
 
 body {
     margin: 0;
-    background: var(--bosk-bg);
-    color: var(--bosk-text);
-    font-family: Segoe UI, sans-serif;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #eef2f7;
+    color: var(--text-main);
     overflow: hidden;
 }
 
-/* HEADER ---------------------------------------------------- */
+a { color: inherit; }
 
-#bosk-header {
-    height: 72px;
-    background: var(--bosk-bg-light);
-    border-bottom: 1px solid #1d2733;
+/* ------------------------------------------------------------
+   HEADER
+------------------------------------------------------------ */
+#cad-header {
+    height: var(--header-height);
+    background: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
+    color: #ffffff;
     display: flex;
     align-items: center;
     padding: 0 20px;
 }
 
-.header-inner {
-    width: 100%;
+.header-left {
+    width: 180px;
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding-left: 10px;
 }
 
-.bosk-logo {
-    width: 50px;
-    height: 50px;
-    background: url('/static/images/bosk_logo.png') center/contain no-repeat;
+.header-ford-logo {
+    height: 26px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
 }
 
-.title-main {
-    font-size: 22px;
-    font-weight: 600;
-}
+.header-center { flex: 1; text-align: center; }
 
-.title-sub {
-    font-size: 14px;
-    color: var(--bosk-text-soft);
-}
+.header-title { font-size: 20px; font-weight: 650; letter-spacing: 0.2px; }
+.header-subtitle { font-size: 11px; opacity: 0.70; margin-top: 2px; }
+.header-userline { font-size: 13px; opacity: 0.90; }
+.header-clock { font-size: 18px; font-variant-numeric: tabular-nums; }
 
-/* TOOLBAR --------------------------------------------------- */
-
-#bosk-toolbar {
-    height: 54px;
-    background: var(--bosk-panel);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid #1c2833;
-    padding: 6px 12px;
-}
-
-.toolbar-inner {
+.header-right {
+    width: auto;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.pill-btn {
-    background: var(--bosk-bg-light);
-    border: 1px solid #293744;
-    padding: 6px 18px;
-    border-radius: 20px;
-    color: var(--bosk-text);
+.header-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: #ffffff;
+}
+
+.header-btn:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+}
+
+.header-btn.login-btn {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.header-btn.login-btn:hover {
+    background: rgba(59, 130, 246, 0.4);
+}
+
+.header-btn.logout-btn:hover {
+    border-color: #ef4444;
+    color: #fca5a5;
+}
+
+.header-btn.admin-btn {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.4);
+}
+
+.header-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.shift-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.login-required {
+    color: #fbbf24;
+}
+
+/* ------------------------------------------------------------
+   TOOLBAR
+------------------------------------------------------------ */
+#cad-toolbar {
+    height: var(--toolbar-height);
+    background: var(--ford-blue-light);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+}
+
+.toolbar-left { width: 220px; display: flex; gap: 10px; align-items: center; }
+.toolbar-center { flex: 1; display: flex; justify-content: center; gap: 10px; }
+.toolbar-right { width: 220px; display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
+
+.pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--ford-blue);
+    color: #ffffff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 18px;
     font-size: 14px;
-    transition: 0.15s;
+    font-weight: 650;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.10);
 }
 
-.pill-btn:hover {
-    background: var(--bosk-accent-soft);
-    border-color: var(--bosk-accent);
+.pill-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
-/* WORKSPACE ------------------------------------------------- */
+.pill-btn.secondary { background: #6c7fa3; }
 
+.pill-btn:hover { filter: brightness(1.05); }
+.pill-btn:active { transform: translateY(1px); }
+
+/* ------------------------------------------------------------
+   HELD CALLS TOOLBAR ALERT (watcher toggles .cad-held-alert)
+------------------------------------------------------------ */
+.held-btn { position: relative; }
+
+#held-count-badge:empty { display: none; }
+
+#held-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #ffffff;
+    color: var(--ford-blue);
+}
+
+.held-btn.cad-held-alert {
+    background: #b00020;
+    animation: fordHeldPulse 1.15s ease-in-out infinite;
+}
+
+@keyframes fordHeldPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(176, 0, 32, 0.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(176, 0, 32, 0.00); }
+    100% { box-shadow: 0 0 0 0 rgba(176, 0, 32, 0.00); }
+}
+
+/* ------------------------------------------------------------
+   WORKSPACE
+------------------------------------------------------------ */
 #workspace {
     display: flex;
-    height: calc(100vh - 72px - 54px - 40px);
+    height: calc(100vh - var(--header-height) - var(--toolbar-height) - var(--command-height));
 }
 
-.panel-left {
-    width: var(--panel-left-width);
-    background: var(--bosk-panel);
-    border-right: 1px solid #1c2833;
+.workspace-panel {
     overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid var(--panel-border);
+    min-height: 0;
 }
 
-.panel-center {
-    width: var(--panel-center-width);
-    background: var(--bosk-panel);
-    border-right: 1px solid #1c2833;
-    overflow-y: auto;
+.panel-calltaker {
+    flex: 0 0 var(--w-calltaker);
+    background: var(--panel-bg);
+    padding: 12px;
+    min-width: 520px;
 }
 
-.panel-right {
-    flex: 1;
+.panel-units {
+    flex: 0 0 var(--w-units);
+    background: #ffffff;
+    min-width: 360px;
+}
+
+.panel-incidents {
+    flex: 0 0 var(--w-incidents);
+    min-width: 420px;
+    border-right: none;
+
+    /* key: split active/open inside */
     display: flex;
     flex-direction: column;
-    background: var(--bosk-panel);
+    gap: 10px;
+    padding: 10px;
+    background: #eef2f7;
+    overflow: hidden;
 }
 
-.subpanel {
+/* ------------------------------------------------------------
+   INCIDENTS PANEL (ACTIVE 2/3, OPEN 1/3)
+------------------------------------------------------------ */
+.incident-subpanel {
+    background: #ffffff;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: auto;
+    min-height: 0;
+}
+
+.active-incidents { flex: 2 1 0; }
+.open-incidents { flex: 1 1 0; }
+
+
+
+.incident-panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    background: linear-gradient(to right, #0b2b55, #0b3b79);
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255,255,255,0.16);
+}
+
+.incident-panel-title {
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.panel-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.22);
+}
+
+.incident-empty {
+    padding: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.incident-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.incident-table thead th {
+    text-align: left;
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #415466;
+    background: #f6f9fd;
+    border-bottom: 1px solid #dde6f2;
+    padding: 10px 10px;
+    position: sticky;
+    top: 44px;
+    z-index: 2;
+}
+
+.incident-table tbody td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eef2f7;
+    vertical-align: top;
+}
+
+.incident-row { cursor: pointer; }
+.incident-row:hover { background: var(--ford-blue-light); }
+
+.col-issue, .issue-flag {
+    width: 26px;
+    text-align: center;
+}
+
+.issue-flag { color: #b00020; font-weight: 900; }
+
+.incident-id {
+    font-weight: 900;
+    letter-spacing: 0.2px;
+    color: #0b2b55;
+}
+
+.inc-type-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.inc-type { font-weight: 800; }
+
+/* Unit count badge - compact indicator */
+.unit-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #0b1b2a;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+/* Issue indicator - compact warning */
+.issue-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+/* Incident age column */
+.incident-age {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5f6f82;
+    white-space: nowrap;
+}
+
+.inc-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #ffffff;
+    color: #0b1b2a;
+}
+
+/* Incident status coloring (best-effort: remains readable even for new statuses) */
+.inc-pill[data-status="ACTIVE"],
+.inc-pill[data-status="OPERATING"],
+.inc-pill[data-status="ON SCENE"] { background: rgba(0, 150, 136, 0.14); border-color: rgba(0,150,136,0.28); }
+
+.inc-pill[data-status="OPEN"] { background: rgba(90, 160, 255, 0.14); border-color: rgba(90,160,255,0.28); }
+
+.inc-pill[data-status="DISPATCHED"] { background: rgba(255, 152, 0, 0.16); border-color: rgba(255,152,0,0.30); }
+
+.inc-pill[data-status="HELD"] { background: rgba(176, 0, 32, 0.16); border-color: rgba(176,0,32,0.30); }
+
+.inc-units-inline {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.unit-chip {
+    appearance: none;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #f6f9fd;
+    color: #0b1b2a;
+    border-radius: 999px;
+    padding: 4px 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1;
+}
+
+.unit-chip:hover { background: #eef4ff; border-color: rgba(0,58,143,0.28); }
+
+.cmd-chip {
+    background: #0b2b55;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.unit-chip-id { font-weight: 900; font-size: 12px; }
+
+.unit-chip-status {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 900;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: #ffffff;
+}
+
+/* Unit status colors (Phase-3 Canon colors; tolerant of alternate labels) */
+.unit-chip-status[data-status="ENROUTE"],
+.unit-chip-status[data-status="EN ROUTE"] { background: rgba(27, 116, 209, 0.16); border-color: rgba(27,116,209,0.30); }
+
+.unit-chip-status[data-status="ARRIVED"],
+.unit-chip-status[data-status="ON SCENE"],
+.unit-chip-status[data-status="ONS"],
+.unit-chip-status[data-status="AT SCENE"] { background: rgba(0, 150, 136, 0.16); border-color: rgba(0,150,136,0.30); }
+
+.unit-chip-status[data-status="OPERATING"] { background: rgba(46, 125, 50, 0.16); border-color: rgba(46,125,50,0.30); }
+
+.unit-chip-status[data-status="TRANSPORTING"] { background: rgba(255, 193, 7, 0.20); border-color: rgba(255,193,7,0.34); }
+
+.unit-chip-status[data-status="BUSY"],
+.unit-chip-status[data-status="ACTIVE"],
+.unit-chip-status[data-status="BUSY/ACTIVE"] { background: rgba(176, 0, 32, 0.16); border-color: rgba(176,0,32,0.30); }
+
+.unit-chip-status[data-status="DISPATCHED"] { background: rgba(255, 152, 0, 0.16); border-color: rgba(255,152,0,0.30); }
+
+.unit-chip-status[data-status="CLEARED"],
+.unit-chip-status[data-status="CLEAR"] { background: rgba(96, 125, 139, 0.16); border-color: rgba(96,125,139,0.30); }
+
+/* ------------------------------------------------------------
+   CALLTAKER FORM (existing structure)
+------------------------------------------------------------ */
+.calltaker-panel { display: flex; flex-direction: column; gap: 10px; }
+
+.ct-header-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 10px;
+}
+
+.ct-header-row label { font-size: 12px; color: var(--text-muted); }
+.ct-header-row input { width: 100%; }
+
+.ct-section {
+    background: #ffffff;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    padding: 10px;
+}
+
+.ct-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--ford-blue);
+}
+
+.ct-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 120px 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.ct-row.single { grid-template-columns: 120px 1fr; }
+
+input, textarea {
+    padding: 6px 8px;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    font-size: 14px;
+    max-width: 100%;
+}
+
+select {
+    padding: 6px 8px;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    font-size: 14px;
+    max-width: 100%;
+    background: #ffffff;
+}
+
+textarea { resize: none; }
+
+.ct-narrative textarea { width: 100%; height: 10em; }
+
+.ct-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 6px;
+}
+
+label:has(+ input[required]) { font-weight: 650; }
+
+input[required]:not(:disabled):not(:focus):placeholder-shown,
+input[required]:not(:disabled):not(:focus):invalid {
+    border-color: var(--req-border);
+    background: var(--req-bg);
+}
+
+input[required]:focus {
+    border-color: var(--ford-blue);
+    background: #ffffff;
+    outline: none;
+}
+
+input:disabled, textarea:disabled {
+    background: #f1f3f6;
+    color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------
+   COMMAND LINE
+------------------------------------------------------------ */
+#command-line {
+    height: var(--command-height);
+    background: #dde4ee;
+    border-top: 1px solid var(--panel-border);
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cmd-prefix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ford-blue);
+}
+
+.cmd-prefix svg {
+    width: 16px;
+    height: 16px;
+}
+
+#cmd-input {
+    flex: 1;
+    height: 100%;
+    border: 1px solid var(--panel-border);
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+/* ============================================================
+   IAW — Compact Professional Dark Glass (Commercial CAD Style)
+   Matches context menu / UAW dark glass aesthetic
+============================================================ */
+.iaw-modal {
+    width: 720px;
+    max-width: 94vw;
+    max-height: 88vh;
+    overflow: hidden;
+    border-radius: 10px;
+    background: rgba(15, 23, 34, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    font-size: 13px;
+}
+
+/* IAW Header - Compact dark bar */
+.iaw-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.35);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.iaw-header-left { display: flex; flex-direction: column; gap: 4px; }
+
+.iaw-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.2px;
+}
+
+.iaw-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.iaw-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.iaw-badge-status { background: rgba(59, 130, 246, 0.25); border-color: rgba(59, 130, 246, 0.4); }
+.iaw-badge-priority { background: rgba(249, 115, 22, 0.25); border-color: rgba(249, 115, 22, 0.4); color: #fb923c; }
+.iaw-badge-issue { background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+
+.iaw-header-right {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.iaw-icon-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #e8f0f8;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.1s;
+}
+
+.iaw-icon-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* IAW Body */
+.iaw-body {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.iaw-scroll {
+    overflow: auto;
+    max-height: calc(88vh - 110px);
+    padding: 12px;
+}
+
+/* IAW Cards - Compact sections */
+.iaw-card {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+
+.iaw-card:last-child { margin-bottom: 0; }
+
+.iaw-card-title {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+
+/* Key-Value grid for snapshot */
+.iaw-kv {
+    display: grid;
+    grid-template-columns: 90px 1fr 90px 1fr;
+    gap: 4px 10px;
+    font-size: 12px;
+}
+
+.iaw-k {
+    opacity: 0.5;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+    align-self: center;
+}
+
+.iaw-v {
+    color: #e8f0f8;
+    font-weight: 500;
+}
+
+/* Layout grids */
+.iaw-top-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.iaw-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.iaw-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 8px 0;
+}
+
+/* IAW Buttons - Compact, context-menu style */
+.iaw-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: #e8f0f8;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.iaw-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.iaw-btn-primary {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.iaw-btn-primary:hover {
+    background: rgba(59, 130, 246, 0.4);
+}
+
+.iaw-btn-warn {
+    background: rgba(234, 179, 8, 0.2);
+    border-color: rgba(234, 179, 8, 0.35);
+}
+
+.iaw-btn-warn:hover {
+    background: rgba(234, 179, 8, 0.35);
+}
+
+.iaw-btn-danger {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.iaw-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.35);
+}
+
+.iaw-btn-small {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+/* IAW Table - Compact data display */
+.iaw-table-wrap {
+    overflow-x: auto;
+    margin: 0 -12px;
+    padding: 0 12px;
+}
+
+.iaw-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.iaw-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    opacity: 0.5;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.iaw-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+}
+
+.iaw-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.iaw-table-actions {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* Status pills */
+.iaw-pill {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Narrative section */
+.iaw-narrative {
+    max-height: 180px;
+    overflow: auto;
+    font-size: 12px;
+}
+
+.iaw-n-line {
+    display: grid;
+    grid-template-columns: 130px 100px 1fr;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.iaw-n-line:last-child { border-bottom: none; }
+
+.iaw-n-time {
+    opacity: 0.6;
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+}
+
+.iaw-n-user {
+    opacity: 0.8;
+    font-weight: 700;
+    font-size: 11px;
+    color: #60a5fa;
+}
+
+.iaw-n-text {
+    opacity: 0.95;
+}
+
+.iaw-empty {
+    opacity: 0.4;
+    padding: 8px 0;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* IAW Footer - Compact action bar */
+.iaw-footer {
+    padding: 8px 12px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.25);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.iaw-actions-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.iaw-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Inline disposition row */
+.iaw-inline-dispo {
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.iaw-inline-title {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+
+.iaw-inline-dispo-codes {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.iaw-code-btn {
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    color: #e8f0f8;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.iaw-code-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.iaw-code-btn.iaw-code-selected {
+    background: rgba(59, 130, 246, 0.4);
+    border-color: rgba(59, 130, 246, 0.6);
+}
+
+.iaw-inline-dispo-remark input {
+    width: 100%;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    color: #e8f0f8;
+    font-size: 12px;
+    outline: none;
+    margin-bottom: 8px;
+}
+
+.iaw-inline-dispo-remark input:focus {
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.iaw-inline-dispo-remark input::placeholder {
+    color: rgba(255,255,255,0.35);
+}
+
+.iaw-inline-dispo-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Event disposition inline */
+.iaw-event-dispo {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 8px;
+}
+
+.iaw-event-dispo-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.iaw-event-dispo-row select,
+.iaw-event-dispo-row input {
+    flex: 1;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    color: #e8f0f8;
+    font-size: 12px;
+    outline: none;
+}
+
+.iaw-event-dispo-row select option {
+    background: #1a2535;
+}
+
+.iaw-event-dispo-row select:focus,
+.iaw-event-dispo-row input:focus {
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* =======================================================================
+   Drawer (Resgrid-style slide-out)
+   NOTE: layout.js toggles .is-open on #left-drawer and #left-drawer-backdrop
+   Uses markup classes: .ford-drawer, .ford-drawer-backdrop, .drawer-item, etc.
+======================================================================== */
+.ford-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+    z-index: 8999;
+}
+
+.ford-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 320px;
+    background: rgba(10,20,35,0.92);
+    border-right: 1px solid rgba(255,255,255,0.10);
+    transform: translateX(-101%);
+    transition: transform 0.18s ease;
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(10px);
+}
+
+.ford-drawer.is-open { transform: translateX(0); }
+.ford-drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
+
+.drawer-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 14px 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.drawer-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.18);
+}
+
+.drawer-user { flex: 1; min-width: 0; }
+.drawer-name { font-weight: 800; color: #ffffff; line-height: 1.1; }
+.drawer-meta { font-size: 12px; color: rgba(255,255,255,0.70); margin-top: 2px; }
+
+.drawer-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.06);
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.drawer-close:hover { background: rgba(255,255,255,0.10); }
+
+.drawer-section { padding: 12px 10px; }
+
+.drawer-section-title {
+    font-size: 11px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    padding: 0 8px 6px 8px;
+}
+
+.drawer-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(255,255,255,0.92);
+    cursor: pointer;
+    text-align: left;
+}
+
+.drawer-item:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.10);
+}
+
+.drawer-pill {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    background: #ffffff;
+    color: var(--ford-blue);
+}
+
+.drawer-pill:empty { display: none; }
+
+.drawer-pill.is-hot {
+    background: #b00020;
+    color: #ffffff;
+}
+
+.drawer-focus-pulse {
+    outline: 2px solid rgba(0,58,143,0.45);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
+.drawer-foot {
+    margin-top: auto;
+    padding: 12px 14px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.drawer-foot-note {
+    font-size: 12px;
+    color: rgba(255,255,255,0.60);
+    line-height: 1.35;
+}
+
+body.drawer-open { overflow: hidden; }
+
+/* =======================================================================
+   Header menu button (drawer toggle)
+======================================================================== */
+.header-menu-btn {
+    width: 32px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.header-menu-btn:hover { background: rgba(255,255,255,0.18); }
+.header-menu-btn:active { transform: translateY(1px); }
+
+/* ------------------------------------------------------------
+   RESPONSIVE BEHAVIOR (notebook first, tablet + phone safe)
+------------------------------------------------------------ */
+@media (max-width: 1320px) {
+    :root {
+        --w-calltaker: 44%;
+        --w-units: 26%;
+        --w-incidents: 30%;
+    }
+}
+
+@media (max-width: 1160px) {
+    #workspace {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        height: calc(100vh - var(--header-height) - var(--toolbar-height) - var(--command-height));
+    }
+
+    .panel-calltaker {
+        grid-column: 1 / span 2;
+        grid-row: 1;
+        min-width: 0;
+    }
+
+    .panel-units {
+        grid-column: 1;
+        grid-row: 2;
+        min-width: 0;
+    }
+
+    .panel-incidents {
+        grid-column: 2;
+        grid-row: 2;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 860px) {
+    #workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+    }
+
+    .panel-calltaker { grid-column: 1; grid-row: 1; }
+    .panel-incidents { grid-column: 1; grid-row: 2; }
+    .panel-units { grid-column: 1; grid-row: 3; }
+
+    .panel-incidents { padding: 8px; }
+    .incident-table thead th { top: 44px; }
+}
+
+/* ------------------------------------------------------------
+   UNITS PANEL — Complete Styling
+------------------------------------------------------------ */
+.units-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background: #ffffff;
+}
+
+.units-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 10px;
+}
+
+.units-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0b2b55;
+}
+
+.units-subhint {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.view-mode-hint {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+.units-two-col {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
     flex: 1;
     overflow-y: auto;
-    border-bottom: 1px solid #1c2833;
 }
 
-/* COMMAND LINE --------------------------------------------- */
-
-#commandline-wrapper {
-    height: 40px;
-    background: #0f161f;
-    border-top: 1px solid #1c2833;
-    padding: 6px;
+.units-col {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-/* HELD CALL ALERT ------------------------------------------ */
-
-.bosk-held-alert {
-    animation: heldPulse 1.4s infinite;
-    background: #7a1a1a !important;
-    color: #fff !important;
+.units-col-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
 }
 
-@keyframes heldPulse {
-    0% { box-shadow: 0 0 3px red; }
-    50% { box-shadow: 0 0 10px red; }
-    100% { box-shadow: 0 0 3px red; }
+.unit-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 12px;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.1s ease;
 }
+
+.unit-row:hover {
+    background: #f8fafc;
+}
+
+.unit-row:last-child {
+    border-bottom: none;
+}
+
+.unit-row:focus {
+    outline: none;
+    background: #eff6ff;
+    box-shadow: inset 0 0 0 2px #3b82f6;
+}
+
+#panel-units .unit-row img,
+.unit-cell.icon img {
+    width: 24px !important;
+    height: 24px !important;
+    object-fit: contain;
+}
+
+.unit-cell.id {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.crew-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: #3b82f6;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 999px;
+}
+
+.coverage-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    color: #7c3aed;
+    border-radius: 3px;
+    font-weight: 700;
+}
+
+.status-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    color: white;
+}
+
+.status-misc { background: #ec4899; }
+.status-dispatched { background: #f97316; }
+.status-enroute { background: #eab308; color: #1e293b; }
+.status-arrived, .status-on_scene, .status-onscene { background: #16a34a; }
+.status-transporting { background: #a855f7; }
+.status-at_medical, .status-at_destination { background: #06b6d4; color: #1e293b; }
+.status-oos, .status-unavailable { background: #64748b; }
+.status-emergency { background: #ef4444; }
+
+.unit-crew {
+    padding: 4px 12px 8px 40px;
+    background: #f8fafc;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.crew-chip {
+    display: inline-block;
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: grab;
+    transition: all 0.1s ease;
+}
+
+.crew-chip:hover {
+    background: #cbd5e1;
+    border-color: #94a3b8;
+}
+
+.units-empty,
+.units-empty-col {
+    padding: 24px 16px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* ============================================================
+   CONTEXT MENU — Professional right-click menus
+============================================================ */
+.cad-context-menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 200px;
+    max-width: 280px;
+    background: rgba(15, 23, 34, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255,255,255,0.1);
+    padding: 6px 0;
+    font-size: 13px;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.cad-context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    color: #e8f0f8;
+    transition: background 0.1s ease;
+    position: relative;
+}
+
+.cad-context-menu-item:hover,
+.cad-context-menu-item.selected {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.cad-context-menu-item.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.cad-context-menu-separator {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 6px 10px;
+}
+
+.cad-context-menu-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cad-context-menu-shortcut {
+    font-size: 11px;
+    opacity: 0.5;
+    margin-left: auto;
+    font-family: monospace;
+}
+
+.cad-context-menu-arrow {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+/* Submenu styling */
+.cad-context-menu-item.has-submenu {
+    position: relative;
+}
+
+.cad-context-submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -6px;
+    min-width: 160px;
+    background: rgba(15, 23, 34, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: 6px 0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.cad-context-menu-item.has-submenu:hover > .cad-context-submenu {
+    display: block;
+}
+
+/* Coverage indicator badge */
+.coverage-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    background: #16a34a;
+    color: #ffffff;
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ============================================================
+   SPACING SYSTEM — Professional consistency
+============================================================ */
+:root {
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    --row-height-compact: 32px;
+    --row-height-normal: 36px;
+    --row-height-relaxed: 44px;
+
+    --font-xs: 11px;
+    --font-sm: 12px;
+    --font-base: 14px;
+    --font-lg: 16px;
+    --font-xl: 18px;
+}
+
+/* ============================================================
+   BUTTON STANDARDIZATION
+============================================================ */
+.btn-primary {
+    background: var(--ford-blue);
+    color: #ffffff;
+    border: none;
+    padding: var(--space-2) var(--space-4);
+    border-radius: 8px;
+    font-size: var(--font-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover {
+    background: var(--ford-blue-dark);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #d9e6f2;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: var(--space-2) var(--space-4);
+    border-radius: 8px;
+    font-size: var(--font-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-danger {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: var(--space-2) var(--space-4);
+    border-radius: 8px;
+    font-size: var(--font-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+
+/* ============================================================
+   UAW POPUP — Dark Glass Style (matches context menu)
+   ============================================================ */
+/* Note: Main styles are in uaw2.js - these are overrides only if needed */

@@ -1,136 +1,124 @@
 // ============================================================================
-// BOSK-CAD — PANEL REFRESH CONTROLLER
-// Phase-3 Enterprise Edition
+// FORD-CAD — PANELS CONTROLLER (CANON)
+// Canon: ACTIVE + OPEN only • Held is modal-only
 // ============================================================================
-// Controls regeneration of:
-//   • Active Incidents Panel
-//   • Open Incidents Panel
-//   • Held Incidents Panel
-//   • Units Panel
-//
-// Integrates with:
-//   • utils.js (refreshHTMX + refreshPanels)
-//   • layout.js watcher (for held badge refresh)
-//   • IAW action sequencing
-//
-// Provides:
-//   • Direct reload buttons
-//   • Automatic fallback refresh
-//   • Hook for periodic refresh interval (optional)
-//   • Enterprise-safe error handling
+// Responsibilities:
+//   • Single delegated click binding for incident + unit rows
+//   • Panel refresh engine (Units + Open + Active)
+//   • Event-driven refresh: listens for CAD_UTIL.REFRESH_EVENT
 // ============================================================================
 
-import { BOSK_UTIL } from "./utils.js";
+import IAW from "./iaw.js";
+import UAW from "./uaw2.js";
+import { CAD_UTIL } from "./utils.js";
 
-export const PANELS = {
+const GLOBAL_GUARD_KEY = "__FORDCAD_PANELS_BOUND__";
 
-    // ------------------------------------------------------------
-    // MANUAL GLOBAL REFRESH (used by toolbar refresh button)
-    // ------------------------------------------------------------
-    refreshAll() {
-        console.log("[PANELS] Manual refresh triggered.");
+let _initialized = false;
+let _lastOpenId = null;
+let _lastOpenTs = 0;
 
-        BOSK_UTIL.refreshHTMX("#panel-active", "/panel/active");
-        BOSK_UTIL.refreshHTMX("#panel-open", "/panel/open");
-        BOSK_UTIL.refreshHTMX("#panel-held", "/panel/held");
-        BOSK_UTIL.refreshHTMX("#panel-units", "/panel/units");
+function nowMs() {
+  return Date.now();
+}
 
-        // Also refresh held-call badge watcher
-        this.refreshHeldBadge();
-    },
+const PANELS = {
+  init() {
+    // Hard global guard (survives module re-import / HTMX script evaluation)
+    if (window[GLOBAL_GUARD_KEY]) return;
+    window[GLOBAL_GUARD_KEY] = true;
 
-    // ------------------------------------------------------------
-    // ACTIVE INCIDENTS
-    // ------------------------------------------------------------
-    refreshActive() {
-        BOSK_UTIL.refreshHTMX("#panel-active", "/panel/active");
-    },
+    if (_initialized) return;
+    _initialized = true;
 
-    // ------------------------------------------------------------
-    // OPEN INCIDENTS
-    // ------------------------------------------------------------
-    refreshOpen() {
-        BOSK_UTIL.refreshHTMX("#panel-open", "/panel/open");
-    },
+    // Expose canonical handle
+    window.CAD = window.CAD || {};
+    window.CAD.panels = PANELS;
 
-    // ------------------------------------------------------------
-    // HELD INCIDENTS
-    // ------------------------------------------------------------
-    refreshHeld() {
-        BOSK_UTIL.refreshHTMX("#panel-held", "/panel/held");
-        this.refreshHeldBadge();
-    },
+    console.log("[PANELS] init() — delegated click binding + refresh event listener");
 
-    // ------------------------------------------------------------
-    // UNITS PANEL
-    // ------------------------------------------------------------
-    refreshUnits() {
-        BOSK_UTIL.refreshHTMX("#panel-units", "/panel/units");
-    },
+    // -------------------------------------------------------------
+    // Event-driven refresh (push model)
+    // -------------------------------------------------------------
+    document.addEventListener(CAD_UTIL.REFRESH_EVENT, function () {
+      PANELS.refreshAll();
+    });
 
-    // ------------------------------------------------------------
-    // REFRESH HELD BADGE (Used by layout watcher & manual refresh)
-    // ------------------------------------------------------------
-    async refreshHeldBadge() {
+    // -------------------------------------------------------------
+    // Delegated clicks (single-bind)
+    // -------------------------------------------------------------
+    document.addEventListener("click", function (e) {
+      // Ignore clicks that happen inside any modal
+      if (e.target && e.target.closest && e.target.closest(".cad-modal")) return;
+
+      // INCIDENT ROW CLICK → IAW
+      var incidentRow = e.target && e.target.closest ? e.target.closest(".incident-row") : null;
+      if (incidentRow) {
+        var incidentId = incidentRow.dataset ? incidentRow.dataset.incidentId : null;
+        if (!incidentId) return;
+
+        var t = nowMs();
+        if (_lastOpenId === incidentId && (t - _lastOpenTs) < 250) return;
+        _lastOpenId = incidentId;
+        _lastOpenTs = t;
+
         try {
-            const res = await fetch("/held_count");
-            const js = await res.json();
-
-            const badge = document.querySelector("#held-count-badge");
-            const btn   = document.querySelector("#btn-held-calls");
-
-            if (!badge || !btn) return;
-
-            const count = js.count || 0;
-
-            badge.textContent = count > 0 ? count : "";
-
-            if (count > 0) {
-                btn.classList.add("bosk-held-alert");
-            } else {
-                btn.classList.remove("bosk-held-alert");
-            }
-
+          IAW.open(incidentId);
         } catch (err) {
-            console.warn("[PANELS] Failed to refresh held badge.");
+          console.warn("[PANELS] IAW.open failed:", err);
         }
-    },
+        return;
+      }
 
-    // ------------------------------------------------------------
-    // SAFETY REFRESH (Triggered when state corruption is detected)
-    // ------------------------------------------------------------
-    safeRefreshAll() {
-        try {
-            console.warn("[PANELS] Safe refresh triggered.");
-            this.refreshAll();
-        } catch (err) {
-            console.error("[PANELS] Safe refresh failed:", err);
-        }
-    },
+      // UNIT ROW CLICK → UAW
+      var unitRow = e.target && e.target.closest ? e.target.closest(".unit-row") : null;
+      if (!unitRow) return;
 
-    // ------------------------------------------------------------
-    // OPTIONAL: PERIODIC REFRESH LOOP
-    // Disabled by default (enable if needed)
-    // ------------------------------------------------------------
-    enableAutoRefresh(interval_ms = 8000) {
-        console.log(`[PANELS] Auto-refresh enabled (${interval_ms}ms).`);
-        this._intervalHandle = setInterval(() => {
-            this.refreshAll();
-        }, interval_ms);
-    },
+      var unitId = unitRow.dataset ? unitRow.dataset.unitId : null;
+      if (!unitId) return;
 
-    disableAutoRefresh() {
-        if (this._intervalHandle) {
-            clearInterval(this._intervalHandle);
-            this._intervalHandle = null;
-            console.log("[PANELS] Auto-refresh disabled.");
-        }
+      try {
+        UAW.open(unitId);
+      } catch (err2) {
+        console.warn("[PANELS] UAW.open failed:", err2);
+      }
+    });
+  },
+
+  refreshAll() {
+    var activeEl = document.querySelector("#panel-active");
+    var openEl = document.querySelector("#panel-open");
+    var unitsEl = document.querySelector("#panel-units");
+
+    // IMPORTANT:
+    // In ES modules, referencing bare `htmx` is NOT reliable.
+    // Use window.htmx explicitly.
+    var hx = window.htmx;
+    if (!hx || typeof hx.ajax !== "function") {
+      console.warn("[PANELS] refreshAll() skipped — window.htmx not available");
+      return;
     }
+
+    try {
+      if (activeEl) {
+        hx.ajax("GET", "/panel/active", { target: activeEl, swap: "outerHTML" });
+      }
+      if (openEl) {
+        hx.ajax("GET", "/panel/open", { target: openEl, swap: "outerHTML" });
+      }
+      if (unitsEl) {
+        hx.ajax("GET", "/panel/units", { target: unitsEl, swap: "outerHTML" });
+      }
+    } catch (err3) {
+      console.warn("[PANELS] refreshAll() failed:", err3);
+    }
+  }
 };
 
-// Enterprise freeze: prevents accidental mutation of the controller
+// Global exposure for templates
+window.PANELS = PANELS;
 Object.freeze(PANELS);
 
-console.log("[PANELS] Module loaded (Phase-3 Enterprise Edition)");
+console.log("[PANELS] Loaded (ACTIVE + OPEN only, held modal-only).");
 
 export default PANELS;

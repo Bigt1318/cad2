@@ -1,159 +1,284 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>BOSK-CAD Dispatch Console</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FORD CAD — Fire & EMS Dispatch</title>
 
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/modals.css">
+    <!-- Core Styles -->
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/modals.css" />
 
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="/static/vendor/htmx.min.js"></script>
 
-    <!-- Bootloader (loads modules.json → JS engine) -->
+    <!-- Bootloader -->
     <script type="module" src="/static/js/bootloader.js"></script>
 </head>
 
 <body>
 
-<!-- ============================================================
-     BOSK HEADER — (C2/R1 Canon)
-     ============================================================ -->
-<header id="bosk-header">
-
+<!-- HEADER -->
+<header id="cad-header">
     <div class="header-left">
-        <div class="header-logo"></div>
+        <button id="btn-app-menu" class="header-menu-btn" type="button" title="Menu" aria-label="Open menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <img class="header-ford-logo" src="/static/images/logo.png" alt="Ford" />
     </div>
 
     <div class="header-center">
-        <div class="header-title">BOSK-CAD Dispatch Console</div>
-        <div class="header-subtitle">BlueOval SK — Fire & EMS Communications</div>
+        <div class="header-title">FORD CAD</div>
+        <div class="header-subtitle">Fire & EMS Computer Aided Dispatch</div>
+        <div id="header-userline" class="header-userline">
+            {% if shift %}
+                <span class="shift-indicator">{{ shift }} Shift</span> — {{ unit }} — {{ user }}
+            {% else %}
+                <span class="login-required">Authentication Required</span>
+            {% endif %}
+        </div>
     </div>
 
     <div class="header-right">
         <div id="clock" class="header-clock">00:00:00</div>
-        <div id="header-user" class="header-user">
-            {{ user }} (Shift {{ shift }})
-        </div>
-    </div>
 
+        {% if is_admin %}
+            <button class="header-btn admin-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                </svg>
+                Admin
+            </button>
+        {% endif %}
+
+        {% if shift %}
+            <button id="btn-logout" class="header-btn logout-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path>
+                    <polyline points="16,17 21,12 16,7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                Logout
+            </button>
+        {% else %}
+            <button id="btn-login" class="header-btn login-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"></path>
+                    <polyline points="10,17 15,12 10,7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                Login
+            </button>
+        {% endif %}
+    </div>
 </header>
 
+<!-- DRAWER MENU -->
+<div id="left-drawer-backdrop" class="ford-drawer-backdrop" aria-hidden="true"></div>
+<aside id="left-drawer" class="ford-drawer" aria-hidden="true">
+    <div class="drawer-top">
+        <div class="drawer-avatar"></div>
+        <div class="drawer-user">
+            <div id="drawer-name" class="drawer-name">{% if user %}{{ user }}{% else %}Dispatcher{% endif %}</div>
+            <div class="drawer-meta">FORD CAD Console</div>
+        </div>
+        <button id="btn-drawer-close" class="drawer-close" title="Close" type="button">&times;</button>
+    </div>
 
-<!-- ============================================================
-     GLASS TOOLBAR — CT3 Canon
-     ============================================================ -->
-<nav id="bosk-toolbar" class="glass-toolbar">
+    <div class="drawer-section">
+        <div class="drawer-section-title">Navigation</div>
+        <button class="drawer-item" type="button" data-drawer-action="home">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+            </svg>
+            Home
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="calls">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"></path>
+            </svg>
+            Calls
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="units">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+                <path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"></path>
+            </svg>
+            Units
+        </button>
+    </div>
 
-    <!-- New Call -->
-    <button class="pill-btn" onclick="window.location='/calltaker/new'">
-        New Call
-    </button>
+    <div class="drawer-section">
+        <div class="drawer-section-title">Operations</div>
+        <button class="drawer-item" type="button" data-drawer-action="new_incident">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            New Incident
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="dailylog">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            Daily Log
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="held">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0110 0v4"></path>
+            </svg>
+            Held Calls
+            <span id="drawer-held-pill" class="drawer-pill"></span>
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+            History
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="reports">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            Reports
+        </button>
+    </div>
 
-    <!-- Active -->
-    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/active')">
-        Active
-    </button>
+    <div class="drawer-section">
+        <div class="drawer-section-title">Administration</div>
+        <button class="drawer-item" type="button" data-drawer-action="roster">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 010 7.75"></path>
+            </svg>
+            Roster
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="contacts">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            Contacts
+        </button>
+        <button class="drawer-item" type="button" data-drawer-action="settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
+            </svg>
+            Settings
+        </button>
+    </div>
 
-    <!-- Open -->
-    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/open')">
-        Open
-    </button>
+    <div class="drawer-foot">
+        <div class="drawer-foot-note">FORD CAD v3.0 — Fire & EMS Dispatch System</div>
+    </div>
+</aside>
 
-    <!-- Held -->
-    <button id="btn-held-calls" class="pill-btn held-btn">
-        Held <span id="held-count-badge"></span>
-    </button>
+<!-- TOOLBAR -->
+<nav id="cad-toolbar">
+    <div class="toolbar-left">
+        <button class="pill-btn" id="btn-new-incident" type="button" title="Create new incident (F2)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            New Incident
+        </button>
+        <button class="pill-btn secondary" id="btn-refresh" type="button" title="Refresh panels (F5)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23,4 23,10 17,10"></polyline>
+                <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path>
+            </svg>
+            Refresh
+        </button>
+    </div>
 
-    <!-- Units -->
-    <button class="pill-btn" onclick="BOSK_MODAL.open('/panel/units')">
-        Units
-    </button>
+    <div class="toolbar-center">
+        <button class="pill-btn secondary" id="btn-dailylog" type="button" title="Open Daily Log">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+            </svg>
+            Daily Log
+        </button>
+        <button class="pill-btn secondary" id="btn-history" type="button" title="View incident history">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+            History
+        </button>
+    </div>
 
-    <!-- Refresh -->
-    <button class="pill-btn" onclick="BOSK.panels.refreshAll()">
-        Refresh
-    </button>
-
+    <div class="toolbar-right">
+        <button class="pill-btn held-btn" id="btn-held-calls" type="button" title="View held incidents">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+                <path d="M7 11V7a5 5 0 0110 0v4"></path>
+            </svg>
+            Held
+            <span id="held-count-badge"></span>
+        </button>
+    </div>
 </nav>
 
+<!-- MAIN WORKSPACE -->
+<main id="workspace">
+    <!-- CALLTAKER -->
+    {% include "calltaker.html" %}
 
-
-<!-- ============================================================
-     WORKSPACE — 3-Panel Flex Layout (Calltaker / Units / Incidents)
-     ============================================================ -->
-<div id="workspace">
-
-    <!-- Left Panel — Calltaker -->
-    <section id="panel-calltaker"
-             hx-get="/panel/calltaker"
-             hx-trigger="load"
-             hx-target="#panel-calltaker"
-             hx-swap="outerHTML">
-    </section>
-
-    <!-- Middle Panel — Units -->
-    <section id="panel-units"
+    <!-- UNITS -->
+    <section id="panel-units" class="workspace-panel panel-units"
              hx-get="/panel/units"
              hx-trigger="load"
-             hx-target="#panel-units"
-             hx-swap="outerHTML">
-    </section>
+             hx-target="this"
+             hx-swap="outerHTML"></section>
 
-    <!-- Right Panel — Incident Lists -->
-    <section id="panel-incidents">
-
-        <!-- Active -->
-        <div id="panel-active"
-             class="incident-panel"
+    <!-- INCIDENTS -->
+    <section class="workspace-panel panel-incidents">
+        <div id="panel-active" class="incident-subpanel active-incidents"
              hx-get="/panel/active"
              hx-trigger="load"
-             hx-target="#panel-active"
-             hx-swap="outerHTML">
-        </div>
+             hx-target="this"
+             hx-swap="outerHTML"></div>
 
-        <!-- Open -->
-        <div id="panel-open"
-             class="incident-panel"
+        <div id="panel-open" class="incident-subpanel open-incidents"
              hx-get="/panel/open"
              hx-trigger="load"
-             hx-target="#panel-open"
-             hx-swap="outerHTML">
-        </div>
-
-        <!-- Held -->
-        <div id="panel-held"
-             class="incident-panel"
-             hx-get="/panel/held"
-             hx-trigger="load"
-             hx-target="#panel-held"
-             hx-swap="outerHTML">
-        </div>
-
+             hx-target="this"
+             hx-swap="outerHTML"></div>
     </section>
+</main>
 
-</div>
+<!-- MODAL ROOT -->
+<div id="fordcad-modal-container"></div>
 
-
-
-<!-- ============================================================
-     COMMAND LINE BAR (CLB)
-     ============================================================ -->
-<footer id="commandline-bar">
-    <input id="cmd-input"
-           type="text"
-           autocomplete="off"
-           placeholder="Enter CAD Command…">
+<!-- COMMAND LINE -->
+<footer id="command-line">
+    <div class="cmd-prefix">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4,17 10,11 4,5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+    </div>
+    <input id="cmd-input" type="text" autocomplete="off" placeholder="Enter command... (type HELP for commands)" spellcheck="false" />
 </footer>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    if (window.BOSK?.commandline?.init) {
-        window.BOSK.commandline.init();
-    }
-});
-</script>
 
 </body>
 </html>

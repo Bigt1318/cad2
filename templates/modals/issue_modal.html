@@ -1,0 +1,41 @@
+<!-- ============================================================
+     FORD CAD — ISSUE FOUND MODAL
+     templates/modals/issue_modal.html
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal issue-modal" id="issue-modal">
+
+    <div class="modal-header">
+        <div class="modal-title">Issue Found</div>
+        <div class="modal-subtitle">Incident #{{ incident_id }}</div>
+        <div class="modal-close" onclick="CAD_MODAL.close()">✖</div>
+    </div>
+
+    {% include "modals/dispatcher_identity_block.html" %}
+
+    <div class="modal-body">
+        <form onsubmit="event.preventDefault(); ISSUE.submit({{ incident_id }});">
+
+            <div class="modal-field">
+                <label class="modal-label">Describe the issue</label>
+                <textarea class="modal-textarea"
+                          id="issue-notes"
+                          placeholder="What’s wrong, what was found, what needs follow-up?"
+                          required></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="pill-btn modal-submit-btn">
+                    Record Issue
+                </button>
+                <button type="button" class="pill-btn modal-cancel-btn" onclick="CAD_MODAL.close()">
+                    Cancel
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+</div>

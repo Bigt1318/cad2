@@ -1,0 +1,227 @@
+<!-- ============================================================
+     FORD CAD — SHIFT COVERAGE MODAL
+     Add temporary coverage from another shift
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal shift-coverage-modal" id="shift-coverage-modal">
+
+    <div class="dp-header">
+        <div class="dp-title">Add Shift Coverage</div>
+        <div class="dp-close" onclick="CAD_MODAL.close()">&#10006;</div>
+    </div>
+
+    <div class="dp-body">
+        <p class="modal-hint">
+            Add a unit from another shift to your current shift temporarily.
+            This override will last until manually ended or shift change.
+        </p>
+
+        <div class="form-group">
+            <label class="dp-section-title" for="coverage-unit-id">Unit ID</label>
+            <input
+                type="text"
+                id="coverage-unit-id"
+                class="form-input"
+                placeholder="e.g., 32"
+                autofocus
+            />
+        </div>
+
+        <div class="form-group">
+            <label class="dp-section-title" for="coverage-reason">Reason</label>
+            <input
+                type="text"
+                id="coverage-reason"
+                class="form-input"
+                placeholder="e.g., Covering for sick call"
+                value="Shift coverage"
+            />
+        </div>
+
+        {% if active_overrides and active_overrides|length > 0 %}
+        <div class="coverage-active-section">
+            <div class="dp-section-title">Active Coverage Overrides</div>
+            <div class="coverage-list">
+                {% for ov in active_overrides %}
+                <div class="coverage-item">
+                    <span class="coverage-unit">{{ ov.unit_id }}</span>
+                    <span class="coverage-info">{{ ov.from_shift_letter }} -> {{ ov.to_shift_letter }}</span>
+                    <span class="coverage-reason">{{ ov.reason }}</span>
+                    <button
+                        type="button"
+                        class="btn-small btn-danger"
+                        onclick="endCoverageOverride('{{ ov.unit_id }}')"
+                    >End</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="dp-footer">
+        <button class="pill-btn dp-cancel" onclick="CAD_MODAL.close()">Cancel</button>
+        <button class="pill-btn modal-submit-btn" onclick="submitCoverageOverride()">Add Coverage</button>
+    </div>
+
+</div>
+
+<script>
+window.submitCoverageOverride = async function() {
+    const unitId = (document.getElementById('coverage-unit-id')?.value || '').trim();
+    const reason = (document.getElementById('coverage-reason')?.value || 'Shift coverage').trim();
+
+    if (!unitId) {
+        alert('Please enter a unit ID.');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/shift_override/start', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                unit_id: unitId,
+                reason: reason
+            })
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+            alert(data.error || 'Failed to add coverage.');
+            return;
+        }
+
+        // Success - close modal and refresh
+        CAD_MODAL.close();
+        if (window.CAD_UTIL?.refreshPanels) {
+            CAD_UTIL.refreshPanels();
+        }
+    } catch (err) {
+        console.error('[COVERAGE] Error:', err);
+        alert('Failed to add coverage: ' + (err.message || err));
+    }
+}
+
+window.endCoverageOverride = async function(unitId) {
+    if (!confirm('End coverage override for unit ' + unitId + '?')) return;
+
+    try {
+        const resp = await fetch('/api/shift_override/end', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unit_id: unitId })
+        });
+
+        const data = await resp.json();
+
+        if (!data.ok) {
+            alert(data.error || 'Failed to end coverage.');
+            return;
+        }
+
+        // Refresh the modal to show updated list
+        CAD_MODAL.open('/modals/shift_coverage');
+    } catch (err) {
+        console.error('[COVERAGE] Error:', err);
+        alert('Failed to end coverage: ' + (err.message || err));
+    }
+}
+</script>
+
+<style>
+.shift-coverage-modal {
+    min-width: 420px;
+    max-width: 92vw;
+}
+
+.modal-hint {
+    font-size: 13px;
+    color: #9fb3c8;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #243446;
+    background: #0f1722;
+    color: #e7edf5;
+    outline: none;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    border-color: #3b82f6;
+}
+
+.coverage-active-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #243446;
+}
+
+.coverage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.coverage-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #0f1722;
+    border-radius: 6px;
+    font-size: 13px;
+    border: 1px solid #243446;
+}
+
+.coverage-unit {
+    font-weight: 800;
+    min-width: 40px;
+    color: #e7edf5;
+}
+
+.coverage-info {
+    color: #9fb3c8;
+    font-size: 12px;
+}
+
+.coverage-reason {
+    flex: 1;
+    color: #b8c9db;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.btn-danger {
+    background: #dc2626;
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
+}
+</style>

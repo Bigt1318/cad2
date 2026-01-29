@@ -1,5 +1,5 @@
 <!-- ============================================================
-     BOSK-CAD — IAW NARRATIVE FRAGMENT
+     FORD-CAD — IAW NARRATIVE FRAGMENT
      Phase-3 Enterprise Edition
      templates/iaw/iaw_narrative_fragment.html
 ============================================================ -->
@@ -21,7 +21,7 @@
         </div>
 
         <div class="iaw-narrative-text">
-            {{ entry.text }}
+            {% if entry.unit_id %}{{ entry.unit_id }} - {% endif %}{{ entry.text }}
         </div>
 
     </div>

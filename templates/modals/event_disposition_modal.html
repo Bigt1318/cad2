@@ -1,11 +1,11 @@
 <!-- ============================================================
-     BOSK-CAD — EVENT DISPOSITION MODAL
-     Phase-3 Enterprise Edition (Full Version)
+     FORD-CAD — EVENT DISPOSITION MODAL
+     Phase-3 Canonical (codes driven by backend)
 ============================================================ -->
 
-<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
-<div class="bosk-modal disposition-modal" id="event-disposition-modal">
+<div class="cad-modal disposition-modal event-disposition-modal" id="event-disposition-modal">
 
     <!-- ========================================================
          HEADER
@@ -13,53 +13,43 @@
     <div class="modal-header">
         <div class="modal-title">Event Disposition</div>
         <div class="modal-subtitle">Incident #{{ incident_id }}</div>
-        <div class="modal-close" onclick="BOSK_MODAL.close()">✖</div>
+        <div class="modal-close" onclick="CAD_MODAL.close()">✖</div>
     </div>
-
 
     <!-- ========================================================
          DISPATCHER IDENTITY
     ======================================================== -->
     {% include "modals/dispatcher_identity_block.html" %}
 
-
     <!-- ========================================================
          FORM BODY
     ======================================================== -->
     <div class="modal-body">
         <form id="dispositionForm"
-              hx-post="/incident/disposition"
-              hx-trigger="submit"
-              hx-swap="none">
+              onsubmit="event.preventDefault(); DISP.submit({{ incident_id }});">
 
-            <input type="hidden" name="incident_id" value="{{ incident_id }}">
-
+            {% set CODES = valid_codes if valid_codes is defined else outcomes %}
 
             <!-- DISPOSITION CODE -->
             <div class="modal-field">
                 <label class="modal-label">Disposition Code</label>
-                <select class="modal-select" name="code" required>
+                <select class="modal-select" id="disp-code" name="code" required>
                     <option value="">-- Select Code --</option>
-                    <option value="CANCELLED">Cancelled</option>
-                    <option value="NO INCIDENT FOUND">No Incident Found</option>
-                    <option value="FALSE ALARM">False Alarm</option>
-                    <option value="FULL RESPONSE">Full Response</option>
-                    <option value="UNFOUNDED">Unfounded</option>
-                    <option value="PUBLIC ASSIST">Public Assist</option>
-                    <option value="PATIENT TRANSPORTED">Patient Transported</option>
+                    {% for code, label in CODES|dictsort %}
+                        <option value="{{ code }}">{{ code }} — {{ label }}</option>
+                    {% endfor %}
                 </select>
             </div>
-
 
             <!-- NARRATIVE DESCRIPTION -->
             <div class="modal-field">
                 <label class="modal-label">Narrative (Required)</label>
                 <textarea class="modal-textarea"
-                          name="text"
+                          id="disp-comment"
+                          name="comment"
                           placeholder="Enter disposition narrative..."
                           required></textarea>
             </div>
-
 
             <!-- FOOTER -->
             <div class="modal-footer">
@@ -68,7 +58,7 @@
                 </button>
 
                 <button type="button"
-                        onclick="BOSK_MODAL.close()"
+                        onclick="CAD_MODAL.close()"
                         class="pill-btn modal-cancel-btn">
                     Cancel
                 </button>

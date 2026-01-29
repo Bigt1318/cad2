@@ -1,0 +1,230 @@
+<!-- ============================================================
+     FORD-CAD — EVENT LOG VIEWER (MODAL)
+     Phase-3 Canonical
+
+     Shows:
+       • DAILYLOG entries (DailyLog.action = 'DAILYLOG')
+       • REMARK entries  (DailyLog.action = 'REMARK')
+
+     UX:
+       • “New Entry” and “Filters” are hidden panels (button toggles)
+       • Stable HTMX target IDs (prevents swapError + layout jumps)
+       • No popups required for PDF export (handled in eventlog.js)
+     ============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal eventlog-modal" role="dialog" aria-modal="true" aria-label="Daily Log">
+  <div class="cad-modal-header">
+    <div class="cad-modal-title">
+      <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Daily Log
+    </div>
+
+    <div class="modal-header-actions">
+      <button class="el-btn el-btn-icon" type="button" onclick="EL.refresh()" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+      <button class="el-btn el-btn-close" type="button" onclick="CAD_MODAL.close()">×</button>
+    </div>
+  </div>
+
+  <div class="cad-modal-body">
+
+    <!-- ACTION BAR -->
+    <div class="el-topbar">
+      <button class="el-btn el-btn-add" type="button" onclick="EL.toggleAdd()" title="Create a new entry">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New Entry
+      </button>
+
+      <button class="el-btn el-btn-secondary" type="button" onclick="EL.toggleFilters()" title="Show/hide filters">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 3H2l8 9v7l4 2v-9z"/>
+        </svg>
+        Filters
+      </button>
+
+      <div class="el-topbar-spacer"></div>
+
+      <button class="el-btn el-btn-secondary" type="button" onclick="EL.exportPdf()" title="Print / Save as PDF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9V2h12v7"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <path d="M6 14h12v8H6z"/>
+        </svg>
+        Export PDF
+      </button>
+
+      <button class="el-btn el-btn-secondary" type="button" onclick="EL.emailResults()" title="Email filtered results">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16v16H4z"/>
+          <path d="M22 6l-10 7L2 6"/>
+        </svg>
+        Email
+      </button>
+    </div>
+
+    <!-- ADD ENTRY PANEL (hidden by default) -->
+    <div id="el-add-panel" class="el-panel el-add-section" hidden>
+      <div class="el-panel-header">
+        <div class="el-panel-title">Add Entry</div>
+        <button class="el-btn el-btn-icon" type="button" onclick="EL.toggleAdd(false)" title="Close">×</button>
+      </div>
+
+      <form id="el-add-form" class="el-add-form" onsubmit="return EL.addEntry(event)">
+        <div class="el-add-row">
+          <div class="el-field">
+            <label for="el-add-category">Category</label>
+            <select id="el-add-category" name="category" required>
+              <optgroup label="Daily Log">
+                {% for s in subtypes %}
+                  <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="Other">
+                <option value="REMARK">REMARK</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="el-field">
+            <label for="el-add-unit">Unit</label>
+            <input type="text" id="el-add-unit" name="unit_id" placeholder="e.g. E2, 12" autocomplete="off">
+          </div>
+
+          <div class="el-field">
+            <label for="el-add-incident">Incident</label>
+            <input type="text" id="el-add-incident" name="incident_id" placeholder="ID or Run #" autocomplete="off">
+          </div>
+
+          <div class="el-field el-field-grow">
+            <label for="el-add-details">Details <span class="el-req">*</span></label>
+            <input type="text" id="el-add-details" name="details" placeholder="Enter details..." required autocomplete="off">
+          </div>
+
+          <div class="el-field el-field-check">
+            <label>
+              <input type="checkbox" id="el-add-issue" name="issue_found" value="1">
+              <span class="el-issue-label">Issue Found</span>
+            </label>
+          </div>
+
+          <button type="submit" class="el-btn el-btn-add">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- FILTERS PANEL (hidden by default) -->
+    <div id="el-filters-panel" class="el-panel el-filters" hidden>
+      <div class="el-panel-header">
+        <div class="el-panel-title">Filters</div>
+        <button class="el-btn el-btn-icon" type="button" onclick="EL.toggleFilters(false)" title="Close">×</button>
+      </div>
+
+      <div class="el-filter-row">
+        <div class="el-field">
+          <label for="el-filter-from">From</label>
+          <input type="date" id="el-filter-from" name="from_date" value="{{ default_from }}">
+        </div>
+
+        <div class="el-field">
+          <label for="el-filter-to">To</label>
+          <input type="date" id="el-filter-to" name="to_date" value="{{ default_to }}">
+        </div>
+
+        <div class="el-field">
+          <label for="el-filter-category">Category</label>
+          <select id="el-filter-category" name="category">
+            <option value="">All</option>
+            <optgroup label="Daily Log">
+              {% for s in subtypes %}
+                <option value="{{ s }}">{{ s }}</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="Other">
+              <option value="REMARK">REMARK</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="el-field">
+          <label for="el-filter-unit">Unit</label>
+          <input type="text" id="el-filter-unit" name="unit_id" placeholder="Any" autocomplete="off">
+        </div>
+
+        <div class="el-field el-field-grow">
+          <label for="el-filter-search">Search</label>
+          <input type="text" id="el-filter-search" name="q" placeholder="Search details..." autocomplete="off">
+        </div>
+
+        <div class="el-field el-field-check">
+          <label>
+            <input type="checkbox" id="el-filter-issues" name="issues_only" value="1">
+            <span class="el-issue-label">Issues Only</span>
+          </label>
+        </div>
+
+        <div class="el-filter-actions">
+          <button type="button" class="el-btn" onclick="EL.applyFilters()">Filter</button>
+          <button type="button" class="el-btn el-btn-secondary" onclick="EL.clearFilters()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="el-table-container">
+      <table class="el-table">
+        <thead>
+          <tr>
+            <th class="el-col-flag">&nbsp;</th>
+            <th class="el-col-time">Timestamp</th>
+            <th class="el-col-cat">Category</th>
+            <th class="el-col-unit">Unit</th>
+            <th class="el-col-inc">Incident</th>
+            <th class="el-col-details">Details</th>
+            <th class="el-col-actions">&nbsp;</th>
+          </tr>
+        </thead>
+        <tbody id="el-table-body"
+               hx-get="/panel/eventlog_rows"
+               hx-trigger="load, eventlog-updated from:body"
+               hx-include="#el-filter-from,#el-filter-to,#el-filter-category,#el-filter-unit,#el-filter-search,#el-filter-issues"
+               hx-target="#el-table-body"
+               hx-swap="innerHTML">
+          <tr>
+            <td colspan="7" class="el-empty-state">
+              <div class="el-empty-text">Loading...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="el-status">
+      <span id="el-status-count">Loading...</span>
+      <span id="el-status-issues"></span>
+    </div>
+
+  </div>
+</div>

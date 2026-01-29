@@ -1,64 +1,41 @@
 <!-- ============================================================
-     BOSK-CAD — ADD REMARK MODAL
-     Phase-3 Enterprise Edition (Full Version)
+     FORD-CAD — ADD REMARK MODAL (CANONICAL JSON POST)
 ============================================================ -->
 
-<div class="bosk-modal-overlay" onclick="BOSK_MODAL.close()"></div>
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
-<div class="bosk-modal remark-modal" id="remark-modal">
+<div class="cad-modal remark-modal" id="remark-modal">
 
-    <!-- ========================================================
-         HEADER
-    ======================================================== -->
     <div class="modal-header">
         <div class="modal-title">Add Remark</div>
-        <div class="modal-subtitle">Incident #{{ incident_id }}</div>
-        <div class="modal-close" onclick="BOSK_MODAL.close()">✖</div>
+        <div class="modal-subtitle">
+            {% if incident_id is defined %}Incident #{{ incident_id }}{% else %}Incident{% endif %}
+        </div>
+        <div class="modal-close" onclick="CAD_MODAL.close()">✖</div>
     </div>
 
-
-    <!-- ========================================================
-         DISPATCHER IDENTITY
-    ======================================================== -->
     {% include "modals/dispatcher_identity_block.html" %}
 
-
-    <!-- ========================================================
-         FORM BODY
-    ======================================================== -->
     <div class="modal-body">
+        <form onsubmit="event.preventDefault(); window.REMARK.submitFromModal();">
 
-        <form id="remarkForm"
-              hx-post="/incident/remark"
-              hx-trigger="submit"
-              hx-swap="none">
+            <input type="hidden" id="remark-incident-id" value="{% if incident_id is defined %}{{ incident_id }}{% else %}{% endif %}">
+            <input type="hidden" id="remark-unit-id" value="">
 
-            <input type="hidden" name="incident_id" value="{{ incident_id }}">
-
-            <!-- REMARK TEXT -->
             <div class="modal-field">
                 <label class="modal-label">Remark</label>
                 <textarea class="modal-textarea"
-                          name="remark"
+                          id="remark-text"
                           placeholder="Type remark..."
                           required></textarea>
             </div>
 
-            <!-- FOOTER -->
             <div class="modal-footer">
-                <button type="submit" class="pill-btn modal-submit-btn">
-                    Submit Remark
-                </button>
-
-                <button type="button"
-                        class="pill-btn modal-cancel-btn"
-                        onclick="BOSK_MODAL.close()">
-                    Cancel
-                </button>
+                <button type="submit" class="pill-btn modal-submit-btn">Submit Remark</button>
+                <button type="button" class="pill-btn modal-cancel-btn" onclick="CAD_MODAL.close()">Cancel</button>
             </div>
 
         </form>
-
     </div>
 
 </div>

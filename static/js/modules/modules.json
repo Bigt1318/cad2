@@ -1,23 +1,22 @@
 [
-    "/static/js/modules/utils.js",
-    "/static/js/modules/drag.js",
-
-    "/static/js/modules/modal.js",
-    "/static/js/modules/layout.js",
-
-    "/static/js/modules/panels.js",
-
-    "/static/js/modules/iaw.js",
-    "/static/js/modules/uaw.js",
-    "/static/js/modules/picker.js",
-    "/static/js/modules/remark.js",
-    "/static/js/modules/disposition.js",
-    "/static/js/modules/issue.js"
-
-    /* Future modules may be appended here:
-       - history.js
-       - commandline.js
-       - notifications.js
-       - keyboard_shortcuts.js
-    */
+  "/static/js/modules/utils.js",
+  "/static/js/modules/state.js",
+  "/static/js/modules/toast.js",
+  "/static/js/modules/modal.js",
+  "/static/js/modules/contextmenu.js",
+  "/static/js/modules/layout.js",
+  "/static/js/modules/panels.js",
+  "/static/js/modules/drag.js",
+  "/static/js/modules/drag_dispatch.js",
+  "/static/js/modules/clock.js",
+  "/static/js/modules/commandline.js",
+  "/static/js/modules/actions.js",
+  "/static/js/modules/calltaker.js",
+  "/static/js/modules/iaw.js",
+  "/static/js/modules/uaw2.js",
+  "/static/js/modules/picker.js",
+  "/static/js/modules/remark.js",
+  "/static/js/modules/disposition.js",
+  "/static/js/modules/issue.js",
+  "/static/js/modules/eventlog.js"
 ]

@@ -1,109 +1,86 @@
 // ============================================================================
-// BOSK-CAD — DRAG ENGINE FOR MODALS
-// Phase-3 Enterprise Edition
+// FORD-CAD — DRAG ENGINE
+// Phase-3 Canonical (Non-invasive)
 // ============================================================================
-// Provides smooth, constrained, enterprise-grade dragging for all modals.
-// Used by: IAW, UAW, IssueFound, Disposition, Picker, Remark.
+// Responsibilities:
+//   • Provide universal drag behavior for modal windows
+//
+// Critical rule:
+//   • This module MUST NOT override feature modules (IAW/UAW/REMARK/ISSUE/etc).
+//   • It only injects startDrag if a module object is present but missing it.
 // ============================================================================
 
-export const BOSK_DRAG = {
+export const CAD_DRAG = {
+  target: null,
+  offsetX: 0,
+  offsetY: 0,
+  active: false,
 
-    target: null,     // the modal being dragged
-    offsetX: 0,       // pointer-to-modal offset
-    offsetY: 0,
-    active: false,    // true while dragging
+  startDrag(event, modalSelector = ".cad-modal") {
+    const modal = event.target.closest(modalSelector);
+    if (!modal) return;
 
-    // ---------------------------------------------------------------------
-    // START DRAG
-    // Called by: onmousedown="IAW.startDrag(event)" etc.
-    // ---------------------------------------------------------------------
-    startDrag(event, modalSelector = ".bosk-modal") {
-        const modal = event.target.closest(modalSelector);
-        if (!modal) return;
+    this.target = modal;
+    const rect = modal.getBoundingClientRect();
+    this.offsetX = event.clientX - rect.left;
+    this.offsetY = event.clientY - rect.top;
+    this.active = true;
+    modal.style.zIndex = 9999;
 
-        this.target = modal;
+    document.addEventListener("mousemove", this._move);
+    document.addEventListener("mouseup", this._stop);
+  },
 
-        // Calculate offset from modal top-left
-        const rect = modal.getBoundingClientRect();
-        this.offsetX = event.clientX - rect.left;
-        this.offsetY = event.clientY - rect.top;
+  _move: (e) => {
+    if (!CAD_DRAG.active || !CAD_DRAG.target) return;
+    const modal = CAD_DRAG.target;
 
-        this.active = true;
+    let x = e.clientX - CAD_DRAG.offsetX;
+    let y = e.clientY - CAD_DRAG.offsetY;
 
-        // Raise modal above others
-        modal.style.zIndex = 9999;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const rect = modal.getBoundingClientRect();
 
-        // Bind listeners
-        document.addEventListener("mousemove", this._move);
-        document.addEventListener("mouseup", this._stop);
-    },
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x + rect.width > vw) x = vw - rect.width;
+    if (y + rect.height > vh) y = vh - rect.height;
 
-    // ---------------------------------------------------------------------
-    // MOVE MODAL
-    // ---------------------------------------------------------------------
-    _move: (e) => {
-        if (!BOSK_DRAG.active || !BOSK_DRAG.target) return;
+    modal.style.left = `${x}px`;
+    modal.style.top = `${y}px`;
+  },
 
-        const modal = BOSK_DRAG.target;
+  _stop: () => {
+    CAD_DRAG.active = false;
+    document.removeEventListener("mousemove", CAD_DRAG._move);
+    document.removeEventListener("mouseup", CAD_DRAG._stop);
+  },
+};
 
-        let x = e.clientX - BOSK_DRAG.offsetX;
-        let y = e.clientY - BOSK_DRAG.offsetY;
+// ---------------------------------------------------------------------------
+// Global exposure (safe)
+// ---------------------------------------------------------------------------
+window.CAD_DRAG = CAD_DRAG;
 
-        // --------------------------------------------------------------
-        // Constrain within viewport
-        // --------------------------------------------------------------
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const rect = modal.getBoundingClientRect();
-
-        // Keep modal within screen bounds
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (x + rect.width > vw) x = vw - rect.width;
-        if (y + rect.height > vh) y = vh - rect.height;
-
-        modal.style.left = `${x}px`;
-        modal.style.top = `${y}px`;
-    },
-
-    // ---------------------------------------------------------------------
-    // STOP DRAGGING
-    // ---------------------------------------------------------------------
-    _stop: () => {
-        BOSK_DRAG.active = false;
-
-        document.removeEventListener("mousemove", BOSK_DRAG._move);
-        document.removeEventListener("mouseup", BOSK_DRAG._stop);
+function _ensureStartDrag(name) {
+  try {
+    const obj = window[name];
+    if (!obj) return;
+    if (typeof obj.startDrag !== "function") {
+      obj.startDrag = (e) => CAD_DRAG.startDrag(e);
     }
-};
+  } catch (_) {}
+}
 
+// These are referenced by templates as onmousedown="X.startDrag(event)"
+// Ensure startDrag exists without overriding real module implementations.
+_ensureStartDrag("IAW");
+_ensureStartDrag("DISP");
+_ensureStartDrag("ISSUE");
+_ensureStartDrag("PICKER");
+_ensureStartDrag("REMARK");
 
-// ============================================================================
-// SHORTCUT HOOKS FOR MODULES
-// These wrapper functions allow modules to call DRAG without referencing
-// BOSK_DRAG directly (keeps API clean and consistent).
-// ============================================================================
+console.log("[DRAG] CAD_DRAG exposed (non-invasive).");
 
-export const IAW = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
-
-export const UAW = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
-
-export const DISP = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
-
-export const ISSUE = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
-
-export const PICKER = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
-
-export const REMARK = {
-    startDrag(event) { BOSK_DRAG.startDrag(event); }
-};
+export default CAD_DRAG;

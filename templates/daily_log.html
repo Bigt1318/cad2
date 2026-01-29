@@ -1,176 +1,124 @@
-<!-- =====================================================================
-     BOSK-CAD — DAILY LOG VIEWER (Phase-3 Enterprise Edition)
-     Full Frontend Template
-     ===================================================================== -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Daily Log — BOSK-CAD</title>
+  <meta charset="UTF-8">
+  <title>Daily Log — FORD-CAD</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/htmx.min.js"></script>
 
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
-    <style>
-        /* =============================================================
-           DAILY LOG VIEWER STYLE
-           Matches BOSK Phase-3 Glass-Panel visual language
-           ============================================================= */
-
-        body {
-            background: #0b1119;
-            margin: 0;
-            padding: 0;
-            color: #d8e0ea;
-            font-family: Inter, Roboto, sans-serif;
-        }
-
-        .log-wrapper {
-            padding: 20px;
-        }
-
-        .log-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 14px;
-            gap: 10px;
-        }
-
-        .log-header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
-            color: #e8eef7;
-        }
-
-        .log-date-input {
-            background: #16202c;
-            border: 1px solid #243140;
-            padding: 6px 10px;
-            border-radius: 6px;
-            color: #e8eef7;
-            font-size: 16px;
-        }
-
-        .pill-btn {
-            background: #1c2c3a;
-            border: 1px solid #2d3e50;
-            padding: 6px 14px;
-            border-radius: 6px;
-            color: #e8eef7;
-            cursor: pointer;
-            font-size: 15px;
-        }
-        .pill-btn:hover {
-            background: #223343;
-        }
-
-        /* TABLE */
-        .log-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 15px;
-        }
-
-        .log-table th {
-            background: #1c2b39;
-            padding: 8px;
-            border-bottom: 1px solid #2b3d4f;
-            color: #cdd8e5;
-            text-align: left;
-        }
-
-        .log-table td {
-            padding: 8px;
-            border-bottom: 1px solid #1a2531;
-        }
-
-        /* COLOR CODING: USER SELECTED OPTION (A: STATUS COLORS) */
-        tr.status-dispatch       { background: rgba(2,117,216,0.10); }
-        tr.status-arrived        { background: rgba(91,192,222,0.10); }
-        tr.status-enroute        { background: rgba(2,117,216,0.15); }
-        tr.status-transporting   { background: rgba(240,173,78,0.15); }
-        tr.status-cleared        { background: rgba(0,128,0,0.12); }
-        tr.status-active         { background: rgba(217,83,79,0.12); }
-
-        /* Timestamp column monospace for readability */
-        .ts {
-            font-family: Consolas, monospace;
-            white-space: nowrap;
-        }
-
-        .log-empty {
-            padding: 20px;
-            text-align: center;
-            opacity: 0.55;
-            font-size: 16px;
-        }
-
-        .log-link {
-            cursor: pointer;
-            color: #7ab7ff;
-            text-decoration: underline;
-        }
-
-    </style>
+  <style>
+    body { background:#0b1119; margin:0; padding:0; color:#d8e0ea; font-family: Inter, Roboto, sans-serif; }
+    .log-wrapper { padding:20px; }
+    .log-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+    .log-header h1 { margin:0; font-size:24px; font-weight:600; color:#e8eef7; }
+    .log-date-input, .log-input, .log-select {
+      background:#16202c; border:1px solid #243140; padding:6px 10px; border-radius:6px; color:#e8eef7; font-size:14px;
+    }
+    .pill-btn { background:#1c2c3a; border:1px solid #2d3e50; padding:6px 14px; border-radius:6px; color:#e8eef7; cursor:pointer; font-size:14px; }
+    .pill-btn:hover { background:#223343; }
+    .log-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
+    .log-table th { background:#1c2b39; padding:8px; border-bottom:1px solid #2b3d4f; color:#cdd8e5; text-align:left; }
+    .log-table td { padding:8px; border-bottom:1px solid #1a2531; }
+    .ts { font-family:Consolas, monospace; white-space:nowrap; }
+    .log-empty { padding:20px; text-align:center; opacity:0.65; }
+    .add-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; padding:10px; background:#0f1722; border:1px solid #1f2a38; border-radius:8px; }
+    .add-row .group { display:flex; flex-direction:column; gap:6px; }
+    .add-row label { font-size:12px; opacity:0.8; }
+    .grow { flex: 1 1 320px; }
+  </style>
 </head>
 
-
 <body>
-
 <div class="log-wrapper">
 
-    <!-- =============================================================
-         HEADER CONTROLS
-         ============================================================= -->
-    <div class="log-header">
-        <h1>Daily Log</h1>
+  <div class="log-header">
+    <h1>Daily Log</h1>
 
-        <input id="log-date"
-               type="date"
-               class="log-date-input"
-               value="{{ default_date }}">
-
-        <button class="pill-btn"
-                hx-get="/api/dailylog"
-                hx-target="#log-table-body"
-                hx-trigger="click"
-                hx-include="#log-date">
-            Load
-        </button>
+    <div class="group">
+      <label for="log-date">Date</label>
+      <input id="log-date" name="date" type="date" class="log-date-input" value="{{ default_date }}">
     </div>
 
+    <button class="pill-btn"
+            hx-get="/panel/dailylog_rows"
+            hx-target="#log-table-body"
+            hx-include="#log-date"
+            hx-swap="innerHTML">
+      Load
+    </button>
+  </div>
 
+  <!-- ADD ENTRY -->
+  <form class="add-row"
+        hx-post="/api/dailylog/add"
+        hx-swap="none"
+        hx-on::after-request="htmx.trigger('#log-table-body','refresh')">
 
-    <!-- =============================================================
-         LOG TABLE
-         ============================================================= -->
-    <table class="log-table">
-        <thead>
-            <tr>
-                <th style="width:180px;">Timestamp</th>
-                <th style="width:90px;">Unit</th>
-                <th style="width:90px;">Incident</th>
-                <th style="width:140px;">Action</th>
-                <th>Details</th>
-            </tr>
-        </thead>
+    <div class="group">
+      <label for="dl-user">User</label>
+      <input id="dl-user" name="user" class="log-input" value="DISPATCH" />
+    </div>
 
-        <tbody id="log-table-body"
-               hx-get="/api/dailylog"
-               hx-trigger="load"
-               hx-include="#log-date"
-               hx-target="#log-table-body"
-               hx-swap="innerHTML">
+    <div class="group">
+      <label for="dl-unit">Unit</label>
+      <input id="dl-unit" name="unit_id" class="log-input" placeholder="12" />
+    </div>
 
-            <!-- Populated automatically on load by HTMX -->
+    <div class="group">
+      <label for="dl-incident">Incident ID (optional)</label>
+      <input id="dl-incident" name="incident_id" class="log-input" placeholder="123" />
+    </div>
 
-        </tbody>
-    </table>
+    <div class="group">
+      <label for="dl-subtype">Subtype</label>
+      <select id="dl-subtype" name="subtype" class="log-select">
+        <option value="BUILDING/RISER CHECKS">BUILDING/RISER CHECKS</option>
+        <option value="TRAINING">TRAINING</option>
+        <option value="MAINTENANCE">MAINTENANCE</option>
+        <option value="SAFETY WALK">SAFETY WALK</option>
+        <option value="VEHICLE INSPECTION">VEHICLE INSPECTION</option>
+        <option value="BUMP TEST">BUMP TEST</option>
+        <option value="STANDBY">STANDBY</option>
+        <option value="AED CHECK">AED CHECK</option>
+        <option value="EXTINGUISHER CHECK">EXTINGUISHER CHECK</option>
+        <option value="OTHER" selected>OTHER</option>
+      </select>
+    </div>
+
+    <div class="group grow">
+      <label for="dl-details">Details</label>
+      <input id="dl-details" name="details" class="log-input" placeholder="Enter note (required)" required />
+    </div>
+
+    <!-- Optional explicit timestamp -->
+    <input type="hidden" name="timestamp" value="" />
+
+    <button class="pill-btn" type="submit">Add</button>
+  </form>
+
+  <!-- TABLE -->
+<table class="log-table">
+  <thead>
+    <tr>
+      <th style="width:180px;">Timestamp</th>
+      <th style="width:180px;">Subtype</th>
+      <th style="width:90px;">Unit</th>
+      <th style="width:220px;">Incident</th>
+      <th>Details</th>
+    </tr>
+  </thead>
+
+  <tbody id="log-table-body"
+         hx-get="/panel/dailylog_rows"
+         hx-trigger="load, refresh"
+         hx-include="#dl-from,#dl-to,#dl-filter-subtype,#dl-filter-unit,#dl-filter-incident,#dl-filter-q"
+         hx-target="#log-table-body"
+         hx-swap="innerHTML">
+    <!-- rows -->
+  </tbody>
+</table>
 
 </div>
-
 </body>
 </html>
+
