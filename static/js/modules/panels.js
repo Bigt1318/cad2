@@ -112,13 +112,81 @@ const PANELS = {
     } catch (err3) {
       console.warn("[PANELS] refreshAll() failed:", err3);
     }
+  },
+
+  // -------------------------------------------------------------------------
+  // AUTO-REFRESH POLLING
+  // Integrates with SETTINGS module for user preferences
+  // -------------------------------------------------------------------------
+  _autoRefreshTimer: null,
+
+  startAutoRefresh() {
+    // Stop any existing timer
+    this.stopAutoRefresh();
+
+    // Check if auto-refresh is enabled in settings
+    const settings = window.SETTINGS?.getAll?.() || {};
+    if (!settings.autoRefresh) {
+      console.log("[PANELS] Auto-refresh disabled in settings");
+      return;
+    }
+
+    const intervalSec = settings.autoRefreshInterval || 30;
+    const intervalMs = intervalSec * 1000;
+
+    console.log(`[PANELS] Starting auto-refresh every ${intervalSec}s`);
+
+    this._autoRefreshTimer = setInterval(() => {
+      // Re-check settings in case user changed them
+      const currentSettings = window.SETTINGS?.getAll?.() || {};
+      if (!currentSettings.autoRefresh) {
+        this.stopAutoRefresh();
+        return;
+      }
+
+      // Only refresh if page is visible (save resources)
+      if (document.visibilityState === "visible") {
+        console.log("[PANELS] Auto-refresh tick");
+        this.refreshAll();
+      }
+    }, intervalMs);
+  },
+
+  stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+      console.log("[PANELS] Auto-refresh stopped");
+    }
+  },
+
+  // Called when settings change
+  onSettingsChange() {
+    const settings = window.SETTINGS?.getAll?.() || {};
+    if (settings.autoRefresh) {
+      this.startAutoRefresh();
+    } else {
+      this.stopAutoRefresh();
+    }
   }
 };
 
+// Start auto-refresh after a short delay (let page load)
+setTimeout(() => {
+  PANELS.startAutoRefresh();
+}, 3000);
+
+// Listen for visibility changes to pause/resume
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && PANELS._autoRefreshTimer) {
+    // Page became visible, do an immediate refresh
+    PANELS.refreshAll();
+  }
+});
+
 // Global exposure for templates
 window.PANELS = PANELS;
-Object.freeze(PANELS);
 
-console.log("[PANELS] Loaded (ACTIVE + OPEN only, held modal-only).");
+console.log("[PANELS] Loaded (ACTIVE + OPEN only, held modal-only, auto-refresh enabled).");
 
 export default PANELS;

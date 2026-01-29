@@ -211,6 +211,9 @@ async function _dispatchUnitToIncident(unitId, incidentId) {
     mode: "D",
   });
 
+  // Play dispatch sound
+  try { window.SOUNDS?.unitDispatched?.(); } catch (_) {}
+
   // Best-effort set unit to DISPATCHED (some builds do this automatically)
   try {
     await CAD_UTIL.postJSON(

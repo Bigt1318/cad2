@@ -160,8 +160,12 @@ export const PICKER = {
 
             if (res?.ok === false) {
                 alert(res?.error || "Dispatch rejected by backend.");
+                try { window.SOUNDS?.error?.(); } catch (_) {}
                 return;
             }
+
+            // Play dispatch sound
+            try { window.SOUNDS?.unitDispatched?.(); } catch (_) {}
 
             CAD_MODAL.close();
             CAD_UTIL.refreshPanels();
@@ -170,6 +174,7 @@ export const PICKER = {
         } catch (err) {
             console.error("[PICKER] Dispatch failed:", err);
             alert(err?.message || "Dispatch failed.");
+            try { window.SOUNDS?.error?.(); } catch (_) {}
         }
     },
 

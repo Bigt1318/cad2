@@ -245,6 +245,9 @@ export const CALLTAKER = {
 
             console.log(`[CALLTAKER] Incident ${savedId} saved → OPEN`);
 
+            // Play new incident sound alert
+            try { window.SOUNDS?.newIncident?.(); } catch (_) {}
+
             CURRENT_INCIDENT_ID = null;
             FORM_UNLOCKED = false;
 

@@ -173,6 +173,18 @@ const IAW = {
       { status: String(status).toUpperCase() }
     );
 
+    // Play appropriate sound based on status
+    try {
+      const st = String(status).toUpperCase();
+      if (st === "ARRIVED") {
+        window.SOUNDS?.unitArrived?.();
+      } else if (st === "DISPATCHED" || st === "ENROUTE") {
+        window.SOUNDS?.unitDispatched?.();
+      } else {
+        window.SOUNDS?.notify?.();
+      }
+    } catch (_) {}
+
     CAD_UTIL.refreshPanels();
     this.reopen();
   },
