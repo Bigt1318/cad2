@@ -156,6 +156,18 @@
 
         console.log("[BOOT] Ford CAD fully initialized (Phase-3).");
 
+        // ----------------------------
+        // 6) Service Worker (PWA support)
+        // ----------------------------
+        if ('serviceWorker' in navigator) {
+            try {
+                const reg = await navigator.serviceWorker.register('/static/service-worker.js');
+                console.log("[BOOT] Service worker registered:", reg.scope);
+            } catch (e) {
+                console.warn("[BOOT] Service worker registration failed:", e);
+            }
+        }
+
     } catch (err) {
         console.error("[BOOT] Fatal boot failure:", err);
     }

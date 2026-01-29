@@ -1811,3 +1811,139 @@ body.drawer-open { overflow: hidden; }
 .response-time.critical {
     color: #ef4444;
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE STYLES
+============================================================ */
+@media (max-width: 1024px) {
+    #workspace {
+        flex-direction: column;
+        height: auto;
+        overflow: auto;
+    }
+    
+    .panel-calltaker,
+    .panel-units,
+    .panel-incidents {
+        flex: none !important;
+        width: 100% !important;
+        min-height: 300px;
+        border-right: none;
+        border-bottom: 1px solid var(--panel-border, #cfd9e6);
+    }
+    
+    .units-two-col {
+        flex-direction: column;
+    }
+    
+    .units-col {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    #cad-header {
+        padding: 0 10px;
+    }
+    
+    .header-left {
+        width: auto;
+    }
+    
+    .header-center {
+        display: none;
+    }
+    
+    .header-right {
+        width: auto;
+    }
+    
+    #cad-toolbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 8px;
+        gap: 6px;
+    }
+    
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+        width: auto;
+        flex: none;
+    }
+    
+    .pill-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    #command-line {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+    }
+    
+    #workspace {
+        padding-bottom: 50px;
+    }
+    
+    /* IAW modal full-screen on mobile */
+    .iaw-modal {
+        width: 100vw;
+        max-width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .iaw-header-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .iaw-loc {
+        width: 100%;
+        order: 10;
+    }
+}
+
+@media (max-width: 480px) {
+    .pill-btn span:not(.held-count-badge) {
+        display: none;
+    }
+    
+    .pill-btn svg {
+        margin: 0;
+    }
+    
+    .incident-table th,
+    .incident-table td {
+        padding: 6px 4px;
+        font-size: 11px;
+    }
+    
+    .col-location {
+        display: none;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .unit-row,
+    .incident-row {
+        min-height: 48px;
+    }
+    
+    .iaw-action-btn,
+    .pill-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .iaw-icon-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
