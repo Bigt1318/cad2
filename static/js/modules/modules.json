@@ -11,6 +11,7 @@
   "/static/js/modules/drag.js",
   "/static/js/modules/drag_dispatch.js",
   "/static/js/modules/clock.js",
+  "/static/js/modules/timers.js",
   "/static/js/modules/commandline.js",
   "/static/js/modules/actions.js",
   "/static/js/modules/calltaker.js",

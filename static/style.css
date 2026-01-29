@@ -1760,3 +1760,54 @@ body.drawer-open { overflow: hidden; }
 .iaw-narrative-compact .iaw-detail-k {
     margin-right: 4px;
 }
+
+/* ============================================================
+   INCIDENT AGE URGENCY INDICATORS
+============================================================ */
+.incident-age {
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.age-normal {
+    color: var(--text-secondary, #64748b);
+}
+
+.age-warning {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.age-critical {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    animation: age-pulse 2s infinite;
+}
+
+@keyframes age-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Response time display */
+.response-time {
+    font-family: "Consolas", "Monaco", monospace;
+    font-size: 11px;
+    color: var(--text-muted, #94a3b8);
+}
+
+.response-time.fast {
+    color: #22c55e;
+}
+
+.response-time.slow {
+    color: #f59e0b;
+}
+
+.response-time.critical {
+    color: #ef4444;
+}

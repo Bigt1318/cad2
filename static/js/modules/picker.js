@@ -164,8 +164,9 @@ export const PICKER = {
                 return;
             }
 
-            // Play dispatch sound
+            // Play dispatch sound and show toast
             try { window.SOUNDS?.unitDispatched?.(); } catch (_) {}
+            try { window.TOAST?.success?.(`Unit ${unit_id} dispatched`); } catch (_) {}
 
             CAD_MODAL.close();
             CAD_UTIL.refreshPanels();

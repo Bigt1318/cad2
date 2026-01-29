@@ -173,15 +173,18 @@ const IAW = {
       { status: String(status).toUpperCase() }
     );
 
-    // Play appropriate sound based on status
+    // Play appropriate sound based on status and show toast
     try {
       const st = String(status).toUpperCase();
       if (st === "ARRIVED") {
         window.SOUNDS?.unitArrived?.();
+        window.TOAST?.info?.(`${unit_id} arrived on scene`);
       } else if (st === "DISPATCHED" || st === "ENROUTE") {
         window.SOUNDS?.unitDispatched?.();
+        window.TOAST?.info?.(`${unit_id} ${st.toLowerCase()}`);
       } else {
         window.SOUNDS?.notify?.();
+        window.TOAST?.info?.(`${unit_id} status: ${st}`);
       }
     } catch (_) {}
 
