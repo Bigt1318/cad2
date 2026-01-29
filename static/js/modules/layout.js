@@ -99,6 +99,21 @@ function _wireDrawer() {
         case "history":
           CAD_MODAL.open("/history");
           break;
+        case "settings":
+          window.SETTINGS?.openModal?.();
+          break;
+        case "reports":
+          // TODO: Reports modal
+          TOAST?.info?.("Reports coming soon");
+          break;
+        case "roster":
+          // TODO: Roster management
+          TOAST?.info?.("Roster management coming soon");
+          break;
+        case "contacts":
+          // TODO: Contacts management
+          TOAST?.info?.("Contacts management coming soon");
+          break;
         case "noop":
         default:
           break;

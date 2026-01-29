@@ -41,7 +41,7 @@
                         </div>
                     </td>
                     <td class="incident-location" title="{{ i.location }}">{{ i.location }}</td>
-                    <td class="incident-age">{{ i.age or '' }}</td>
+                    <td class="incident-age" data-timestamp="{{ i.created }}">{{ i.age or '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

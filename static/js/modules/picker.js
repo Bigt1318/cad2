@@ -207,6 +207,10 @@ export const PICKER = {
                 return;
             }
 
+            // Play dispatch sound and show toast
+            try { window.SOUNDS?.unitDispatched?.(); } catch (_) {}
+            try { window.TOAST?.success?.(`${units.length} unit(s) dispatched`); } catch (_) {}
+
             CAD_MODAL.close();
             CAD_UTIL.refreshPanels();
             await CAD_UTIL.reopenIAW(incident_id);
