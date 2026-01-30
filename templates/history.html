@@ -1,6 +1,6 @@
 <!-- ============================================================
      FORD-CAD — INCIDENT HISTORY LIST
-     Phase-3 Canon • Full File
+     Phase-3 Canon • Clean Table Style
      ============================================================ -->
 
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
@@ -12,17 +12,20 @@
 
             <div class="history-header">
                 <h3>Incident History</h3>
-                <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
+                <div class="history-header-actions">
+                    <span class="history-count">{{ incidents|length }} records</span>
+                    <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
+                </div>
             </div>
 
             <table class="history-table">
                 <thead>
                     <tr>
-                        <th style="width:90px;">Run</th>
-                        <th>Date</th>
+                        <th style="width:100px;">Run #</th>
+                        <th style="width:100px;">Date</th>
                         <th>Type</th>
                         <th>Location</th>
-                        <th>Status</th>
+                        <th style="width:100px;">Status</th>
                     </tr>
                 </thead>
 
@@ -36,7 +39,7 @@
                     <tr class="history-row"
                         style="cursor:pointer;"
                         onclick="CAD_MODAL.open('/history/{{ i.incident_id }}')">
-                        <td>{{ i.incident_number }}</td>
+                        <td class="history-id">{{ i.incident_number }}</td>
                         <td>{{ i.incident_date }}</td>
                         <td>{{ i.type }}</td>
                         <td>{{ i.location }}</td>
@@ -51,13 +54,3 @@
 
     </div>
 </div>
-
-<style>
-.history-panel { padding: 8px; overflow-y:auto; }
-.history-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 6px 0; }
-.history-header h3 { margin:0; color:#e2e8f0; font-size:18px; }
-.history-table { width:100%; border-collapse:collapse; font-size:14px; }
-.history-table th { padding:3px 6px; background:rgba(255,255,255,0.06); border-bottom:1px solid #253244; }
-.history-table td { padding:4px 6px; border-bottom:1px solid #1d2733; color:#d7dde8; }
-.history-empty { text-align:center; opacity:0.5; padding:10px; }
-</style>

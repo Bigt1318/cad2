@@ -1,83 +1,38 @@
 // ============================================================================
 // FORD-CAD — Service Worker
-// Enables offline support and push notifications
+// Enables push notifications only - NO caching for real-time dispatch
 // ============================================================================
 
-const CACHE_NAME = 'fordcad-v1';
+const CACHE_NAME = 'fordcad-v3';
 const STATIC_ASSETS = [
-    '/',
-    '/static/style.css',
-    '/static/modals.css',
-    '/static/css/themes.css',
-    '/static/vendor/htmx.min.js',
-    '/static/js/bootloader.js',
+    // Minimal caching - only images/icons, never HTML or JS
     '/static/images/logo.png',
 ];
 
-// Install: cache static assets
+// Force cleanup of old caches on load
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing service worker');
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] Caching static assets');
-            return cache.addAll(STATIC_ASSETS);
-        })
-    );
+    console.log('[SW] Installing v3 - minimal caching mode');
     self.skipWaiting();
 });
 
-// Activate: clean old caches
+
+// Activate: clean ALL old caches
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating service worker');
+    console.log('[SW] Activating v3 - cleaning all caches');
     event.waitUntil(
         caches.keys().then((keys) => {
-            return Promise.all(
-                keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-            );
+            // Delete ALL caches to ensure fresh content
+            return Promise.all(keys.map(k => caches.delete(k)));
         })
     );
     self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch: Network only for everything (no caching for real-time dispatch)
 self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-    
-    // Skip non-GET requests
-    if (event.request.method !== 'GET') return;
-    
-    // API calls: network only (don't cache dynamic data)
-    if (url.pathname.startsWith('/api/') || 
-        url.pathname.startsWith('/panel/') ||
-        url.pathname.startsWith('/incident/')) {
-        return;
-    }
-    
-    // Static assets: cache-first
-    if (url.pathname.startsWith('/static/')) {
-        event.respondWith(
-            caches.match(event.request).then((cached) => {
-                return cached || fetch(event.request).then((response) => {
-                    // Cache successful responses
-                    if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-                    }
-                    return response;
-                });
-            })
-        );
-        return;
-    }
-    
-    // HTML pages: network-first with cache fallback
-    event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request).then((cached) => {
-                return cached || caches.match('/');
-            });
-        })
-    );
+    // Let all requests go straight to network - no caching
+    // This is a real-time dispatch system, caching causes problems
+    return;
 });
 
 // Push notifications

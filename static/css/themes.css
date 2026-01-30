@@ -1,234 +1,285 @@
 /* ============================================================
    FORD-CAD — THEME SYSTEM
    CSS Variables for Light/Dark/High-Contrast themes
+   Must load AFTER ford-cad-v4.css to override variables
 ============================================================ */
 
 /* ============================================================
-   DEFAULT / LIGHT THEME (Ford Blue)
+   LIGHT THEME (Default - Ford Blue)
 ============================================================ */
 :root,
 [data-theme="light"] {
-    /* Brand */
-    --ford-blue: #003a8f;
-    --ford-blue-dark: #002a6b;
-    --ford-blue-light: #e9f0fb;
+    /* === FORD BRAND === */
+    --ford-blue: #003478;
+    --ford-blue-light: #1351a3;
+    --ford-blue-lighter: #2563eb;
+    --ford-blue-dark: #00264d;
 
-    /* Shell */
-    --shell-bg: #eef2f7;
-    --shell-surface: #ffffff;
+    /* === BACKGROUNDS === */
+    --bg-app: #f1f5f9;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f8fafc;
+    --bg-panel: #ffffff;
+    --bg-header: linear-gradient(135deg, #003478 0%, #1351a3 100%);
+    --bg-hover: #e2e8f0;
+    --bg-active: #dbeafe;
 
-    /* Panels */
-    --panel-bg: #f4f7fb;
-    --panel-surface: #ffffff;
-    --panel-border: #cfd9e6;
+    /* === TEXT === */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #1d4ed8;
 
-    /* Text */
-    --text-primary: #1e2a36;
-    --text-secondary: #5f6f82;
-    --text-muted: #8a99a8;
-    --text-inverse: #ffffff;
+    /* === BORDERS === */
+    --border-default: #cbd5e1;
+    --border-light: #e2e8f0;
+    --border-emphasis: #94a3b8;
 
-    /* Header */
-    --header-bg: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
-    --header-text: #ffffff;
+    /* === STATUS COLORS === */
+    --status-available: #16a34a;
+    --status-available-bg: #dcfce7;
+    --status-dispatched: #ea580c;
+    --status-dispatched-bg: #ffedd5;
+    --status-enroute: #2563eb;
+    --status-enroute-bg: #dbeafe;
+    --status-arrived: #16a34a;
+    --status-arrived-bg: #dcfce7;
+    --status-onscene: #7c3aed;
+    --status-onscene-bg: #ede9fe;
+    --status-transporting: #db2777;
+    --status-transporting-bg: #fce7f3;
+    --status-oos: #64748b;
+    --status-oos-bg: #f1f5f9;
+    --status-busy: #dc2626;
+    --status-busy-bg: #fee2e2;
 
-    /* Toolbar */
-    --toolbar-bg: var(--ford-blue-light);
-    --toolbar-border: var(--panel-border);
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #dc2626;
+    --fire-red-light: #ef4444;
+    --fire-orange: #ea580c;
+    --fire-amber: #f59e0b;
 
-    /* Command line */
-    --cmd-bg: #0b1b2a;
-    --cmd-text: #e0e6ed;
-    --cmd-placeholder: #6b7b8a;
+    /* === ACCENT COLORS === */
+    --accent-rose: #e11d48;
+    --accent-pink: #ec4899;
+    --accent-purple: #a855f7;
 
-    /* Modals */
-    --modal-bg: #ffffff;
-    --modal-header-bg: var(--ford-blue);
-    --modal-header-text: #ffffff;
-    --modal-overlay: rgba(0, 0, 0, 0.5);
+    /* === SEMANTIC === */
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --warning: #ca8a04;
+    --warning-bg: #fef9c3;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --info: #2563eb;
+    --info-bg: #dbeafe;
 
-    /* Status colors */
-    --status-available: #ffffff;
-    --status-available-text: var(--text-primary);
-    --status-dispatched: #f97316;
-    --status-enroute: #3b82f6;
-    --status-arrived: #14b8a6;
-    --status-operating: #22c55e;
-    --status-transporting: #eab308;
-    --status-busy: #ef4444;
-    --status-oos: #6b7280;
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #16a34a;
 
-    /* Alerts */
-    --alert-info: #3b82f6;
-    --alert-success: #22c55e;
-    --alert-warning: #f59e0b;
-    --alert-danger: #ef4444;
-
-    /* Interactive */
-    --focus-ring: rgba(59, 130, 246, 0.5);
-    --hover-bg: rgba(0, 0, 0, 0.04);
-
-    /* Shadows */
+    /* === SHADOWS === */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.10);
-
-    /* Borders */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
 }
 
 /* ============================================================
    DARK THEME
 ============================================================ */
 [data-theme="dark"] {
-    /* Brand */
-    --ford-blue: #4a90d9;
-    --ford-blue-dark: #1a365d;
-    --ford-blue-light: #1e3a5f;
+    /* === FORD BRAND === */
+    --ford-blue: #60a5fa;
+    --ford-blue-light: #3b82f6;
+    --ford-blue-lighter: #93c5fd;
+    --ford-blue-dark: #1e40af;
 
-    /* Shell */
-    --shell-bg: #0f172a;
-    --shell-surface: #1e293b;
+    /* === BACKGROUNDS === */
+    --bg-app: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-elevated: #334155;
+    --bg-panel: #1e293b;
+    --bg-header: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+    --bg-hover: #475569;
+    --bg-active: #1e3a5f;
 
-    /* Panels */
-    --panel-bg: #1e293b;
-    --panel-surface: #334155;
-    --panel-border: #475569;
+    /* === TEXT === */
+    --text-primary: #f8fafc;
+    --text-secondary: #e2e8f0;
+    --text-muted: #cbd5e1;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #93c5fd;
 
-    /* Text */
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --text-inverse: #0f172a;
+    /* === BORDERS === */
+    --border-default: #475569;
+    --border-light: #334155;
+    --border-emphasis: #64748b;
 
-    /* Header */
-    --header-bg: linear-gradient(to right, #1a365d, #2563eb);
-    --header-text: #ffffff;
-
-    /* Toolbar */
-    --toolbar-bg: #1e293b;
-    --toolbar-border: #475569;
-
-    /* Command line */
-    --cmd-bg: #0f172a;
-    --cmd-text: #e2e8f0;
-    --cmd-placeholder: #64748b;
-
-    /* Modals */
-    --modal-bg: #1e293b;
-    --modal-header-bg: #2563eb;
-    --modal-header-text: #ffffff;
-    --modal-overlay: rgba(0, 0, 0, 0.7);
-
-    /* Status colors (brighter for dark bg) */
-    --status-available: #334155;
-    --status-available-text: #f1f5f9;
+    /* === STATUS COLORS (brighter for dark bg) === */
+    --status-available: #4ade80;
+    --status-available-bg: #166534;
     --status-dispatched: #fb923c;
+    --status-dispatched-bg: #9a3412;
     --status-enroute: #60a5fa;
-    --status-arrived: #2dd4bf;
-    --status-operating: #4ade80;
-    --status-transporting: #fbbf24;
-    --status-busy: #f87171;
+    --status-enroute-bg: #1e40af;
+    --status-arrived: #4ade80;
+    --status-arrived-bg: #166534;
+    --status-onscene: #a78bfa;
+    --status-onscene-bg: #5b21b6;
+    --status-transporting: #f472b6;
+    --status-transporting-bg: #9d174d;
     --status-oos: #9ca3af;
+    --status-oos-bg: #374151;
+    --status-busy: #f87171;
+    --status-busy-bg: #991b1b;
 
-    /* Alerts */
-    --alert-info: #60a5fa;
-    --alert-success: #4ade80;
-    --alert-warning: #fbbf24;
-    --alert-danger: #f87171;
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #f87171;
+    --fire-red-light: #fca5a5;
+    --fire-orange: #fb923c;
+    --fire-amber: #fbbf24;
 
-    /* Interactive */
-    --focus-ring: rgba(96, 165, 250, 0.5);
-    --hover-bg: rgba(255, 255, 255, 0.05);
+    /* === ACCENT COLORS === */
+    --accent-rose: #fb7185;
+    --accent-pink: #f472b6;
+    --accent-purple: #c4b5fd;
 
-    /* Shadows */
+    /* === SEMANTIC === */
+    --success: #4ade80;
+    --success-bg: #166534;
+    --warning: #fbbf24;
+    --warning-bg: #854d0e;
+    --danger: #f87171;
+    --danger-bg: #991b1b;
+    --info: #60a5fa;
+    --info-bg: #1e40af;
+
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #4ade80;
+
+    /* === SHADOWS === */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
 }
 
 /* ============================================================
    HIGH CONTRAST THEME (Accessibility)
 ============================================================ */
 [data-theme="high-contrast"] {
-    /* Brand */
-    --ford-blue: #0066cc;
-    --ford-blue-dark: #003366;
-    --ford-blue-light: #e6f2ff;
+    /* === FORD BRAND === */
+    --ford-blue: #0055cc;
+    --ford-blue-light: #0066ff;
+    --ford-blue-lighter: #3388ff;
+    --ford-blue-dark: #003399;
 
-    /* Shell */
-    --shell-bg: #ffffff;
-    --shell-surface: #ffffff;
+    /* === BACKGROUNDS === */
+    --bg-app: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f0f0f0;
+    --bg-panel: #ffffff;
+    --bg-header: #000000;
+    --bg-hover: #e0e0e0;
+    --bg-active: #cce5ff;
 
-    /* Panels */
-    --panel-bg: #ffffff;
-    --panel-surface: #ffffff;
-    --panel-border: #000000;
-
-    /* Text */
+    /* === TEXT === */
     --text-primary: #000000;
-    --text-secondary: #333333;
-    --text-muted: #666666;
-    --text-inverse: #ffffff;
+    --text-secondary: #222222;
+    --text-muted: #444444;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #0000cc;
 
-    /* Header */
-    --header-bg: #000000;
-    --header-text: #ffffff;
+    /* === BORDERS === */
+    --border-default: #000000;
+    --border-light: #444444;
+    --border-emphasis: #000000;
 
-    /* Toolbar */
-    --toolbar-bg: #f0f0f0;
-    --toolbar-border: #000000;
-
-    /* Command line */
-    --cmd-bg: #000000;
-    --cmd-text: #ffffff;
-    --cmd-placeholder: #cccccc;
-
-    /* Modals */
-    --modal-bg: #ffffff;
-    --modal-header-bg: #000000;
-    --modal-header-text: #ffffff;
-    --modal-overlay: rgba(0, 0, 0, 0.8);
-
-    /* Status colors (high contrast) */
-    --status-available: #ffffff;
-    --status-available-text: #000000;
-    --status-dispatched: #ff6600;
-    --status-enroute: #0066ff;
-    --status-arrived: #009999;
-    --status-operating: #009900;
-    --status-transporting: #cccc00;
+    /* === STATUS COLORS (high contrast) === */
+    --status-available: #006600;
+    --status-available-bg: #ccffcc;
+    --status-dispatched: #cc4400;
+    --status-dispatched-bg: #ffddcc;
+    --status-enroute: #0044cc;
+    --status-enroute-bg: #cce5ff;
+    --status-arrived: #006600;
+    --status-arrived-bg: #ccffcc;
+    --status-onscene: #6600aa;
+    --status-onscene-bg: #e5ccff;
+    --status-transporting: #aa0055;
+    --status-transporting-bg: #ffccee;
+    --status-oos: #444444;
+    --status-oos-bg: #e0e0e0;
     --status-busy: #cc0000;
-    --status-oos: #666666;
+    --status-busy-bg: #ffcccc;
 
-    /* Alerts */
-    --alert-info: #0066ff;
-    --alert-success: #009900;
-    --alert-warning: #cc6600;
-    --alert-danger: #cc0000;
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #cc0000;
+    --fire-red-light: #ff0000;
+    --fire-orange: #cc4400;
+    --fire-amber: #cc7700;
 
-    /* Interactive */
-    --focus-ring: #0066ff;
-    --hover-bg: #e6e6e6;
+    /* === ACCENT COLORS === */
+    --accent-rose: #cc0044;
+    --accent-pink: #cc0088;
+    --accent-purple: #7700cc;
 
-    /* Shadows (minimal for clarity) */
+    /* === SEMANTIC === */
+    --success: #006600;
+    --success-bg: #ccffcc;
+    --warning: #cc7700;
+    --warning-bg: #fff3cc;
+    --danger: #cc0000;
+    --danger-bg: #ffcccc;
+    --info: #0044cc;
+    --info-bg: #cce5ff;
+
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #006600;
+
+    /* === SHADOWS (minimal) === */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4);
-
-    /* Borders thicker for visibility */
-    --radius-sm: 2px;
-    --radius-md: 4px;
-    --radius-lg: 6px;
+    --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.5);
 }
 
+/* ============================================================
+   THEME-SPECIFIC ELEMENT OVERRIDES
+============================================================ */
+
 /* High contrast uses thicker borders */
-[data-theme="high-contrast"] .workspace-panel,
-[data-theme="high-contrast"] .cad-modal,
 [data-theme="high-contrast"] input,
 [data-theme="high-contrast"] select,
+[data-theme="high-contrast"] textarea,
 [data-theme="high-contrast"] button {
-    border-width: 2px !important;
+    border-width: 2px;
+}
+
+/* Dark mode form inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-default);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    border-color: var(--ford-blue);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
 }

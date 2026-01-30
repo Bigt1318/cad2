@@ -14,12 +14,14 @@
         </div>
     </div>
 
+    <div class="incident-content">
     {% if incidents|length == 0 %}
         <div class="incident-empty">No active incidents</div>
     {% else %}
         <table class="incident-table">
             <thead>
                 <tr>
+                    <th class="col-num">#</th>
                     <th class="col-issue"></th>
                     <th class="col-id">ID</th>
                     <th class="col-type">Type</th>
@@ -32,9 +34,12 @@
                     <tr class="incident-row"
                         tabindex="0"
                         data-incident-id="{{ i.incident_id }}"
+                        data-status="{{ i.status or 'ACTIVE' }}"
+                        data-row-num="{{ loop.index }}"
                         onclick="IAW.open({{ i.incident_id }})"
                         oncontextmenu="CAD_CONTEXTMENU.showForIncident(event, {{ i.incident_id }}, this)">
 
+                        <td class="row-num">{{ loop.index }}</td>
                         <td class="issue-flag">{% if i.issue_flag %}<span class="issue-indicator" title="Issue reported">!</span>{% endif %}</td>
                         <td class="incident-id">{{ i.incident_number or 'NO#' }}</td>
 
@@ -95,5 +100,6 @@
             </tbody>
         </table>
     {% endif %}
+    </div>
 
 </div>

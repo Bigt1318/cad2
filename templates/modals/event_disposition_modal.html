@@ -1,66 +1,111 @@
 <!-- ============================================================
      FORD-CAD — EVENT DISPOSITION MODAL
-     Phase-3 Canonical (codes driven by backend)
+     Phase-3 Canonical - Clean Button Grid Design
 ============================================================ -->
 
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
-<div class="cad-modal disposition-modal event-disposition-modal" id="event-disposition-modal">
+<div class="cad-modal disposition-modal-v2" id="event-disposition-modal">
 
-    <!-- ========================================================
-         HEADER
-    ======================================================== -->
-    <div class="modal-header">
-        <div class="modal-title">Event Disposition</div>
-        <div class="modal-subtitle">Incident #{{ incident_id }}</div>
-        <div class="modal-close" onclick="CAD_MODAL.close()">✖</div>
+    <!-- HEADER -->
+    <div class="dispo-header">
+        <div class="dispo-header-content">
+            <div class="dispo-title">Close Incident</div>
+            <div class="dispo-incident-info">
+                <span class="dispo-incident-id">#{{ incident_id }}</span>
+                {% if incident %}
+                <span class="dispo-incident-type">{{ incident.type or 'Incident' }}</span>
+                <span class="dispo-incident-loc">{{ incident.location or '' }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <button class="dispo-close-btn" onclick="CAD_MODAL.close()" title="Cancel">&times;</button>
     </div>
 
-    <!-- ========================================================
-         DISPATCHER IDENTITY
-    ======================================================== -->
-    {% include "modals/dispatcher_identity_block.html" %}
+    <!-- BODY -->
+    <div class="dispo-body">
+        <form id="dispositionForm" onsubmit="event.preventDefault(); DISP.submit({{ incident_id }});">
 
-    <!-- ========================================================
-         FORM BODY
-    ======================================================== -->
-    <div class="modal-body">
-        <form id="dispositionForm"
-              onsubmit="event.preventDefault(); DISP.submit({{ incident_id }});">
+            <!-- DISPOSITION CODE SELECTION -->
+            <div class="dispo-section">
+                <div class="dispo-section-label">Select Disposition Code</div>
 
-            {% set CODES = valid_codes if valid_codes is defined else outcomes %}
+                <div class="dispo-code-grid">
+                    {% set CODES = valid_codes if valid_codes is defined else outcomes %}
 
-            <!-- DISPOSITION CODE -->
-            <div class="modal-field">
-                <label class="modal-label">Disposition Code</label>
-                <select class="modal-select" id="disp-code" name="code" required>
-                    <option value="">-- Select Code --</option>
+                    <!-- Primary Outcomes -->
+                    <button type="button" class="dispo-code-btn" data-code="FA" onclick="DISP.selectCode('FA', this)">
+                        <span class="dispo-code-label">False Alarm</span>
+                        <span class="dispo-code-id">FA</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn" data-code="FF" onclick="DISP.selectCode('FF', this)">
+                        <span class="dispo-code-label">False Fire</span>
+                        <span class="dispo-code-id">FF</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn dispo-code-medical" data-code="MF" onclick="DISP.selectCode('MF', this)">
+                        <span class="dispo-code-label">Medical First Aid</span>
+                        <span class="dispo-code-id">MF</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn dispo-code-medical" data-code="MT" onclick="DISP.selectCode('MT', this)">
+                        <span class="dispo-code-label">Mutual Aid Transport</span>
+                        <span class="dispo-code-id">MT</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn" data-code="PR" onclick="DISP.selectCode('PR', this)">
+                        <span class="dispo-code-label">Patient Refused</span>
+                        <span class="dispo-code-id">PR</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn" data-code="NF" onclick="DISP.selectCode('NF', this)">
+                        <span class="dispo-code-label">No Finding</span>
+                        <span class="dispo-code-id">NF</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn dispo-code-cancel" data-code="C" onclick="DISP.selectCode('C', this)">
+                        <span class="dispo-code-label">Cancelled</span>
+                        <span class="dispo-code-id">C</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn dispo-code-cancel" data-code="CT" onclick="DISP.selectCode('CT', this)">
+                        <span class="dispo-code-label">Care Transferred</span>
+                        <span class="dispo-code-id">CT</span>
+                    </button>
+
+                    <button type="button" class="dispo-code-btn dispo-code-other" data-code="O" onclick="DISP.selectCode('O', this)">
+                        <span class="dispo-code-label">Other</span>
+                        <span class="dispo-code-id">O</span>
+                    </button>
+                </div>
+
+                <!-- Hidden select for form submission -->
+                <select id="disp-code" name="code" required style="display:none;">
+                    <option value="">Select disposition code...</option>
                     {% for code, label in CODES|dictsort %}
-                        <option value="{{ code }}">{{ code }} — {{ label }}</option>
+                    <option value="{{ code }}">{{ code }} — {{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
-            <!-- NARRATIVE DESCRIPTION -->
-            <div class="modal-field">
-                <label class="modal-label">Narrative (Required)</label>
-                <textarea class="modal-textarea"
-                          id="disp-comment"
-                          name="comment"
-                          placeholder="Enter disposition narrative..."
-                          required></textarea>
+            <!-- OPTIONAL COMMENT -->
+            <div class="dispo-section">
+                <div class="dispo-section-label">Optional comment...</div>
+                <input type="text"
+                       class="dispo-comment-input"
+                       id="disp-comment"
+                       name="comment"
+                       placeholder="Brief description of outcome...">
             </div>
 
-            <!-- FOOTER -->
-            <div class="modal-footer">
-                <button type="submit" class="pill-btn modal-submit-btn">
-                    Submit Disposition
-                </button>
-
-                <button type="button"
-                        onclick="CAD_MODAL.close()"
-                        class="pill-btn modal-cancel-btn">
+            <!-- FOOTER ACTIONS -->
+            <div class="dispo-footer">
+                <button type="button" class="dispo-btn dispo-btn-cancel" onclick="CAD_MODAL.close()">
                     Cancel
+                </button>
+                <button type="submit" class="dispo-btn dispo-btn-submit" id="dispo-submit-btn" disabled>
+                    Close Incident
                 </button>
             </div>
 
@@ -68,3 +113,18 @@
     </div>
 
 </div>
+
+<script>
+// Disposition code selection handler
+window.DISP = window.DISP || {};
+DISP.selectCode = function(code, btn) {
+    // Remove selection from all buttons
+    document.querySelectorAll('.dispo-code-btn').forEach(b => b.classList.remove('selected'));
+    // Select this button
+    btn.classList.add('selected');
+    // Set hidden select value
+    document.getElementById('disp-code').value = code;
+    // Enable submit button
+    document.getElementById('dispo-submit-btn').disabled = false;
+};
+</script>

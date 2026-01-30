@@ -29,7 +29,7 @@
         {% if login_required|default(false) %}
             <div class="units-empty">
                 <div style="margin-bottom:8px;">Login Required to view shift roster.</div>
-                <button class="pill-btn modal-submit-btn" type="button" onclick="CAD_MODAL.open('/modals/login')">
+                <button class="pill-btn modal-submit-btn" type="button" onclick="window.location.href='/login'">
                     Login / Select Shift
                 </button>
             </div>

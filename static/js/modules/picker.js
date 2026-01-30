@@ -170,7 +170,7 @@ export const PICKER = {
 
             CAD_MODAL.close();
             CAD_UTIL.refreshPanels();
-            await CAD_UTIL.reopenIAW(incident_id);
+            // Don't auto-open IAW after dispatch - user can click incident if needed
 
         } catch (err) {
             console.error("[PICKER] Dispatch failed:", err);
@@ -213,7 +213,7 @@ export const PICKER = {
 
             CAD_MODAL.close();
             CAD_UTIL.refreshPanels();
-            await CAD_UTIL.reopenIAW(incident_id);
+            // Don't auto-open IAW after dispatch - user can click incident if needed
 
         } catch (err) {
             console.error("[PICKER] Dispatch failed:", err);

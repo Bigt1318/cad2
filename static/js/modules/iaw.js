@@ -45,8 +45,8 @@ function _closeAnyInline() {
 }
 
 function _setSelected(btn, groupSelector) {
-  document.querySelectorAll(groupSelector).forEach(b => b.classList.remove("iaw-code-selected"));
-  btn.classList.add("iaw-code-selected");
+  document.querySelectorAll(groupSelector).forEach(b => b.classList.remove("selected"));
+  btn.classList.add("selected");
 }
 
 function _getUnitDispoRow(incidentId, unitId) {
@@ -235,7 +235,7 @@ const IAW = {
 
       // Close anything else, open this
       _closeAnyInline();
-      row.style.display = "table-row";
+      row.style.display = "block";
       _openUnitDispoKey = key;
 
       // Reset selection state when opening
@@ -256,8 +256,8 @@ const IAW = {
       if (!row) return;
 
       // Clear previous selection styling inside this row
-      row.querySelectorAll(".iaw-code-btn").forEach(b => b.classList.remove("iaw-code-selected"));
-      if (btnEl) btnEl.classList.add("iaw-code-selected");
+      row.querySelectorAll(".iaw-dispo-code-btn").forEach(b => b.classList.remove("selected"));
+      if (btnEl) btnEl.classList.add("selected");
 
       _setUnitSelectedCode(incident_id, unit_id, String(code).toUpperCase());
     },
@@ -400,7 +400,7 @@ const IAW = {
       box.querySelectorAll("button, input, textarea, select").forEach(el => el.disabled = true);
 
       try {
-        await CAD_UTIL.postJSON(`/incident/${encodeURIComponent(incident_id)}/disposition`, {
+        const res = await CAD_UTIL.postJSON(`/incident/${encodeURIComponent(incident_id)}/disposition`, {
           code,
           comment
         });
@@ -409,7 +409,20 @@ const IAW = {
         _eventDispoOpenFor = null;
 
         CAD_UTIL.refreshPanels();
-        IAW.reopen();
+
+        // Check the result status
+        if (res?.status === "CLOSED" || res?.status === "HELD") {
+          // Incident is fully closed/held - close the modal entirely
+          IAW.close();
+          window.TOAST?.success?.(`Incident closed with disposition: ${code}`);
+        } else if (res?.remaining_units > 0) {
+          // Units still assigned - show message and close the dispo panel but keep IAW open
+          window.TOAST?.warning?.(`Disposition saved. ${res.remaining_units} unit(s) still assigned.`);
+          // Don't reopen IAW - keep it open as-is, just hide the dispo panel
+        } else {
+          // Fallback: reopen IAW
+          IAW.reopen();
+        }
       } catch (err) {
         console.error("[IAW] submitEventDisposition failed:", err);
         alert("Event disposition failed. See console.");
@@ -422,6 +435,28 @@ const IAW = {
       if (!box) return;
       box.style.display = "none";
       _eventDispoOpenFor = null;
+    },
+
+    // Button grid selection for event disposition
+    selectDispoCode(incident_id, code, btnEl) {
+      if (!incident_id || !code) return;
+
+      const box = document.getElementById(`iaw-event-dispo-${String(incident_id)}`);
+      if (!box) return;
+
+      // Remove selection from all buttons in this panel
+      box.querySelectorAll('.iaw-dispo-code-btn').forEach(b => b.classList.remove('selected'));
+
+      // Add selection to clicked button
+      if (btnEl) btnEl.classList.add('selected');
+
+      // Set hidden input value
+      const codeInput = box.querySelector('[data-role="event-dispo-code"]');
+      if (codeInput) codeInput.value = code;
+
+      // Enable submit button
+      const submitBtn = box.querySelector('[data-role="submit-event-dispo"]');
+      if (submitBtn) submitBtn.disabled = false;
     }
   },
 

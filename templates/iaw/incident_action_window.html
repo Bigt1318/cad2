@@ -1,6 +1,6 @@
 <!-- ============================================================
-     FORD CAD — INCIDENT ACTION WINDOW (IAW)
-     Modern Professional Design
+     FORD CAD — INCIDENT ACTION WINDOW (IAW) v2
+     Clean, Functional Design with Proper Contrast
 ============================================================ -->
 
 {% set created = incident.created or "" %}
@@ -12,490 +12,393 @@
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
 <!-- IAW Modal -->
-<div class="cad-modal iaw-modal" id="iaw-modal" data-incident-id="{{ incident.incident_id }}">
+<div class="iaw-modal-v2" id="iaw-modal" data-incident-id="{{ incident.incident_id }}">
 
-  <!-- HEADER (Mini-Calltaker Style - All Critical Info at Glance) -->
-  <div class="iaw-header">
-    <div class="iaw-header-row">
-      <!-- Incident ID -->
-      <div class="iaw-id">
+  <!-- HEADER -->
+  <div class="iaw-header-v2">
+    <div class="iaw-header-main">
+      <div class="iaw-incident-badge">
         {% if incident.incident_number %}
-          <span class="iaw-id-number">{{ incident.incident_number }}</span>
+          <span class="iaw-incident-num">{{ incident.incident_number }}</span>
         {% else %}
-          <span class="iaw-id-draft">DRAFT #{{ incident.incident_id }}</span>
+          <span class="iaw-incident-draft">DRAFT #{{ incident.incident_id }}</span>
         {% endif %}
       </div>
-
-      <!-- Type Badge -->
-      <div class="iaw-type-pill">{{ incident.type or "UNKNOWN" }}</div>
-
-      <!-- Location (truncated) -->
-      <div class="iaw-loc">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
-        </svg>
-        <span class="iaw-loc-text">{{ (incident.location or "—")[:40] }}{% if incident.location and incident.location|length > 40 %}…{% endif %}</span>
-      </div>
-
-      <!-- Status + Priority + Issue Badges -->
-      <div class="iaw-badges">
-        {% if incident.status %}
-          <span class="iaw-badge iaw-badge-status">{{ incident.status }}</span>
-        {% endif %}
-        {% if incident.priority %}
-          <span class="iaw-badge iaw-badge-priority">P{{ incident.priority }}</span>
-        {% endif %}
-        {% if incident.issue_found == 1 %}
-          <span class="iaw-badge iaw-badge-issue">⚠ ISSUE</span>
-        {% endif %}
-      </div>
-
-      <!-- Age Timer -->
-      <div class="iaw-age" title="Time since created">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12,6 12,12 16,14"></polyline>
-        </svg>
-        <span class="iaw-age-text" data-created="{{ created }}">{{ created_ts[:5] if created_ts != "—" else "—" }}</span>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="iaw-header-actions">
-        {% if not incident.incident_number %}
-          <button class="iaw-icon-btn" title="Assign Incident #" onclick="IAW.assignNumber({{ incident.incident_id }})">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="4" y1="9" x2="20" y2="9"></line>
-              <line x1="4" y1="15" x2="20" y2="15"></line>
-              <line x1="10" y1="3" x2="8" y2="21"></line>
-              <line x1="16" y1="3" x2="14" y2="21"></line>
-            </svg>
-          </button>
-        {% endif %}
-        <button class="iaw-icon-btn" title="Close (Esc)" onclick="CAD_MODAL.close()">×</button>
-      </div>
+      <div class="iaw-incident-type">{{ incident.type or "UNKNOWN" }}</div>
+      {% if incident.priority %}
+        <div class="iaw-priority-badge iaw-priority-{{ incident.priority }}">P{{ incident.priority }}</div>
+      {% endif %}
+      <div class="iaw-status-badge iaw-status-{{ (incident.status or 'OPEN')|lower }}">{{ incident.status or "OPEN" }}</div>
     </div>
+    <button class="iaw-close-btn" onclick="CAD_MODAL.close()" title="Close (Esc)">&times;</button>
+  </div>
+
+  <!-- LOCATION BAR -->
+  <div class="iaw-location-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+      <circle cx="12" cy="10" r="3"></circle>
+    </svg>
+    <span class="iaw-location-text">{{ incident.location or "No location specified" }}</span>
   </div>
 
   <!-- BODY -->
-  <div class="iaw-body">
-    <div class="iaw-scroll">
+  <div class="iaw-body-v2">
 
-      <!-- INCIDENT DETAILS (Compact - Key info in header) -->
-      <div class="iaw-card iaw-card-compact">
-        <div class="iaw-detail-row">
-          <div class="iaw-detail-cell">
-            <span class="iaw-detail-k">Caller</span>
-            <span class="iaw-detail-v">{{ incident.caller_name or "—" }}</span>
-          </div>
-          <div class="iaw-detail-cell">
-            <span class="iaw-detail-k">Phone</span>
-            <span class="iaw-detail-v">{{ incident.caller_phone or "—" }}</span>
-          </div>
-          <div class="iaw-detail-cell">
-            <span class="iaw-detail-k">Node</span>
-            <span class="iaw-detail-v">{{ incident.node or "—" }}</span>
-          </div>
-          <div class="iaw-detail-cell iaw-detail-actions">
-            <button class="iaw-btn iaw-btn-small" onclick="IAW.editInCalltaker({{ incident.incident_id }})" title="Edit incident details">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-              Edit
-            </button>
-          </div>
+    <!-- INCIDENT INFO -->
+    <div class="iaw-section">
+      <div class="iaw-info-grid-v2">
+        <div class="iaw-info-item">
+          <span class="iaw-info-label">Caller</span>
+          <span class="iaw-info-value">{{ incident.caller_name or "—" }}</span>
         </div>
-        {% if incident.narrative %}
-        <div class="iaw-narrative-compact">
-          <span class="iaw-detail-k">Notes:</span> {{ incident.narrative }}
+        <div class="iaw-info-item">
+          <span class="iaw-info-label">Phone</span>
+          <span class="iaw-info-value">{{ incident.caller_phone or "—" }}</span>
         </div>
-        {% endif %}
-      </div>
-
-      <!-- ASSIGNED UNITS -->
-      <div class="iaw-card">
-        <div class="iaw-card-header">
-          <span class="iaw-card-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="1" y="3" width="15" height="13" rx="2"></rect>
-              <path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"></path>
-            </svg>
-            Assigned Units
-            <span class="iaw-unit-count">{{ units|length }}</span>
-          </span>
-          <button class="iaw-btn iaw-btn-primary iaw-btn-small" onclick="IAW.openDispatchPicker({{ incident.incident_id }})">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Dispatch
-          </button>
+        <div class="iaw-info-item">
+          <span class="iaw-info-label">Node</span>
+          <span class="iaw-info-value">{{ incident.node or "—" }}</span>
         </div>
-
-        {% if units|length == 0 %}
-          <div class="iaw-empty">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="1" y="3" width="15" height="13" rx="2"></rect>
-              <path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"></path>
-            </svg>
-            <span>No units assigned</span>
-          </div>
-        {% else %}
-          <div class="iaw-units-list">
-            {% for u in units %}
-              {% set st = "DISPATCHED" %}
-              {% if u.cleared %}{% set st = "CLEARED" %}
-              {% elif u.at_medical %}{% set st = "AT_MEDICAL" %}
-              {% elif u.transporting %}{% set st = "TRANSPORTING" %}
-              {% elif u.arrived %}{% set st = "ARRIVED" %}
-              {% elif u.enroute %}{% set st = "ENROUTE" %}
-              {% endif %}
-
-              <div class="iaw-unit-row">
-                <div class="iaw-unit-info">
-                  <span class="iaw-unit-id">{{ u.unit_id }}</span>
-                  {% if u.commanding_unit == 1 %}
-                    <span class="iaw-cmd-badge">CMD</span>
-                  {% endif %}
-                  <span class="iaw-unit-status iaw-status-{{ st|lower }}">{{ st }}</span>
-                  {% if u.disposition %}
-                    <span class="iaw-dispo-badge">{{ u.disposition }}</span>
-                  {% endif %}
-                </div>
-
-                <div class="iaw-unit-actions">
-                  {% if not u.enroute and not u.arrived and not u.transporting and not u.at_medical and not u.cleared %}
-                    <button class="iaw-action-btn" onclick="IAW.enrouteUnit({{ incident.incident_id }}, '{{ u.unit_id }}')" title="Mark Enroute">ENR</button>
-                  {% endif %}
-                  {% if u.enroute and not u.arrived and not u.cleared %}
-                    <button class="iaw-action-btn iaw-action-primary" onclick="IAW.arriveUnit({{ incident.incident_id }}, '{{ u.unit_id }}')" title="Mark Arrived">ARR</button>
-                  {% endif %}
-                  {% if u.arrived and not u.transporting and not u.at_medical and not u.cleared %}
-                    <button class="iaw-action-btn" onclick="IAW.transportUnit({{ incident.incident_id }}, '{{ u.unit_id }}')" title="Mark Transporting">TRN</button>
-                  {% endif %}
-                  {% if u.transporting and not u.at_medical and not u.cleared %}
-                    <button class="iaw-action-btn" onclick="IAW.atMedicalUnit({{ incident.incident_id }}, '{{ u.unit_id }}')" title="At Medical">MED</button>
-                  {% endif %}
-                  {% if not u.cleared %}
-                    <button class="iaw-action-btn iaw-action-warn" onclick="IAW.ui.toggleUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')" title="Clear Unit">CLR</button>
-                  {% endif %}
-                  {% if u.cleared and not u.disposition %}
-                    <button class="iaw-action-btn iaw-action-primary" onclick="IAW.ui.toggleUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')" title="Set Disposition">DSP</button>
-                  {% endif %}
-                </div>
-              </div>
-
-              <!-- INLINE DISPOSITION ROW -->
-              <div id="iaw-dispo-row-{{ incident.incident_id }}-{{ u.unit_id }}"
-                   class="iaw-dispo-inline"
-                   style="display:none;"
-                   data-selected-code=""
-                   data-already-cleared="{% if u.cleared %}1{% else %}0{% endif %}">
-
-                <div class="iaw-dispo-title">
-                  {% if u.cleared %}Set Disposition{% else %}Clear Unit{% endif %} — {{ u.unit_id }}
-                </div>
-
-                <div class="iaw-dispo-codes">
-                  {% for code in ["FA","FF","MF","MT","PR","NF","C","CT","O"] %}
-                    <button class="iaw-code-btn"
-                            onclick="IAW.ui.selectUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}', '{{ code }}', this)">{{ code }}</button>
-                  {% endfor %}
-                </div>
-
-                <input type="text"
-                       class="iaw-dispo-remark"
-                       data-role="unit-dispo-remark"
-                       placeholder="Optional remark..."
-                       onkeydown="IAW.ui.unitRemarkKeydown(event, {{ incident.incident_id }}, '{{ u.unit_id }}')">
-
-                <div class="iaw-dispo-actions">
-                  <button class="iaw-btn iaw-btn-primary"
-                          data-role="submit-unit-clear"
-                          disabled
-                          onclick="IAW.ui.submitUnitClear({{ incident.incident_id }}, '{{ u.unit_id }}')">Submit</button>
-                  <button class="iaw-btn"
-                          onclick="IAW.ui.cancelUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')">Cancel</button>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </div>
-
-      <!-- NARRATIVE / TIMELINE -->
-      <div class="iaw-card">
-        <div class="iaw-card-header">
-          <span class="iaw-card-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
-            </svg>
-            Activity Log
-          </span>
-          <button class="iaw-btn iaw-btn-small" onclick="CAD_MODAL.open('/incident/{{ incident.incident_id }}/remark')">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Add Remark
-          </button>
-        </div>
-
-        <div class="iaw-narrative-log">
-          {% if narrative|length == 0 %}
-            <div class="iaw-empty-small">No activity entries yet</div>
-          {% else %}
-            {% for n in narrative %}
-              <div class="iaw-log-entry">
-                <span class="iaw-log-time">{{ n.timestamp }}</span>
-                <span class="iaw-log-user">{{ n.user or '' }}</span>
-                <span class="iaw-log-text">{{ n.text or '' }}</span>
-              </div>
-            {% endfor %}
-          {% endif %}
-        </div>
-
-        <details class="iaw-timeline-details">
-          <summary>View Full Timeline</summary>
-          <div hx-get="/iaw/{{ incident.incident_id }}/timeline"
-               hx-trigger="load"
-               hx-target="this"
-               hx-swap="innerHTML"></div>
-        </details>
-      </div>
-
-      <!-- EVENT DISPOSITION (Inline) -->
-      <div id="iaw-event-dispo-{{ incident.incident_id }}" class="iaw-event-dispo" style="display:none;">
-        <div class="iaw-card">
-          <div class="iaw-card-title">Close Incident — Event Disposition</div>
-
-          <div class="iaw-event-dispo-form">
-            <select data-role="event-dispo-code" onchange="IAW.ui.eventCodeChanged({{ incident.incident_id }})">
-              <option value="">Select disposition code...</option>
-              <option value="FA">FA — False Alarm</option>
-              <option value="FF">FF — False Fire</option>
-              <option value="MF">MF — Malicious False</option>
-              <option value="MT">MT — Mutual Aid Transport</option>
-              <option value="PR">PR — Patient Refused</option>
-              <option value="NF">NF — No Finding</option>
-              <option value="C">C — Cancelled</option>
-              <option value="CT">CT — Care Transferred</option>
-              <option value="O">O — Other</option>
-            </select>
-
-            <input type="text"
-                   data-role="event-dispo-comment"
-                   placeholder="Optional comment..."
-                   onkeydown="if(event.key==='Enter'){event.preventDefault(); IAW.ui.submitEventDisposition({{ incident.incident_id }});}">
-
-            <div class="iaw-dispo-actions">
-              <button class="iaw-btn iaw-btn-primary"
-                      data-role="submit-event-dispo"
-                      disabled
-                      onclick="IAW.ui.submitEventDisposition({{ incident.incident_id }})">Close Incident</button>
-              <button class="iaw-btn" onclick="IAW.ui.cancelEventDisposition({{ incident.incident_id }})">Cancel</button>
-            </div>
-          </div>
+        <div class="iaw-info-item">
+          <span class="iaw-info-label">Created</span>
+          <span class="iaw-info-value">{{ created_ts }}</span>
         </div>
       </div>
-
+      {% if incident.narrative %}
+      <div class="iaw-narrative-box">
+        <span class="iaw-info-label">Notes</span>
+        <p class="iaw-narrative-text-v2">{{ incident.narrative }}</p>
+      </div>
+      {% endif %}
     </div>
+
+    <!-- ASSIGNED UNITS -->
+    <div class="iaw-section">
+      <div class="iaw-section-header">
+        <h3 class="iaw-section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+            <path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"></path>
+          </svg>
+          Units
+          <span class="iaw-unit-count-badge">{{ units|length }}</span>
+        </h3>
+        <button class="iaw-btn-v2 iaw-btn-primary-v2" onclick="IAW.openDispatchPicker({{ incident.incident_id }})">
+          + Dispatch Unit
+        </button>
+      </div>
+
+      {% if units|length == 0 %}
+        <div class="iaw-empty-state">
+          <p>No units assigned to this incident</p>
+        </div>
+      {% else %}
+        <div class="iaw-units-table">
+          {% for u in units %}
+            {% set st = "DISPATCHED" %}
+            {% if u.cleared %}{% set st = "CLEARED" %}
+            {% elif u.at_medical %}{% set st = "AT_MEDICAL" %}
+            {% elif u.transporting %}{% set st = "TRANSPORTING" %}
+            {% elif u.arrived %}{% set st = "ARRIVED" %}
+            {% elif u.enroute %}{% set st = "ENROUTE" %}
+            {% endif %}
+
+            <div class="iaw-unit-card {% if u.cleared %}iaw-unit-cleared{% endif %}">
+              <div class="iaw-unit-main">
+                <span class="iaw-unit-name">{{ u.unit_id }}</span>
+                {% if u.commanding_unit == 1 %}
+                  <span class="iaw-cmd-tag">CMD</span>
+                {% endif %}
+                <span class="iaw-unit-status-tag iaw-st-{{ st|lower }}">{{ st }}</span>
+                {% if u.disposition %}
+                  <span class="iaw-dispo-tag">{{ u.disposition }}</span>
+                {% endif %}
+              </div>
+
+              <div class="iaw-unit-buttons">
+                {% if not u.enroute and not u.arrived and not u.transporting and not u.at_medical and not u.cleared %}
+                  <button class="iaw-unit-btn" onclick="IAW.enrouteUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">ENR</button>
+                {% endif %}
+                {% if u.enroute and not u.arrived and not u.cleared %}
+                  <button class="iaw-unit-btn iaw-unit-btn-primary" onclick="IAW.arriveUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">ARR</button>
+                {% endif %}
+                {% if u.arrived and not u.transporting and not u.at_medical and not u.cleared %}
+                  <button class="iaw-unit-btn" onclick="IAW.transportUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">TRN</button>
+                {% endif %}
+                {% if u.transporting and not u.at_medical and not u.cleared %}
+                  <button class="iaw-unit-btn" onclick="IAW.atMedicalUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">MED</button>
+                {% endif %}
+                {% if not u.cleared %}
+                  <button class="iaw-unit-btn iaw-unit-btn-warn" onclick="IAW.ui.toggleUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')">CLR</button>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- INLINE CLEAR UNIT PANEL -->
+            <div id="iaw-dispo-row-{{ incident.incident_id }}-{{ u.unit_id }}"
+                 class="iaw-clear-panel"
+                 style="display:none;"
+                 data-selected-code=""
+                 data-already-cleared="{% if u.cleared %}1{% else %}0{% endif %}">
+
+              <div class="iaw-clear-title">Clear Unit {{ u.unit_id }} — Select Disposition</div>
+
+              <div class="iaw-dispo-buttons">
+                {% for code in ["R","C","X","FA","NR","UF","NC","T","PRTT"] %}
+                  <button class="iaw-dispo-code-btn"
+                          onclick="IAW.ui.selectUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}', '{{ code }}', this)">{{ code }}</button>
+                {% endfor %}
+              </div>
+
+              <input type="text"
+                     class="iaw-clear-remark"
+                     data-role="unit-dispo-remark"
+                     placeholder="Optional remark...">
+
+              <div class="iaw-clear-actions">
+                <button class="iaw-btn-v2" onclick="IAW.ui.cancelUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')">Cancel</button>
+                <button class="iaw-btn-v2 iaw-btn-primary-v2"
+                        data-role="submit-unit-clear"
+                        disabled
+                        onclick="IAW.ui.submitUnitClear({{ incident.incident_id }}, '{{ u.unit_id }}')">Clear Unit</button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- CLOSE INCIDENT PANEL (Hidden by default) -->
+    <div id="iaw-event-dispo-{{ incident.incident_id }}" class="iaw-close-incident-panel" style="display:none;">
+      <div class="iaw-close-header">
+        <span class="iaw-close-title">Close Incident</span>
+        <button class="iaw-close-x" onclick="IAW.ui.cancelEventDisposition({{ incident.incident_id }})">&times;</button>
+      </div>
+
+      <div class="iaw-close-label">Select Final Disposition</div>
+
+      <div class="iaw-dispo-buttons">
+        <button type="button" class="iaw-dispo-code-btn" data-code="R" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'R', this)">R</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="C" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'C', this)">C</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="X" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'X', this)">X</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="FA" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'FA', this)">FA</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="NR" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'NR', this)">NR</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="UF" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'UF', this)">UF</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="NC" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'NC', this)">NC</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="T" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'T', this)">T</button>
+        <button type="button" class="iaw-dispo-code-btn" data-code="PRTT" onclick="IAW.ui.selectDispoCode({{ incident.incident_id }}, 'PRTT', this)">PRTT</button>
+      </div>
+
+      <input type="hidden" data-role="event-dispo-code" value="">
+
+      <input type="text"
+             class="iaw-clear-remark"
+             data-role="event-dispo-comment"
+             placeholder="Optional comment...">
+
+      <div class="iaw-clear-actions">
+        <button class="iaw-btn-v2" onclick="IAW.ui.cancelEventDisposition({{ incident.incident_id }})">Cancel</button>
+        <button class="iaw-btn-v2 iaw-btn-danger-v2"
+                data-role="submit-event-dispo"
+                disabled
+                onclick="IAW.ui.submitEventDisposition({{ incident.incident_id }})">Close Incident</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- FOOTER -->
-  <div class="iaw-footer">
-    <div class="iaw-footer-left">
-      <span class="iaw-footer-meta">ID: {{ incident.incident_id }}</span>
-    </div>
-    <div class="iaw-footer-actions">
+  <div class="iaw-footer-v2">
+    <span class="iaw-footer-id">ID: {{ incident.incident_id }}</span>
+    <div class="iaw-footer-buttons">
       {% if incident.status == 'HELD' %}
-        <button class="iaw-btn iaw-btn-warn" onclick="IAW.unholdIncident({{ incident.incident_id }})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2"></rect>
-            <path d="M7 11V7a5 5 0 0110 0v4"></path>
-          </svg>
-          Unhold
-        </button>
+        <button class="iaw-btn-v2" onclick="IAW.unholdIncident({{ incident.incident_id }})">Unhold</button>
       {% else %}
-        <button class="iaw-btn" onclick="IAW.holdIncident({{ incident.incident_id }})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2"></rect>
-            <path d="M7 11V7a5 5 0 0110 0v4"></path>
-          </svg>
-          Hold
-        </button>
+        <button class="iaw-btn-v2" onclick="IAW.holdIncident({{ incident.incident_id }})">Hold</button>
       {% endif %}
 
       {% if incident.status != 'CLOSED' %}
-        <button class="iaw-btn iaw-btn-danger" onclick="IAW.ui.toggleEventDisposition({{ incident.incident_id }})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
-          Close
-        </button>
+        <button class="iaw-btn-v2 iaw-btn-danger-v2" onclick="IAW.ui.toggleEventDisposition({{ incident.incident_id }})">Close</button>
       {% else %}
-        <button class="iaw-btn iaw-btn-primary" onclick="IAW.reopenIncident({{ incident.incident_id }})">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23,4 23,10 17,10"></polyline>
-            <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path>
-          </svg>
-          Reopen
-        </button>
+        <button class="iaw-btn-v2 iaw-btn-primary-v2" onclick="IAW.reopenIncident({{ incident.incident_id }})">Reopen</button>
       {% endif %}
 
-      <button class="iaw-btn" onclick="CAD_MODAL.close()">Dismiss</button>
+      <button class="iaw-btn-v2" onclick="CAD_MODAL.close()">Dismiss</button>
     </div>
   </div>
 
 </div>
 
 <style>
-/* IAW Modern Styles - Inline for isolation */
-.iaw-modal {
-  width: 680px;
+/* IAW v2 Styles - Clean, Functional, Proper Contrast */
+.iaw-modal-v2 {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
   max-width: 95vw;
   max-height: 90vh;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1001;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
 }
 
-.iaw-header {
+/* Header */
+.iaw-header-v2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: rgba(0,0,0,0.3);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 20px;
+  background: #003478;
+  color: #ffffff;
 }
 
-.iaw-header-left {
+.iaw-header-main {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.iaw-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
+.iaw-incident-num {
+  font-size: 18px;
   font-weight: 700;
-  color: #fff;
+  font-family: ui-monospace, monospace;
 }
 
-.iaw-badges {
-  display: flex;
-  gap: 6px;
+.iaw-incident-draft {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
-.iaw-badge {
+.iaw-incident-type {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
+
+.iaw-priority-badge {
+  font-size: 12px;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 10px;
+  background: #f97316;
+}
+
+.iaw-status-badge {
+  font-size: 11px;
   font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  background: rgba(255,255,255,0.15);
+}
+
+.iaw-status-open { background: #22c55e; }
+.iaw-status-active { background: #3b82f6; }
+.iaw-status-held { background: #f59e0b; }
+.iaw-status-closed { background: #64748b; }
+
+.iaw-close-btn {
   background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
-}
-
-.iaw-badge-status { background: rgba(59,130,246,0.25); border-color: rgba(59,130,246,0.4); }
-.iaw-badge-priority { background: rgba(249,115,22,0.25); border-color: rgba(249,115,22,0.4); color: #fb923c; }
-.iaw-badge-issue {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(239,68,68,0.25);
-  border-color: rgba(239,68,68,0.4);
-  color: #f87171;
-}
-
-.iaw-header-right {
-  display: flex;
-  gap: 6px;
-}
-
-.iaw-icon-btn {
+  border: none;
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 24px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 6px;
-  color: #e8f0f8;
-  cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s;
 }
 
-.iaw-icon-btn:hover {
-  background: rgba(59,130,246,0.2);
-  border-color: rgba(59,130,246,0.4);
+.iaw-close-btn:hover {
+  background: rgba(255,255,255,0.25);
 }
 
-.iaw-body {
-  flex: 1;
-  overflow: hidden;
-}
-
-.iaw-scroll {
-  height: 100%;
-  max-height: calc(90vh - 130px);
-  overflow-y: auto;
-  padding: 12px;
+/* Location Bar */
+.iaw-location-bar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
+  padding: 12px 20px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  color: #475569;
 }
 
-.iaw-card {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  overflow: hidden;
+.iaw-location-text {
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.iaw-card-header {
+/* Body */
+.iaw-body-v2 {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  max-height: calc(90vh - 200px);
+}
+
+/* Sections */
+.iaw-section {
+  margin-bottom: 20px;
+}
+
+.iaw-section:last-child {
+  margin-bottom: 0;
+}
+
+.iaw-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(0,0,0,0.2);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 12px;
 }
 
-.iaw-card-title {
+.iaw-section-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(255,255,255,0.7);
+  color: #1e293b;
+  margin: 0;
 }
 
-.iaw-unit-count {
+.iaw-unit-count-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  background: rgba(59,130,246,0.3);
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 700;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  background: #003478;
   color: #fff;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.iaw-info-grid {
+/* Info Grid */
+.iaw-info-grid-v2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .iaw-info-item {
@@ -504,381 +407,356 @@
   gap: 2px;
 }
 
-.iaw-info-wide {
-  grid-column: span 2;
-}
-
 .iaw-info-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.5px;
+  color: #64748b;
 }
 
 .iaw-info-value {
-  font-size: 13px;
-  color: #e8f0f8;
+  font-size: 14px;
+  color: #1e293b;
 }
 
-.iaw-type-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  background: rgba(59,130,246,0.2);
-  border: 1px solid rgba(59,130,246,0.3);
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  width: fit-content;
+.iaw-narrative-box {
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
 }
 
-.iaw-narrative-text {
+.iaw-narrative-text-v2 {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #334155;
   line-height: 1.5;
-  max-height: 60px;
-  overflow: hidden;
 }
 
-.iaw-mono {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+/* Empty State */
+.iaw-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
 }
 
-.iaw-empty {
+.iaw-empty-state p {
+  margin: 0;
+}
+
+/* Units Table */
+.iaw-units-table {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
-  padding: 24px;
-  color: rgba(255,255,255,0.4);
-  font-size: 13px;
 }
 
-.iaw-empty-small {
-  padding: 16px;
-  text-align: center;
-  color: rgba(255,255,255,0.4);
-  font-size: 12px;
-}
-
-.iaw-units-list {
-  padding: 8px;
-}
-
-.iaw-unit-row {
+.iaw-unit-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.04);
-  border-radius: 6px;
-  margin-bottom: 6px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
 }
 
-.iaw-unit-row:last-child {
-  margin-bottom: 0;
+.iaw-unit-card.iaw-unit-cleared {
+  opacity: 0.6;
+  background: #f1f5f9;
 }
 
-.iaw-unit-info {
+.iaw-unit-main {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.iaw-unit-id {
-  font-weight: 700;
-  font-size: 14px;
-  color: #fff;
-}
-
-.iaw-cmd-badge {
-  padding: 2px 4px;
-  background: #a855f7;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.iaw-unit-status {
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.iaw-status-dispatched { background: #f97316; }
-.iaw-status-enroute { background: #eab308; color: #000; }
-.iaw-status-arrived { background: #10b981; }
-.iaw-status-transporting { background: #a855f7; }
-.iaw-status-at_medical { background: #06b6d4; color: #000; }
-.iaw-status-cleared { background: #64748b; }
-
-.iaw-dispo-badge {
-  padding: 2px 6px;
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.iaw-unit-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.iaw-action-btn {
-  padding: 4px 8px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
-  color: #e8f0f8;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.iaw-action-btn:hover {
-  background: rgba(59,130,246,0.2);
-  border-color: rgba(59,130,246,0.4);
-}
-
-.iaw-action-primary {
-  background: rgba(59,130,246,0.2);
-  border-color: rgba(59,130,246,0.4);
-}
-
-.iaw-action-warn {
-  background: rgba(234,179,8,0.2);
-  border-color: rgba(234,179,8,0.4);
-}
-
-.iaw-dispo-inline {
-  background: rgba(0,0,0,0.3);
-  border-radius: 6px;
-  padding: 12px;
-  margin: 6px 0;
-}
-
-.iaw-dispo-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 10px;
-}
-
-.iaw-dispo-codes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.iaw-code-btn {
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
-  color: #e8f0f8;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.iaw-code-btn:hover {
-  background: rgba(59,130,246,0.2);
-  border-color: rgba(59,130,246,0.4);
-}
-
-.iaw-code-btn.iaw-code-selected {
-  background: rgba(59,130,246,0.4);
-  border-color: rgba(59,130,246,0.6);
-}
-
-.iaw-dispo-remark {
-  width: 100%;
-  padding: 8px 10px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 4px;
-  color: #e8f0f8;
-  font-size: 12px;
-  margin-bottom: 10px;
-}
-
-.iaw-dispo-remark:focus {
-  outline: none;
-  border-color: rgba(59,130,246,0.5);
-}
-
-.iaw-dispo-remark::placeholder {
-  color: rgba(255,255,255,0.3);
-}
-
-.iaw-dispo-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.iaw-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 6px;
-  color: #e8f0f8;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.iaw-btn:hover {
-  background: rgba(59,130,246,0.2);
-  border-color: rgba(59,130,246,0.4);
-}
-
-.iaw-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.iaw-btn-small {
-  padding: 5px 10px;
-  font-size: 11px;
-}
-
-.iaw-btn-primary {
-  background: rgba(59,130,246,0.25);
-  border-color: rgba(59,130,246,0.4);
-}
-
-.iaw-btn-primary:hover {
-  background: rgba(59,130,246,0.4);
-}
-
-.iaw-btn-warn {
-  background: rgba(234,179,8,0.2);
-  border-color: rgba(234,179,8,0.35);
-}
-
-.iaw-btn-danger {
-  background: rgba(239,68,68,0.2);
-  border-color: rgba(239,68,68,0.35);
-}
-
-.iaw-btn-danger:hover {
-  background: rgba(239,68,68,0.35);
-}
-
-.iaw-narrative-log {
-  max-height: 150px;
-  overflow-y: auto;
-  padding: 8px 12px;
-}
-
-.iaw-log-entry {
-  display: grid;
-  grid-template-columns: 130px 80px 1fr;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  font-size: 12px;
-}
-
-.iaw-log-entry:last-child {
-  border-bottom: none;
-}
-
-.iaw-log-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-}
-
-.iaw-log-user {
-  font-weight: 700;
-  color: #60a5fa;
-  font-size: 11px;
-}
-
-.iaw-log-text {
-  color: rgba(255,255,255,0.9);
-}
-
-.iaw-timeline-details {
-  padding: 8px 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.iaw-timeline-details summary {
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.6);
-  user-select: none;
-}
-
-.iaw-timeline-details summary:hover {
-  color: #60a5fa;
-}
-
-.iaw-event-dispo {
-  padding: 0;
-}
-
-.iaw-event-dispo-form {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
   gap: 10px;
 }
 
-.iaw-event-dispo-form select,
-.iaw-event-dispo-form input {
-  padding: 10px 12px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  color: #e8f0f8;
+.iaw-unit-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.iaw-cmd-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 5px;
+  background: #8b5cf6;
+  color: #fff;
+  border-radius: 3px;
+}
+
+.iaw-unit-status-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.iaw-st-dispatched { background: #f97316; }
+.iaw-st-enroute { background: #eab308; color: #000; }
+.iaw-st-arrived { background: #22c55e; }
+.iaw-st-transporting { background: #8b5cf6; }
+.iaw-st-at_medical { background: #06b6d4; }
+.iaw-st-cleared { background: #64748b; }
+
+.iaw-dispo-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 4px;
+}
+
+.iaw-unit-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.iaw-unit-btn {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.iaw-unit-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.iaw-unit-btn-primary {
+  background: #003478;
+  border-color: #003478;
+  color: #fff;
+}
+
+.iaw-unit-btn-primary:hover {
+  background: #002855;
+}
+
+.iaw-unit-btn-warn {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.iaw-unit-btn-warn:hover {
+  background: #fde68a;
+}
+
+/* Clear Unit Panel */
+.iaw-clear-panel {
+  margin: 8px 0;
+  padding: 16px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+}
+
+.iaw-clear-title {
   font-size: 13px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 12px;
 }
 
-.iaw-event-dispo-form select:focus,
-.iaw-event-dispo-form input:focus {
+.iaw-dispo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.iaw-dispo-code-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  border-radius: 6px;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.iaw-dispo-code-btn:hover {
+  border-color: #003478;
+  background: #f0f9ff;
+}
+
+.iaw-dispo-code-btn.selected {
+  background: #003478;
+  border-color: #003478;
+  color: #ffffff;
+}
+
+.iaw-clear-remark {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e293b;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+
+.iaw-clear-remark:focus {
   outline: none;
-  border-color: rgba(59,130,246,0.5);
+  border-color: #003478;
+  box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
 }
 
-.iaw-event-dispo-form select option {
-  background: #1a2535;
+.iaw-clear-remark::placeholder {
+  color: #94a3b8;
 }
 
-.iaw-footer {
+.iaw-clear-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Close Incident Panel */
+.iaw-close-incident-panel {
+  margin-top: 16px;
+  padding: 16px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+}
+
+.iaw-close-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.iaw-close-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.iaw-close-x {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #991b1b;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.iaw-close-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f1d1d;
+  margin-bottom: 10px;
+}
+
+/* Buttons */
+.iaw-btn-v2 {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.iaw-btn-v2:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.iaw-btn-v2:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.iaw-btn-primary-v2 {
+  background: #003478;
+  border-color: #003478;
+  color: #ffffff;
+}
+
+.iaw-btn-primary-v2:hover:not(:disabled) {
+  background: #002855;
+}
+
+.iaw-btn-danger-v2 {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.iaw-btn-danger-v2:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+/* Footer */
+.iaw-footer-v2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: rgba(0,0,0,0.25);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
 }
 
-.iaw-footer-meta {
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  font-family: 'JetBrains Mono', monospace;
+.iaw-footer-id {
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: #64748b;
 }
 
-.iaw-footer-actions {
+.iaw-footer-buttons {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .iaw-modal-v2 {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .iaw-info-grid-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .iaw-unit-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .iaw-unit-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 </style>

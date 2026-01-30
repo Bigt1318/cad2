@@ -84,6 +84,20 @@ function _wireDrawer() {
 
     try {
       switch (action) {
+        case "home":
+          // Scroll to top / refresh main view
+          window.scrollTo(0, 0);
+          CAD_UTIL.refreshPanels();
+          break;
+        case "calls":
+          // Focus calltaker panel
+          document.getElementById("panel-calltaker")?.scrollIntoView({ behavior: "smooth" });
+          document.getElementById("ctLocation")?.focus();
+          break;
+        case "units":
+          // Focus units panel
+          document.getElementById("panel-units")?.scrollIntoView({ behavior: "smooth" });
+          break;
         case "new_incident":
           window.CALLTAKER?.startNewIncident?.();
           break;
@@ -103,16 +117,16 @@ function _wireDrawer() {
           window.SETTINGS?.openModal?.();
           break;
         case "reports":
-          // TODO: Reports modal
-          TOAST?.info?.("Reports coming soon");
+          CAD_MODAL.open("/modals/reports") || TOAST?.info?.("Reports coming soon");
           break;
         case "roster":
-          // TODO: Roster management
-          TOAST?.info?.("Roster management coming soon");
+          CAD_MODAL.open("/modals/roster") || TOAST?.info?.("Roster management coming soon");
           break;
         case "contacts":
-          // TODO: Contacts management
-          TOAST?.info?.("Contacts management coming soon");
+          CAD_MODAL.open("/modals/contacts") || TOAST?.info?.("Contacts coming soon");
+          break;
+        case "calendar":
+          CAD_MODAL.open("/modals/calendar") || TOAST?.info?.("Calendar coming soon");
           break;
         case "noop":
         default:
@@ -271,14 +285,8 @@ function _wireSessionButtons() {
     });
   }
 
-  if (btnLogout) {
-    btnLogout.addEventListener("click", async (e) => {
-      e.preventDefault();
-      await _postJSON("/api/session/logout", {});
-      await _refreshSessionStatus();
-      CAD_UTIL.refreshPanels();
-    });
-  }
+  // Logout is handled by inline onclick in the HTML template
+  // No additional JavaScript listener needed
 }
 
 // Expose modal submit handler (login modal calls this)

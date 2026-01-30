@@ -3,20 +3,19 @@
   Used when dispatcher types: 18 D  (no incident specified)
 ============================================================================= -->
 
-<div class="modal-overlay">
-  <div class="cad-modal cli-incident-picker-modal">
-    <div class="modal-header">
-      <div class="modal-title">
-        Select Incident (CLI Dispatch)
-      </div>
-      <button class="modal-close" onclick="CAD_MODAL.close()">×</button>
-    </div>
-
-    <div class="modal-body">
-      <div style="margin-bottom:10px;">
-        <strong>Units:</strong> {{ units_csv or "(none)" }}
-        &nbsp;&nbsp;|&nbsp;&nbsp;
-        <strong>Mode:</strong> {{ mode or "D" }}
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal cli-incident-picker-modal">
+  <div class="cad-modal-body">
+      <div class="history-header" style="margin-bottom:16px;">
+        <h3>Select Incident</h3>
+        <div class="history-header-actions">
+          <span style="margin-right:12px;">
+            <strong>Units:</strong> {{ units_csv or "(none)" }}
+            &nbsp;|&nbsp;
+            <strong>Mode:</strong> {{ mode or "D" }}
+          </span>
+          <button class="pill-btn" onclick="CAD_MODAL.close()">Cancel</button>
+        </div>
       </div>
 
       <div style="margin-bottom:14px;">
@@ -36,7 +35,7 @@
             </thead>
             <tbody>
             {% for i in open_incidents %}
-              <tr style="cursor:pointer;" onclick="CAD.cli.pickIncident({{ i.incident_id }})">
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
                 <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
                 <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
                 <td>{{ i.type }}</td>
@@ -66,7 +65,7 @@
             </thead>
             <tbody>
             {% for i in active_incidents %}
-              <tr style="cursor:pointer;" onclick="CAD.cli.pickIncident({{ i.incident_id }})">
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
                 <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
                 <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
                 <td>{{ i.type }}</td>
@@ -96,7 +95,7 @@
             </thead>
             <tbody>
             {% for i in held_incidents %}
-              <tr style="cursor:pointer;" onclick="CAD.cli.pickIncident({{ i.incident_id }})">
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
                 <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
                 <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
                 <td>{{ i.type }}</td>
@@ -130,7 +129,7 @@
               </thead>
               <tbody>
               {% for i in closed_incidents %}
-                <tr style="cursor:pointer;" onclick="CAD.cli.pickIncident({{ i.incident_id }})">
+                <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
                   <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
                   <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
                   <td>{{ i.type }}</td>
@@ -144,9 +143,19 @@
         </div>
       </details>
 
-      <div style="margin-top:14px; opacity:.75; font-size:12px;">
-        Tip: If you meant a different command, type HELP in the CLI.
-      </div>
-    </div>
   </div>
 </div>
+
+<script>
+// Event delegation for picker rows - more reliable than inline onclick
+document.addEventListener('click', function(e) {
+    const row = e.target.closest('.picker-row');
+    if (!row) return;
+
+    const incidentId = row.dataset.incidentId;
+    if (incidentId && window.CAD?.cli?.pickIncident) {
+        console.log('[CLI Picker] Selected incident:', incidentId);
+        window.CAD.cli.pickIncident(incidentId);
+    }
+}, true);
+</script>

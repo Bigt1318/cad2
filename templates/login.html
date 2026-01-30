@@ -142,6 +142,26 @@
 </head>
 
 <body>
+  <!-- Clean up any cached service workers -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+          console.log('[Login] Unregistered service worker:', registration.scope);
+        }
+      });
+      // Also clear caches
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+            console.log('[Login] Deleted cache:', name);
+          }
+        });
+      }
+    }
+  </script>
   <div class="login-shell">
     <div class="login-top">
       <img class="login-logo" src="/static/images/logo.png" alt="Ford">

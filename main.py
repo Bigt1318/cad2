@@ -159,6 +159,24 @@ async def masterlog_guard(request: Request, call_next):
 async def favicon():
     return Response(status_code=204)
 
+# ------------------------------------------------
+# Middleware: Prevent caching of HTML pages
+# ------------------------------------------------
+@app.middleware("http")
+async def no_cache_html(request: Request, call_next):
+    """Prevent browsers from caching HTML pages."""
+    response = await call_next(request)
+
+    # Add no-cache headers to HTML responses (not static assets)
+    if not request.url.path.startswith("/static"):
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type or request.url.path in ("/", "/login", "/logout"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+    return response
+
 
 # ================================================================
 # ROOT ROUTE (NO DB ACCESS)
@@ -953,10 +971,14 @@ def sync_units_table():
         name = (name or unit_id).strip()
 
         # Status: never overwrite DB status unless the UnitLog line explicitly includes one
-        row = c.execute("SELECT status FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+        # Icon: preserve existing icon if set (don't overwrite with defaults)
+        row = c.execute("SELECT status, icon FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
         if row:
-            existing_status = row[0] if row else "AVAILABLE"
+            existing_status = row["status"] if row else "AVAILABLE"
+            existing_icon = row["icon"] if row else None
             final_status = status or existing_status or "AVAILABLE"
+            # Only use default icon if no existing icon in database
+            final_icon = existing_icon if existing_icon else icon
 
             c.execute(
                 """
@@ -965,7 +987,7 @@ def sync_units_table():
                     is_apparatus = ?, is_command = ?, is_mutual_aid = ?, last_updated = ?
                 WHERE unit_id = ?
                 """,
-                (name, unit_type, final_status, icon, is_apparatus, is_command, is_mutual_aid, _ts(), unit_id)
+                (name, unit_type, final_status, final_icon, is_apparatus, is_command, is_mutual_aid, _ts(), unit_id)
             )
         else:
             final_status = status or "AVAILABLE"
@@ -1419,8 +1441,10 @@ _SCHEMA_INIT_DONE = False
 
 def ensure_phase3_schema():
     global _SCHEMA_INIT_DONE
-    # NOTE: Do not return early. Schema creation/migrations are lightweight
-    # and this prevents missing-table runtime failures on older cad.db files.
+    # Return early if already initialized to prevent concurrent schema operations
+    # which can cause database locks on multi-threaded access
+    if _SCHEMA_INIT_DONE:
+        return
 
     conn = get_conn()
     c = conn.cursor()
@@ -1628,6 +1652,7 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Units ADD COLUMN is_mutual_aid INTEGER DEFAULT 0")
     _add_col("ALTER TABLE Units ADD COLUMN last_updated TEXT")
     _add_col("ALTER TABLE Units ADD COLUMN custom_status TEXT")
+    _add_col("ALTER TABLE Units ADD COLUMN aliases TEXT")  # CSV list of aliases, e.g. "e1,eng1,engine1"
 
     # --------------------------------------------------
     # UNIT ASSIGNMENTS
@@ -2253,7 +2278,8 @@ async def units_editor_update(request: Request):
             icon=?,
             is_command=?,
             is_apparatus=?,
-            is_mutual_aid=?
+            is_mutual_aid=?,
+            aliases=?
         WHERE unit_id=?
     """, (
         data.get("name", unit_id),
@@ -2262,6 +2288,7 @@ async def units_editor_update(request: Request):
         int(data.get("is_command", 0)),
         int(data.get("is_apparatus", 0)),
         int(data.get("is_mutual_aid", 0)),
+        data.get("aliases", ""),  # CSV of aliases, e.g. "e1,eng1,engine1"
         unit_id
     ))
 
@@ -2300,9 +2327,9 @@ async def units_editor_add(request: Request):
     c.execute("""
         INSERT INTO Units (
             unit_id, name, unit_type, status, last_updated,
-            icon, is_command, is_apparatus, is_mutual_aid
+            icon, is_command, is_apparatus, is_mutual_aid, aliases
         )
-        VALUES (?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?)
     """, (
         unit_id,
         data.get("name", unit_id),
@@ -2311,7 +2338,8 @@ async def units_editor_add(request: Request):
         data.get("icon", "unknown.png"),
         int(data.get("is_command", 0)),
         int(data.get("is_apparatus", 0)),
-        int(data.get("is_mutual_aid", 0))
+        int(data.get("is_mutual_aid", 0)),
+        data.get("aliases", "")  # CSV of aliases, e.g. "e1,eng1,engine1"
     ))
 
     conn.commit()
@@ -2583,15 +2611,33 @@ def _unit_has_disposition(incident_id: int, unit_id: str) -> bool:
 
 def determine_current_shift() -> str:
     """
-    Simple 2-shift day/night rotation:
-      - A Shift: 0600-1800 (6 AM to 6 PM)
-      - B Shift: 1800-0600 (6 PM to 6 AM)
+    Ford KTP 4-shift rotation:
+      - A/C work days (0600-1800), B/D work nights (1800-0600)
+      - Shifts rotate every other day:
+        Even days: A (day), B (night)
+        Odd days: C (day), D (night)
+
+    This uses day-of-year to determine which pair is on duty.
     """
     now_dt = datetime.datetime.now()
     hour = now_dt.hour
+    day_of_year = now_dt.timetuple().tm_yday
 
-    # A shift is day (0600-1759), B shift is night (1800-0559)
-    return "A" if 6 <= hour < 18 else "B"
+    # Determine if it's day shift (6am-6pm) or night shift (6pm-6am)
+    is_day_shift = 6 <= hour < 18
+
+    # Even days: A/B rotation, Odd days: C/D rotation
+    # Note: night shift belongs to the day it started (e.g., night of Jan 1 = Jan 1's rotation)
+    if hour < 6:
+        # After midnight but before 6am - belongs to previous day's night shift
+        day_of_year -= 1
+
+    is_even_day = (day_of_year % 2) == 0
+
+    if is_even_day:
+        return "A" if is_day_shift else "B"
+    else:
+        return "C" if is_day_shift else "D"
 
 
 # ================================================================
@@ -2812,13 +2858,28 @@ async def api_session_logout(request: Request):
     except Exception:
         pass
 
-    for k in ("user", "dispatcher_unit", "shift_letter", "shift_effective", "shift_start_ts", "shift", "unit"):
-        try:
-            request.session.pop(k, None)
-        except Exception:
-            pass
+    # Clear the entire session
+    request.session.clear()
 
     return {"ok": True}
+
+
+@app.get("/logout")
+async def logout_and_redirect(request: Request):
+    """GET endpoint for logout - clears session and redirects to login page."""
+    user = (request.session.get("user") or "").strip() or "Dispatcher"
+    shift_letter = (request.session.get("shift_letter") or request.session.get("shift") or "").strip()
+
+    try:
+        log_master("SESSION_LOGOUT", f"LOGOUT: {user} • shift {shift_letter}")
+    except Exception:
+        pass
+
+    # Clear the entire session
+    request.session.clear()
+
+    # Redirect to login page
+    return RedirectResponse(url="/login", status_code=302)
 
 @app.post("/api/session/view_mode")
 async def api_session_view_mode(request: Request, payload: dict):
@@ -2858,6 +2919,111 @@ async def api_session_roster_view_mode(request: Request, payload: dict):
         pass
 
     return {"ok": True, "mode": mode}
+
+
+# ================================================================
+# USER SETTINGS (Persisted per dispatcher unit)
+# ================================================================
+
+@app.get("/api/settings")
+async def api_get_settings(request: Request):
+    """
+    Get user settings. Returns settings from database or defaults.
+    """
+    dispatcher_unit = (request.session.get("dispatcher_unit") or request.session.get("unit") or "").strip()
+    if not dispatcher_unit:
+        # Return defaults if not logged in (fromUser: false so client keeps localStorage)
+        return {
+            "ok": True,
+            "fromUser": False,
+            "settings": {
+                "theme": "light",
+                "fontSize": "medium",
+                "soundEnabled": True,
+                "autoRefresh": True,
+                "autoRefreshInterval": 30,
+                "panelCalltakerWidth": "38%",
+                "panelUnitsWidth": "22%",
+            }
+        }
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Ensure UserSettings table exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS UserSettings (
+            dispatcher_unit TEXT PRIMARY KEY,
+            settings_json TEXT,
+            updated TEXT
+        )
+    """)
+    conn.commit()
+
+    row = c.execute("SELECT settings_json FROM UserSettings WHERE dispatcher_unit=?", (dispatcher_unit,)).fetchone()
+    conn.close()
+
+    if row and row["settings_json"]:
+        import json
+        try:
+            settings = json.loads(row["settings_json"])
+            return {"ok": True, "fromUser": True, "settings": settings}
+        except Exception:
+            pass
+
+    # Return defaults (fromUser: false so client knows these are defaults)
+    return {
+        "ok": True,
+        "fromUser": False,
+        "settings": {
+            "theme": "light",
+            "fontSize": "medium",
+            "soundEnabled": True,
+            "autoRefresh": True,
+            "autoRefreshInterval": 30,
+            "panelCalltakerWidth": "38%",
+            "panelUnitsWidth": "22%",
+        }
+    }
+
+
+@app.post("/api/settings")
+async def api_save_settings(request: Request):
+    """
+    Save user settings. Stores settings JSON in database.
+    """
+    dispatcher_unit = (request.session.get("dispatcher_unit") or request.session.get("unit") or "").strip()
+    if not dispatcher_unit:
+        return {"ok": False, "error": "Login required to save settings"}
+
+    import json
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Invalid JSON body"}
+    settings_json = json.dumps(payload.get("settings", {}))
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Ensure UserSettings table exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS UserSettings (
+            dispatcher_unit TEXT PRIMARY KEY,
+            settings_json TEXT,
+            updated TEXT
+        )
+    """)
+
+    c.execute("""
+        INSERT OR REPLACE INTO UserSettings (dispatcher_unit, settings_json, updated)
+        VALUES (?, ?, ?)
+    """, (dispatcher_unit, settings_json, _ts()))
+
+    conn.commit()
+    conn.close()
+
+    return {"ok": True}
 
 
 @app.get("/modals/login", response_class=HTMLResponse)
@@ -3935,79 +4101,24 @@ def unit_is_available(unit_id: str) -> bool:
 
 @app.post("/incident/{incident_id}/dispatch_units")
 async def dispatch_units(incident_id: int, request: Request):
+    """
+    Dispatch units to incident - delegates to canonical dispatch_units_to_incident function.
+    """
     data = await request.json()
     units = data.get("units", [])
-    user = data.get("user", "DISPATCH")
+    user = request.session.get("user", "Dispatcher")
 
     if not units:
         return {"ok": False, "error": "No units provided"}
 
-    conn = get_conn()
-    c = conn.cursor()
+    # Use the canonical dispatch function which handles transactions properly
+    result = dispatch_units_to_incident(incident_id, units, user)
 
-    dispatched: list[str] = []
-
-    for uid in units:
-        if not unit_is_available(uid):
-            continue
-
-        exists = c.execute("""
-            SELECT 1
-            FROM UnitAssignments
-            WHERE incident_id=? AND unit_id=?
-        """, (incident_id, uid)).fetchone()
-
-        if not exists:
-            c.execute("""
-                INSERT INTO UnitAssignments (incident_id, unit_id, dispatched)
-                VALUES (?, ?, ?)
-            """, (incident_id, uid, _ts()))
-
-            update_unit_status(uid, "DISPATCHED")
-            dispatched.append(uid)
-
-        # Dispatch apparatus crew automatically
-        for cid in get_apparatus_crew(uid):
-            if not unit_is_available(cid):
-                continue
-
-            crexists = c.execute("""
-                SELECT 1
-                FROM UnitAssignments
-                WHERE incident_id=? AND unit_id=?
-            """, (incident_id, cid)).fetchone()
-
-            if not crexists:
-                c.execute("""
-                    INSERT INTO UnitAssignments (incident_id, unit_id, dispatched)
-                    VALUES (?, ?, ?)
-                """, (incident_id, cid, _ts()))
-
-                update_unit_status(cid, "DISPATCHED")
-                dispatched.append(cid)
-
-    conn.commit()
-    conn.close()
-
-    # 🚨 Promotion ONLY if something was actually dispatched
-    if dispatched:
-        incident_promote_to_active(incident_id)
-
-        incident_history(
-            incident_id=incident_id,
-            event_type="DISPATCH",
-            user=user,
-            details=f"Units dispatched: {', '.join(dispatched)}"
-        )
-
-        masterlog(
-            action="UNITS_DISPATCHED",
-            user=user,
-            incident_id=incident_id,
-            details=", ".join(dispatched)
-        )
-
-    return {"ok": True, "units": dispatched}
+    # Map response to expected format for backward compatibility
+    if result.get("ok"):
+        return {"ok": True, "units": result.get("assigned", [])}
+    else:
+        return result
 
 
 def legacy_add_narrative_v1(incident_id: int, text: str, unit_id: str = None):
@@ -4532,40 +4643,56 @@ async def unit_disposition_submit(
 # =====================================================================
 
 VALID_EVENT_DISPO = {
-    # Canonical Fire/EMS Event Disposition Codes
-    "FA": "False Alarm",
-    "FF": "Fire Found",
-    "MF": "Medical First Aid",
-    "MT": "Medical Transport",
-    "PR": "Patient Refusal",
-    "NF": "No Finding",
-    "C":  "Cancelled",
-    "CT": "Cancelled Enroute",
-    "O":  "Other",
-    "H":  "Held",
+    # Primary Disposition Codes
+    "R":    "Report",
+    "C":    "Clear",
+    "X":    "Cancel",
+    "FA":   "False Alarm",
+    "NR":   "No Report",
+    "UF":   "Unfounded",
+    "NC":   "Negative Contact",
+    "T":    "Transported",
+    "PRTT": "Patient Refused Treatment/Transport",
+    "H":    "Held",
+    "O":    "Other",
 
-    # Legacy codes (backward compatibility)
-    "R":  "Refused",
-    "NA": "No Action",
-
-    # Common full-text values (accept + normalize)
+    # Aliases and variations (all normalize to primary codes)
+    "RT": "Report",
+    "REP": "Report",
+    "REPORT": "Report",
+    "CLR": "Clear",
+    "CLEAR": "Clear",
+    "CAN": "Cancel",
+    "CANCEL": "Cancel",
+    "CANCELLED": "Cancel",
+    "CANCELED": "Cancel",
     "FALSE ALARM": "False Alarm",
-    "FIRE FOUND": "Fire Found",
-    "MEDICAL FIRST AID": "Medical First Aid",
-    "MEDICAL TRANSPORT": "Medical Transport",
-    "PATIENT REFUSAL": "Patient Refusal",
-    "NO FINDING": "No Finding",
-    "NOT FOUND": "No Finding",
-    "CANCELLED": "Cancelled",
-    "CANCELED": "Cancelled",
-    "CANCELLED ENROUTE": "Cancelled Enroute",
-    "OTHER": "Other",
+    "NO REPORT": "No Report",
+    "NF": "Unfounded",
+    "UNFOUNDED": "Unfounded",
+    "NO FINDING": "Unfounded",
+    "NOT FOUND": "Unfounded",
+    "NOTHING FOUND": "Unfounded",
+    "NEG CONTACT": "Negative Contact",
+    "NEGATIVE CONTACT": "Negative Contact",
+    "TR": "Transported",
+    "TRANSPORT": "Transported",
+    "TRANSPORTED": "Transported",
+    "TRANSFERRED": "Transported",
+    "TRANSFER": "Transported",
+    "CT": "Transported",
+    "PR": "Patient Refused Treatment/Transport",
+    "REFUSAL": "Patient Refused Treatment/Transport",
+    "REFUSED": "Patient Refused Treatment/Transport",
+    "PATIENT REFUSAL": "Patient Refused Treatment/Transport",
+    "PATIENT REFUSED": "Patient Refused Treatment/Transport",
     "HELD": "Held",
     "HOLD": "Held",
-    "REFUSED": "Refused",
+    "OTHER": "Other",
+    "NA": "No Action",
     "NO ACTION": "No Action",
 
-    # Legacy / UI variants observed in the wild
+    # Legacy
     "CLOSED": "Closed",
     "CLOSE": "Closed",
 }
@@ -4631,34 +4758,70 @@ async def submit_incident_disposition(incident_id: int, request: Request):
     key = re.sub(r"\s+", " ", raw_dispo.upper().strip())
 
     normalize = {
-        # Fire/EMS Canonical Codes
+        # Report - R
+        "R": "R",
+        "RT": "R",
+        "REP": "R",
+        "REPORT": "R",
+
+        # Clear - C
+        "C": "C",
+        "CLR": "C",
+        "CLEAR": "C",
+
+        # Cancel - X
+        "X": "X",
+        "CAN": "X",
+        "CANCEL": "X",
+        "CANCELLED": "X",
+        "CANCELED": "X",
+
+        # False Alarm - FA
         "FA": "FA",
         "FALSE ALARM": "FA",
-        "FF": "FF",
-        "FIRE FOUND": "FF",
-        "MF": "MF",
-        "MEDICAL FIRST AID": "MF",
-        "MT": "MT",
-        "MEDICAL TRANSPORT": "MT",
-        "PR": "PR",
-        "PATIENT REFUSAL": "PR",
-        "NF": "NF",
-        "NO FINDING": "NF",
-        "NOT FOUND": "NF",
-        "C": "C",
-        "CANCELLED": "C",
-        "CANCELED": "C",
-        "CT": "CT",
-        "CANCELLED ENROUTE": "CT",
-        "O": "O",
-        "OTHER": "O",
+
+        # No Report - NR
+        "NR": "NR",
+        "NO REPORT": "NR",
+
+        # Unfounded - UF
+        "UF": "UF",
+        "NF": "UF",
+        "UNFOUNDED": "UF",
+        "NO FINDING": "UF",
+        "NOT FOUND": "UF",
+        "NOTHING FOUND": "UF",
+
+        # Negative Contact - NC
+        "NC": "NC",
+        "NEG CONTACT": "NC",
+        "NEGATIVE CONTACT": "NC",
+
+        # Transported - T
+        "T": "T",
+        "TR": "T",
+        "TRANSPORT": "T",
+        "TRANSPORTED": "T",
+        "TRANSFERRED": "T",
+        "TRANSFER": "T",
+        "CT": "T",  # Care Transferred -> T
+
+        # Patient Refused Treatment/Transport - PRTT
+        "PRTT": "PRTT",
+        "PR": "PRTT",
+        "REFUSAL": "PRTT",
+        "REFUSED": "PRTT",
+        "PATIENT REFUSAL": "PRTT",
+        "PATIENT REFUSED": "PRTT",
+
         # Hold
         "H": "H",
         "HELD": "H",
         "HOLD": "H",
-        # Legacy codes (backward compatibility)
-        "R": "R",
-        "REFUSED": "R",
+
+        # Other / Legacy
+        "O": "O",
+        "OTHER": "O",
         "NA": "NA",
         "NO ACTION": "NA",
     }
@@ -5788,11 +5951,14 @@ async def event_disposition_submit(request: Request, incident_id: int):
     response_class=HTMLResponse
 )
 async def event_disposition_modal(request: Request, incident_id: int):
+    # Get incident info for the modal header
+    incident = get_incident(incident_id) if incident_id else None
     return templates.TemplateResponse(
         "modals/event_disposition_modal.html",
         {
             "request": request,
             "incident_id": incident_id,
+            "incident": incident,
             "outcomes": EVENT_OUTCOME_MAP
         }
     )
@@ -7154,6 +7320,196 @@ def _cli_picker_lists():
     return open_list, active_list, held_list, closed_list
 
 
+@app.get("/api/incidents/dispatchable")
+async def api_incidents_dispatchable():
+    """Return open and active incidents for CLI dispatch selection."""
+    open_list, active_list, held_list, _ = _cli_picker_lists()
+    return {
+        "open": open_list,
+        "active": active_list,
+        "held": held_list
+    }
+
+
+@app.get("/api/incident/{incident_id}/unit_count")
+async def api_incident_unit_count(incident_id: int):
+    """Return count of units still assigned (not cleared) to this incident."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    count = c.execute("""
+        SELECT COUNT(*) FROM UnitAssignments
+        WHERE incident_id = ? AND cleared IS NULL
+    """, (incident_id,)).fetchone()[0]
+
+    conn.close()
+    return {"ok": True, "incident_id": incident_id, "count": count}
+
+
+@app.post("/api/incident/{incident_id}/clear_all_and_close")
+async def api_clear_all_and_close(incident_id: int, request: Request):
+    """
+    Clear all units with the given disposition, then close the incident.
+    This is a convenience endpoint for the right-click "Close Incident" flow.
+    """
+    ensure_phase3_schema()
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    disposition = (payload.get("disposition") or "").strip()
+    comment = (payload.get("comment") or "").strip()
+
+    if not disposition:
+        raise HTTPException(status_code=400, detail="Disposition required")
+
+    user = request.session.get("user", "Dispatcher")
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        # Get all assigned units
+        units = c.execute("""
+            SELECT unit_id FROM UnitAssignments
+            WHERE incident_id = ? AND cleared IS NULL
+        """, (incident_id,)).fetchall()
+
+        # Clear each unit with disposition
+        import datetime as _dt
+        now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        for row in units:
+            unit_id = row["unit_id"]
+            # Set disposition and clear the unit
+            c.execute("""
+                UPDATE UnitAssignments
+                SET disposition = ?, cleared = ?
+                WHERE incident_id = ? AND unit_id = ? AND cleared IS NULL
+            """, (disposition, now, incident_id, unit_id))
+
+            # Set unit status to AVAILABLE
+            c.execute("""
+                UPDATE Units SET status = 'AVAILABLE', last_updated = ?
+                WHERE unit_id = ?
+            """, (now, unit_id))
+
+            # Log history
+            c.execute("""
+                INSERT INTO IncidentHistory (incident_id, timestamp, event, user, unit_id, detail)
+                VALUES (?, ?, 'CLEARED', ?, ?, ?)
+            """, (incident_id, now, user, unit_id, f"Disposition: {disposition}"))
+
+        # Now close the incident
+        c.execute("""
+            UPDATE Incidents
+            SET status = 'CLOSED', final_disposition = ?, final_disposition_note = ?, closed_at = ?
+            WHERE incident_id = ?
+        """, (disposition, comment, now, incident_id))
+
+        # Log close event
+        c.execute("""
+            INSERT INTO IncidentHistory (incident_id, timestamp, event, user, detail)
+            VALUES (?, ?, 'CLOSED', ?, ?)
+        """, (incident_id, now, user, f"Closed with disposition: {disposition}"))
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "incident_id": incident_id,
+        "disposition": disposition,
+        "units_cleared": len(units),
+        "status": "CLOSED"
+    }
+
+
+@app.post("/api/admin/cleanup_stale_units")
+async def api_cleanup_stale_units(request: Request):
+    """
+    Clear any stale unit assignments (units where the unit doesn't exist in Units table
+    or units assigned to non-existent incidents).
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    import datetime as _dt
+    now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    user = request.session.get("user", "System")
+
+    cleaned = 0
+
+    try:
+        # Find unit assignments for units that don't exist in Units table
+        c.execute("""
+            SELECT ua.id, ua.incident_id, ua.unit_id FROM UnitAssignments ua
+            LEFT JOIN Units u ON ua.unit_id = u.unit_id
+            WHERE u.unit_id IS NULL AND ua.cleared IS NULL
+        """)
+        orphan_units = c.fetchall()
+
+        for row in orphan_units:
+            c.execute("UPDATE UnitAssignments SET cleared = ? WHERE id = ?", (now, row["id"]))
+            cleaned += 1
+
+        # Find unit assignments for incidents that don't exist
+        c.execute("""
+            SELECT ua.id, ua.incident_id, ua.unit_id FROM UnitAssignments ua
+            LEFT JOIN Incidents i ON ua.incident_id = i.incident_id
+            WHERE i.incident_id IS NULL AND ua.cleared IS NULL
+        """)
+        orphan_incidents = c.fetchall()
+
+        for row in orphan_incidents:
+            c.execute("UPDATE UnitAssignments SET cleared = ? WHERE id = ?", (now, row["id"]))
+            cleaned += 1
+
+        # Find unit assignments for closed incidents that weren't cleared
+        c.execute("""
+            SELECT ua.id, ua.incident_id, ua.unit_id FROM UnitAssignments ua
+            JOIN Incidents i ON ua.incident_id = i.incident_id
+            WHERE i.status = 'CLOSED' AND ua.cleared IS NULL
+        """)
+        closed_incident_units = c.fetchall()
+
+        for row in closed_incident_units:
+            c.execute("""
+                UPDATE UnitAssignments SET cleared = ?, disposition = 'X'
+                WHERE id = ?
+            """, (now, row["id"]))
+            # Also set unit to AVAILABLE if it exists
+            c.execute("""
+                UPDATE Units SET status = 'AVAILABLE', last_updated = ?
+                WHERE unit_id = ?
+            """, (now, row["unit_id"]))
+            cleaned += 1
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "cleaned": cleaned,
+        "message": f"Cleaned {cleaned} stale unit assignment(s)"
+    }
+
+
 @app.get("/api/cli/incident_picker", response_class=HTMLResponse)
 async def cli_incident_picker(request: Request):
     units_csv = (request.query_params.get("units") or "").strip()
@@ -7421,11 +7777,16 @@ async def uaw_clear_unit(request: Request):
       - command unit requires disposition before clearing
       - last clearing unit requires disposition before clearing
       - all other clears do NOT require disposition
+
+    If disposition is provided in request, it will be saved before clearing.
     """
     ensure_phase3_schema()
     data = await request.json()
     incident_id = int(data.get("incident_id") or 0)
     unit_id = (data.get("unit_id") or "").strip()
+    disposition = (data.get("disposition") or "").strip()
+    comment = (data.get("comment") or data.get("remark") or "").strip()
+
     if not incident_id or not unit_id:
         return {"ok": False, "error": "incident_id and unit_id required"}
 
@@ -7434,8 +7795,32 @@ async def uaw_clear_unit(request: Request):
     conn = get_conn()
     c = conn.cursor()
 
+    # Check if this unit requires disposition
     requires = _requires_disposition_for_clear_tx(c, incident_id, unit_id)
-    if requires and not _assignment_has_disposition_tx(c, incident_id, unit_id):
+
+    # If disposition is provided, save it first
+    if disposition:
+        try:
+            c.execute("""
+                UPDATE UnitAssignments
+                SET disposition = ?, disposition_note = ?
+                WHERE incident_id = ? AND unit_id = ?
+            """, (disposition, comment, incident_id, unit_id))
+            conn.commit()
+        except Exception as e:
+            # Column might not exist, try without note
+            try:
+                c.execute("""
+                    UPDATE UnitAssignments
+                    SET disposition = ?
+                    WHERE incident_id = ? AND unit_id = ?
+                """, (disposition, incident_id, unit_id))
+                conn.commit()
+            except Exception:
+                pass
+
+    # Re-check disposition requirement after potentially saving one
+    if requires and not disposition and not _assignment_has_disposition_tx(c, incident_id, unit_id):
         conn.close()
         return {
             "ok": False,
@@ -7448,7 +7833,7 @@ async def uaw_clear_unit(request: Request):
     # Proceed with clear
     mark_assignment(incident_id, unit_id, "cleared")
     set_unit_status_pipeline(unit_id, "AVAILABLE")
-    incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id)
+    incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id, detail=f"Disposition: {disposition}" if disposition else None)
 
     # If you have finalize logic, keep it
     try:
@@ -7456,7 +7841,7 @@ async def uaw_clear_unit(request: Request):
     except Exception:
         pass
 
-    return {"ok": True, "requires_disposition": False}
+    return {"ok": True, "requires_disposition": False, "disposition": disposition}
 
 
 @app.post("/api/uaw/clear_all")
@@ -7909,6 +8294,18 @@ def _build_units_panel_context(request: Request) -> dict:
             (shift_effective,)
         ).fetchall()
         units_with_coverage = {r["unit_id"] for r in coverage_rows}
+
+        # Get units currently dispatched to active incidents (hide from units panel)
+        dispatched_rows = conn.execute(
+            """
+            SELECT DISTINCT ua.unit_id
+            FROM UnitAssignments ua
+            JOIN Incidents i ON i.incident_id = ua.incident_id
+            WHERE ua.cleared IS NULL
+              AND i.status NOT IN ('CLOSED', 'CANCELLED', 'DISPOSED')
+            """
+        ).fetchall()
+        dispatched_unit_ids = {r["unit_id"] for r in dispatched_rows}
     finally:
         conn.close()
 
@@ -7927,6 +8324,10 @@ def _build_units_panel_context(request: Request) -> dict:
     units_out = []
     for u in (rows or []):
         uid = (u["unit_id"] or "").strip()
+
+        # Skip units currently dispatched to active incidents
+        if uid in dispatched_unit_ids:
+            continue
 
         is_personnel = uid.isdigit() and len(uid) == 2
         is_apparatus = int((u["is_apparatus"] or 0) or 0) == 1
@@ -8108,6 +8509,48 @@ async def shift_coverage_modal(request: Request):
             "shift_letter": shift_letter,
             "active_overrides": active_overrides,
         },
+    )
+
+
+@app.get("/modals/calendar", response_class=HTMLResponse)
+async def calendar_modal(request: Request):
+    """Calendar modal for scheduling and shift management."""
+    import datetime
+    today = datetime.date.today()
+    return templates.TemplateResponse(
+        "modals/calendar_modal.html",
+        {
+            "request": request,
+            "current_month": today.strftime("%B %Y"),
+            "today": today.isoformat(),
+        },
+    )
+
+
+@app.get("/modals/reports", response_class=HTMLResponse)
+async def reports_modal(request: Request):
+    """Reports modal for generating dispatch reports."""
+    return templates.TemplateResponse(
+        "modals/reports_modal.html",
+        {"request": request},
+    )
+
+
+@app.get("/modals/roster", response_class=HTMLResponse)
+async def roster_modal(request: Request):
+    """Roster management modal."""
+    return templates.TemplateResponse(
+        "modals/roster_modal.html",
+        {"request": request},
+    )
+
+
+@app.get("/modals/contacts", response_class=HTMLResponse)
+async def contacts_modal(request: Request):
+    """Contacts directory modal."""
+    return templates.TemplateResponse(
+        "modals/contacts_modal.html",
+        {"request": request},
     )
 
 
@@ -9185,6 +9628,39 @@ async def api_unit_ids():
     rows = c.execute("SELECT unit_id FROM Units ORDER BY unit_id").fetchall()
     conn.close()
     return [r["unit_id"] if hasattr(r, "keys") else r[0] for r in rows]
+
+
+@app.get("/api/unit_aliases")
+async def api_unit_aliases():
+    """
+    Return alias-to-unit_id mapping for CLI resolution.
+    Each unit can have multiple aliases (comma-separated in DB).
+    Returns: { "alias1": "UNIT_ID", "alias2": "UNIT_ID", ... }
+    Also includes unit_id itself as an alias (case-insensitive).
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("SELECT unit_id, aliases FROM Units").fetchall()
+    conn.close()
+
+    alias_map = {}
+    for r in rows:
+        unit_id = r["unit_id"] if hasattr(r, "keys") else r[0]
+        aliases_str = (r["aliases"] if hasattr(r, "keys") else r[1]) or ""
+
+        # Unit ID itself is always an alias (lowercase for case-insensitive lookup)
+        alias_map[unit_id.lower()] = unit_id
+
+        # Parse comma-separated aliases
+        if aliases_str.strip():
+            for alias in aliases_str.split(","):
+                alias = alias.strip().lower()
+                if alias:
+                    alias_map[alias] = unit_id
+
+    return alias_map
+
 
 # ---------------------------------------------------------------------------
 # CREW (PersonnelAssignments) - GET endpoint

@@ -10,6 +10,8 @@ let _target = null;
 let _context = {};
 let _selectedIndex = -1;
 let _items = [];
+let _menuX = 0;
+let _menuY = 0;
 
 // ============================================================================
 // CORE MENU FUNCTIONS
@@ -71,6 +73,8 @@ function show(x, y, items, context = {}) {
   hide(); // Close any existing menu
 
   _context = context;
+  _menuX = x;
+  _menuY = y;
   _menu = _createMenuElement();
   _menu.innerHTML = _renderItems(items);
   document.body.appendChild(_menu);
@@ -309,16 +313,46 @@ async function _executeAction(action, value) {
         }
         break;
 
-      // Dispatch action
+      // Dispatch action - auto-dispatch to single incident or show picker
       case "dispatch":
-        if (unitId && window.PICKER?.openForUnit) {
-          window.PICKER.openForUnit(unitId);
-        } else if (unitId) {
-          // Fallback: use CLI dispatch mode
-          const cli = document.getElementById("cmd-input");
-          if (cli) {
-            cli.value = `${unitId} D`;
-            cli.focus();
+        if (unitId) {
+          // Check how many incidents exist
+          const activeRows = document.querySelectorAll("#panel-active tr[data-row-num]");
+          const openRows = document.querySelectorAll("#panel-open tr[data-row-num]");
+          const heldRows = document.querySelectorAll("#panel-held tr[data-row-num]");
+          const totalIncidents = activeRows.length + openRows.length + heldRows.length;
+
+          if (totalIncidents === 0) {
+            alert("No incidents. Create one first.");
+          } else if (totalIncidents === 1) {
+            // Auto-dispatch to single incident
+            const row = activeRows[0] || openRows[0] || heldRows[0];
+            const incidentId = row?.dataset?.incidentId;
+            if (incidentId && window.CAD_UTIL?.postJSON) {
+              window.CAD_UTIL.postJSON("/api/cli/dispatch", {
+                incident_id: Number(incidentId),
+                units: [unitId],
+                mode: "D"
+              }).then(res => {
+                if (res?.ok) {
+                  window.CAD_UTIL?.refreshPanels?.();
+                  try { window.SOUNDS?.unitDispatched?.(); } catch (_) {}
+                } else {
+                  alert(res?.error || "Dispatch failed.");
+                }
+              }).catch(err => {
+                alert(err?.message || "Dispatch failed.");
+              });
+            }
+          } else {
+            // Multiple incidents - use CLI for picker
+            const cli = document.getElementById("cmd-input");
+            if (cli) {
+              cli.value = `${unitId} D`;
+              cli.focus();
+              // Trigger the command
+              cli.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+            }
           }
         }
         break;
@@ -365,10 +399,340 @@ async function _executeAction(action, value) {
       case "refresh_panels":
         CAD_UTIL.refreshPanels();
         break;
+
+      // Incident actions
+      case "hold_incident":
+        if (incidentId) {
+          const reason = (prompt("Hold reason (required):", "") || "").trim();
+          if (!reason) {
+            alert("Hold reason is required.");
+            break;
+          }
+          await CAD_UTIL.postJSON(`/incident/${incidentId}/hold`, { reason });
+          CAD_UTIL.refreshPanels();
+          window.TOAST?.info?.(`Incident #${incidentId} placed on hold`);
+        }
+        break;
+
+      case "unhold_incident":
+        if (incidentId) {
+          await CAD_UTIL.postJSON(`/incident/${incidentId}/unhold`, {});
+          CAD_UTIL.refreshPanels();
+          window.TOAST?.info?.(`Incident #${incidentId} removed from hold`);
+        }
+        break;
+
+      case "close_incident":
+        if (incidentId) {
+          // Check for assigned units first, then show appropriate popup
+          _showCloseIncidentFlow(incidentId, _menuX || 200, _menuY || 200);
+        }
+        break;
+
+      case "incident_add_remark":
+        if (incidentId && window.REMARK?.openForIncident) {
+          window.REMARK.openForIncident(incidentId);
+        } else if (incidentId && window.CAD_MODAL?.open) {
+          window.CAD_MODAL.open(`/modals/remark?incident_id=${incidentId}`);
+        }
+        break;
     }
   } catch (err) {
     console.error("[CONTEXTMENU] Action failed:", action, err);
     alert(`Action failed: ${err.message || err}`);
+  }
+}
+
+// ============================================================================
+// INLINE DISPOSITION POPUP
+// ============================================================================
+
+let _dispoPopup = null;
+let _dispoIncidentId = null;
+let _dispoSelectedCode = null;
+
+// Check for units and show appropriate close flow
+async function _showCloseIncidentFlow(incidentId, x, y) {
+  try {
+    // Check how many units are assigned to this incident
+    const res = await CAD_UTIL.getJSON(`/api/incident/${incidentId}/unit_count`);
+    const unitCount = res?.count || 0;
+
+    if (unitCount > 0) {
+      // Units are assigned - show "Clear Units First" popup
+      _showClearUnitsPopup(incidentId, unitCount, x, y);
+    } else {
+      // No units - show normal close popup
+      _showInlineDispositionPopup(incidentId, x, y);
+    }
+  } catch (err) {
+    console.error("[CONTEXTMENU] Failed to check unit count:", err);
+    // Fallback to normal close popup
+    _showInlineDispositionPopup(incidentId, x, y);
+  }
+}
+
+// Popup for clearing units before closing
+function _showClearUnitsPopup(incidentId, unitCount, x, y) {
+  _closeDispositionPopup();
+
+  _dispoIncidentId = incidentId;
+  _dispoSelectedCode = null;
+
+  const popup = document.createElement("div");
+  popup.className = "cad-inline-dispo-popup";
+  popup.innerHTML = `
+    <div class="inline-dispo-header">
+      <span class="inline-dispo-title">Close Incident #${incidentId}</span>
+      <button class="inline-dispo-close" onclick="CAD_CONTEXTMENU.closeDispositionPopup()">&times;</button>
+    </div>
+    <div class="inline-dispo-warning">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span>${unitCount} unit(s) still assigned</span>
+    </div>
+    <div class="inline-dispo-label">Select disposition to clear all units & close</div>
+    <div class="inline-dispo-grid">
+      <button type="button" class="inline-dispo-btn" data-code="R" onclick="CAD_CONTEXTMENU.selectDispoCode('R', this)">
+        <span class="dispo-label">Report</span><span class="dispo-code">R</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="C" onclick="CAD_CONTEXTMENU.selectDispoCode('C', this)">
+        <span class="dispo-label">Clear</span><span class="dispo-code">C</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-cancel" data-code="X" onclick="CAD_CONTEXTMENU.selectDispoCode('X', this)">
+        <span class="dispo-label">Cancel</span><span class="dispo-code">X</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="FA" onclick="CAD_CONTEXTMENU.selectDispoCode('FA', this)">
+        <span class="dispo-label">False Alarm</span><span class="dispo-code">FA</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="NR" onclick="CAD_CONTEXTMENU.selectDispoCode('NR', this)">
+        <span class="dispo-label">No Report</span><span class="dispo-code">NR</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="UF" onclick="CAD_CONTEXTMENU.selectDispoCode('UF', this)">
+        <span class="dispo-label">Unfounded</span><span class="dispo-code">UF</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="NC" onclick="CAD_CONTEXTMENU.selectDispoCode('NC', this)">
+        <span class="dispo-label">Neg Contact</span><span class="dispo-code">NC</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-medical" data-code="T" onclick="CAD_CONTEXTMENU.selectDispoCode('T', this)">
+        <span class="dispo-label">Transported</span><span class="dispo-code">T</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-medical" data-code="PRTT" onclick="CAD_CONTEXTMENU.selectDispoCode('PRTT', this)">
+        <span class="dispo-label">Pt Refused</span><span class="dispo-code">PRTT</span>
+      </button>
+    </div>
+    <input type="text" class="inline-dispo-comment" id="inline-dispo-comment" placeholder="Optional comment...">
+    <div class="inline-dispo-actions">
+      <button class="inline-dispo-cancel-btn" onclick="CAD_CONTEXTMENU.closeDispositionPopup()">Cancel</button>
+      <button class="inline-dispo-submit-btn" id="inline-dispo-submit" disabled onclick="CAD_CONTEXTMENU.clearUnitsAndClose()">Clear Units & Close</button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  _dispoPopup = popup;
+
+  // Position
+  const rect = popup.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let left = x, top = y;
+  if (x + rect.width > vw - 10) left = vw - rect.width - 10;
+  if (y + rect.height > vh - 10) top = vh - rect.height - 10;
+  popup.style.left = `${Math.max(10, left)}px`;
+  popup.style.top = `${Math.max(10, top)}px`;
+
+  setTimeout(() => {
+    document.addEventListener("click", _handleDispoOutsideClick);
+    document.addEventListener("keydown", _handleDispoKeydown);
+  }, 100);
+}
+
+// Clear all units with disposition and close incident
+async function _clearUnitsAndClose() {
+  if (!_dispoIncidentId || !_dispoSelectedCode) return;
+
+  const comment = (_dispoPopup?.querySelector('#inline-dispo-comment')?.value || "").trim();
+
+  const submitBtn = _dispoPopup?.querySelector('#inline-dispo-submit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Clearing...";
+  }
+
+  try {
+    // Clear all units with the selected disposition
+    await CAD_UTIL.postJSON(`/api/incident/${_dispoIncidentId}/clear_all_and_close`, {
+      disposition: _dispoSelectedCode,
+      comment: comment
+    });
+
+    _closeDispositionPopup();
+    CAD_UTIL.refreshPanels();
+    window.TOAST?.success?.(`Incident #${_dispoIncidentId} closed with disposition: ${_dispoSelectedCode}`);
+  } catch (err) {
+    console.error("[CONTEXTMENU] Clear and close failed:", err);
+    window.TOAST?.error?.(`Failed to close: ${err.message || err}`);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Clear Units & Close";
+    }
+  }
+}
+
+function _showInlineDispositionPopup(incidentId, x, y) {
+  _closeDispositionPopup();
+
+  _dispoIncidentId = incidentId;
+  _dispoSelectedCode = null;
+
+  const popup = document.createElement("div");
+  popup.className = "cad-inline-dispo-popup";
+  console.log("[CONTEXTMENU] Created popup element");
+  popup.innerHTML = `
+    <div class="inline-dispo-header">
+      <span class="inline-dispo-title">Close Incident #${incidentId}</span>
+      <button class="inline-dispo-close" onclick="CAD_CONTEXTMENU.closeDispositionPopup()">&times;</button>
+    </div>
+    <div class="inline-dispo-label">Select Disposition</div>
+    <div class="inline-dispo-grid">
+      <button type="button" class="inline-dispo-btn" data-code="R" onclick="CAD_CONTEXTMENU.selectDispoCode('R', this)">
+        <span class="dispo-label">Report</span><span class="dispo-code">R</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="C" onclick="CAD_CONTEXTMENU.selectDispoCode('C', this)">
+        <span class="dispo-label">Clear</span><span class="dispo-code">C</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-cancel" data-code="X" onclick="CAD_CONTEXTMENU.selectDispoCode('X', this)">
+        <span class="dispo-label">Cancel</span><span class="dispo-code">X</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="FA" onclick="CAD_CONTEXTMENU.selectDispoCode('FA', this)">
+        <span class="dispo-label">False Alarm</span><span class="dispo-code">FA</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="NR" onclick="CAD_CONTEXTMENU.selectDispoCode('NR', this)">
+        <span class="dispo-label">No Report</span><span class="dispo-code">NR</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="UF" onclick="CAD_CONTEXTMENU.selectDispoCode('UF', this)">
+        <span class="dispo-label">Unfounded</span><span class="dispo-code">UF</span>
+      </button>
+      <button type="button" class="inline-dispo-btn" data-code="NC" onclick="CAD_CONTEXTMENU.selectDispoCode('NC', this)">
+        <span class="dispo-label">Neg Contact</span><span class="dispo-code">NC</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-medical" data-code="T" onclick="CAD_CONTEXTMENU.selectDispoCode('T', this)">
+        <span class="dispo-label">Transported</span><span class="dispo-code">T</span>
+      </button>
+      <button type="button" class="inline-dispo-btn inline-dispo-medical" data-code="PRTT" onclick="CAD_CONTEXTMENU.selectDispoCode('PRTT', this)">
+        <span class="dispo-label">Pt Refused</span><span class="dispo-code">PRTT</span>
+      </button>
+    </div>
+    <input type="text" class="inline-dispo-comment" id="inline-dispo-comment" placeholder="Optional comment...">
+    <div class="inline-dispo-actions">
+      <button class="inline-dispo-cancel-btn" onclick="CAD_CONTEXTMENU.closeDispositionPopup()">Cancel</button>
+      <button class="inline-dispo-submit-btn" id="inline-dispo-submit" disabled onclick="CAD_CONTEXTMENU.submitDisposition()">Close Incident</button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  _dispoPopup = popup;
+  console.log("[CONTEXTMENU] Popup appended to body");
+
+  // Position with viewport clamping
+  const rect = popup.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = x;
+  let top = y;
+
+  if (x + rect.width > vw - 10) left = vw - rect.width - 10;
+  if (y + rect.height > vh - 10) top = vh - rect.height - 10;
+
+  popup.style.left = `${Math.max(10, left)}px`;
+  popup.style.top = `${Math.max(10, top)}px`;
+  console.log("[CONTEXTMENU] Popup positioned at", left, top);
+
+  // Close on outside click (delay to avoid immediate close from menu click)
+  setTimeout(() => {
+    document.addEventListener("click", _handleDispoOutsideClick);
+    document.addEventListener("keydown", _handleDispoKeydown);
+    console.log("[CONTEXTMENU] Popup event listeners added");
+  }, 100);
+}
+
+function _closeDispositionPopup() {
+  if (_dispoPopup) {
+    _dispoPopup.remove();
+    _dispoPopup = null;
+  }
+  _dispoIncidentId = null;
+  _dispoSelectedCode = null;
+  document.removeEventListener("click", _handleDispoOutsideClick);
+  document.removeEventListener("keydown", _handleDispoKeydown);
+}
+
+function _handleDispoOutsideClick(e) {
+  if (_dispoPopup && !_dispoPopup.contains(e.target)) {
+    _closeDispositionPopup();
+  }
+}
+
+function _handleDispoKeydown(e) {
+  if (e.key === "Escape") {
+    _closeDispositionPopup();
+  }
+}
+
+function _selectDispoCode(code, btn) {
+  if (!_dispoPopup) return;
+
+  // Remove selection from all buttons
+  _dispoPopup.querySelectorAll('.inline-dispo-btn').forEach(b => b.classList.remove('selected'));
+
+  // Select this button
+  btn.classList.add('selected');
+  _dispoSelectedCode = code;
+
+  // Enable submit
+  const submitBtn = _dispoPopup.querySelector('#inline-dispo-submit');
+  if (submitBtn) submitBtn.disabled = false;
+}
+
+async function _submitDisposition() {
+  if (!_dispoIncidentId || !_dispoSelectedCode) return;
+
+  const comment = (_dispoPopup?.querySelector('#inline-dispo-comment')?.value || "").trim();
+
+  // Disable buttons while submitting
+  const submitBtn = _dispoPopup?.querySelector('#inline-dispo-submit');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Closing...";
+  }
+
+  try {
+    const res = await CAD_UTIL.postJSON(`/incident/${_dispoIncidentId}/disposition`, {
+      code: _dispoSelectedCode,
+      comment: comment
+    });
+
+    _closeDispositionPopup();
+    CAD_UTIL.refreshPanels();
+
+    if (res?.status === "CLOSED" || res?.status === "HELD") {
+      window.TOAST?.success?.(`Incident closed with disposition: ${_dispoSelectedCode}`);
+    } else if (res?.remaining_units > 0) {
+      window.TOAST?.warning?.(`Disposition saved. ${res.remaining_units} unit(s) still assigned - clear units first.`);
+    } else {
+      window.TOAST?.success?.(`Incident disposition set: ${_dispoSelectedCode}`);
+    }
+  } catch (err) {
+    console.error("[CONTEXTMENU] Disposition failed:", err);
+    window.TOAST?.error?.(`Failed to close incident: ${err.message || err}`);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Close Incident";
+    }
   }
 }
 
@@ -401,13 +765,11 @@ function getUnitMenuItems(unitId, context = {}) {
 
   items.push({ separator: true });
 
-  // Dispatch (for apparatus and command)
-  if (isApparatus || isCommand) {
-    items.push({
-      label: "Dispatch",
-      action: "dispatch"
-    });
-  }
+  // Dispatch - available for all dispatchable units
+  items.push({
+    label: "Dispatch",
+    action: "dispatch"
+  });
 
   // Status submenu
   items.push({
@@ -464,12 +826,27 @@ function getUnitMenuItems(unitId, context = {}) {
 }
 
 function getIncidentMenuItems(incidentId, context = {}) {
-  return [
+  const status = context.status || "";
+  const isHeld = status.toUpperCase() === "HELD";
+
+  const items = [
     { label: "Open Incident", action: "view_incident" },
     { separator: true },
-    { label: "Add Remark", action: "add_remark" },
-    { label: "Dispatch Units", action: "dispatch" }
+    { label: "Add Remark", action: "incident_add_remark" },
+    { label: "Dispatch Units", action: "dispatch" },
+    { separator: true }
   ];
+
+  // Hold/Unhold based on current status
+  if (isHeld) {
+    items.push({ label: "Unhold Incident", action: "unhold_incident" });
+  } else {
+    items.push({ label: "Hold Incident", action: "hold_incident" });
+  }
+
+  items.push({ label: "Close Incident", action: "close_incident" });
+
+  return items;
 }
 
 // ============================================================================
@@ -516,7 +893,11 @@ function showForIncident(event, incidentId, element) {
 
   _target = element;
 
-  const context = { incidentId };
+  // Get status from element data attribute or parent row
+  const row = element?.closest?.("tr") || element;
+  const status = row?.dataset?.status || element?.dataset?.status || "";
+
+  const context = { incidentId, status };
   const items = getIncidentMenuItems(incidentId, context);
   show(event.clientX, event.clientY, items, context);
 }
@@ -630,7 +1011,12 @@ export const CAD_CONTEXTMENU = {
   showForCrewChip,
   showForUnitsPanel,
   getUnitMenuItems,
-  getIncidentMenuItems
+  getIncidentMenuItems,
+  // Inline disposition popup
+  closeDispositionPopup: _closeDispositionPopup,
+  selectDispoCode: _selectDispoCode,
+  submitDisposition: _submitDisposition,
+  clearUnitsAndClose: _clearUnitsAndClose
 };
 
 window.CAD_CONTEXTMENU = CAD_CONTEXTMENU;

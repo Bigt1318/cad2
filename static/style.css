@@ -634,19 +634,17 @@ input:disabled, textarea:disabled {
     max-height: 88vh;
     overflow: hidden;
     border-radius: 10px;
-    background: rgba(15, 23, 34, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 12px 48px rgba(0,0,0,0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.15);
     font-size: 13px;
 }
 
 /* IAW Header - Mini-Calltaker Style (Single Row, All Critical Info) */
 .iaw-header {
     padding: 8px 12px;
-    background: rgba(0,0,0,0.45);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: var(--ford-blue, #003478);
+    border-bottom: 1px solid var(--border-default, #e2e8f0);
 }
 
 .iaw-header-row {
@@ -663,7 +661,7 @@ input:disabled, textarea:disabled {
 .iaw-id-number {
     font-size: 14px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-on-dark, #ffffff);
     letter-spacing: 0.5px;
     font-family: "Consolas", "Monaco", monospace;
 }
@@ -678,12 +676,12 @@ input:disabled, textarea:disabled {
 .iaw-type-pill {
     flex-shrink: 0;
     padding: 3px 10px;
-    background: rgba(59, 130, 246, 0.3);
-    border: 1px solid rgba(59, 130, 246, 0.5);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     font-size: 11px;
     font-weight: 700;
-    color: #93c5fd;
+    color: var(--text-on-dark, #ffffff);
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
@@ -694,7 +692,7 @@ input:disabled, textarea:disabled {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .iaw-loc svg {
@@ -714,7 +712,7 @@ input:disabled, textarea:disabled {
     display: flex;
     align-items: center;
     gap: 4px;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.7);
     font-size: 11px;
     font-family: "Consolas", "Monaco", monospace;
 }
@@ -732,7 +730,7 @@ input:disabled, textarea:disabled {
 .iaw-title {
     font-size: 15px;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-on-dark, #ffffff);
     letter-spacing: 0.2px;
 }
 
@@ -750,13 +748,14 @@ input:disabled, textarea:disabled {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--text-on-dark, #ffffff);
 }
 
-.iaw-badge-status { background: rgba(59, 130, 246, 0.25); border-color: rgba(59, 130, 246, 0.4); }
-.iaw-badge-priority { background: rgba(249, 115, 22, 0.25); border-color: rgba(249, 115, 22, 0.4); color: #fb923c; }
-.iaw-badge-issue { background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
+.iaw-badge-status { background: rgba(59, 130, 246, 0.3); border-color: rgba(59, 130, 246, 0.5); color: #ffffff; }
+.iaw-badge-priority { background: rgba(249, 115, 22, 0.3); border-color: rgba(249, 115, 22, 0.5); color: #ffffff; }
+.iaw-badge-issue { background: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.5); color: #ffffff; }
 
 .iaw-header-right {
     display: flex;
@@ -765,9 +764,9 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-icon-btn {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.15);
-    color: #e8f0f8;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: var(--text-on-dark, #ffffff);
     border-radius: 6px;
     padding: 5px 10px;
     cursor: pointer;
@@ -776,8 +775,8 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-icon-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* IAW Body */
@@ -796,8 +795,8 @@ input:disabled, textarea:disabled {
 
 /* IAW Cards - Compact sections */
 .iaw-card {
-    background: rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--bg-elevated, #f8fafc);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 10px;
@@ -810,7 +809,7 @@ input:disabled, textarea:disabled {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    opacity: 0.7;
+    color: var(--ford-blue, #003478);
     margin-bottom: 8px;
 }
 
@@ -823,7 +822,7 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-k {
-    opacity: 0.5;
+    color: var(--text-muted, #64748b);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 10px;
@@ -832,7 +831,7 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-v {
-    color: #e8f0f8;
+    color: var(--text-primary, #1e293b);
     font-weight: 500;
 }
 
@@ -852,7 +851,7 @@ input:disabled, textarea:disabled {
 
 .iaw-divider {
     height: 1px;
-    background: rgba(255,255,255,0.06);
+    background: var(--border-light, #e2e8f0);
     margin: 8px 0;
 }
 
@@ -862,10 +861,10 @@ input:disabled, textarea:disabled {
     align-items: center;
     gap: 4px;
     padding: 6px 10px;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.15);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 6px;
-    color: #e8f0f8;
+    color: var(--text-primary, #1e293b);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -873,35 +872,39 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: var(--bg-hover, #f1f5f9);
+    border-color: var(--ford-blue, #003478);
+    color: var(--ford-blue, #003478);
 }
 
 .iaw-btn-primary {
-    background: rgba(59, 130, 246, 0.25);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: var(--ford-blue, #003478);
+    border-color: var(--ford-blue, #003478);
+    color: white;
 }
 
 .iaw-btn-primary:hover {
-    background: rgba(59, 130, 246, 0.4);
+    background: var(--ford-blue-dark, #002855);
 }
 
 .iaw-btn-warn {
-    background: rgba(234, 179, 8, 0.2);
-    border-color: rgba(234, 179, 8, 0.35);
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: white;
 }
 
 .iaw-btn-warn:hover {
-    background: rgba(234, 179, 8, 0.35);
+    background: #d97706;
 }
 
 .iaw-btn-danger {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.35);
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
 }
 
 .iaw-btn-danger:hover {
-    background: rgba(239, 68, 68, 0.35);
+    background: #dc2626;
 }
 
 .iaw-btn-small {
@@ -928,19 +931,20 @@ input:disabled, textarea:disabled {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    opacity: 0.5;
+    color: var(--text-muted, #64748b);
     padding: 6px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--border-default, #e2e8f0);
 }
 
 .iaw-table td {
     padding: 6px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border-light, #f1f5f9);
     vertical-align: middle;
+    color: var(--text-primary, #1e293b);
 }
 
 .iaw-table tbody tr:hover {
-    background: rgba(59, 130, 246, 0.08);
+    background: var(--bg-hover, #f8fafc);
 }
 
 .iaw-table-actions {
@@ -956,8 +960,9 @@ input:disabled, textarea:disabled {
     border-radius: 4px;
     font-size: 10px;
     font-weight: 700;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: var(--bg-elevated, #f1f5f9);
+    border: 1px solid var(--border-default, #e2e8f0);
+    color: var(--text-primary, #1e293b);
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
@@ -974,30 +979,29 @@ input:disabled, textarea:disabled {
     grid-template-columns: 130px 100px 1fr;
     gap: 6px;
     padding: 4px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border-light, #f1f5f9);
 }
 
 .iaw-n-line:last-child { border-bottom: none; }
 
 .iaw-n-time {
-    opacity: 0.6;
+    color: var(--text-muted, #64748b);
     font-size: 11px;
     font-family: ui-monospace, monospace;
 }
 
 .iaw-n-user {
-    opacity: 0.8;
     font-weight: 700;
     font-size: 11px;
-    color: #60a5fa;
+    color: var(--ford-blue, #003478);
 }
 
 .iaw-n-text {
-    opacity: 0.95;
+    color: var(--text-primary, #1e293b);
 }
 
 .iaw-empty {
-    opacity: 0.4;
+    color: var(--text-muted, #94a3b8);
     padding: 8px 0;
     font-size: 12px;
     text-align: center;
@@ -1006,8 +1010,8 @@ input:disabled, textarea:disabled {
 /* IAW Footer - Compact action bar */
 .iaw-footer {
     padding: 8px 12px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.25);
+    border-top: 1px solid var(--border-default, #e2e8f0);
+    background: var(--bg-elevated, #f8fafc);
     display: flex;
     justify-content: flex-end;
 }
@@ -1024,9 +1028,10 @@ input:disabled, textarea:disabled {
 
 /* Inline disposition row */
 .iaw-inline-dispo {
-    background: rgba(0,0,0,0.3);
+    background: var(--bg-elevated, #f1f5f9);
     padding: 10px;
     border-radius: 6px;
+    border: 1px solid var(--border-default, #e2e8f0);
 }
 
 .iaw-inline-title {
@@ -1034,7 +1039,7 @@ input:disabled, textarea:disabled {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    opacity: 0.7;
+    color: var(--text-muted, #64748b);
     margin-bottom: 8px;
 }
 
@@ -1047,10 +1052,10 @@ input:disabled, textarea:disabled {
 
 .iaw-code-btn {
     padding: 5px 10px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 4px;
-    color: #e8f0f8;
+    color: var(--text-primary, #1e293b);
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
@@ -1058,33 +1063,36 @@ input:disabled, textarea:disabled {
 }
 
 .iaw-code-btn:hover {
-    background: rgba(59, 130, 246, 0.2);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: var(--ford-blue-light, #dbeafe);
+    border-color: var(--ford-blue, #003478);
+    color: var(--ford-blue, #003478);
 }
 
 .iaw-code-btn.iaw-code-selected {
-    background: rgba(59, 130, 246, 0.4);
-    border-color: rgba(59, 130, 246, 0.6);
+    background: var(--ford-blue, #003478);
+    border-color: var(--ford-blue, #003478);
+    color: white;
 }
 
 .iaw-inline-dispo-remark input {
     width: 100%;
     padding: 6px 10px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 4px;
-    color: #e8f0f8;
+    color: var(--text-primary, #1e293b);
     font-size: 12px;
     outline: none;
     margin-bottom: 8px;
 }
 
 .iaw-inline-dispo-remark input:focus {
-    border-color: rgba(59, 130, 246, 0.5);
+    border-color: var(--ford-blue, #003478);
+    box-shadow: 0 0 0 2px var(--ford-blue-light, #dbeafe);
 }
 
 .iaw-inline-dispo-remark input::placeholder {
-    color: rgba(255,255,255,0.35);
+    color: var(--text-muted, #94a3b8);
 }
 
 .iaw-inline-dispo-actions {
@@ -1092,10 +1100,83 @@ input:disabled, textarea:disabled {
     gap: 6px;
 }
 
+/* ============================================================
+   UNIT DISPOSITION ROW (template class names)
+   ============================================================ */
+.iaw-dispo-inline {
+    background: var(--bg-elevated, #f8fafc);
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.iaw-dispo-inline .iaw-dispo-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ford-blue, #003478);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.iaw-dispo-inline .iaw-dispo-codes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.iaw-dispo-inline .iaw-dispo-remark {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-radius: 6px;
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #1e293b);
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.iaw-dispo-inline .iaw-dispo-remark:focus {
+    outline: none;
+    border-color: var(--ford-blue, #003478);
+    box-shadow: 0 0 0 2px rgba(0, 52, 120, 0.1);
+}
+
+.iaw-dispo-inline .iaw-dispo-remark::placeholder {
+    color: var(--text-muted, #94a3b8);
+}
+
+.iaw-dispo-inline .iaw-dispo-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.iaw-dispo-inline .iaw-btn {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+.iaw-dispo-inline .iaw-btn-primary {
+    background: var(--ford-blue, #003478);
+    border-color: var(--ford-blue, #003478);
+    color: white;
+}
+
+.iaw-dispo-inline .iaw-btn-primary:disabled {
+    background: var(--bg-elevated, #e2e8f0);
+    border-color: var(--border-default, #e2e8f0);
+    color: var(--text-muted, #94a3b8);
+    cursor: not-allowed;
+}
+
 /* Event disposition inline */
 .iaw-event-dispo {
-    background: rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--bg-elevated, #f1f5f9);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 6px;
     padding: 10px;
     margin-top: 8px;
@@ -1111,21 +1192,23 @@ input:disabled, textarea:disabled {
 .iaw-event-dispo-row input {
     flex: 1;
     padding: 6px 10px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
     border-radius: 4px;
-    color: #e8f0f8;
+    color: var(--text-primary, #1e293b);
     font-size: 12px;
     outline: none;
 }
 
 .iaw-event-dispo-row select option {
-    background: #1a2535;
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #1e293b);
 }
 
 .iaw-event-dispo-row select:focus,
 .iaw-event-dispo-row input:focus {
-    border-color: rgba(59, 130, 246, 0.5);
+    border-color: var(--ford-blue, #003478);
+    box-shadow: 0 0 0 2px var(--ford-blue-light, #dbeafe);
 }
 
 /* =======================================================================
@@ -1981,5 +2064,193 @@ body.drawer-open { overflow: hidden; }
 @media (max-width: 768px) {
     .cmd-hints {
         display: none !important;
+    }
+}
+
+/* ============================================================================
+   IAW INLINE DISPOSITION PANEL - Button Grid Design
+   ============================================================================ */
+.iaw-dispo-panel {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.iaw-dispo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+
+.iaw-dispo-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ford-blue, #003478);
+}
+
+.iaw-dispo-cancel-x {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: var(--text-muted, #94a3b8);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.iaw-dispo-cancel-x:hover {
+    color: var(--text-primary, #1e293b);
+}
+
+.iaw-dispo-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #64748b);
+    margin-bottom: 10px;
+}
+
+/* Button Grid */
+.iaw-dispo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.iaw-dispo-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    min-height: 56px;
+    background: var(--bg-surface, #ffffff);
+    border: 2px solid var(--border-default, #e2e8f0);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    text-align: center;
+}
+
+.iaw-dispo-btn:hover {
+    border-color: var(--ford-blue, #003478);
+    background: var(--bg-elevated, #f8fafc);
+}
+
+.iaw-dispo-btn.selected {
+    border-color: var(--ford-blue, #003478);
+    background: var(--ford-blue, #003478);
+}
+
+.iaw-dispo-btn.selected .iaw-dispo-btn-label,
+.iaw-dispo-btn.selected .iaw-dispo-btn-code {
+    color: white;
+}
+
+.iaw-dispo-btn-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary, #1e293b);
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.iaw-dispo-btn-code {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted, #94a3b8);
+    font-family: var(--font-mono, monospace);
+}
+
+/* Color coding */
+.iaw-dispo-medical {
+    border-left: 3px solid #10b981;
+}
+
+.iaw-dispo-cancel {
+    border-left: 3px solid #f59e0b;
+}
+
+.iaw-dispo-other {
+    border-left: 3px solid #6b7280;
+}
+
+/* Comment Input */
+.iaw-dispo-comment {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-radius: 6px;
+    background: var(--bg-surface, #ffffff);
+    color: var(--text-primary, #1e293b);
+    margin-bottom: 14px;
+}
+
+.iaw-dispo-comment:focus {
+    outline: none;
+    border-color: var(--ford-blue, #003478);
+    box-shadow: 0 0 0 2px rgba(0, 52, 120, 0.1);
+}
+
+.iaw-dispo-comment::placeholder {
+    color: var(--text-muted, #94a3b8);
+}
+
+/* Action Buttons */
+.iaw-dispo-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.iaw-dispo-action-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.iaw-dispo-action-cancel {
+    background: var(--bg-surface, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
+    color: var(--text-secondary, #64748b);
+}
+
+.iaw-dispo-action-cancel:hover {
+    background: var(--bg-elevated, #f8fafc);
+    border-color: var(--text-secondary, #64748b);
+}
+
+.iaw-dispo-action-submit {
+    background: var(--ford-blue, #003478);
+    border: none;
+    color: white;
+}
+
+.iaw-dispo-action-submit:hover:not(:disabled) {
+    background: var(--ford-blue-dark, #002855);
+}
+
+.iaw-dispo-action-submit:disabled {
+    background: var(--bg-elevated, #e2e8f0);
+    color: var(--text-muted, #94a3b8);
+    cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .iaw-dispo-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }

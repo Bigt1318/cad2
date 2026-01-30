@@ -1,0 +1,154 @@
+<!-- Roster Management Modal -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal roster-modal" role="dialog" aria-modal="true" aria-label="Roster Management">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 010 7.75"></path>
+            </svg>
+            Roster Management
+        </div>
+        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+    <div class="cad-modal-body">
+        <div class="roster-container">
+            <div class="roster-tabs">
+                <button class="roster-tab active" data-tab="personnel">Personnel</button>
+                <button class="roster-tab" data-tab="apparatus">Apparatus</button>
+                <button class="roster-tab" data-tab="shifts">Shifts</button>
+            </div>
+
+            <div class="roster-search">
+                <input type="text" placeholder="Search roster..." id="roster-search-input">
+            </div>
+
+            <div class="roster-content" id="roster-content">
+                <table class="roster-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Shift</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-tbody">
+                        <tr>
+                            <td>32</td>
+                            <td>Bill Mullins</td>
+                            <td>A</td>
+                            <td><span class="status-badge status-available">Available</span></td>
+                            <td>
+                                <button class="btn-icon" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>33</td>
+                            <td>Jeremy Goodman</td>
+                            <td>A</td>
+                            <td><span class="status-badge status-available">Available</span></td>
+                            <td>
+                                <button class="btn-icon" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>34</td>
+                            <td>Michael Turner</td>
+                            <td>B</td>
+                            <td><span class="status-badge status-oos">Off Duty</span></td>
+                            <td>
+                                <button class="btn-icon" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="cad-modal-footer">
+        <button class="btn-primary" onclick="ROSTER.addNew()">+ Add Personnel</button>
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
+    </div>
+</div>
+
+<style>
+.roster-modal { min-width: 650px; max-height: 80vh; }
+.roster-container { display: flex; flex-direction: column; gap: var(--space-3); }
+.roster-tabs {
+    display: flex;
+    gap: var(--space-1);
+    border-bottom: 1px solid var(--border-default);
+    padding-bottom: var(--space-2);
+}
+.roster-tab {
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.roster-tab.active {
+    background: var(--bg-elevated);
+    color: var(--ford-blue);
+}
+.roster-tab:hover { color: var(--text-primary); }
+.roster-search input {
+    width: 100%;
+    padding: var(--space-2);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+}
+.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.roster-table th,
+.roster-table td {
+    padding: var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+}
+.roster-table th {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.btn-icon {
+    padding: var(--space-1);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+.btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+</style>
+
+<script>
+window.ROSTER = {
+    addNew() {
+        TOAST?.info?.("Add personnel form coming soon");
+    }
+};
+
+// Tab switching
+document.querySelectorAll('.roster-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.roster-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        TOAST?.info?.(`Switched to ${tab.dataset.tab} tab`);
+    });
+});
+</script>

@@ -58,6 +58,11 @@ document.addEventListener("click", (e) => {
     const el = e.target.closest("[data-action]");
     if (!el) return;
 
+    // Skip context menu items - they have their own handler
+    if (el.closest(".cad-context-menu") || el.closest(".cad-inline-dispo-popup")) {
+        return;
+    }
+
     const action = el.dataset.action;
     const fn = ACTIONS[action];
     if (!fn) {
