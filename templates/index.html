@@ -20,6 +20,12 @@
     <!-- HTMX -->
     <script src="/static/vendor/htmx.min.js"></script>
 
+    <!-- Global CAD context -->
+    <script>
+        window.CAD_USER = "{{ unit|default('DISPATCH') }}";
+        window.CAD_IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+    </script>
+
     <!-- Bootloader (cache bust on deploy) -->
     <script type="module" src="/static/js/bootloader.js?v=20260130i"></script>
 </head>
@@ -55,7 +61,7 @@
         <div id="clock" class="header-clock">00:00:00</div>
 
         {% if is_admin %}
-            <button class="header-btn admin-btn" type="button">
+            <button class="header-btn admin-btn" type="button" onclick="window.open('/admin?user={{ unit }}', '_blank')">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>

@@ -19,4 +19,22 @@
         History
     </button>
 
+    <button id="btn-admin" class="pill-btn admin-btn"
+            onclick="window.open('/admin?user=' + encodeURIComponent(window.CAD_USER || 'DISPATCH'), '_blank')"
+            style="display: none;">
+        Admin
+    </button>
+
 </div>
+
+<script>
+// Show admin button only for admin users
+(function() {
+    const ADMIN_UNITS = ['1578', 'CAR1', 'BATT1', 'BATT2', 'BATT3', 'BATT4', '17', '47'];
+    const user = (window.CAD_USER || '').toUpperCase();
+    if (ADMIN_UNITS.includes(user)) {
+        const btn = document.getElementById('btn-admin');
+        if (btn) btn.style.display = '';
+    }
+})();
+</script>

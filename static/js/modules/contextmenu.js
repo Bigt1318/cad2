@@ -527,6 +527,7 @@ function _showClearUnitsPopup(incidentId, unitCount, x, y) {
     <input type="text" class="inline-dispo-comment" id="inline-dispo-comment" placeholder="Optional comment...">
     <div class="inline-dispo-actions">
       <button class="inline-dispo-cancel-btn" onclick="CAD_CONTEXTMENU.closeDispositionPopup()">Cancel</button>
+      ${window.CAD_IS_ADMIN ? '<button class="inline-dispo-force-btn" onclick="CAD_CONTEXTMENU.forceClearUnits()" title="Force clear ghost unit assignments (Admin only)">Force Clear</button>' : ''}
       <button class="inline-dispo-submit-btn" id="inline-dispo-submit" disabled onclick="CAD_CONTEXTMENU.clearUnitsAndClose()">Clear Units & Close</button>
     </div>
   `;
@@ -579,6 +580,30 @@ async function _clearUnitsAndClose() {
       submitBtn.disabled = false;
       submitBtn.textContent = "Clear Units & Close";
     }
+  }
+}
+
+// Force clear ghost unit assignments (admin only)
+async function _forceClearUnits() {
+  if (!_dispoIncidentId) return;
+
+  if (!confirm(`Force clear all unit assignments from incident #${_dispoIncidentId}?\n\nThis will mark all units as cleared even if they appear stuck.`)) {
+    return;
+  }
+
+  try {
+    const res = await CAD_UTIL.postJSON(`/api/incident/${_dispoIncidentId}/force_clear_units`, {});
+
+    if (res?.ok) {
+      _closeDispositionPopup();
+      CAD_UTIL.refreshPanels();
+      window.TOAST?.success?.(`Force cleared ${res.cleared_count || 0} unit(s) from incident #${_dispoIncidentId}`);
+    } else {
+      window.TOAST?.error?.(res?.error || 'Force clear failed');
+    }
+  } catch (err) {
+    console.error("[CONTEXTMENU] Force clear failed:", err);
+    window.TOAST?.error?.(`Failed to force clear: ${err.message || err}`);
   }
 }
 
@@ -1016,7 +1041,8 @@ export const CAD_CONTEXTMENU = {
   closeDispositionPopup: _closeDispositionPopup,
   selectDispoCode: _selectDispoCode,
   submitDisposition: _submitDisposition,
-  clearUnitsAndClose: _clearUnitsAndClose
+  clearUnitsAndClose: _clearUnitsAndClose,
+  forceClearUnits: _forceClearUnits
 };
 
 window.CAD_CONTEXTMENU = CAD_CONTEXTMENU;

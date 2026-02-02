@@ -1,0 +1,974 @@
+<!-- ============================================================
+     FORD-CAD — ADMIN SYSTEM MANAGEMENT
+     Phase-3 Canon • Admin Dashboard
+     templates/admin.html
+============================================================ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - FORD CAD System Management</title>
+    <style>
+        :root {
+            --ford-blue: #003a8f;
+            --ford-blue-dark: #002a6b;
+            --ford-blue-light: #e9f0fb;
+            --panel-bg: #f4f7fb;
+            --panel-border: #cfd9e6;
+            --text-main: #1e2a36;
+            --text-muted: #5f6f82;
+            --danger: #c62828;
+            --danger-light: #ffebee;
+            --success: #2e7d32;
+            --success-light: #e8f5e9;
+            --warning: #f57c00;
+            --warning-light: #fff3e0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background: #eef2f7;
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .admin-header {
+            background: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .admin-header h1 {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .admin-header .user-badge {
+            background: rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .back-link {
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+        }
+
+        /* Tabs */
+        .tab-container {
+            background: white;
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 24px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            padding: 14px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--ford-blue);
+            background: var(--ford-blue-light);
+        }
+
+        .tab-btn.active {
+            color: var(--ford-blue);
+            border-bottom-color: var(--ford-blue);
+        }
+
+        /* Content */
+        .content {
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--ford-blue);
+        }
+
+        .stat-card .subvalue {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid var(--panel-border);
+            margin-bottom: 16px;
+        }
+
+        .card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: var(--text-main);
+        }
+
+        .card p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        /* Reset Actions */
+        .reset-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .reset-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .reset-row.danger {
+            background: var(--danger-light);
+            border-color: var(--danger);
+        }
+
+        .reset-info h4 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .reset-info p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--ford-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--ford-blue-dark);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e65100;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b71c1c;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1b5e20;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Run Number Form */
+        .run-number-form {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .form-group input {
+            padding: 8px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-size: 14px;
+            width: 120px;
+        }
+
+        /* Log Table */
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .log-table th,
+        .log-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .log-table th {
+            background: var(--panel-bg);
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .log-table tr:hover {
+            background: var(--ford-blue-light);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 900;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal h3 {
+            margin-bottom: 12px;
+            color: var(--danger);
+        }
+
+        .modal p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Yearly counts table */
+        .yearly-table {
+            margin-top: 16px;
+        }
+
+        .yearly-table th,
+        .yearly-table td {
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+<body>
+
+<header class="admin-header">
+    <div>
+        <a href="/" class="back-link">Back to CAD</a>
+        <h1>System Administration</h1>
+    </div>
+    <div class="user-badge">Logged in as: {{ user }}</div>
+</header>
+
+<div class="tab-container">
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="reset">Reset & Maintenance</button>
+        <button class="tab-btn" data-tab="runnumbers">Run Numbers</button>
+        <button class="tab-btn" data-tab="logs">Admin Logs</button>
+    </div>
+</div>
+
+<div class="content">
+
+    <!-- DASHBOARD TAB -->
+    <div class="tab-panel active" id="tab-dashboard">
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total Incidents</div>
+                <div class="value" id="stat-total">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Open Incidents</div>
+                <div class="value" id="stat-open">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Closed Incidents</div>
+                <div class="value" id="stat-closed">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Draft Incidents</div>
+                <div class="value" id="stat-drafts">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Current Run #</div>
+                <div class="value" id="stat-run">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Units</div>
+                <div class="value" id="stat-units">--</div>
+                <div class="subvalue" id="stat-units-avail">-- available</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">MasterLog Entries</div>
+                <div class="value" id="stat-masterlog">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">DailyLog Entries</div>
+                <div class="value" id="stat-dailylog">--</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Last Incident</h3>
+            <p id="last-incident">Loading...</p>
+        </div>
+
+        <div class="card">
+            <h3>Incidents by Year</h3>
+            <table class="log-table yearly-table" id="yearly-table">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody id="yearly-tbody">
+                    <tr><td colspan="2">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- RESET TAB -->
+    <div class="tab-panel" id="tab-reset">
+        <div class="card">
+            <h3>Reset & Maintenance Actions</h3>
+            <p>These actions will archive data to CSV before deletion. Archives are saved to <code>static/archives/</code>.</p>
+
+            <div class="reset-actions">
+
+                <div class="reset-row">
+                    <div class="reset-info">
+                        <h4>Reset Unit Status</h4>
+                        <p>Set all units to AVAILABLE and clear active assignments</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="resetUnits()">Reset Units</button>
+                </div>
+
+                <div class="reset-row">
+                    <div class="reset-info">
+                        <h4>Clear Closed Incidents</h4>
+                        <p>Archive and remove all closed incidents (keeps open/active)</p>
+                    </div>
+                    <button class="btn btn-warning" onclick="clearClosedIncidents()">Clear Closed</button>
+                </div>
+
+                <div class="reset-row">
+                    <div class="reset-info">
+                        <h4>Clear Audit Logs</h4>
+                        <p>Archive and purge MasterLog and DailyLog entries</p>
+                    </div>
+                    <button class="btn btn-warning" onclick="clearLogs()">Clear Logs</button>
+                </div>
+
+                <div class="reset-row">
+                    <div class="reset-info">
+                        <h4>Clear ALL Incidents</h4>
+                        <p>Archive and remove ALL incident data (requires confirmation)</p>
+                    </div>
+                    <button class="btn btn-danger" onclick="showConfirmModal('DELETE ALL', clearAllIncidents)">Clear All Incidents</button>
+                </div>
+
+                <div class="reset-row danger">
+                    <div class="reset-info">
+                        <h4>FULL SYSTEM RESET</h4>
+                        <p>Archive everything, clear all data, reset run numbers to 1</p>
+                    </div>
+                    <button class="btn btn-danger" onclick="showConfirmModal('RESET', fullSystemReset)">Full Reset</button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Export Data</h3>
+            <p>Download system data as CSV files.</p>
+            <div style="display: flex; gap: 12px; margin-top: 12px;">
+                <button class="btn btn-success" onclick="exportIncidents()">Export Incidents</button>
+                <button class="btn btn-success" onclick="exportLogs('masterlog')">Export MasterLog</button>
+                <button class="btn btn-success" onclick="exportLogs('dailylog')">Export DailyLog</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RUN NUMBERS TAB -->
+    <div class="tab-panel" id="tab-runnumbers">
+        <div class="card">
+            <h3>Run Number Management</h3>
+            <p>Current run number sequence for incident numbering.</p>
+
+            <div id="run-number-display" style="margin: 20px 0;">
+                <div class="stat-card" style="display: inline-block;">
+                    <div class="label">Next Run Number</div>
+                    <div class="value" id="next-run-display">--</div>
+                </div>
+            </div>
+
+            <div class="run-number-form">
+                <div class="form-group">
+                    <label>Year</label>
+                    <input type="number" id="run-year" value="" readonly style="background: #f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>Next Sequence</label>
+                    <input type="number" id="run-seq" value="1" min="1">
+                </div>
+                <button class="btn btn-primary" onclick="setRunNumber()">Set Run Number</button>
+                <button class="btn btn-warning" onclick="resetRunNumber()">Reset to 1</button>
+            </div>
+
+            <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+                Note: Setting run numbers when incidents already exist for the year requires force mode.
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>Run Number History</h3>
+            <table class="log-table" id="counter-table">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Next Sequence</th>
+                    </tr>
+                </thead>
+                <tbody id="counter-tbody">
+                    <tr><td colspan="2">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- LOGS TAB -->
+    <div class="tab-panel" id="tab-logs">
+        <div class="card">
+            <h3>Recent Admin Actions</h3>
+            <p>Last 50 admin-related entries from MasterLog.</p>
+
+            <table class="log-table" id="admin-log-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-log-tbody">
+                    <tr><td colspan="4">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal-overlay" id="confirm-modal">
+    <div class="modal">
+        <h3>Confirm Action</h3>
+        <p id="modal-message">Type the confirmation text to proceed.</p>
+        <input type="text" id="confirm-input" placeholder="Type here...">
+        <div class="modal-actions">
+            <button class="btn" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" id="confirm-btn" onclick="executeConfirmedAction()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const USER = '{{ user }}';
+let confirmText = '';
+let confirmCallback = null;
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+});
+
+// Toast notification
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type + ' show';
+    setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// Modal
+function showConfirmModal(text, callback) {
+    confirmText = text;
+    confirmCallback = callback;
+    document.getElementById('modal-message').textContent = `Type "${text}" to confirm this action.`;
+    document.getElementById('confirm-input').value = '';
+    document.getElementById('confirm-modal').classList.add('show');
+}
+
+function closeModal() {
+    document.getElementById('confirm-modal').classList.remove('show');
+    confirmCallback = null;
+}
+
+function executeConfirmedAction() {
+    const input = document.getElementById('confirm-input').value;
+    if (input === confirmText && confirmCallback) {
+        closeModal();
+        confirmCallback();
+    } else {
+        showToast('Confirmation text does not match', 'error');
+    }
+}
+
+// API calls
+async function fetchStats() {
+    try {
+        const res = await fetch(`/admin/stats?user=${USER}`);
+        const data = await res.json();
+        if (data.ok) {
+            const s = data.stats;
+            document.getElementById('stat-total').textContent = s.total_incidents.toLocaleString();
+            document.getElementById('stat-open').textContent = s.open_incidents.toLocaleString();
+            document.getElementById('stat-closed').textContent = s.closed_incidents.toLocaleString();
+            document.getElementById('stat-drafts').textContent = s.draft_incidents.toLocaleString();
+            document.getElementById('stat-run').textContent = s.current_run_number;
+            document.getElementById('stat-units').textContent = s.total_units.toLocaleString();
+            document.getElementById('stat-units-avail').textContent = s.available_units + ' available';
+            document.getElementById('stat-masterlog').textContent = s.masterlog_entries.toLocaleString();
+            document.getElementById('stat-dailylog').textContent = s.dailylog_entries.toLocaleString();
+
+            document.getElementById('next-run-display').textContent = s.current_run_number;
+            document.getElementById('run-year').value = s.current_year;
+            document.getElementById('run-seq').value = s.next_seq;
+
+            if (s.last_incident) {
+                document.getElementById('last-incident').textContent =
+                    `${s.last_incident.incident_number} - Created: ${s.last_incident.created}`;
+            } else {
+                document.getElementById('last-incident').textContent = 'No incidents yet';
+            }
+
+            // Yearly counts
+            const tbody = document.getElementById('yearly-tbody');
+            if (s.yearly_counts && s.yearly_counts.length > 0) {
+                tbody.innerHTML = s.yearly_counts.map(y =>
+                    `<tr><td>${y.year}</td><td>${y.count.toLocaleString()}</td></tr>`
+                ).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="2">No data</td></tr>';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to fetch stats:', e);
+    }
+}
+
+async function fetchRunNumbers() {
+    try {
+        const res = await fetch(`/admin/run_numbers?user=${USER}`);
+        const data = await res.json();
+        if (data.ok) {
+            const tbody = document.getElementById('counter-tbody');
+            if (data.counters && data.counters.length > 0) {
+                tbody.innerHTML = data.counters.map(c =>
+                    `<tr><td>${c.year}</td><td>${c.next_seq}</td></tr>`
+                ).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="2">No counters set</td></tr>';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to fetch run numbers:', e);
+    }
+}
+
+async function fetchAdminLogs() {
+    try {
+        const res = await fetch(`/api/admin/logs?user=${USER}&limit=50`);
+        const data = await res.json();
+        const tbody = document.getElementById('admin-log-tbody');
+        if (data.ok && data.entries && data.entries.length > 0) {
+            tbody.innerHTML = data.entries.map(e => `
+                <tr>
+                    <td>${e.timestamp || ''}</td>
+                    <td>${e.user || ''}</td>
+                    <td>${e.action || ''}</td>
+                    <td>${(e.details || '').substring(0, 100)}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4">No admin actions found</td></tr>';
+        }
+    } catch (e) {
+        console.error('Failed to fetch admin logs:', e);
+        document.getElementById('admin-log-tbody').innerHTML = '<tr><td colspan="4">Error loading logs</td></tr>';
+    }
+}
+
+// Reset actions
+async function resetUnits() {
+    if (!confirm('Reset all units to AVAILABLE status?')) return;
+    try {
+        const res = await fetch(`/admin/reset/units?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: true})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Reset ${data.units_reset} units to AVAILABLE`);
+            fetchStats();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function clearClosedIncidents() {
+    if (!confirm('Archive and clear all CLOSED incidents?')) return;
+    try {
+        const res = await fetch(`/admin/reset/closed?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: true})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Cleared ${data.count} closed incidents. Archived to: ${data.file}`);
+            fetchStats();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function clearLogs() {
+    if (!confirm('Archive and clear all audit logs?')) return;
+    try {
+        const res = await fetch(`/admin/reset/logs?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: true, keep_days: 0})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Archived ${data.masterlog_archived} MasterLog, ${data.dailylog_archived} DailyLog entries`);
+            fetchStats();
+            fetchAdminLogs();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function clearAllIncidents() {
+    try {
+        const res = await fetch(`/admin/reset/incidents?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: 'DELETE ALL'})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Cleared ${data.count} incidents. Archived to: ${data.file}`);
+            fetchStats();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function fullSystemReset() {
+    try {
+        const res = await fetch(`/admin/reset/full?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: 'RESET'})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast('Full system reset complete!');
+            fetchStats();
+            fetchRunNumbers();
+            fetchAdminLogs();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function setRunNumber() {
+    const year = parseInt(document.getElementById('run-year').value);
+    const seq = parseInt(document.getElementById('run-seq').value);
+    if (!year || !seq || seq < 1) {
+        showToast('Invalid year or sequence', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`/admin/run_numbers/set_next?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({year, next_seq: seq})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Run number set to ${year}-${String(seq).padStart(5, '0')}`);
+            fetchStats();
+            fetchRunNumbers();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function resetRunNumber() {
+    if (!confirm('Reset run number to 1 for current year?')) return;
+    try {
+        const res = await fetch(`/admin/reset/run_numbers?user=${USER}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({confirm: true, force: true})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Run number reset to ${data.year}-00001`);
+            fetchStats();
+            fetchRunNumbers();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function exportIncidents() {
+    try {
+        const res = await fetch(`/admin/export/incidents?user=${USER}`);
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Exported ${data.count} incidents to ${data.file}`);
+        } else {
+            showToast(data.error || 'Export failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function exportLogs(logType) {
+    try {
+        const res = await fetch(`/admin/export/logs?user=${USER}&log_type=${logType}`);
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Exported ${data.count} ${logType} entries to ${data.file}`);
+        } else {
+            showToast(data.error || 'Export failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    fetchStats();
+    fetchRunNumbers();
+    fetchAdminLogs();
+});
+</script>
+
+</body>
+</html>

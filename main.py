@@ -7399,20 +7399,29 @@ async def api_clear_all_and_close(incident_id: int, request: Request):
 
             # Log history
             c.execute("""
-                INSERT INTO IncidentHistory (incident_id, timestamp, event, user, unit_id, detail)
+                INSERT INTO IncidentHistory (incident_id, timestamp, event_type, user, unit_id, details)
                 VALUES (?, ?, 'CLEARED', ?, ?, ?)
             """, (incident_id, now, user, unit_id, f"Disposition: {disposition}"))
 
         # Now close the incident
-        c.execute("""
-            UPDATE Incidents
-            SET status = 'CLOSED', final_disposition = ?, final_disposition_note = ?, closed_at = ?
-            WHERE incident_id = ?
-        """, (disposition, comment, now, incident_id))
+        # Check if final_disposition_note column exists
+        inc_cols = [r[1] for r in c.execute("PRAGMA table_info(Incidents)").fetchall()]
+        if "final_disposition_note" in inc_cols:
+            c.execute("""
+                UPDATE Incidents
+                SET status = 'CLOSED', final_disposition = ?, final_disposition_note = ?, closed_at = ?
+                WHERE incident_id = ?
+            """, (disposition, comment, now, incident_id))
+        else:
+            c.execute("""
+                UPDATE Incidents
+                SET status = 'CLOSED', final_disposition = ?, closed_at = ?
+                WHERE incident_id = ?
+            """, (disposition, now, incident_id))
 
         # Log close event
         c.execute("""
-            INSERT INTO IncidentHistory (incident_id, timestamp, event, user, detail)
+            INSERT INTO IncidentHistory (incident_id, timestamp, event_type, user, details)
             VALUES (?, ?, 'CLOSED', ?, ?)
         """, (incident_id, now, user, f"Closed with disposition: {disposition}"))
 
@@ -7507,6 +7516,88 @@ async def api_cleanup_stale_units(request: Request):
         "ok": True,
         "cleaned": cleaned,
         "message": f"Cleaned {cleaned} stale unit assignment(s)"
+    }
+
+
+@app.get("/api/incident/{incident_id}/assignments")
+async def api_incident_assignments(incident_id: int, request: Request):
+    """View all unit assignments for an incident (for debugging)."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    assignments = c.execute("""
+        SELECT ua.id, ua.unit_id, ua.assigned, ua.dispatched, ua.enroute,
+               ua.arrived, ua.cleared, ua.disposition,
+               u.status as unit_status, u.name as unit_name
+        FROM UnitAssignments ua
+        LEFT JOIN Units u ON ua.unit_id = u.unit_id
+        WHERE ua.incident_id = ?
+        ORDER BY ua.assigned DESC
+    """, (incident_id,)).fetchall()
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "incident_id": incident_id,
+        "assignments": [dict(r) for r in assignments],
+        "active_count": sum(1 for a in assignments if a["cleared"] is None)
+    }
+
+
+@app.post("/api/incident/{incident_id}/force_clear_units")
+async def api_force_clear_units(incident_id: int, request: Request):
+    """Force-clear all unit assignments for an incident (admin only)."""
+    ensure_phase3_schema()
+
+    user = request.session.get("user", "Dispatcher")
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    import datetime as _dt
+    now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Get active assignments before clearing
+    active = c.execute("""
+        SELECT unit_id FROM UnitAssignments
+        WHERE incident_id = ? AND cleared IS NULL
+    """, (incident_id,)).fetchall()
+
+    cleared_units = [r["unit_id"] for r in active]
+
+    # Force clear all assignments
+    c.execute("""
+        UPDATE UnitAssignments
+        SET cleared = ?, disposition = COALESCE(disposition, 'X')
+        WHERE incident_id = ? AND cleared IS NULL
+    """, (now, incident_id))
+
+    # Reset unit statuses to AVAILABLE
+    for unit_id in cleared_units:
+        c.execute("""
+            UPDATE Units SET status = 'AVAILABLE', last_updated = ?
+            WHERE unit_id = ?
+        """, (now, unit_id))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(
+        action="ADMIN_FORCE_CLEAR_UNITS",
+        user=user,
+        incident_id=incident_id,
+        details=f"Force-cleared {len(cleared_units)} units: {', '.join(cleared_units)}"
+    )
+
+    return {
+        "ok": True,
+        "incident_id": incident_id,
+        "cleared_count": len(cleared_units),
+        "cleared_units": cleared_units
     }
 
 
@@ -9037,7 +9128,7 @@ from fastapi import HTTPException
 # ADMIN IDENTITY (PHASE-3 SIMPLE MODEL)
 # ------------------------------------------------------
 
-ADMIN_UNITS = {"CAR1", "BATT1", "BATT2", "BATT3", "BATT4"}
+ADMIN_UNITS = {"1578", "CAR1", "BATT1", "BATT2", "BATT3", "BATT4", "17", "47"}
 
 def _is_admin(user: str) -> bool:
     return (user or "").upper() in ADMIN_UNITS
@@ -9223,6 +9314,661 @@ def admin_drafts_page(request: Request, user: str = "DISPATCH"):
             "user": user
         }
     )
+
+
+# ================================================================
+# ADMIN — SYSTEM MANAGEMENT SECTION
+# ================================================================
+
+ARCHIVES_DIR = BASE_DIR / "static" / "archives"
+
+
+def _archive_to_csv(filename: str, headers: list, rows: list) -> str:
+    """Archive data to a CSV file in static/archives/. Returns the file path."""
+    import csv
+    ARCHIVES_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    filepath = ARCHIVES_DIR / f"{filename}_{ts}.csv"
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        for row in rows:
+            writer.writerow(row)
+    return str(filepath)
+
+
+# ------------------------------------------------------
+# ADMIN — SYSTEM STATISTICS
+# ------------------------------------------------------
+
+@app.get("/admin/stats", response_class=JSONResponse)
+def admin_stats(user: str = "DISPATCH"):
+    """Get comprehensive system statistics."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Incident counts
+    total_incidents = c.execute("SELECT COUNT(*) FROM Incidents WHERE incident_number IS NOT NULL").fetchone()[0]
+    open_incidents = c.execute("SELECT COUNT(*) FROM Incidents WHERE status = 'OPEN' AND incident_number IS NOT NULL").fetchone()[0]
+    closed_incidents = c.execute("SELECT COUNT(*) FROM Incidents WHERE status = 'CLOSED' AND incident_number IS NOT NULL").fetchone()[0]
+    draft_incidents = c.execute("SELECT COUNT(*) FROM Incidents WHERE incident_number IS NULL").fetchone()[0]
+
+    # Current year run number
+    current_year = datetime.datetime.now().year
+    counter_row = c.execute("SELECT next_seq FROM IncidentCounter WHERE year = ?", (current_year,)).fetchone()
+    next_seq = counter_row[0] if counter_row else 1
+    current_run_number = f"{current_year}-{next_seq:05d}"
+
+    # Unit counts
+    total_units = c.execute("SELECT COUNT(*) FROM Units").fetchone()[0]
+    available_units = c.execute("SELECT COUNT(*) FROM Units WHERE status = 'AVAILABLE'").fetchone()[0]
+
+    # Log entry counts
+    masterlog_entries = c.execute("SELECT COUNT(*) FROM MasterLog").fetchone()[0]
+    dailylog_entries = c.execute("SELECT COUNT(*) FROM DailyLog").fetchone()[0]
+
+    # Last incident
+    last_incident_row = c.execute("""
+        SELECT incident_number, created
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+        ORDER BY created DESC
+        LIMIT 1
+    """).fetchone()
+    last_incident = dict(last_incident_row) if last_incident_row else None
+
+    # Incident counts by year
+    yearly_counts = c.execute("""
+        SELECT substr(incident_number, 1, 4) as year, COUNT(*) as count
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+        GROUP BY substr(incident_number, 1, 4)
+        ORDER BY year DESC
+    """).fetchall()
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "stats": {
+            "total_incidents": total_incidents,
+            "open_incidents": open_incidents,
+            "closed_incidents": closed_incidents,
+            "draft_incidents": draft_incidents,
+            "current_run_number": current_run_number,
+            "next_seq": next_seq,
+            "current_year": current_year,
+            "total_units": total_units,
+            "available_units": available_units,
+            "masterlog_entries": masterlog_entries,
+            "dailylog_entries": dailylog_entries,
+            "last_incident": last_incident,
+            "yearly_counts": [dict(r) for r in yearly_counts]
+        }
+    }
+
+
+# ------------------------------------------------------
+# ADMIN — EXPORT INCIDENTS TO CSV
+# ------------------------------------------------------
+
+@app.get("/admin/export/incidents", response_class=JSONResponse)
+def admin_export_incidents(user: str = "DISPATCH"):
+    """Export all incidents to CSV and return the file path."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    rows = c.execute("""
+        SELECT incident_id, incident_number, run_number, status, type, location, address,
+               priority, caller_name, caller_phone, narrative, created, updated, closed_at,
+               final_disposition, cancel_reason
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+        ORDER BY created DESC
+    """).fetchall()
+
+    headers = ["incident_id", "incident_number", "run_number", "status", "type", "location",
+               "address", "priority", "caller_name", "caller_phone", "narrative", "created",
+               "updated", "closed_at", "final_disposition", "cancel_reason"]
+
+    filepath = _archive_to_csv("incidents", headers, [tuple(r) for r in rows])
+    conn.close()
+
+    masterlog(
+        action="ADMIN_EXPORT_INCIDENTS",
+        user=user,
+        details=f"Exported {len(rows)} incidents to {filepath}"
+    )
+
+    return {"ok": True, "file": filepath, "count": len(rows)}
+
+
+# ------------------------------------------------------
+# ADMIN — EXPORT LOGS TO CSV
+# ------------------------------------------------------
+
+@app.get("/admin/export/logs", response_class=JSONResponse)
+def admin_export_logs(user: str = "DISPATCH", log_type: str = "masterlog"):
+    """Export MasterLog or DailyLog to CSV."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    if log_type == "dailylog":
+        rows = c.execute("""
+            SELECT id, timestamp, user, incident_id, unit_id, action, event_type, details
+            FROM DailyLog
+            ORDER BY timestamp DESC
+        """).fetchall()
+        headers = ["id", "timestamp", "user", "incident_id", "unit_id", "action", "event_type", "details"]
+        filename = "dailylog"
+    else:
+        rows = c.execute("""
+            SELECT id, timestamp, user, action, incident_id, unit_id, ok, reason, details, event_type
+            FROM MasterLog
+            ORDER BY timestamp DESC
+        """).fetchall()
+        headers = ["id", "timestamp", "user", "action", "incident_id", "unit_id", "ok", "reason", "details", "event_type"]
+        filename = "masterlog"
+
+    filepath = _archive_to_csv(filename, headers, [tuple(r) for r in rows])
+    conn.close()
+
+    masterlog(
+        action="ADMIN_EXPORT_LOGS",
+        user=user,
+        details=f"Exported {len(rows)} {log_type} entries to {filepath}"
+    )
+
+    return {"ok": True, "file": filepath, "count": len(rows)}
+
+
+# ------------------------------------------------------
+# ADMIN — FETCH ADMIN LOGS
+# ------------------------------------------------------
+
+@app.get("/api/admin/logs", response_class=JSONResponse)
+def api_admin_logs(user: str = "DISPATCH", limit: int = 50):
+    """Fetch recent admin-related MasterLog entries."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    rows = c.execute("""
+        SELECT id, timestamp, user, action, incident_id, unit_id, details
+        FROM MasterLog
+        WHERE action LIKE 'ADMIN%'
+        ORDER BY timestamp DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+
+    conn.close()
+
+    return {"ok": True, "entries": [dict(r) for r in rows]}
+
+
+# ------------------------------------------------------
+# ADMIN — RESET RUN NUMBERS
+# ------------------------------------------------------
+
+@app.post("/admin/reset/run_numbers", response_class=JSONResponse)
+def admin_reset_run_numbers(
+    user: str = "DISPATCH",
+    confirm: bool = Body(False, embed=True),
+    force: bool = Body(False, embed=True)
+):
+    """Reset run number counter to 1 for current year."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if not confirm:
+        return {"ok": False, "error": "Confirmation required. Set confirm=true"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    current_year = datetime.datetime.now().year
+
+    # Check if incidents exist for this year (unless force=True)
+    if not force:
+        existing = c.execute("""
+            SELECT COUNT(*) FROM Incidents
+            WHERE incident_number LIKE ?
+        """, (f"{current_year}-%",)).fetchone()[0]
+
+        if existing > 0:
+            conn.close()
+            return {
+                "ok": False,
+                "error": f"Cannot reset: {existing} incidents exist for {current_year}. Use force=true to override."
+            }
+
+    # Reset counter
+    c.execute("""
+        INSERT INTO IncidentCounter (year, next_seq)
+        VALUES (?, 1)
+        ON CONFLICT(year)
+        DO UPDATE SET next_seq = 1
+    """, (current_year,))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(
+        action="ADMIN_RESET_RUN_NUMBERS",
+        user=user,
+        details=f"Reset run counter to 1 for year {current_year} (force={force})"
+    )
+
+    return {"ok": True, "year": current_year, "next_seq": 1}
+
+
+# ------------------------------------------------------
+# ADMIN — RESET UNIT STATUS
+# ------------------------------------------------------
+
+@app.post("/admin/reset/units", response_class=JSONResponse)
+def admin_reset_units(
+    user: str = "DISPATCH",
+    confirm: bool = Body(False, embed=True)
+):
+    """Reset all units to AVAILABLE status."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if not confirm:
+        return {"ok": False, "error": "Confirmation required. Set confirm=true"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Count affected units
+    affected = c.execute("SELECT COUNT(*) FROM Units WHERE status != 'AVAILABLE'").fetchone()[0]
+
+    # Reset all units
+    c.execute("""
+        UPDATE Units
+        SET status = 'AVAILABLE', custom_status = NULL, last_updated = ?
+    """, (_ts(),))
+
+    # Clear all unit assignments that aren't cleared
+    c.execute("""
+        UPDATE UnitAssignments
+        SET cleared = ?
+        WHERE cleared IS NULL
+    """, (_ts(),))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(
+        action="ADMIN_RESET_UNITS",
+        user=user,
+        details=f"Reset {affected} units to AVAILABLE status"
+    )
+
+    return {"ok": True, "units_reset": affected}
+
+
+# ------------------------------------------------------
+# ADMIN — CLEAR AUDIT LOGS
+# ------------------------------------------------------
+
+@app.post("/admin/reset/logs", response_class=JSONResponse)
+def admin_reset_logs(
+    user: str = "DISPATCH",
+    confirm: bool = Body(False, embed=True),
+    keep_days: int = Body(0, embed=True)
+):
+    """Archive then clear MasterLog and DailyLog entries."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if not confirm:
+        return {"ok": False, "error": "Confirmation required. Set confirm=true"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Calculate cutoff date if keeping some days
+    cutoff = None
+    if keep_days > 0:
+        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=keep_days)
+        cutoff = cutoff_date.strftime("%Y-%m-%d")
+
+    # Archive MasterLog
+    if cutoff:
+        ml_rows = c.execute("""
+            SELECT id, timestamp, user, action, incident_id, unit_id, ok, reason, details, event_type
+            FROM MasterLog WHERE timestamp < ?
+            ORDER BY timestamp
+        """, (cutoff,)).fetchall()
+    else:
+        ml_rows = c.execute("""
+            SELECT id, timestamp, user, action, incident_id, unit_id, ok, reason, details, event_type
+            FROM MasterLog ORDER BY timestamp
+        """).fetchall()
+
+    ml_headers = ["id", "timestamp", "user", "action", "incident_id", "unit_id", "ok", "reason", "details", "event_type"]
+    ml_filepath = _archive_to_csv("masterlog", ml_headers, [tuple(r) for r in ml_rows])
+
+    # Archive DailyLog
+    if cutoff:
+        dl_rows = c.execute("""
+            SELECT id, timestamp, user, incident_id, unit_id, action, event_type, details
+            FROM DailyLog WHERE timestamp < ?
+            ORDER BY timestamp
+        """, (cutoff,)).fetchall()
+    else:
+        dl_rows = c.execute("""
+            SELECT id, timestamp, user, incident_id, unit_id, action, event_type, details
+            FROM DailyLog ORDER BY timestamp
+        """).fetchall()
+
+    dl_headers = ["id", "timestamp", "user", "incident_id", "unit_id", "action", "event_type", "details"]
+    dl_filepath = _archive_to_csv("dailylog", dl_headers, [tuple(r) for r in dl_rows])
+
+    # Log before deletion
+    masterlog(
+        action="ADMIN_CLEAR_LOGS",
+        user=user,
+        details=f"Archiving logs: MasterLog={len(ml_rows)}, DailyLog={len(dl_rows)}, keep_days={keep_days}"
+    )
+
+    # Delete logs
+    if cutoff:
+        c.execute("DELETE FROM MasterLog WHERE timestamp < ?", (cutoff,))
+        c.execute("DELETE FROM DailyLog WHERE timestamp < ?", (cutoff,))
+    else:
+        c.execute("DELETE FROM MasterLog")
+        c.execute("DELETE FROM DailyLog")
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "ok": True,
+        "masterlog_archived": len(ml_rows),
+        "dailylog_archived": len(dl_rows),
+        "masterlog_file": ml_filepath,
+        "dailylog_file": dl_filepath
+    }
+
+
+# ------------------------------------------------------
+# ADMIN — CLEAR CLOSED INCIDENTS
+# ------------------------------------------------------
+
+@app.post("/admin/reset/closed", response_class=JSONResponse)
+def admin_reset_closed(
+    user: str = "DISPATCH",
+    confirm: bool = Body(False, embed=True)
+):
+    """Archive then clear only closed incidents."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if not confirm:
+        return {"ok": False, "error": "Confirmation required. Set confirm=true"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Get closed incidents for archiving
+    incidents = c.execute("""
+        SELECT incident_id, incident_number, run_number, status, type, location, address,
+               priority, caller_name, caller_phone, narrative, created, updated, closed_at,
+               final_disposition, cancel_reason
+        FROM Incidents
+        WHERE status = 'CLOSED' AND incident_number IS NOT NULL
+        ORDER BY created
+    """).fetchall()
+
+    if not incidents:
+        conn.close()
+        return {"ok": True, "message": "No closed incidents to clear", "count": 0}
+
+    headers = ["incident_id", "incident_number", "run_number", "status", "type", "location",
+               "address", "priority", "caller_name", "caller_phone", "narrative", "created",
+               "updated", "closed_at", "final_disposition", "cancel_reason"]
+
+    filepath = _archive_to_csv("closed_incidents", headers, [tuple(r) for r in incidents])
+
+    # Get incident IDs for related data cleanup
+    incident_ids = [r["incident_id"] for r in incidents]
+
+    # Log before deletion
+    masterlog(
+        action="ADMIN_CLEAR_CLOSED",
+        user=user,
+        details=f"Archiving {len(incidents)} closed incidents to {filepath}"
+    )
+
+    # Delete related data
+    placeholders = ",".join("?" * len(incident_ids))
+    c.execute(f"DELETE FROM UnitAssignments WHERE incident_id IN ({placeholders})", incident_ids)
+    c.execute(f"DELETE FROM Narrative WHERE incident_id IN ({placeholders})", incident_ids)
+    c.execute(f"DELETE FROM IncidentHistory WHERE incident_id IN ({placeholders})", incident_ids)
+    c.execute(f"DELETE FROM HeldSeen WHERE incident_id IN ({placeholders})", incident_ids)
+
+    # Delete incidents
+    c.execute(f"DELETE FROM Incidents WHERE incident_id IN ({placeholders})", incident_ids)
+
+    conn.commit()
+    conn.close()
+
+    return {"ok": True, "count": len(incidents), "file": filepath}
+
+
+# ------------------------------------------------------
+# ADMIN — CLEAR ALL INCIDENTS
+# ------------------------------------------------------
+
+@app.post("/admin/reset/incidents", response_class=JSONResponse)
+def admin_reset_incidents(
+    user: str = "DISPATCH",
+    confirm: str = Body("", embed=True)
+):
+    """Archive then clear ALL incidents. Requires confirm='DELETE ALL'"""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if confirm != "DELETE ALL":
+        return {"ok": False, "error": "Type 'DELETE ALL' to confirm this action"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Archive all incidents
+    incidents = c.execute("""
+        SELECT incident_id, incident_number, run_number, status, type, location, address,
+               priority, caller_name, caller_phone, narrative, created, updated, closed_at,
+               final_disposition, cancel_reason
+        FROM Incidents
+        ORDER BY created
+    """).fetchall()
+
+    headers = ["incident_id", "incident_number", "run_number", "status", "type", "location",
+               "address", "priority", "caller_name", "caller_phone", "narrative", "created",
+               "updated", "closed_at", "final_disposition", "cancel_reason"]
+
+    filepath = _archive_to_csv("all_incidents", headers, [tuple(r) for r in incidents])
+
+    # Log before deletion
+    masterlog(
+        action="ADMIN_CLEAR_ALL_INCIDENTS",
+        user=user,
+        details=f"Archiving {len(incidents)} incidents to {filepath}"
+    )
+
+    # Clear all related tables
+    c.execute("DELETE FROM UnitAssignments")
+    c.execute("DELETE FROM Narrative")
+    c.execute("DELETE FROM IncidentHistory")
+    c.execute("DELETE FROM HeldSeen")
+    c.execute("DELETE FROM Incidents")
+
+    conn.commit()
+    conn.close()
+
+    return {"ok": True, "count": len(incidents), "file": filepath}
+
+
+# ------------------------------------------------------
+# ADMIN — FULL SYSTEM RESET
+# ------------------------------------------------------
+
+@app.post("/admin/reset/full", response_class=JSONResponse)
+def admin_reset_full(
+    user: str = "DISPATCH",
+    confirm: str = Body("", embed=True)
+):
+    """Full system reset: archive everything, clear all data, reset run numbers. Requires confirm='RESET'"""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+
+    if confirm != "RESET":
+        return {"ok": False, "error": "Type 'RESET' to confirm full system reset"}
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    ts = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    archived_files = []
+
+    # 1. Archive incidents
+    incidents = c.execute("""
+        SELECT incident_id, incident_number, run_number, status, type, location, address,
+               priority, caller_name, caller_phone, narrative, created, updated, closed_at,
+               final_disposition, cancel_reason
+        FROM Incidents ORDER BY created
+    """).fetchall()
+    inc_headers = ["incident_id", "incident_number", "run_number", "status", "type", "location",
+                   "address", "priority", "caller_name", "caller_phone", "narrative", "created",
+                   "updated", "closed_at", "final_disposition", "cancel_reason"]
+    if incidents:
+        archived_files.append(_archive_to_csv("full_reset_incidents", inc_headers, [tuple(r) for r in incidents]))
+
+    # 2. Archive MasterLog
+    ml_rows = c.execute("""
+        SELECT id, timestamp, user, action, incident_id, unit_id, ok, reason, details, event_type
+        FROM MasterLog ORDER BY timestamp
+    """).fetchall()
+    ml_headers = ["id", "timestamp", "user", "action", "incident_id", "unit_id", "ok", "reason", "details", "event_type"]
+    if ml_rows:
+        archived_files.append(_archive_to_csv("full_reset_masterlog", ml_headers, [tuple(r) for r in ml_rows]))
+
+    # 3. Archive DailyLog
+    dl_rows = c.execute("""
+        SELECT id, timestamp, user, incident_id, unit_id, action, event_type, details
+        FROM DailyLog ORDER BY timestamp
+    """).fetchall()
+    dl_headers = ["id", "timestamp", "user", "incident_id", "unit_id", "action", "event_type", "details"]
+    if dl_rows:
+        archived_files.append(_archive_to_csv("full_reset_dailylog", dl_headers, [tuple(r) for r in dl_rows]))
+
+    # 4. Archive UnitAssignments
+    ua_rows = c.execute("""
+        SELECT id, incident_id, unit_id, assigned, dispatched, enroute, arrived, transporting,
+               at_medical, cleared, disposition, disposition_remark
+        FROM UnitAssignments ORDER BY id
+    """).fetchall()
+    ua_headers = ["id", "incident_id", "unit_id", "assigned", "dispatched", "enroute", "arrived",
+                  "transporting", "at_medical", "cleared", "disposition", "disposition_remark"]
+    if ua_rows:
+        archived_files.append(_archive_to_csv("full_reset_unit_assignments", ua_headers, [tuple(r) for r in ua_rows]))
+
+    # Log the reset before clearing
+    masterlog(
+        action="ADMIN_FULL_RESET",
+        user=user,
+        details=f"Full system reset initiated. Archived {len(incidents)} incidents, {len(ml_rows)} masterlog, {len(dl_rows)} dailylog"
+    )
+
+    # Clear all data
+    c.execute("DELETE FROM Incidents")
+    c.execute("DELETE FROM UnitAssignments")
+    c.execute("DELETE FROM Narrative")
+    c.execute("DELETE FROM IncidentHistory")
+    c.execute("DELETE FROM HeldSeen")
+    c.execute("DELETE FROM MasterLog")
+    c.execute("DELETE FROM DailyLog")
+
+    # Reset run numbers
+    current_year = datetime.datetime.now().year
+    c.execute("DELETE FROM IncidentCounter")
+    c.execute("INSERT INTO IncidentCounter (year, next_seq) VALUES (?, 1)", (current_year,))
+
+    # Reset unit statuses
+    c.execute("""
+        UPDATE Units
+        SET status = 'AVAILABLE', custom_status = NULL, last_updated = ?
+    """, (_ts(),))
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "ok": True,
+        "message": "Full system reset complete",
+        "archived_files": archived_files,
+        "incidents_cleared": len(incidents),
+        "masterlog_cleared": len(ml_rows),
+        "dailylog_cleared": len(dl_rows),
+        "run_number_reset_to": 1
+    }
+
+
+# ------------------------------------------------------
+# ADMIN — DASHBOARD PAGE (HTML)
+# ------------------------------------------------------
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard_page(request: Request, user: str = "DISPATCH"):
+    """Admin dashboard HTML page."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return HTMLResponse("<h1>403 Forbidden</h1><p>Admin access required.</p>", status_code=403)
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "user": user
+        }
+    )
+
 
 # ================================================================
 # STARTUP EVENT (KEEP THIS - DON'T MODIFY)
