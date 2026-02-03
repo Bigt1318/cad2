@@ -85,30 +85,30 @@ except ImportError:
     print("[REPORTS] Smart shift logic not available, using simple rotation")
 
 # Battalion Chief Distribution List (by shift letter)
-# This is the authoritative source - synced with shift_logic.py
+# Email domain: @blueovalsk.com (BlueOval SK Battery Plant)
 BATTALION_CHIEFS_BY_SHIFT = {
     "A": {
         "unit_id": "Batt1",
         "name": "Bill Mullins",
-        "email": "",  # Configure in admin
+        "email": "",  # Configure: bill.mullins@blueovalsk.com
         "phone": "",
     },
     "B": {
         "unit_id": "Batt2",
         "name": "Daniel Highbaugh", 
-        "email": "",
+        "email": "",  # Configure: daniel.highbaugh@blueovalsk.com
         "phone": "",
     },
     "C": {
         "unit_id": "Batt3",
         "name": "Kevin Jevning",
-        "email": "",
+        "email": "",  # Configure: kevin.jevning@blueovalsk.com
         "phone": "",
     },
     "D": {
         "unit_id": "Batt4",
         "name": "Shane Carpenter",
-        "email": "",
+        "email": "",  # Configure: shane.carpenter@blueovalsk.com
         "phone": "",
     },
 }
