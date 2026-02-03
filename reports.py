@@ -1868,3 +1868,203 @@ if __name__ == "__main__":
     print("Generating test report...")
     report = generate_daily_report()
     print(format_report_text(report))
+
+
+# ---------------------------------------------------------------------------
+# BLOTTER-STYLE REPORT (Simple Daily Activity Log)
+# ---------------------------------------------------------------------------
+
+def generate_blotter_report(shift: str = None, date: datetime.date = None) -> Dict[str, Any]:
+    """
+    Generate a simple blotter-style daily activity report.
+    
+    This is a condensed format showing:
+    - Summary stats (incidents, daily log, issues)
+    - Chronological activity list
+    - Highlighted issues
+    """
+    if shift is None:
+        shift = get_current_shift()
+    if date is None:
+        date = datetime.date.today()
+
+    start_dt, end_dt = get_shift_date_range(shift, date)
+    start_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+    end_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db_connection()
+    
+    # Get incidents
+    incidents = conn.execute("""
+        SELECT
+            incident_id,
+            incident_number,
+            type as incident_type,
+            location,
+            status,
+            issue_found,
+            created,
+            closed_at
+        FROM Incidents
+        WHERE created >= ? AND created < ?
+        ORDER BY created ASC
+    """, (start_str, end_str)).fetchall()
+
+    # Get daily log entries
+    daily_log = conn.execute("""
+        SELECT
+            id,
+            event_type as category,
+            unit_id,
+            details,
+            issue_found,
+            timestamp
+        FROM DailyLog
+        WHERE timestamp >= ? AND timestamp < ?
+        ORDER BY timestamp ASC
+    """, (start_str, end_str)).fetchall()
+
+    conn.close()
+
+    # Build unified activity log (chronological)
+    activity_log = []
+    issues_found = []
+
+    for inc in incidents:
+        time_str = inc["created"][11:16] if inc["created"] else ""
+        
+        desc = f"{inc['incident_type'] or 'INCIDENT'}"
+        if inc["location"]:
+            desc += f" @ {inc['location']}"
+        
+        entry = {
+            "time": time_str,
+            "type": "INCIDENT",
+            "id": inc["incident_number"] or f"#{inc['incident_id']}",
+            "description": desc,
+            "status": inc["status"] or "",
+            "issue_found": inc["issue_found"] == 1,
+            "sort_key": inc["created"] or "",
+        }
+        activity_log.append(entry)
+        
+        if inc["issue_found"] == 1:
+            issues_found.append({
+                "type": "INCIDENT",
+                "id": inc["incident_number"] or f"#{inc['incident_id']}",
+                "description": desc,
+                "timestamp": time_str,
+            })
+
+    for log in daily_log:
+        time_str = log["timestamp"][11:16] if log["timestamp"] else ""
+        
+        desc = log["category"] or "DAILY LOG"
+        if log["details"]:
+            desc += f": {log['details'][:80]}"
+        
+        entry = {
+            "time": time_str,
+            "type": "DAILY",
+            "id": log["unit_id"] or "-",
+            "description": desc,
+            "status": "✓",
+            "issue_found": log["issue_found"] == 1,
+            "sort_key": log["timestamp"] or "",
+        }
+        activity_log.append(entry)
+        
+        if log["issue_found"] == 1:
+            issues_found.append({
+                "type": "DAILY LOG",
+                "id": log["unit_id"] or "-",
+                "description": log["details"][:100] if log["details"] else log["category"],
+                "unit": log["unit_id"],
+                "timestamp": time_str,
+            })
+
+    # Sort by time
+    activity_log.sort(key=lambda x: x["sort_key"])
+
+    # Get shift info
+    shift_info = get_shift_info()
+    bc = get_battalion_chief_for_shift(shift)
+
+    return {
+        "date": date.isoformat(),
+        "shift": shift,
+        "shift_type": "Day" if is_day_shift(shift) else "Night",
+        "battalion_chief": bc.get("name", "Unknown"),
+        "start_time": start_dt.strftime("%H:%M"),
+        "end_time": end_dt.strftime("%H:%M"),
+        "stats": {
+            "total_incidents": len(incidents),
+            "daily_log_entries": len(daily_log),
+            "issues_found": len(issues_found),
+        },
+        "activity_log": activity_log,
+        "issues_found": issues_found,
+        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def format_blotter_text(report: Dict[str, Any]) -> str:
+    """Format blotter report as plain text."""
+    lines = []
+    lines.append("=" * 60)
+    lines.append("FORD FIRE BRIGADE — DAILY ACTIVITY BLOTTER")
+    lines.append("BlueOval SK Battery Plant")
+    lines.append("=" * 60)
+    lines.append(f"Date: {report['date']}  |  Shift: {report['shift']} ({report['shift_type']})")
+    lines.append(f"Battalion Chief: {report['battalion_chief']}")
+    lines.append(f"Period: {report['start_time']} - {report['end_time']}")
+    lines.append("")
+    
+    # Summary
+    stats = report["stats"]
+    lines.append(f"SUMMARY: {stats['total_incidents']} incidents | {stats['daily_log_entries']} daily log entries | {stats['issues_found']} issues flagged")
+    lines.append("")
+    
+    # Issues (if any)
+    if report["issues_found"]:
+        lines.append("-" * 60)
+        lines.append("⚠️  ISSUES REQUIRING ATTENTION")
+        lines.append("-" * 60)
+        for issue in report["issues_found"]:
+            lines.append(f"  • [{issue['type']}] {issue['description']}")
+        lines.append("")
+    
+    # Activity Log
+    lines.append("-" * 60)
+    lines.append("ACTIVITY LOG")
+    lines.append("-" * 60)
+    
+    if report["activity_log"]:
+        for item in report["activity_log"]:
+            flag = " ⚠️" if item["issue_found"] else ""
+            lines.append(f"  {item['time']}  [{item['type']:<8}]  {item['id']:<10}  {item['description'][:40]}{flag}")
+    else:
+        lines.append("  No activity recorded during this shift.")
+    
+    lines.append("")
+    lines.append("=" * 60)
+    lines.append(f"Generated: {report['generated_at']} | FORD CAD System")
+    
+    return "\n".join(lines)
+
+
+def format_blotter_html(report: Dict[str, Any]) -> str:
+    """Format blotter report as HTML using template."""
+    try:
+        from jinja2 import Template
+        template_path = Path(__file__).parent / "templates" / "report_blotter.html"
+        
+        if template_path.exists():
+            with open(template_path) as f:
+                template = Template(f.read())
+            return template.render(**report)
+    except Exception as e:
+        print(f"[REPORTS] Template error: {e}")
+    
+    # Fallback to basic HTML
+    return f"<pre>{format_blotter_text(report)}</pre>"
