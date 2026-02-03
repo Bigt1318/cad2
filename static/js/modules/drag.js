@@ -81,6 +81,5 @@ _ensureStartDrag("ISSUE");
 _ensureStartDrag("PICKER");
 _ensureStartDrag("REMARK");
 
-console.log("[DRAG] CAD_DRAG exposed (non-invasive).");
 
 export default CAD_DRAG;

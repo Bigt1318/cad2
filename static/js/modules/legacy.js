@@ -95,6 +95,5 @@ safeAttach(globalThis.BOSK, "iawOpen", iawOpen);
 safeAttach(globalThis.BOSK, "iawClose", iawClose);
 safeAttach(globalThis.BOSK, "uawOpen", uawOpen);
 
-console.log("[LEGACY] Loaded (safe bindings, no BOSK mutation required).");
 
 export default {};

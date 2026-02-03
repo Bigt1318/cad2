@@ -9,4 +9,3 @@ export const CAD_STATE = {
 
 export default CAD_STATE;
 
-console.log("[STATE] Runtime state module loaded.");

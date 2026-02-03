@@ -31,14 +31,12 @@ export const CLOCK = {
         tick();
         _interval = setInterval(tick, 1000);
 
-        console.log("[CLOCK] Clock started.");
     },
 
     stop() {
         if (_interval) {
             clearInterval(_interval);
             _interval = null;
-            console.log("[CLOCK] Clock stopped.");
         }
     }
 };
@@ -46,4 +44,3 @@ export const CLOCK = {
 Object.freeze(CLOCK);
 export default CLOCK;
 
-console.log("[CLOCK] Module loaded (Phase-3 Canonical)");

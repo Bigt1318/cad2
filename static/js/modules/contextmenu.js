@@ -615,7 +615,6 @@ function _showInlineDispositionPopup(incidentId, x, y) {
 
   const popup = document.createElement("div");
   popup.className = "cad-inline-dispo-popup";
-  console.log("[CONTEXTMENU] Created popup element");
   popup.innerHTML = `
     <div class="inline-dispo-header">
       <span class="inline-dispo-title">Close Incident #${incidentId}</span>
@@ -660,7 +659,6 @@ function _showInlineDispositionPopup(incidentId, x, y) {
 
   document.body.appendChild(popup);
   _dispoPopup = popup;
-  console.log("[CONTEXTMENU] Popup appended to body");
 
   // Position with viewport clamping
   const rect = popup.getBoundingClientRect();
@@ -675,13 +673,11 @@ function _showInlineDispositionPopup(incidentId, x, y) {
 
   popup.style.left = `${Math.max(10, left)}px`;
   popup.style.top = `${Math.max(10, top)}px`;
-  console.log("[CONTEXTMENU] Popup positioned at", left, top);
 
   // Close on outside click (delay to avoid immediate close from menu click)
   setTimeout(() => {
     document.addEventListener("click", _handleDispoOutsideClick);
     document.addEventListener("keydown", _handleDispoKeydown);
-    console.log("[CONTEXTMENU] Popup event listeners added");
   }, 100);
 }
 
@@ -1020,7 +1016,6 @@ function init() {
     }
   });
 
-  console.log("[CONTEXTMENU] Module initialized (professional-grade right-click menus)");
 }
 
 // ============================================================================

@@ -112,6 +112,5 @@ REMARK.submitFromModal = async function submitFromModal() {
 // Prevent accidental runtime mutation
 Object.freeze(REMARK);
 
-console.log("[REMARK] Module loaded (Phase-3 Canonical)");
 
 export default REMARK;

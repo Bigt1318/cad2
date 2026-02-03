@@ -294,6 +294,5 @@ EL.updateStatus = function(count, issueCount) {
 // Expose globally
 window.EL = EL;
 
-console.log('[EVENTLOG] Module loaded');
 
 export default EL;

@@ -281,6 +281,5 @@ const DISP = {
 window.DISP = DISP;
 Object.freeze(DISP);
 
-console.log("[DISPOSITION] Loaded (inline small box; no forced IAW).");
 
 export default DISP;

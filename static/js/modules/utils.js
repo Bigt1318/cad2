@@ -214,4 +214,3 @@ window.refreshActivePanel = () => refreshPanels({ source: "legacy-active" });
 window.refreshOpenPanel = () => refreshPanels({ source: "legacy-open" });
 window.refreshHeldPanel = () => refreshPanels({ source: "legacy-held" });
 
-console.log("[UTIL] Module loaded (FORD-CAD — Phase-3 with legacy wrappers)");

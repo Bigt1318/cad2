@@ -270,7 +270,6 @@ export const CAD_MODAL = (() => {
         _escBound = true;
       }
 
-      console.log("[MODAL] Engine initialized (Ford CAD)");
     },
 
     async open(url, context = null) {
@@ -391,7 +390,6 @@ export const CAD_MODAL = (() => {
   // Expose for inline onclick handlers
   window.CAD_MODAL = api;
 
-  console.log("[MODAL] Module loaded (Ford CAD — Phase-3 Canonical)");
 
   return api;
 })();

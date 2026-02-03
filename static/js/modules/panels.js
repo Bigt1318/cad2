@@ -35,7 +35,6 @@ const PANELS = {
     window.CAD = window.CAD || {};
     window.CAD.panels = PANELS;
 
-    console.log("[PANELS] init() — delegated click binding + refresh event listener");
 
     // -------------------------------------------------------------
     // Event-driven refresh (push model)
@@ -127,14 +126,12 @@ const PANELS = {
     // Check if auto-refresh is enabled in settings
     const settings = window.SETTINGS?.getAll?.() || {};
     if (!settings.autoRefresh) {
-      console.log("[PANELS] Auto-refresh disabled in settings");
       return;
     }
 
     const intervalSec = settings.autoRefreshInterval || 30;
     const intervalMs = intervalSec * 1000;
 
-    console.log(`[PANELS] Starting auto-refresh every ${intervalSec}s`);
 
     this._autoRefreshTimer = setInterval(() => {
       // Re-check settings in case user changed them
@@ -146,7 +143,6 @@ const PANELS = {
 
       // Only refresh if page is visible (save resources)
       if (document.visibilityState === "visible") {
-        console.log("[PANELS] Auto-refresh tick");
         this.refreshAll();
       }
     }, intervalMs);
@@ -156,7 +152,6 @@ const PANELS = {
     if (this._autoRefreshTimer) {
       clearInterval(this._autoRefreshTimer);
       this._autoRefreshTimer = null;
-      console.log("[PANELS] Auto-refresh stopped");
     }
   },
 
@@ -187,6 +182,5 @@ document.addEventListener("visibilitychange", () => {
 // Global exposure for templates
 window.PANELS = PANELS;
 
-console.log("[PANELS] Loaded (ACTIVE + OPEN only, held modal-only, auto-refresh enabled).");
 
 export default PANELS;

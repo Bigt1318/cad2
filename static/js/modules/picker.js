@@ -40,7 +40,6 @@ export const PICKER = {
        INIT — called after picker modal loads
        ============================================================ */
     init() {
-        console.log("[PICKER] Initialized (Ford CAD / Phase-3)");
 
         this.selected.clear();
         this.apparatusCrewMap = {};
@@ -239,6 +238,5 @@ setTimeout(() => {
     }
 }, 0);
 
-console.log("[PICKER] Module loaded (Ford CAD — Phase-3 Option A) :: v2026-01-06-A");
 
 export default PICKER;

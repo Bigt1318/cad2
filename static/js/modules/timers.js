@@ -9,7 +9,6 @@ const TIMERS = {
 
     init() {
         this.startUpdates();
-        console.log("[TIMERS] Initialized - updating age displays every 10s");
     },
 
     startUpdates() {

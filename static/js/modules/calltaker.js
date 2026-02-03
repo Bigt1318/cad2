@@ -23,7 +23,6 @@ export const CALLTAKER = {
     // INIT
     // ---------------------------------------------------------------------
     init() {
-        console.log("[CALLTAKER] Initializing Calltaker panel.");
 
         this.cacheFields();
         this.lockForm();
@@ -73,7 +72,6 @@ export const CALLTAKER = {
             });
         }
 
-        console.log("[CALLTAKER] Ready.");
     },
 
     // ---------------------------------------------------------------------
@@ -169,7 +167,6 @@ export const CALLTAKER = {
 
             CURRENT_INCIDENT_ID = res.incident_id;
 
-            console.log(`[CALLTAKER] Draft incident ${CURRENT_INCIDENT_ID} created`);
 
             this.enterEditMode();
         } catch (err) {
@@ -243,7 +240,6 @@ export const CALLTAKER = {
         try {
             await CAD_UTIL.postJSON(`/incident/save/${savedId}`, payload);
 
-            console.log(`[CALLTAKER] Incident ${savedId} saved → OPEN`);
 
             // Play new incident sound alert and show toast
             try { window.SOUNDS?.newIncident?.(); } catch (_) {}
@@ -360,7 +356,6 @@ export const CALLTAKER = {
             // Focus location field
             EL.location?.focus();
 
-            console.log(`[CALLTAKER] Loaded incident ${incident_id} for editing`);
 
         } catch (err) {
             console.error("[CALLTAKER] loadIncident failed:", err);
@@ -437,5 +432,4 @@ window.__BOSK_CALLTAKER = CALLTAKER;
 
 Object.freeze(CALLTAKER);
 
-console.log("[CALLTAKER] Module loaded (Ford CAD — Phase-3 with loadIncident support)");
 export default CALLTAKER;

@@ -195,6 +195,5 @@ const TOAST = {
 // Global exposure
 window.TOAST = TOAST;
 
-console.log("[TOAST] Notification system loaded");
 
 export default TOAST;

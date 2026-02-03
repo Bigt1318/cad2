@@ -237,9 +237,7 @@ document.addEventListener("dragstart", (e) => {
   if (!payload) return;
 
   if (payload.type === "crew_chip") {
-    console.log("[DRAG_DISPATCH] dragstart crew_chip:", payload.personnel_id, "from apparatus", payload.apparatus_id);
   } else {
-    console.log("[DRAG_DISPATCH] dragstart unit:", payload.unit_id, payload.from_incident_id ? `(from incident ${payload.from_incident_id})` : "", payload.is_personnel ? "(personnel)" : "");
   }
 
   _setDragPayload(e, payload);
@@ -279,7 +277,6 @@ document.addEventListener("drop", async (e) => {
 
       // Crew chip dropped on units panel background → unassign from apparatus
       if (isOnUnitsPanel && !isOnApparatus) {
-        console.log("[DRAG_DISPATCH] drop crew unassign:", personnelId, "from apparatus", fromApparatusId);
         const res = await _unassignCrewFromApparatus(personnelId, fromApparatusId);
         if (res?.ok === false) {
           throw new Error(res?.error || "Crew unassign failed");
@@ -292,7 +289,6 @@ document.addEventListener("drop", async (e) => {
       if (isOnApparatus) {
         const toApparatusId = _getApparatusIdFromDropTarget(e.target);
         if (toApparatusId && toApparatusId !== fromApparatusId) {
-          console.log("[DRAG_DISPATCH] drop crew reassign:", personnelId, fromApparatusId, "->", toApparatusId);
           const res = await _assignCrewToApparatus(personnelId, toApparatusId);
           if (res?.ok === false) {
             throw new Error(res?.error || "Crew reassign failed");
@@ -318,7 +314,6 @@ document.addEventListener("drop", async (e) => {
     if (isOnApparatus && isPersonnel && !fromIncidentId) {
       const apparatusId = _getApparatusIdFromDropTarget(e.target);
       if (apparatusId) {
-        console.log("[DRAG_DISPATCH] drop crew assign:", unitId, "-> apparatus", apparatusId);
         const res = await _assignCrewToApparatus(unitId, apparatusId);
         if (res?.ok === false) {
           throw new Error(res?.error || "Crew assign failed");
@@ -334,12 +329,10 @@ document.addEventListener("drop", async (e) => {
     if (dropIncidentId) {
       // Transfer semantics: clear old then dispatch new
       if (fromIncidentId && fromIncidentId !== dropIncidentId) {
-        console.log("[DRAG_DISPATCH] drop transfer:", unitId, fromIncidentId, "->", dropIncidentId);
         await _clearUnitFromIncident(unitId, fromIncidentId);
         await _dispatchUnitToIncident(unitId, dropIncidentId);
       } else if (!fromIncidentId) {
         // Dispatch from units panel onto incident
-        console.log("[DRAG_DISPATCH] drop dispatch:", unitId, "-> incident", dropIncidentId);
         await _dispatchUnitToIncident(unitId, dropIncidentId);
       }
       CAD_UTIL.refreshPanels({ source: "drag-drop", incident_id: dropIncidentId, unit_id: unitId });
@@ -348,7 +341,6 @@ document.addEventListener("drop", async (e) => {
 
     // Case 2: Drop onto units panel -> clear from incident (auto-clear)
     if (isOnUnitsPanel && fromIncidentId) {
-      console.log("[DRAG_DISPATCH] drop clear-to-units:", unitId, "from incident", fromIncidentId);
       await _clearUnitFromIncident(unitId, fromIncidentId);
       CAD_UTIL.refreshPanels({ source: "drag-clear", incident_id: fromIncidentId, unit_id: unitId });
       return;
@@ -359,4 +351,3 @@ document.addEventListener("drop", async (e) => {
   }
 });
 
-console.log("[DRAG_DISPATCH] init complete (delegated, no-IAW-on-drop, crew drag-drop enabled).");

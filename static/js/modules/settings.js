@@ -72,7 +72,6 @@ export const SETTINGS = {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ settings: _settings }),
             });
-            console.log("[SETTINGS] Saved to server");
         } catch (e) {
             console.warn("[SETTINGS] Failed to save to server:", e);
         }
@@ -94,11 +93,9 @@ export const SETTINGS = {
                     // User has saved settings on server - these take precedence
                     _settings = { ...DEFAULT_SETTINGS, ..._settings, ...data.settings };
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(_settings));
-                    console.log("[SETTINGS] Loaded user settings from server:", data.settings);
                     return true;
                 } else {
                     // Server returned defaults - keep localStorage values, don't overwrite
-                    console.log("[SETTINGS] Server returned defaults, keeping localStorage values");
                     return false;
                 }
             }
@@ -167,7 +164,6 @@ export const SETTINGS = {
         const validThemes = ["light", "dark", "high-contrast"];
         const t = validThemes.includes(theme) ? theme : "light";
         document.documentElement.setAttribute("data-theme", t);
-        console.log(`[SETTINGS] Theme applied: ${t}`);
     },
 
     // -------------------------------------------------------------------------
@@ -177,7 +173,6 @@ export const SETTINGS = {
         const validSizes = ["small", "medium", "large", "xlarge"];
         const s = validSizes.includes(size) ? size : "medium";
         document.documentElement.setAttribute("data-font-size", s);
-        console.log(`[SETTINGS] Font size applied: ${s}`);
     },
 
     // -------------------------------------------------------------------------
@@ -187,7 +182,6 @@ export const SETTINGS = {
         const validDensities = ["compact", "normal", "spacious"];
         const d = validDensities.includes(density) ? density : "normal";
         document.documentElement.setAttribute("data-density", d);
-        console.log(`[SETTINGS] Density applied: ${d}`);
     },
 
     // -------------------------------------------------------------------------
@@ -199,7 +193,6 @@ export const SETTINGS = {
         Object.entries(colors).forEach(([status, color]) => {
             root.style.setProperty(`--status-${status}`, color);
         });
-        console.log("[SETTINGS] Status colors applied");
     },
 
     // -------------------------------------------------------------------------
@@ -209,7 +202,6 @@ export const SETTINGS = {
         const root = document.documentElement;
         root.style.setProperty("--panel-calltaker-width", _settings.panelCalltakerWidth || "38%");
         root.style.setProperty("--panel-units-width", _settings.panelUnitsWidth || "22%");
-        console.log(`[SETTINGS] Panel widths applied: calltaker=${_settings.panelCalltakerWidth}, units=${_settings.panelUnitsWidth}`);
     },
 
     // -------------------------------------------------------------------------
@@ -236,7 +228,6 @@ export const SETTINGS = {
             this.applyStatusColors();
         }
 
-        console.log("[SETTINGS] Initialized with:", _settings);
     },
 
     // -------------------------------------------------------------------------
@@ -251,7 +242,6 @@ export const SETTINGS = {
             const unitsPanel = document.querySelector(".panel-units");
 
             if (!calltakerPanel || !unitsPanel) {
-                console.log("[SETTINGS] Panels not found, retrying...");
                 setTimeout(setupResizers, 100);
                 return;
             }
@@ -259,11 +249,9 @@ export const SETTINGS = {
             // Create resize handles if they don't exist
             if (!calltakerPanel.querySelector(".panel-resize-handle")) {
                 self.createResizeHandle(calltakerPanel, "calltaker");
-                console.log("[SETTINGS] Created resize handle for calltaker panel");
             }
             if (!unitsPanel.querySelector(".panel-resize-handle")) {
                 self.createResizeHandle(unitsPanel, "units");
-                console.log("[SETTINGS] Created resize handle for units panel");
             }
         };
 
@@ -333,7 +321,6 @@ export const SETTINGS = {
 
             // Save the new widths
             self.save();
-            console.log(`[SETTINGS] Panel ${panelName} resized to ${panelName === "calltaker" ? _settings.panelCalltakerWidth : _settings.panelUnitsWidth}`);
         };
 
         handle.addEventListener("mousedown", startDrag);
@@ -355,7 +342,6 @@ export const SETTINGS = {
         if (calltakerPanel) calltakerPanel.style.flex = "";
         if (unitsPanel) unitsPanel.style.flex = "";
 
-        console.log("[SETTINGS] Panel widths reset to defaults");
     },
 
     // -------------------------------------------------------------------------

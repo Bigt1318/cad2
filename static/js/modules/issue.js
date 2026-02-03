@@ -80,6 +80,5 @@ export const ISSUE = {
 window.ISSUE = ISSUE;
 Object.freeze(ISSUE);
 
-console.log("[ISSUE] Module loaded (Phase-3 Canonical)");
 
 export default ISSUE;

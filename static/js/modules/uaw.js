@@ -110,6 +110,5 @@ Object.freeze(UAW);
 // Expose globally for templates
 window.UAW = UAW;
 
-console.log("[UAW] Phase-3 canonical UAW module loaded.");
 
 export default UAW;
