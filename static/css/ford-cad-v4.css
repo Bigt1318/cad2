@@ -78,6 +78,10 @@
     --priority-4: #2563eb;
     --priority-4-bg: #dbeafe;
     --priority-5: #64748b;
+
+    /* === USER CUSTOMIZABLE (set via settings.js) === */
+    --highlight-color: #fff3cd;
+    --highlight-new: 1;
     --priority-5-bg: #f1f5f9;
     
     /* === SEMANTIC COLORS === */
@@ -1193,6 +1197,17 @@ textarea {
 
 .incident-row:hover {
     background: var(--bg-active);
+}
+
+/* New incident highlight - color set via settings */
+.incident-row.new-incident {
+    background: var(--highlight-color, #fff3cd);
+    animation: highlight-pulse 2s ease-out;
+}
+
+@keyframes highlight-pulse {
+    0% { background: var(--highlight-color, #fff3cd); box-shadow: inset 0 0 0 2px var(--fire-amber); }
+    100% { background: var(--highlight-color, #fff3cd); box-shadow: none; }
 }
 
 .incident-id {

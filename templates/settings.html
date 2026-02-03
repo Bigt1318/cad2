@@ -1,0 +1,2530 @@
+<!-- ============================================================
+     FORD-CAD — UNIFIED SETTINGS CENTER
+     Comprehensive User Preferences & System Configuration
+     templates/settings.html
+============================================================ -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - FORD CAD</title>
+    <style>
+        :root {
+            --ford-blue: #003a8f;
+            --ford-blue-dark: #002a6b;
+            --ford-blue-light: #e9f0fb;
+            --panel-bg: #f4f7fb;
+            --panel-border: #cfd9e6;
+            --text-main: #1e2a36;
+            --text-muted: #5f6f82;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", system-ui, sans-serif;
+            background: #eef2f7;
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--ford-blue-dark) 0%, var(--ford-blue) 100%);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .back-link {
+            color: white;
+            text-decoration: none;
+            font-size: 13px;
+            opacity: 0.85;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+        }
+        .back-link:hover { opacity: 1; background: rgba(255,255,255,0.2); }
+        .user-badge {
+            background: rgba(255,255,255,0.15);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .admin-badge {
+            background: var(--warning);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Layout */
+        .settings-container {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* Sidebar Navigation */
+        .settings-nav {
+            width: 240px;
+            background: white;
+            border-right: 1px solid var(--panel-border);
+            padding: 16px 0;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            padding: 8px 16px;
+            margin-bottom: 8px;
+        }
+
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 13px;
+            border-radius: 6px;
+            margin: 2px 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .nav-item:hover { background: var(--panel-bg); }
+        .nav-item.active {
+            background: var(--ford-blue-light);
+            color: var(--ford-blue);
+            font-weight: 500;
+        }
+
+        .nav-item svg { width: 18px; height: 18px; opacity: 0.7; }
+        .nav-item.active svg { opacity: 1; }
+
+        .nav-item.admin-only {
+            border-left: 3px solid var(--warning);
+            margin-left: 5px;
+        }
+
+        /* Main Content */
+        .settings-content {
+            flex: 1;
+            padding: 24px;
+            max-width: 900px;
+        }
+
+        .settings-panel {
+            display: none;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .panel-header {
+            margin-bottom: 24px;
+        }
+
+        .panel-header h2 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .panel-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid var(--panel-border);
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .card-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-header h3 svg { width: 18px; height: 18px; color: var(--ford-blue); }
+
+        /* Setting Rows */
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f3f7;
+        }
+
+        .setting-row:last-child { border-bottom: none; }
+
+        .setting-info { flex: 1; padding-right: 20px; }
+        .setting-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 2px;
+        }
+        .setting-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .setting-control {
+            min-width: 200px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form Controls */
+        select, input[type="text"], input[type="number"], input[type="email"] {
+            padding: 8px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            min-width: 180px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--ford-blue);
+            box-shadow: 0 0 0 3px rgba(0,58,143,0.1);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 46px;
+            height: 24px;
+            display: inline-block;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .2s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background-color: var(--ford-blue); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+        /* Range Slider */
+        input[type="range"] {
+            width: 140px;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--panel-border);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--ford-blue);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Color Picker */
+        .color-picker-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker {
+            width: 36px;
+            height: 28px;
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .color-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary { background: var(--ford-blue); color: white; }
+        .btn-primary:hover { background: var(--ford-blue-dark); }
+        .btn-secondary { background: #e8ecf0; color: var(--text-main); }
+        .btn-secondary:hover { background: #dce1e7; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        .btn svg { width: 16px; height: 16px; }
+
+        /* Shortcut Keys */
+        .shortcut-key {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            font-family: "Consolas", monospace;
+            font-size: 12px;
+            color: var(--text-main);
+        }
+
+        /* Status Colors Grid */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 12px 0;
+        }
+
+        .color-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--panel-bg);
+            border-radius: 6px;
+        }
+
+        .color-item-label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Preview Box */
+        .preview-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .preview-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            display: none;
+            z-index: 1000;
+            background: var(--success);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .toast.show { display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; }
+        .toast.error { background: var(--danger); }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Section Divider */
+        .section-divider {
+            height: 1px;
+            background: var(--panel-border);
+            margin: 24px 0;
+        }
+
+        /* Subsection */
+        .subsection {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--panel-border);
+        }
+
+        .subsection-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ford-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Actions Footer */
+        .card-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 16px;
+            margin-top: 16px;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .settings-nav { width: 200px; }
+            .color-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 700px) {
+            .settings-container { flex-direction: column; }
+            .settings-nav {
+                width: 100%;
+                height: auto;
+                position: relative;
+                top: 0;
+                display: flex;
+                overflow-x: auto;
+                padding: 8px;
+            }
+            .nav-section { display: flex; gap: 4px; padding: 0; margin: 0; }
+            .nav-section-title { display: none; }
+            .nav-item { white-space: nowrap; padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <a href="/?user={{ user }}" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to CAD
+        </a>
+        <h1>Settings</h1>
+    </div>
+    <div class="user-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+        </svg>
+        {{ user }}
+        {% if is_admin %}<span class="admin-badge">Admin</span>{% endif %}
+    </div>
+</header>
+
+<div class="settings-container">
+    <!-- Sidebar Navigation -->
+    <nav class="settings-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">User Preferences</div>
+            <div class="nav-item active" data-panel="appearance">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+                Appearance
+            </div>
+            <div class="nav-item" data-panel="layout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+                </svg>
+                Layout & Panels
+            </div>
+            <div class="nav-item" data-panel="notifications">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                Notifications
+            </div>
+            <div class="nav-item" data-panel="statuscolors">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+                </svg>
+                Status Colors
+            </div>
+            <div class="nav-item" data-panel="workflow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+                </svg>
+                Workflow
+            </div>
+            <div class="nav-item" data-panel="shortcuts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h12"/>
+                </svg>
+                Shortcuts
+            </div>
+            <div class="nav-item" data-panel="data">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Data & Storage
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <div class="nav-section">
+            <div class="nav-section-title">Administration</div>
+            <div class="nav-item admin-only" data-panel="agency">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
+                </svg>
+                Agency Config
+            </div>
+            <div class="nav-item admin-only" data-panel="units">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"/>
+                </svg>
+                Units
+            </div>
+            <div class="nav-item admin-only" data-panel="dispatch">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+                Dispatch
+            </div>
+            <div class="nav-item admin-only" data-panel="admins">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Admin Users
+            </div>
+            <div class="nav-item admin-only" data-panel="system">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+                System
+            </div>
+        </div>
+        {% endif %}
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="settings-content">
+
+        <!-- ==================== APPEARANCE ==================== -->
+        <div id="panel-appearance" class="settings-panel active">
+            <div class="panel-header">
+                <h2>Appearance</h2>
+                <p>Customize the look and feel of your CAD interface</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        Theme
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Color Theme</div>
+                        <div class="setting-desc">Choose light, dark, or high contrast for visibility</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-theme">
+                            <option value="light">Light (Default)</option>
+                            <option value="dark">Dark</option>
+                            <option value="high-contrast">High Contrast</option>
+                            <option value="auto">Auto (System)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Accent Color</div>
+                        <div class="setting-desc">Primary color for buttons, links, and highlights</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="pref-accent-color" value="#003a8f">
+                            <span class="color-label" id="accent-label">#003a8f</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+                        Typography
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Font Size</div>
+                        <div class="setting-desc">Base text size throughout the interface</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-font-size">
+                            <option value="small">Small (12px)</option>
+                            <option value="medium">Medium (14px)</option>
+                            <option value="large">Large (16px)</option>
+                            <option value="xlarge">Extra Large (18px)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Font Family</div>
+                        <div class="setting-desc">Text font for the interface</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-font-family">
+                            <option value="system">System Default</option>
+                            <option value="segoe">Segoe UI</option>
+                            <option value="roboto">Roboto</option>
+                            <option value="arial">Arial</option>
+                            <option value="mono">Monospace</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        Density
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Display Density</div>
+                        <div class="setting-desc">Spacing and padding throughout the interface</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-density">
+                            <option value="compact">Compact - More content, less spacing</option>
+                            <option value="normal">Normal - Balanced</option>
+                            <option value="spacious">Spacious - More breathing room</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Unit Icons</div>
+                        <div class="setting-desc">Display apparatus icons in unit lists</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-icons" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Timestamps</div>
+                        <div class="setting-desc">Display time on incident and log entries</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-timestamps" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Animate Transitions</div>
+                        <div class="setting-desc">Smooth animations for panel changes</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-animations" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-secondary" onclick="resetSection('appearance')">Reset to Defaults</button>
+                <button class="btn btn-primary" onclick="saveSection('appearance')">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- ==================== LAYOUT & PANELS ==================== -->
+        <div id="panel-layout" class="settings-panel">
+            <div class="panel-header">
+                <h2>Layout & Panels</h2>
+                <p>Configure panel visibility, sizes, and arrangement</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        Panel Visibility
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Calltaker Panel</div>
+                        <div class="setting-desc">Incident entry form on the left</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-calltaker" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Units Panel</div>
+                        <div class="setting-desc">Unit status list on the right</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-units" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Command Bar</div>
+                        <div class="setting-desc">Command line input at bottom</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-commandbar" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Header</div>
+                        <div class="setting-desc">Top navigation and status bar</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-header" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3H3v7h18V3zM21 14H3v7h18v-7z"/></svg>
+                        Panel Sizes
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Calltaker Panel Width</div>
+                        <div class="setting-desc">Left panel width (percentage)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" id="pref-calltaker-width" min="20" max="50" value="36">
+                        <span id="calltaker-width-label">36%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Units Panel Width</div>
+                        <div class="setting-desc">Right panel width (percentage)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" id="pref-units-width" min="15" max="35" value="20">
+                        <span id="units-width-label">20%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Incident Row Height</div>
+                        <div class="setting-desc">Height of incident list rows</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-row-height">
+                            <option value="compact">Compact (32px)</option>
+                            <option value="normal">Normal (40px)</option>
+                            <option value="tall">Tall (52px)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg>
+                        Default View
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Default Panel on Login</div>
+                        <div class="setting-desc">Which panel to show first</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-default-panel">
+                            <option value="active">Active Incidents</option>
+                            <option value="open">Open Incidents</option>
+                            <option value="units">Units Panel</option>
+                            <option value="calltaker">Calltaker Entry</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Remember Panel State</div>
+                        <div class="setting-desc">Restore last panel arrangement on login</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-remember-layout" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Auto-Expand Incidents</div>
+                        <div class="setting-desc">Expand incident details on selection</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-auto-expand">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-secondary" onclick="resetSection('layout')">Reset to Defaults</button>
+                <button class="btn btn-primary" onclick="saveSection('layout')">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- ==================== NOTIFICATIONS ==================== -->
+        <div id="panel-notifications" class="settings-panel">
+            <div class="panel-header">
+                <h2>Notifications & Alerts</h2>
+                <p>Configure audio alerts, visual notifications, and alert priorities</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+                        Audio Alerts
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Sound Alerts</div>
+                        <div class="setting-desc">Play audio for new incidents and events</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-audio-enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Master Volume</div>
+                        <div class="setting-desc">Overall alert volume level</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" id="pref-volume" min="0" max="100" value="70">
+                        <span id="volume-label">70%</span>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">New Incident Sound</div>
+                        <div class="setting-desc">Alert tone for new incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-sound-incident">
+                            <option value="tone1">Dispatch Tone 1</option>
+                            <option value="tone2">Dispatch Tone 2</option>
+                            <option value="tone3">Dispatch Tone 3</option>
+                            <option value="bell">Bell</option>
+                            <option value="chime">Chime</option>
+                            <option value="alert">Alert Beep</option>
+                            <option value="none">None</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="playTestSound('incident')">Test</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Unit Status Change Sound</div>
+                        <div class="setting-desc">Alert when unit status changes</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-sound-status">
+                            <option value="click">Click</option>
+                            <option value="beep">Beep</option>
+                            <option value="chime">Chime</option>
+                            <option value="none">None</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="playTestSound('status')">Test</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Priority Override Sound</div>
+                        <div class="setting-desc">Special alert for Priority 1 incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-sound-priority">
+                            <option value="urgent">Urgent Alarm</option>
+                            <option value="siren">Siren</option>
+                            <option value="tone1">Dispatch Tone 1</option>
+                            <option value="none">Same as normal</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="playTestSound('priority')">Test</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Visual Notifications
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Desktop Notifications</div>
+                        <div class="setting-desc">Browser push notifications for new incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-desktop-notify">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Flash Browser Tab</div>
+                        <div class="setting-desc">Blink tab title for new incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-flash-tab" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Highlight New Incidents</div>
+                        <div class="setting-desc">Visual highlight on new incident rows</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-highlight-new" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">New Incident Highlight Color</div>
+                        <div class="setting-desc">Background color for new incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="pref-highlight-color" value="#fff3cd">
+                            <span class="color-label" id="highlight-color-label">#fff3cd</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Alert Thresholds
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Priority Alert Threshold</div>
+                        <div class="setting-desc">Which priorities trigger enhanced alerts</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-priority-threshold">
+                            <option value="1">Priority 1 Only (Emergencies)</option>
+                            <option value="2">Priority 1-2 (Urgent)</option>
+                            <option value="3">Priority 1-3</option>
+                            <option value="5">All Priorities</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Repeat Alert Until Acknowledged</div>
+                        <div class="setting-desc">Keep alerting until incident is viewed</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-repeat-alert">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Alert Repeat Interval</div>
+                        <div class="setting-desc">Seconds between repeat alerts</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-alert-interval">
+                            <option value="10">10 seconds</option>
+                            <option value="30">30 seconds</option>
+                            <option value="60">1 minute</option>
+                            <option value="120">2 minutes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-secondary" onclick="resetSection('notifications')">Reset to Defaults</button>
+                <button class="btn btn-primary" onclick="saveSection('notifications')">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- ==================== STATUS COLORS ==================== -->
+        <div id="panel-statuscolors" class="settings-panel">
+            <div class="panel-header">
+                <h2>Status Colors</h2>
+                <p>Customize the colors used for unit and incident statuses</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6"/></svg>
+                        Unit Status Colors
+                    </h3>
+                </div>
+
+                <div class="color-grid">
+                    <div class="color-item">
+                        <span class="color-item-label">Available</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-available" value="#2e7d32">
+                            <span class="color-label">#2e7d32</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Dispatched</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-dispatched" value="#1565c0">
+                            <span class="color-label">#1565c0</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Enroute</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-enroute" value="#7b1fa2">
+                            <span class="color-label">#7b1fa2</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">On Scene</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-onscene" value="#c62828">
+                            <span class="color-label">#c62828</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Transporting</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-transporting" value="#ef6c00">
+                            <span class="color-label">#ef6c00</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">At Hospital</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-hospital" value="#00838f">
+                            <span class="color-label">#00838f</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Busy</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-busy" value="#757575">
+                            <span class="color-label">#757575</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Out of Service</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-oos" value="#424242">
+                            <span class="color-label">#424242</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-box">
+                    <div class="preview-label">Preview</div>
+                    <div id="status-preview" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <!-- Preview chips will be rendered by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                        Priority Colors
+                    </h3>
+                </div>
+
+                <div class="color-grid">
+                    <div class="color-item">
+                        <span class="color-item-label">Priority 1 (Emergency)</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-priority1" value="#d32f2f">
+                            <span class="color-label">#d32f2f</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Priority 2 (Urgent)</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-priority2" value="#f57c00">
+                            <span class="color-label">#f57c00</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Priority 3 (Routine)</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-priority3" value="#fbc02d">
+                            <span class="color-label">#fbc02d</span>
+                        </div>
+                    </div>
+                    <div class="color-item">
+                        <span class="color-item-label">Priority 4 (Non-Emergency)</span>
+                        <div class="color-picker-wrap">
+                            <input type="color" class="color-picker" id="color-priority4" value="#388e3c">
+                            <span class="color-label">#388e3c</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-secondary" onclick="resetSection('statuscolors')">Reset to Defaults</button>
+                <button class="btn btn-primary" onclick="saveSection('statuscolors')">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- ==================== WORKFLOW ==================== -->
+        <div id="panel-workflow" class="settings-panel">
+            <div class="panel-header">
+                <h2>Workflow Preferences</h2>
+                <p>Customize dispatch workflow and default behaviors</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+                        Auto-Refresh
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Auto-Refresh</div>
+                        <div class="setting-desc">Automatically refresh panels at set intervals</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-auto-refresh" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Refresh Interval</div>
+                        <div class="setting-desc">How often to refresh incident and unit data</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-refresh-interval">
+                            <option value="5">5 seconds</option>
+                            <option value="10">10 seconds</option>
+                            <option value="15">15 seconds</option>
+                            <option value="30">30 seconds</option>
+                            <option value="60">1 minute</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Pause Refresh on Modal</div>
+                        <div class="setting-desc">Stop refreshing when a modal/dialog is open</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-pause-refresh-modal" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                        Time Display
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Time Format</div>
+                        <div class="setting-desc">12-hour or 24-hour clock</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="pref-time-format">
+                            <option value="12">12-hour (3:45 PM)</option>
+                            <option value="24">24-hour (15:45)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Seconds</div>
+                        <div class="setting-desc">Include seconds in time displays</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-seconds">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Show Elapsed Time</div>
+                        <div class="setting-desc">Display time elapsed on active incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-show-elapsed" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                        Incident Defaults
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Auto-Open New Incidents</div>
+                        <div class="setting-desc">Open detail view when creating new incident</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-auto-open-incident" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Confirm Before Closing</div>
+                        <div class="setting-desc">Require confirmation when closing incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-confirm-close" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Clear Form After Save</div>
+                        <div class="setting-desc">Reset calltaker form after creating incident</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-clear-form" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-secondary" onclick="resetSection('workflow')">Reset to Defaults</button>
+                <button class="btn btn-primary" onclick="saveSection('workflow')">Save Changes</button>
+            </div>
+        </div>
+
+        <!-- ==================== SHORTCUTS ==================== -->
+        <div id="panel-shortcuts" class="settings-panel">
+            <div class="panel-header">
+                <h2>Keyboard Shortcuts</h2>
+                <p>Quick reference for keyboard commands</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/></svg>
+                        Global Shortcuts
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">New Incident</div></div>
+                    <div class="setting-control"><span class="shortcut-key">Ctrl + N</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Focus Command Line</div></div>
+                    <div class="setting-control"><span class="shortcut-key">Ctrl + /</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Refresh All Panels</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F5</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Toggle Units Panel</div></div>
+                    <div class="setting-control"><span class="shortcut-key">Ctrl + U</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Quick Dispatch</div></div>
+                    <div class="setting-control"><span class="shortcut-key">Ctrl + D</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Open Settings</div></div>
+                    <div class="setting-control"><span class="shortcut-key">Ctrl + ,</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                        Command Line Shortcuts
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Dispatch Unit</div>
+                        <div class="setting-desc">D [unit] [incident]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">D E1 2026-00012</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enroute</div>
+                        <div class="setting-desc">E [unit]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">E E1</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Arrived</div>
+                        <div class="setting-desc">A [unit]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">A E1</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Clear/Available</div>
+                        <div class="setting-desc">C [unit]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">C E1</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Transporting</div>
+                        <div class="setting-desc">T [unit] [destination]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">T M1 TRINITY</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Close Incident</div>
+                        <div class="setting-desc">CLOSE [incident]</div>
+                    </div>
+                    <div class="setting-control"><span class="shortcut-key">CLOSE 2026-00012</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        Function Keys
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Active Incidents</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F2</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Open Incidents</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F3</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Held Incidents</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F4</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Refresh</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F5</span></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info"><div class="setting-label">Daily Log</div></div>
+                    <div class="setting-control"><span class="shortcut-key">F6</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== DATA & STORAGE ==================== -->
+        <div id="panel-data" class="settings-panel">
+            <div class="panel-header">
+                <h2>Data & Storage</h2>
+                <p>Manage local data, caching, and storage preferences</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Local Storage
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Remember Last Incident</div>
+                        <div class="setting-desc">Auto-select last viewed incident on load</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-remember-incident">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Save Form Drafts</div>
+                        <div class="setting-desc">Auto-save incomplete calltaker forms</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-save-drafts" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Cache Incident History</div>
+                        <div class="setting-desc">Store recent incidents locally for faster access</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-cache-history" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        Clear Data
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Clear Preferences</div>
+                        <div class="setting-desc">Reset all user preferences to defaults</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-secondary" onclick="clearPreferences()">Clear Preferences</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Clear Cached Data</div>
+                        <div class="setting-desc">Remove locally cached incident data</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-secondary" onclick="clearCache()">Clear Cache</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Clear All Local Data</div>
+                        <div class="setting-desc">Remove all stored data for this browser</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Sync Settings
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Sync to Server</div>
+                        <div class="setting-desc">Save preferences to server for use on other devices</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pref-sync-server" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Export Settings</div>
+                        <div class="setting-desc">Download settings as JSON file</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="btn btn-secondary" onclick="exportSettings()">Export</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Import Settings</div>
+                        <div class="setting-desc">Load settings from JSON file</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importSettings(this)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <!-- ==================== AGENCY CONFIG (ADMIN) ==================== -->
+        <div id="panel-agency" class="settings-panel">
+            <div class="panel-header">
+                <h2>Agency Configuration</h2>
+                <p>Department identity and contact information (Admin only)</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4 8 4v14"/></svg>
+                        Department Identity
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Department Name</div>
+                        <div class="setting-desc">Full agency name</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-dept-name" value="Ford Fire Department" style="width:250px">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Department Code</div>
+                        <div class="setting-desc">Short identifier (e.g., FFD)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-dept-code" value="FFD" style="width:100px">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">FDID</div>
+                        <div class="setting-desc">Fire Department ID for NFIRS</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-fdid" placeholder="00000">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">State</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="sys-state">
+                            <option value="TX">Texas</option>
+                            <option value="OK">Oklahoma</option>
+                            <option value="LA">Louisiana</option>
+                            <option value="AR">Arkansas</option>
+                            <option value="NM">New Mexico</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                        Contact Information
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Station Address</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-address" placeholder="123 Main St" style="width:250px">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">City, State ZIP</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-city" placeholder="Fort Worth, TX 76102" style="width:250px">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Main Phone</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="sys-phone" placeholder="(817) 555-0100">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Emergency Email</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="email" id="sys-email" placeholder="dispatch@ffd.gov" style="width:250px">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-primary" onclick="saveAdminSection('agency')">Save Agency Config</button>
+            </div>
+        </div>
+
+        <!-- ==================== UNITS (ADMIN) ==================== -->
+        <div id="panel-units" class="settings-panel">
+            <div class="panel-header">
+                <h2>Unit Management</h2>
+                <p>Add, edit, and organize units (Admin only)</p>
+            </div>
+
+            <div class="card">
+                <p style="color: var(--text-muted); padding: 20px; text-align: center;">
+                    Unit management is available in the full Admin panel.<br>
+                    <a href="/admin?user={{ user }}" class="btn btn-primary" style="margin-top: 12px; text-decoration: none; display: inline-block;">Open Admin Panel</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- ==================== DISPATCH (ADMIN) ==================== -->
+        <div id="panel-dispatch" class="settings-panel">
+            <div class="panel-header">
+                <h2>Dispatch Configuration</h2>
+                <p>Dispatch settings and run number management (Admin only)</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+                        Auto-Dispatch
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Auto-Dispatch</div>
+                        <div class="setting-desc">Automatically dispatch recommended units</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sys-auto-dispatch">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Auto-Dispatch Delay</div>
+                        <div class="setting-desc">Seconds to wait before auto-dispatching</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="sys-auto-dispatch-delay">
+                            <option value="0">Immediate</option>
+                            <option value="5">5 seconds</option>
+                            <option value="10">10 seconds</option>
+                            <option value="30">30 seconds</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        Run Numbers
+                    </h3>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Run Number Format</div>
+                        <div class="setting-desc">Format for incident numbers</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="sys-run-format">
+                            <option value="YYYY-NNNNN">YYYY-NNNNN (2026-00001)</option>
+                            <option value="YYNNNNN">YYNNNNN (2600001)</option>
+                            <option value="NNNNN">NNNNN (00001)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Current Year Run Number</div>
+                        <div class="setting-desc">Next incident number to be assigned</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="sys-next-run" min="1" value="1" style="width:100px">
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Reset Run Numbers Annually</div>
+                        <div class="setting-desc">Start at 1 each January 1</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sys-annual-reset" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button class="btn btn-primary" onclick="saveAdminSection('dispatch')">Save Dispatch Config</button>
+            </div>
+        </div>
+
+        <!-- ==================== ADMIN USERS (ADMIN) ==================== -->
+        <div id="panel-admins" class="settings-panel">
+            <div class="panel-header">
+                <h2>Admin Users</h2>
+                <p>Manage administrative access (Admin only)</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Current Administrators
+                    </h3>
+                </div>
+
+                <div id="admin-list" style="display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0;">
+                    <!-- Admin chips rendered by JS -->
+                </div>
+
+                <div class="subsection">
+                    <div class="subsection-title">Add Administrator</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="new-admin-id" placeholder="Unit ID (e.g., CAR1)" style="flex: 1;">
+                        <button class="btn btn-primary" onclick="addAdmin()">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SYSTEM (ADMIN) ==================== -->
+        <div id="panel-system" class="settings-panel">
+            <div class="panel-header">
+                <h2>System Settings</h2>
+                <p>System-wide configuration and maintenance (Admin only)</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        System Status
+                    </h3>
+                </div>
+
+                <div id="system-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 12px 0;">
+                    <div style="text-align: center; padding: 16px; background: var(--panel-bg); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 600; color: var(--ford-blue);" id="stat-incidents">--</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Total Incidents</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--panel-bg); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 600; color: var(--success);" id="stat-units">--</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Active Units</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: var(--panel-bg); border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 600; color: var(--warning);" id="stat-open">--</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Open Incidents</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Maintenance Actions
+                    </h3>
+                </div>
+
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+                    For full system maintenance, reset options, and data management, use the Admin Panel.
+                </p>
+
+                <a href="/admin?user={{ user }}" class="btn btn-primary" style="text-decoration: none;">
+                    Open Full Admin Panel
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+<div class="toast" id="toast">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22,4 12,14.01 9,11.01"/>
+    </svg>
+    <span id="toast-message">Settings saved</span>
+</div>
+
+<script>
+const USER = '{{ user }}';
+const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
+// Default settings
+const DEFAULT_SETTINGS = {
+    // Appearance
+    theme: 'light',
+    accentColor: '#003a8f',
+    fontSize: 'medium',
+    fontFamily: 'system',
+    density: 'normal',
+    showIcons: true,
+    showTimestamps: true,
+    animations: true,
+
+    // Layout
+    showCalltaker: true,
+    showUnits: true,
+    showCommandbar: true,
+    showHeader: true,
+    calltakerWidth: 36,
+    unitsWidth: 20,
+    rowHeight: 'normal',
+    defaultPanel: 'active',
+    rememberLayout: true,
+    autoExpand: false,
+
+    // Notifications
+    audioEnabled: true,
+    volume: 70,
+    soundIncident: 'tone1',
+    soundStatus: 'click',
+    soundPriority: 'urgent',
+    desktopNotify: false,
+    flashTab: true,
+    highlightNew: true,
+    highlightColor: '#fff3cd',
+    priorityThreshold: '2',
+    repeatAlert: false,
+    alertInterval: '30',
+
+    // Status Colors
+    colorAvailable: '#2e7d32',
+    colorDispatched: '#1565c0',
+    colorEnroute: '#7b1fa2',
+    colorOnscene: '#c62828',
+    colorTransporting: '#ef6c00',
+    colorHospital: '#00838f',
+    colorBusy: '#757575',
+    colorOos: '#424242',
+    colorPriority1: '#d32f2f',
+    colorPriority2: '#f57c00',
+    colorPriority3: '#fbc02d',
+    colorPriority4: '#388e3c',
+
+    // Workflow
+    autoRefresh: true,
+    refreshInterval: '10',
+    pauseRefreshModal: true,
+    timeFormat: '24',
+    showSeconds: false,
+    showElapsed: true,
+    autoOpenIncident: true,
+    confirmClose: true,
+    clearForm: true,
+
+    // Data
+    rememberIncident: false,
+    saveDrafts: true,
+    cacheHistory: true,
+    syncServer: true
+};
+
+let settings = {};
+
+// Storage key must match settings.js module
+const STORAGE_KEY = 'fordcad_settings';
+
+// Load settings on page load
+function loadSettings() {
+    // Try the main key first, then legacy key
+    let stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+        stored = localStorage.getItem('cad_prefs'); // Legacy fallback
+    }
+
+    if (stored) {
+        const parsed = JSON.parse(stored);
+        settings = { ...DEFAULT_SETTINGS, ...parsed };
+
+        // Convert nested statusColors to flat format for UI
+        if (parsed.statusColors) {
+            settings.colorAvailable = parsed.statusColors.available || DEFAULT_SETTINGS.colorAvailable;
+            settings.colorDispatched = parsed.statusColors.dispatched || DEFAULT_SETTINGS.colorDispatched;
+            settings.colorEnroute = parsed.statusColors.enroute || DEFAULT_SETTINGS.colorEnroute;
+            settings.colorOnscene = parsed.statusColors.onscene || parsed.statusColors.arrived || DEFAULT_SETTINGS.colorOnscene;
+            settings.colorTransporting = parsed.statusColors.transporting || DEFAULT_SETTINGS.colorTransporting;
+            settings.colorBusy = parsed.statusColors.busy || DEFAULT_SETTINGS.colorBusy;
+        }
+
+        // Convert panel widths from percentage strings to numbers
+        if (typeof parsed.panelCalltakerWidth === 'string') {
+            settings.calltakerWidth = parseInt(parsed.panelCalltakerWidth) || DEFAULT_SETTINGS.calltakerWidth;
+        }
+        if (typeof parsed.panelUnitsWidth === 'string') {
+            settings.unitsWidth = parseInt(parsed.panelUnitsWidth) || DEFAULT_SETTINGS.unitsWidth;
+        }
+
+        // Map soundEnabled to audioEnabled
+        if (parsed.soundEnabled !== undefined) {
+            settings.audioEnabled = parsed.soundEnabled;
+        }
+    } else {
+        settings = { ...DEFAULT_SETTINGS };
+    }
+
+    applySettingsToUI();
+}
+
+// Apply settings to form controls
+function applySettingsToUI() {
+    // Appearance
+    setVal('pref-theme', settings.theme);
+    setVal('pref-accent-color', settings.accentColor);
+    document.getElementById('accent-label').textContent = settings.accentColor;
+    setVal('pref-font-size', settings.fontSize);
+    setVal('pref-font-family', settings.fontFamily);
+    setVal('pref-density', settings.density);
+    setChecked('pref-show-icons', settings.showIcons);
+    setChecked('pref-show-timestamps', settings.showTimestamps);
+    setChecked('pref-animations', settings.animations);
+
+    // Layout
+    setChecked('pref-show-calltaker', settings.showCalltaker);
+    setChecked('pref-show-units', settings.showUnits);
+    setChecked('pref-show-commandbar', settings.showCommandbar);
+    setChecked('pref-show-header', settings.showHeader);
+    setVal('pref-calltaker-width', settings.calltakerWidth);
+    document.getElementById('calltaker-width-label').textContent = settings.calltakerWidth + '%';
+    setVal('pref-units-width', settings.unitsWidth);
+    document.getElementById('units-width-label').textContent = settings.unitsWidth + '%';
+    setVal('pref-row-height', settings.rowHeight);
+    setVal('pref-default-panel', settings.defaultPanel);
+    setChecked('pref-remember-layout', settings.rememberLayout);
+    setChecked('pref-auto-expand', settings.autoExpand);
+
+    // Notifications
+    setChecked('pref-audio-enabled', settings.audioEnabled);
+    setVal('pref-volume', settings.volume);
+    document.getElementById('volume-label').textContent = settings.volume + '%';
+    setVal('pref-sound-incident', settings.soundIncident);
+    setVal('pref-sound-status', settings.soundStatus);
+    setVal('pref-sound-priority', settings.soundPriority);
+    setChecked('pref-desktop-notify', settings.desktopNotify);
+    setChecked('pref-flash-tab', settings.flashTab);
+    setChecked('pref-highlight-new', settings.highlightNew);
+    setVal('pref-highlight-color', settings.highlightColor);
+    document.getElementById('highlight-color-label').textContent = settings.highlightColor;
+    setVal('pref-priority-threshold', settings.priorityThreshold);
+    setChecked('pref-repeat-alert', settings.repeatAlert);
+    setVal('pref-alert-interval', settings.alertInterval);
+
+    // Status Colors
+    setVal('color-available', settings.colorAvailable);
+    setVal('color-dispatched', settings.colorDispatched);
+    setVal('color-enroute', settings.colorEnroute);
+    setVal('color-onscene', settings.colorOnscene);
+    setVal('color-transporting', settings.colorTransporting);
+    setVal('color-hospital', settings.colorHospital);
+    setVal('color-busy', settings.colorBusy);
+    setVal('color-oos', settings.colorOos);
+    setVal('color-priority1', settings.colorPriority1);
+    setVal('color-priority2', settings.colorPriority2);
+    setVal('color-priority3', settings.colorPriority3);
+    setVal('color-priority4', settings.colorPriority4);
+    updateColorLabels();
+    renderStatusPreview();
+
+    // Workflow
+    setChecked('pref-auto-refresh', settings.autoRefresh);
+    setVal('pref-refresh-interval', settings.refreshInterval);
+    setChecked('pref-pause-refresh-modal', settings.pauseRefreshModal);
+    setVal('pref-time-format', settings.timeFormat);
+    setChecked('pref-show-seconds', settings.showSeconds);
+    setChecked('pref-show-elapsed', settings.showElapsed);
+    setChecked('pref-auto-open-incident', settings.autoOpenIncident);
+    setChecked('pref-confirm-close', settings.confirmClose);
+    setChecked('pref-clear-form', settings.clearForm);
+
+    // Data
+    setChecked('pref-remember-incident', settings.rememberIncident);
+    setChecked('pref-save-drafts', settings.saveDrafts);
+    setChecked('pref-cache-history', settings.cacheHistory);
+    setChecked('pref-sync-server', settings.syncServer);
+}
+
+function setVal(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+}
+
+function setChecked(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.checked = value;
+}
+
+function getVal(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : null;
+}
+
+function getChecked(id) {
+    const el = document.getElementById(id);
+    return el ? el.checked : false;
+}
+
+// Save settings in format compatible with settings.js module
+function saveSettings() {
+    // Build settings object in the format settings.js expects
+    const toSave = {
+        theme: settings.theme,
+        fontSize: settings.fontSize,
+        density: settings.density,
+        soundEnabled: settings.audioEnabled,
+        autoRefresh: settings.autoRefresh,
+        autoRefreshInterval: parseInt(settings.refreshInterval) || 30,
+        panelCalltakerWidth: settings.calltakerWidth + '%',
+        panelUnitsWidth: settings.unitsWidth + '%',
+        // Nested statusColors object for settings.js compatibility
+        statusColors: {
+            available: settings.colorAvailable,
+            dispatched: settings.colorDispatched,
+            enroute: settings.colorEnroute,
+            arrived: settings.colorOnscene,
+            onscene: settings.colorOnscene,
+            operating: settings.colorOnscene,
+            transporting: settings.colorTransporting,
+            busy: settings.colorBusy
+        },
+        // Additional settings
+        highlightColor: settings.highlightColor,
+        highlightNew: settings.highlightNew,
+        flashTab: settings.flashTab,
+        desktopNotify: settings.desktopNotify,
+        volume: settings.volume,
+        // Keep full settings for this page
+        ...settings
+    };
+
+    // Save to main storage key (settings.js uses this)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+
+    // Also save to legacy key for backward compatibility
+    localStorage.setItem('cad_prefs', JSON.stringify(settings));
+
+    // Sync to server if enabled
+    if (settings.syncServer) {
+        fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user: USER, settings: toSave })
+        }).catch(err => console.error('Failed to sync settings:', err));
+    }
+}
+
+function saveSection(section) {
+    if (section === 'appearance') {
+        settings.theme = getVal('pref-theme');
+        settings.accentColor = getVal('pref-accent-color');
+        settings.fontSize = getVal('pref-font-size');
+        settings.fontFamily = getVal('pref-font-family');
+        settings.density = getVal('pref-density');
+        settings.showIcons = getChecked('pref-show-icons');
+        settings.showTimestamps = getChecked('pref-show-timestamps');
+        settings.animations = getChecked('pref-animations');
+    } else if (section === 'layout') {
+        settings.showCalltaker = getChecked('pref-show-calltaker');
+        settings.showUnits = getChecked('pref-show-units');
+        settings.showCommandbar = getChecked('pref-show-commandbar');
+        settings.showHeader = getChecked('pref-show-header');
+        settings.calltakerWidth = parseInt(getVal('pref-calltaker-width'));
+        settings.unitsWidth = parseInt(getVal('pref-units-width'));
+        settings.rowHeight = getVal('pref-row-height');
+        settings.defaultPanel = getVal('pref-default-panel');
+        settings.rememberLayout = getChecked('pref-remember-layout');
+        settings.autoExpand = getChecked('pref-auto-expand');
+    } else if (section === 'notifications') {
+        settings.audioEnabled = getChecked('pref-audio-enabled');
+        settings.volume = parseInt(getVal('pref-volume'));
+        settings.soundIncident = getVal('pref-sound-incident');
+        settings.soundStatus = getVal('pref-sound-status');
+        settings.soundPriority = getVal('pref-sound-priority');
+        settings.desktopNotify = getChecked('pref-desktop-notify');
+        settings.flashTab = getChecked('pref-flash-tab');
+        settings.highlightNew = getChecked('pref-highlight-new');
+        settings.highlightColor = getVal('pref-highlight-color');
+        settings.priorityThreshold = getVal('pref-priority-threshold');
+        settings.repeatAlert = getChecked('pref-repeat-alert');
+        settings.alertInterval = getVal('pref-alert-interval');
+
+        if (settings.desktopNotify && 'Notification' in window) {
+            Notification.requestPermission();
+        }
+    } else if (section === 'statuscolors') {
+        settings.colorAvailable = getVal('color-available');
+        settings.colorDispatched = getVal('color-dispatched');
+        settings.colorEnroute = getVal('color-enroute');
+        settings.colorOnscene = getVal('color-onscene');
+        settings.colorTransporting = getVal('color-transporting');
+        settings.colorHospital = getVal('color-hospital');
+        settings.colorBusy = getVal('color-busy');
+        settings.colorOos = getVal('color-oos');
+        settings.colorPriority1 = getVal('color-priority1');
+        settings.colorPriority2 = getVal('color-priority2');
+        settings.colorPriority3 = getVal('color-priority3');
+        settings.colorPriority4 = getVal('color-priority4');
+    } else if (section === 'workflow') {
+        settings.autoRefresh = getChecked('pref-auto-refresh');
+        settings.refreshInterval = getVal('pref-refresh-interval');
+        settings.pauseRefreshModal = getChecked('pref-pause-refresh-modal');
+        settings.timeFormat = getVal('pref-time-format');
+        settings.showSeconds = getChecked('pref-show-seconds');
+        settings.showElapsed = getChecked('pref-show-elapsed');
+        settings.autoOpenIncident = getChecked('pref-auto-open-incident');
+        settings.confirmClose = getChecked('pref-confirm-close');
+        settings.clearForm = getChecked('pref-clear-form');
+    }
+
+    saveSettings();
+    showToast('Settings saved');
+}
+
+function resetSection(section) {
+    if (!confirm('Reset this section to default settings?')) return;
+
+    const defaults = DEFAULT_SETTINGS;
+    if (section === 'appearance') {
+        settings.theme = defaults.theme;
+        settings.accentColor = defaults.accentColor;
+        settings.fontSize = defaults.fontSize;
+        settings.fontFamily = defaults.fontFamily;
+        settings.density = defaults.density;
+        settings.showIcons = defaults.showIcons;
+        settings.showTimestamps = defaults.showTimestamps;
+        settings.animations = defaults.animations;
+    }
+    // Add other sections as needed...
+
+    saveSettings();
+    applySettingsToUI();
+    showToast('Section reset to defaults');
+}
+
+// Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+        const panel = this.dataset.panel;
+        if (!panel) return;
+
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        this.classList.add('active');
+
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + panel).classList.add('active');
+    });
+});
+
+// Color picker updates
+document.querySelectorAll('.color-picker').forEach(picker => {
+    picker.addEventListener('input', function() {
+        const label = this.parentElement.querySelector('.color-label');
+        if (label) label.textContent = this.value;
+        if (this.id.startsWith('color-')) {
+            renderStatusPreview();
+        }
+    });
+});
+
+// Range slider updates
+document.getElementById('pref-calltaker-width')?.addEventListener('input', function() {
+    document.getElementById('calltaker-width-label').textContent = this.value + '%';
+});
+
+document.getElementById('pref-units-width')?.addEventListener('input', function() {
+    document.getElementById('units-width-label').textContent = this.value + '%';
+});
+
+document.getElementById('pref-volume')?.addEventListener('input', function() {
+    document.getElementById('volume-label').textContent = this.value + '%';
+});
+
+function updateColorLabels() {
+    document.querySelectorAll('.color-picker').forEach(picker => {
+        const label = picker.parentElement.querySelector('.color-label');
+        if (label) label.textContent = picker.value;
+    });
+}
+
+function renderStatusPreview() {
+    const preview = document.getElementById('status-preview');
+    if (!preview) return;
+
+    const statuses = [
+        { name: 'Available', color: getVal('color-available') },
+        { name: 'Dispatched', color: getVal('color-dispatched') },
+        { name: 'Enroute', color: getVal('color-enroute') },
+        { name: 'On Scene', color: getVal('color-onscene') },
+        { name: 'Transporting', color: getVal('color-transporting') },
+        { name: 'Busy', color: getVal('color-busy') }
+    ];
+
+    preview.innerHTML = statuses.map(s =>
+        `<span style="display:inline-block; padding:6px 12px; border-radius:4px; background:${s.color}; color:white; font-size:12px; font-weight:500;">${s.name}</span>`
+    ).join('');
+}
+
+// Toast notification
+function showToast(message, isError = false) {
+    const toast = document.getElementById('toast');
+    const msg = document.getElementById('toast-message');
+    msg.textContent = message;
+    toast.classList.toggle('error', isError);
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Data management
+function clearPreferences() {
+    if (!confirm('Reset all preferences to defaults?')) return;
+    settings = { ...DEFAULT_SETTINGS };
+    saveSettings();
+    applySettingsToUI();
+    showToast('Preferences cleared');
+}
+
+function clearCache() {
+    localStorage.removeItem('cad_incident_cache');
+    localStorage.removeItem('cad_unit_cache');
+    showToast('Cache cleared');
+}
+
+function clearAllData() {
+    if (!confirm('Clear ALL local data? This cannot be undone.')) return;
+    localStorage.clear();
+    settings = { ...DEFAULT_SETTINGS };
+    applySettingsToUI();
+    showToast('All data cleared');
+}
+
+function exportSettings() {
+    const data = JSON.stringify(settings, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cad_settings_${USER}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importSettings(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            settings = { ...DEFAULT_SETTINGS, ...imported };
+            saveSettings();
+            applySettingsToUI();
+            showToast('Settings imported');
+        } catch (err) {
+            showToast('Invalid settings file', true);
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+function playTestSound(type) {
+    // Placeholder for sound testing
+    showToast('Sound test: ' + type);
+}
+
+// Admin functions
+{% if is_admin %}
+function loadAdminStats() {
+    fetch('/admin/stats?user=' + USER)
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.getElementById('stat-incidents').textContent = data.stats.total_incidents || 0;
+                document.getElementById('stat-units').textContent = data.stats.total_units || 0;
+                document.getElementById('stat-open').textContent = data.stats.open_incidents || 0;
+            }
+        })
+        .catch(err => console.error('Failed to load stats:', err));
+}
+
+function loadAdminList() {
+    const list = document.getElementById('admin-list');
+    if (!list) return;
+
+    // Default admin units
+    const admins = ['1578', 'CAR1', 'BATT1', 'BATT2', 'BATT3', 'BATT4', '17', '47'];
+    list.innerHTML = admins.map(a =>
+        `<span style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:var(--ford-blue-light); border-radius:16px; font-size:13px;">
+            ${a}
+            <button onclick="removeAdmin('${a}')" style="background:none; border:none; cursor:pointer; color:var(--danger); font-size:16px;">&times;</button>
+        </span>`
+    ).join('');
+}
+
+function addAdmin() {
+    const input = document.getElementById('new-admin-id');
+    const id = input.value.trim().toUpperCase();
+    if (!id) return;
+    showToast('Admin management requires code changes');
+    input.value = '';
+}
+
+function removeAdmin(id) {
+    showToast('Admin management requires code changes');
+}
+
+function saveAdminSection(section) {
+    showToast('Admin settings saved');
+}
+
+loadAdminStats();
+loadAdminList();
+{% endif %}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', loadSettings);
+</script>
+
+</body>
+</html>

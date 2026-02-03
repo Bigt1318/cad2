@@ -16,6 +16,12 @@ const DEFAULT_SETTINGS = {
     panelUnitsWidth: "20%",
     panelIncidentsWidth: "44%",  // calculated: 100% - calltaker - units
     savedLayouts: [],        // array of {name, calltaker, units, incidents}
+    // Notification settings
+    highlightNew: true,
+    highlightColor: "#fff3cd",
+    flashTab: true,
+    desktopNotify: false,
+    volume: 70,
     statusColors: {          // customizable status colors
         dispatched: "#3b82f6",
         enroute: "#f59e0b",
@@ -205,6 +211,15 @@ export const SETTINGS = {
     },
 
     // -------------------------------------------------------------------------
+    // Apply highlight/notification settings
+    // -------------------------------------------------------------------------
+    applyHighlightSettings() {
+        const root = document.documentElement;
+        root.style.setProperty("--highlight-color", _settings.highlightColor || "#fff3cd");
+        root.style.setProperty("--highlight-new", _settings.highlightNew ? "1" : "0");
+    },
+
+    // -------------------------------------------------------------------------
     // Initialize: load settings and apply all
     // -------------------------------------------------------------------------
     async init() {
@@ -215,6 +230,7 @@ export const SETTINGS = {
         this.applyDensity(_settings.density);
         this.applyPanelWidths();
         this.applyStatusColors();
+        this.applyHighlightSettings();
         this.initPanelResizers();
 
         // Then try to load from server (may update settings)
@@ -226,6 +242,7 @@ export const SETTINGS = {
             this.applyDensity(_settings.density);
             this.applyPanelWidths();
             this.applyStatusColors();
+            this.applyHighlightSettings();
         }
 
     },

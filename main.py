@@ -1531,6 +1531,69 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Incidents ADD COLUMN address TEXT")
 
     # --------------------------------------------------
+    # NFIRS 5.0 / NERIS COMPLIANCE FIELDS
+    # --------------------------------------------------
+    # Basic Module
+    _add_col("ALTER TABLE Incidents ADD COLUMN nfirs_type_code TEXT")         # NFIRS incident type (111, 112, 321, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN property_use_code TEXT")       # Property use code (419, 429, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN actions_taken TEXT")           # Actions taken codes (comma-separated)
+    _add_col("ALTER TABLE Incidents ADD COLUMN aid_given_received TEXT")      # Mutual aid: N=None, G=Given, R=Received
+    _add_col("ALTER TABLE Incidents ADD COLUMN shift TEXT")                   # Shift on duty (A, B, C, D)
+    _add_col("ALTER TABLE Incidents ADD COLUMN alarm_time TEXT")              # Time alarm received
+    _add_col("ALTER TABLE Incidents ADD COLUMN arrival_time TEXT")            # First unit arrival time
+    _add_col("ALTER TABLE Incidents ADD COLUMN controlled_time TEXT")         # Fire controlled time
+    _add_col("ALTER TABLE Incidents ADD COLUMN last_unit_cleared TEXT")       # Last unit cleared time
+
+    # Fire Module
+    _add_col("ALTER TABLE Incidents ADD COLUMN fire_origin_area TEXT")        # Area of fire origin code
+    _add_col("ALTER TABLE Incidents ADD COLUMN heat_source TEXT")             # Heat source code
+    _add_col("ALTER TABLE Incidents ADD COLUMN item_first_ignited TEXT")      # Item first ignited code
+    _add_col("ALTER TABLE Incidents ADD COLUMN fire_cause TEXT")              # Cause code (1=Intentional, 2=Unintentional, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN fire_spread TEXT")             # Fire spread code (1=Object, 2=Room, 3=Floor, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN structure_type TEXT")          # Structure type code
+    _add_col("ALTER TABLE Incidents ADD COLUMN building_status TEXT")         # Building status (1=Normal, 2=Under construction, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN stories_above_grade INTEGER")  # Number of stories above grade
+    _add_col("ALTER TABLE Incidents ADD COLUMN stories_below_grade INTEGER")  # Number of stories below grade
+
+    # Detection & Suppression
+    _add_col("ALTER TABLE Incidents ADD COLUMN detector_present TEXT")        # Detector present code (1=Yes, 2=No, U=Unknown)
+    _add_col("ALTER TABLE Incidents ADD COLUMN detector_type TEXT")           # Detector type code
+    _add_col("ALTER TABLE Incidents ADD COLUMN detector_worked TEXT")         # Detector operated (1=Yes, 2=No, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN aes_present TEXT")             # Auto extinguishing system present
+    _add_col("ALTER TABLE Incidents ADD COLUMN aes_type TEXT")                # AES type code (sprinkler, etc.)
+    _add_col("ALTER TABLE Incidents ADD COLUMN aes_worked TEXT")              # AES operated code
+
+    # Property & Loss
+    _add_col("ALTER TABLE Incidents ADD COLUMN property_loss INTEGER")        # Property loss in dollars
+    _add_col("ALTER TABLE Incidents ADD COLUMN contents_loss INTEGER")        # Contents loss in dollars
+    _add_col("ALTER TABLE Incidents ADD COLUMN property_value INTEGER")       # Pre-incident property value
+    _add_col("ALTER TABLE Incidents ADD COLUMN contents_value INTEGER")       # Pre-incident contents value
+
+    # Casualties
+    _add_col("ALTER TABLE Incidents ADD COLUMN civilian_injuries INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE Incidents ADD COLUMN civilian_deaths INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE Incidents ADD COLUMN ff_injuries INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE Incidents ADD COLUMN ff_deaths INTEGER DEFAULT 0")
+
+    # EMS / NERIS fields
+    _add_col("ALTER TABLE Incidents ADD COLUMN patient_count INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE Incidents ADD COLUMN transport_count INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE Incidents ADD COLUMN destination TEXT")             # Transport destination
+    _add_col("ALTER TABLE Incidents ADD COLUMN patient_disposition TEXT")     # Patient disposition code
+
+    # Additional NERIS fields
+    _add_col("ALTER TABLE Incidents ADD COLUMN weather_conditions TEXT")      # Weather at scene
+    _add_col("ALTER TABLE Incidents ADD COLUMN road_conditions TEXT")         # Road conditions (if MVA)
+    _add_col("ALTER TABLE Incidents ADD COLUMN special_circumstances TEXT")   # Special circumstances codes
+
+    # --------------------------------------------------
+    # DETERMINANT CODES (MPDS/FPDS)
+    # --------------------------------------------------
+    _add_col("ALTER TABLE Incidents ADD COLUMN determinant_code TEXT")        # Full code e.g., "10-D-1"
+    _add_col("ALTER TABLE Incidents ADD COLUMN determinant_protocol TEXT")    # MPDS, FPDS, or custom
+    _add_col("ALTER TABLE Incidents ADD COLUMN determinant_description TEXT") # Chief complaint/description
+
+    # --------------------------------------------------
     # MASTER LOG
     # --------------------------------------------------
     c.execute("""
@@ -1649,6 +1712,111 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Units ADD COLUMN last_updated TEXT")
     _add_col("ALTER TABLE Units ADD COLUMN custom_status TEXT")
     _add_col("ALTER TABLE Units ADD COLUMN aliases TEXT")  # CSV list of aliases, e.g. "e1,eng1,engine1"
+    _add_col("ALTER TABLE Units ADD COLUMN display_order INTEGER DEFAULT 999")  # For sorting units in panels
+
+    # --------------------------------------------------
+    # SYSTEM SETTINGS (Key-Value store for preferences)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS SystemSettings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            description TEXT,
+            updated TEXT
+        )
+    """)
+
+    # --------------------------------------------------
+    # RESPONSE PLANS (Run Cards)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS ResponsePlans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            incident_type TEXT NOT NULL,
+            priority INTEGER DEFAULT 0,
+            units TEXT NOT NULL,
+            alarm_level INTEGER DEFAULT 1,
+            time_of_day TEXT,
+            location_pattern TEXT,
+            is_active INTEGER DEFAULT 1,
+            notes TEXT,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN name TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN incident_type TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN priority INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN units TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN alarm_level INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN time_of_day TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN location_pattern TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN is_active INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN notes TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN created TEXT")
+    _add_col("ALTER TABLE ResponsePlans ADD COLUMN updated TEXT")
+
+    # --------------------------------------------------
+    # PRE-PLANS (Pre-Incident Plans for Buildings)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS PrePlans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            address TEXT NOT NULL,
+            city TEXT,
+            occupancy_type TEXT,
+            construction_type TEXT,
+            stories INTEGER DEFAULT 1,
+            square_footage INTEGER,
+            contact_name TEXT,
+            contact_phone TEXT,
+            sprinkler_type TEXT,
+            standpipe_type TEXT,
+            fdc_location TEXT,
+            alarm_type TEXT,
+            alarm_panel_location TEXT,
+            knox_box_location TEXT,
+            gas_shutoff TEXT,
+            electric_shutoff TEXT,
+            water_shutoff TEXT,
+            hazards TEXT,
+            access_info TEXT,
+            tactical_notes TEXT,
+            last_reviewed TEXT,
+            is_active INTEGER DEFAULT 1,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+
+    _add_col("ALTER TABLE PrePlans ADD COLUMN name TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN address TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN city TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN occupancy_type TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN construction_type TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN stories INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN square_footage INTEGER")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN contact_name TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN contact_phone TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN sprinkler_type TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN standpipe_type TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN fdc_location TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN alarm_type TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN alarm_panel_location TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN knox_box_location TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN gas_shutoff TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN electric_shutoff TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN water_shutoff TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN hazards TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN access_info TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN tactical_notes TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN last_reviewed TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN is_active INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN created TEXT")
+    _add_col("ALTER TABLE PrePlans ADD COLUMN updated TEXT")
 
     # --------------------------------------------------
     # UNIT ASSIGNMENTS
@@ -1767,6 +1935,44 @@ def ensure_phase3_schema():
             seen_at TEXT NOT NULL
         )
     """)
+
+    # --------------------------------------------------
+    # STATION ALERTING (Webhooks)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS StationAlerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            station_id TEXT,
+            webhook_url TEXT NOT NULL,
+            webhook_method TEXT DEFAULT 'POST',
+            webhook_headers TEXT,
+            webhook_template TEXT,
+            trigger_on TEXT DEFAULT 'DISPATCH',
+            unit_filter TEXT,
+            incident_type_filter TEXT,
+            is_active INTEGER DEFAULT 1,
+            last_triggered TEXT,
+            last_status INTEGER,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN name TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN station_id TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN webhook_url TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN webhook_method TEXT DEFAULT 'POST'")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN webhook_headers TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN webhook_template TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN trigger_on TEXT DEFAULT 'DISPATCH'")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN unit_filter TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN incident_type_filter TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN is_active INTEGER DEFAULT 1")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN last_triggered TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN last_status INTEGER")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN created TEXT")
+    _add_col("ALTER TABLE StationAlerts ADD COLUMN updated TEXT")
 
     # --------------------------------------------------
     # PERFORMANCE INDEXES (Commercial CAD Standard)
@@ -2123,6 +2329,91 @@ def ford_incident_action_window(request: Request, incident_id: int):
         ORDER BY timestamp ASC
     """, (incident_id,)).fetchall()
 
+    # Look up pre-plan for this location
+    preplan = None
+    location = (incident["location"] or "").strip()
+    if location:
+        normalized = location.upper()
+        # Try exact match first
+        preplan_row = c.execute("""
+            SELECT * FROM PrePlans
+            WHERE is_active = 1
+              AND UPPER(address) = ?
+            LIMIT 1
+        """, (normalized,)).fetchone()
+
+        if not preplan_row:
+            # Try partial match
+            search_term = f"%{normalized}%"
+            preplan_row = c.execute("""
+                SELECT * FROM PrePlans
+                WHERE is_active = 1
+                  AND UPPER(address) LIKE ?
+                ORDER BY LENGTH(address) ASC
+                LIMIT 1
+            """, (search_term,)).fetchone()
+
+        if preplan_row:
+            preplan = dict(preplan_row)
+
+    # Get premise history (previous incidents at this location)
+    premise_history = []
+    premise_count = 0
+    if location:
+        hist_rows = c.execute("""
+            SELECT incident_id, incident_number, type, status, created
+            FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND UPPER(location) LIKE ?
+              AND incident_id != ?
+            ORDER BY created DESC
+            LIMIT 5
+        """, (f"%{normalized}%", incident_id)).fetchall()
+        premise_history = [dict(r) for r in hist_rows]
+
+        count_row = c.execute("""
+            SELECT COUNT(*) as total FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND UPPER(location) LIKE ?
+              AND incident_id != ?
+        """, (f"%{normalized}%", incident_id)).fetchone()
+        premise_count = count_row["total"] if count_row else 0
+
+    # Get caller history (previous calls from this number)
+    caller_history = []
+    caller_count = 0
+    caller_phone = (incident["caller_phone"] or "").strip()
+    if caller_phone:
+        digits_only = ''.join(filter(str.isdigit, caller_phone))
+        if len(digits_only) >= 7:
+            search_term = f"%{digits_only[-7:]}%"
+            hist_rows = c.execute("""
+                SELECT incident_id, incident_number, type, status, created, location
+                FROM Incidents
+                WHERE incident_number IS NOT NULL
+                  AND caller_phone IS NOT NULL
+                  AND (
+                      REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                      LIKE ?
+                  )
+                  AND incident_id != ?
+                ORDER BY created DESC
+                LIMIT 5
+            """, (search_term, incident_id)).fetchall()
+            caller_history = [dict(r) for r in hist_rows]
+
+            count_row = c.execute("""
+                SELECT COUNT(*) as total FROM Incidents
+                WHERE incident_number IS NOT NULL
+                  AND caller_phone IS NOT NULL
+                  AND (
+                      REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                      LIKE ?
+                  )
+                  AND incident_id != ?
+            """, (search_term, incident_id)).fetchone()
+            caller_count = count_row["total"] if count_row else 0
+
     conn.close()
 
     return templates.TemplateResponse(
@@ -2131,7 +2422,12 @@ def ford_incident_action_window(request: Request, incident_id: int):
             "request": request,
             "incident": dict(incident),
             "units": [dict(u) for u in units],
-            "narrative": [dict(n) for n in narrative]
+            "narrative": [dict(n) for n in narrative],
+            "preplan": preplan,
+            "premise_history": premise_history,
+            "premise_count": premise_count,
+            "caller_history": caller_history,
+            "caller_count": caller_count
         }
     )
 
@@ -2478,11 +2774,49 @@ async def api_dispatch_picker_refresh(request: Request, incident_id: int):
 
     groups = split_units_for_picker(eligible)
 
+    # Get incident type for response plan recommendations
+    incident_type = None
+    recommended_units = []
+    try:
+        inc_row = c.execute("SELECT type FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+        if inc_row and inc_row["type"]:
+            incident_type = inc_row["type"].upper().strip()
+
+            # Get recommended units from response plans
+            plans = c.execute("""
+                SELECT units FROM ResponsePlans
+                WHERE is_active = 1
+                  AND (incident_type = ? OR incident_type = 'DEFAULT' OR ? LIKE incident_type || '%')
+                ORDER BY
+                    CASE WHEN incident_type = ? THEN 0 ELSE 1 END,
+                    alarm_level ASC,
+                    priority DESC
+                LIMIT 5
+            """, (incident_type, incident_type, incident_type)).fetchall()
+
+            # Build recommended units list
+            seen = set()
+            for plan in plans:
+                for unit_id in (plan["units"] or "").split(","):
+                    unit_id = unit_id.strip()
+                    if unit_id and unit_id not in seen and unit_id not in assigned_to_incident:
+                        seen.add(unit_id)
+                        # Find unit details
+                        unit_info = next((u for u in eligible if u.get("unit_id") == unit_id), None)
+                        if unit_info:
+                            recommended_units.append(unit_info)
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
     return templates.TemplateResponse(
         "modals/dispatch_picker.html",
         {
             "request": request,
             "incident_id": incident_id,
+            "incident_type": incident_type,
+            "recommended_units": recommended_units,
             "command_units": groups["command"],
             "personnel_units": groups["personnel"],
             "apparatus_units": groups["apparatus"],
@@ -3195,7 +3529,8 @@ def fetch_units() -> list[dict]:
                COALESCE(is_apparatus,0) AS is_apparatus,
                COALESCE(is_command,0) AS is_command,
                COALESCE(is_mutual_aid,0) AS is_mutual_aid,
-               COALESCE(custom_status,'') AS custom_status
+               COALESCE(custom_status,'') AS custom_status,
+               COALESCE(display_order, 999) AS display_order
         FROM Units
     """).fetchall()
     conn.close()
@@ -3308,15 +3643,16 @@ def split_units_for_picker(units: list[dict]) -> dict:
 def get_units_for_panel() -> list[dict]:
     """
     FORD-CAD Units Panel order (CANON):
-      1) Command units pinned (fixed order): 1578, Car1, Batt1–Batt4
-      2) Personnel (two-digit IDs) ascending
-      3) Apparatus in fixed order (APPARATUS_ORDER)
+      1) Command units pinned (by display_order or fixed order): 1578, Car1, Batt1–Batt4
+      2) Personnel (two-digit IDs) - sorted by display_order, then by unit_id
+      3) Apparatus - sorted by display_order, then by APPARATUS_ORDER fallback
       4) Mutual aid last
       5) Any other units (fallback) last
 
     Notes:
       - This function ONLY orders units; filtering for "available" happens in /panel/units.
       - Always attaches metadata so templates can rely on keys.
+      - display_order from database takes priority when set (< 999)
     """
     units = fetch_units() or []
 
@@ -3350,18 +3686,44 @@ def get_units_for_panel() -> list[dict]:
         else:
             other.append(u)
 
-    cmd.sort(key=lambda x: command_index.get((x.get("unit_id") or "").strip(), 999))
+    # Sort by display_order first (if set), then by legacy index/name
+    def _get_display_order(x: dict) -> int:
+        return int(x.get("display_order") or 999)
 
-    def _personnel_sort_key(x: dict) -> int:
+    def _cmd_sort_key(x: dict) -> tuple:
         uid = (x.get("unit_id") or "").strip()
-        if uid.isdigit() and len(uid) == 2:
-            return int(uid)
-        return 999
+        display_order = _get_display_order(x)
+        legacy_order = command_index.get(uid, 999)
+        # If display_order is custom (< 999), use it; otherwise use legacy
+        if display_order < 999:
+            return (display_order, legacy_order)
+        return (legacy_order, 0)
+
+    cmd.sort(key=_cmd_sort_key)
+
+    def _personnel_sort_key(x: dict) -> tuple:
+        uid = (x.get("unit_id") or "").strip()
+        display_order = _get_display_order(x)
+        numeric_order = int(uid) if uid.isdigit() and len(uid) == 2 else 999
+        # If display_order is custom (< 999), use it; otherwise use numeric
+        if display_order < 999:
+            return (display_order, numeric_order)
+        return (numeric_order, 0)
 
     personnel.sort(key=_personnel_sort_key)
-    apparatus.sort(key=lambda x: apparatus_index.get((x.get("unit_id") or "").strip(), 999))
-    mutual.sort(key=lambda x: (x.get("unit_id") or ""))
-    other.sort(key=lambda x: (x.get("unit_id") or ""))
+
+    def _apparatus_sort_key(x: dict) -> tuple:
+        uid = (x.get("unit_id") or "").strip()
+        display_order = _get_display_order(x)
+        legacy_order = apparatus_index.get(uid, 999)
+        # If display_order is custom (< 999), use it; otherwise use legacy
+        if display_order < 999:
+            return (display_order, legacy_order)
+        return (legacy_order, 0)
+
+    apparatus.sort(key=_apparatus_sort_key)
+    mutual.sort(key=lambda x: (_get_display_order(x), x.get("unit_id") or ""))
+    other.sort(key=lambda x: (_get_display_order(x), x.get("unit_id") or ""))
 
     ordered: list[dict] = []
     ordered.extend(cmd)
@@ -5457,11 +5819,25 @@ async def dispatch_unit_endpoint(request: Request):
 
     user = request.session.get("user", "Dispatcher")
 
-    return dispatch_units_to_incident(
+    result = dispatch_units_to_incident(
         incident_id=int(incident_id),
         units=units,
         user=user,
     )
+
+    # Fire station alerts for successful dispatches
+    if result.get("ok") and result.get("assigned"):
+        try:
+            conn = get_conn()
+            incident = conn.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+            conn.close()
+            if incident:
+                import asyncio
+                asyncio.create_task(fire_station_alerts("DISPATCH", dict(incident), result["assigned"]))
+        except Exception as e:
+            print(f"[STATION_ALERT] Error triggering alerts: {e}")
+
+    return result
 
 
 # ================================================================
@@ -8689,6 +9065,165 @@ async def keyboard_help_modal(request: Request):
     )
 
 
+@app.get("/incident/{incident_id}/nfirs", response_class=HTMLResponse)
+async def nfirs_modal(request: Request, incident_id: int):
+    """NFIRS/NERIS data entry modal for an incident."""
+    ensure_phase3_schema()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return HTMLResponse("<div class='modal-content'><p>Incident not found.</p></div>", status_code=404)
+
+    incident = dict(row)
+    return templates.TemplateResponse(
+        "modals/nfirs_modal.html",
+        {"request": request, "incident": incident},
+    )
+
+
+@app.post("/api/incident/{incident_id}/nfirs")
+async def save_nfirs_data(request: Request, incident_id: int):
+    """Save NFIRS/NERIS compliance data for an incident."""
+    ensure_phase3_schema()
+    body = await request.json()
+
+    # List of NFIRS fields to update
+    nfirs_fields = [
+        "nfirs_type_code", "property_use_code", "actions_taken", "aid_given_received",
+        "shift", "alarm_time", "arrival_time", "controlled_time", "last_unit_cleared",
+        "fire_origin_area", "heat_source", "item_first_ignited", "fire_cause", "fire_spread",
+        "structure_type", "building_status", "stories_above_grade", "stories_below_grade",
+        "detector_present", "detector_type", "detector_worked",
+        "aes_present", "aes_type", "aes_worked",
+        "property_loss", "contents_loss", "property_value", "contents_value",
+        "civilian_injuries", "civilian_deaths", "ff_injuries", "ff_deaths",
+        "patient_count", "transport_count", "destination", "patient_disposition",
+        "weather_conditions", "road_conditions", "special_circumstances"
+    ]
+
+    # Build update query dynamically
+    updates = []
+    values = []
+    for field in nfirs_fields:
+        if field in body:
+            updates.append(f"{field} = ?")
+            val = body[field]
+            # Handle empty strings as NULL for optional fields
+            if val == "" or val is None:
+                values.append(None)
+            else:
+                values.append(val)
+
+    if not updates:
+        return {"ok": False, "error": "No fields to update"}
+
+    values.append(incident_id)
+    sql = f"UPDATE Incidents SET {', '.join(updates)}, updated = ? WHERE incident_id = ?"
+    values.insert(-1, datetime.datetime.now(datetime.timezone.utc).isoformat())
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute(sql, values)
+        conn.commit()
+        conn.close()
+
+        # Log the action
+        user = request.session.get("user", "system")
+        masterlog(event_type="NFIRS_DATA_UPDATED", user=user, incident_id=incident_id, ok=1, details=f"Updated {len(updates)} NFIRS fields")
+        incident_history(incident_id=incident_id, event_type="NFIRS_DATA_UPDATED", user=user, details=f"NFIRS data updated")
+
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/incident/{incident_id}/nfirs/export")
+async def export_nfirs_data(request: Request, incident_id: int):
+    """Export NFIRS data for a single incident as JSON."""
+    ensure_phase3_schema()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return {"ok": False, "error": "Incident not found"}
+
+    incident = dict(row)
+
+    # Build NFIRS-formatted export
+    nfirs_export = {
+        "header": {
+            "state": "KY",  # Configure as needed
+            "fdid": "BOSK",  # BlueOval SK Fire Department ID
+            "incident_number": incident.get("incident_number"),
+            "exposure": 0,
+        },
+        "basic_module": {
+            "incident_type": incident.get("nfirs_type_code"),
+            "incident_date": incident.get("created", "")[:10] if incident.get("created") else None,
+            "alarm_time": incident.get("alarm_time"),
+            "arrival_time": incident.get("arrival_time"),
+            "controlled_time": incident.get("controlled_time"),
+            "last_unit_cleared": incident.get("last_unit_cleared"),
+            "shift": incident.get("shift"),
+            "aid_given_received": incident.get("aid_given_received"),
+            "actions_taken": incident.get("actions_taken"),
+            "property_use": incident.get("property_use_code"),
+            "location": {
+                "address": incident.get("address") or incident.get("location"),
+                "node": incident.get("node"),
+                "pole": incident.get("pole"),
+            },
+        },
+        "fire_module": {
+            "cause": incident.get("fire_cause"),
+            "fire_spread": incident.get("fire_spread"),
+            "origin_area": incident.get("fire_origin_area"),
+            "heat_source": incident.get("heat_source"),
+            "item_first_ignited": incident.get("item_first_ignited"),
+            "structure_type": incident.get("structure_type"),
+            "stories_above": incident.get("stories_above_grade"),
+            "stories_below": incident.get("stories_below_grade"),
+            "detector_present": incident.get("detector_present"),
+            "detector_worked": incident.get("detector_worked"),
+            "aes_present": incident.get("aes_present"),
+            "aes_type": incident.get("aes_type"),
+            "aes_worked": incident.get("aes_worked"),
+        },
+        "ems_module": {
+            "patient_count": incident.get("patient_count"),
+            "transport_count": incident.get("transport_count"),
+            "destination": incident.get("destination"),
+            "patient_disposition": incident.get("patient_disposition"),
+        },
+        "casualties": {
+            "civilian_injuries": incident.get("civilian_injuries") or 0,
+            "civilian_deaths": incident.get("civilian_deaths") or 0,
+            "ff_injuries": incident.get("ff_injuries") or 0,
+            "ff_deaths": incident.get("ff_deaths") or 0,
+        },
+        "property_loss": {
+            "property_loss": incident.get("property_loss"),
+            "contents_loss": incident.get("contents_loss"),
+            "property_value": incident.get("property_value"),
+            "contents_value": incident.get("contents_value"),
+        },
+    }
+
+    return {"ok": True, "nfirs": nfirs_export}
+
+
 # ============================================================================
 # EVENT LOG API — Consolidated (Phase-3 Canon)
 # Shows: DAILYLOG + REMARK entries with issue_found support
@@ -9458,6 +9993,614 @@ def admin_stats(user: str = "DISPATCH"):
 
 
 # ------------------------------------------------------
+# RESPONSE PLANS (Run Cards) API
+# ------------------------------------------------------
+
+@app.get("/api/response_plans")
+def get_response_plans():
+    """Get all response plans."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT id, name, incident_type, priority, units, alarm_level, time_of_day,
+               location_pattern, is_active, notes, created, updated
+        FROM ResponsePlans
+        ORDER BY incident_type, alarm_level, priority DESC
+    """).fetchall()
+    conn.close()
+    return {"ok": True, "plans": [dict(r) for r in rows]}
+
+
+@app.get("/api/response_plans/{plan_id}")
+def get_response_plan(plan_id: int):
+    """Get a single response plan by ID."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    row = c.execute("SELECT * FROM ResponsePlans WHERE id = ?", (plan_id,)).fetchone()
+    conn.close()
+    if not row:
+        return {"ok": False, "error": "Plan not found"}
+    return {"ok": True, "plan": dict(row)}
+
+
+@app.post("/api/response_plans")
+async def create_response_plan(request: Request):
+    """Create a new response plan."""
+    ensure_phase3_schema()
+    body = await request.json()
+
+    name = body.get("name", "").strip()
+    incident_type = body.get("incident_type", "").strip().upper()
+    units = body.get("units", "").strip()  # Comma-separated unit IDs
+    priority = int(body.get("priority", 0))
+    alarm_level = int(body.get("alarm_level", 1))
+    time_of_day = body.get("time_of_day", "").strip() or None  # DAY, NIGHT, or empty
+    location_pattern = body.get("location_pattern", "").strip() or None
+    is_active = 1 if body.get("is_active", True) else 0
+    notes = body.get("notes", "").strip() or None
+
+    if not name or not incident_type or not units:
+        return {"ok": False, "error": "Name, incident_type, and units are required"}
+
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO ResponsePlans (name, incident_type, priority, units, alarm_level, time_of_day,
+                                   location_pattern, is_active, notes, created, updated)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (name, incident_type, priority, units, alarm_level, time_of_day,
+          location_pattern, is_active, notes, now, now))
+    plan_id = c.lastrowid
+    conn.commit()
+    conn.close()
+
+    user = request.session.get("user", "system")
+    masterlog(event_type="RESPONSE_PLAN_CREATED", user=user, ok=1, details=f"Created plan '{name}' for {incident_type}")
+
+    return {"ok": True, "id": plan_id}
+
+
+@app.put("/api/response_plans/{plan_id}")
+async def update_response_plan(request: Request, plan_id: int):
+    """Update an existing response plan."""
+    ensure_phase3_schema()
+    body = await request.json()
+
+    updates = []
+    values = []
+
+    for field in ["name", "incident_type", "units", "time_of_day", "location_pattern", "notes"]:
+        if field in body:
+            updates.append(f"{field} = ?")
+            values.append(body[field] if body[field] else None)
+
+    for field in ["priority", "alarm_level", "is_active"]:
+        if field in body:
+            updates.append(f"{field} = ?")
+            values.append(int(body[field]))
+
+    if not updates:
+        return {"ok": False, "error": "No fields to update"}
+
+    updates.append("updated = ?")
+    values.append(datetime.datetime.now(datetime.timezone.utc).isoformat())
+    values.append(plan_id)
+
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(f"UPDATE ResponsePlans SET {', '.join(updates)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+
+    user = request.session.get("user", "system")
+    masterlog(event_type="RESPONSE_PLAN_UPDATED", user=user, ok=1, details=f"Updated plan ID {plan_id}")
+
+    return {"ok": True}
+
+
+@app.delete("/api/response_plans/{plan_id}")
+async def delete_response_plan(request: Request, plan_id: int):
+    """Delete a response plan."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("DELETE FROM ResponsePlans WHERE id = ?", (plan_id,))
+    conn.commit()
+    conn.close()
+
+    user = request.session.get("user", "system")
+    masterlog(event_type="RESPONSE_PLAN_DELETED", user=user, ok=1, details=f"Deleted plan ID {plan_id}")
+
+    return {"ok": True}
+
+
+@app.get("/api/response_plans/recommend/{incident_type}")
+def recommend_units(incident_type: str, alarm_level: int = 1, time_of_day: str = None):
+    """
+    Get recommended units for a given incident type.
+    Returns units from matching response plans, filtered by availability.
+    """
+    ensure_phase3_schema()
+    incident_type = incident_type.upper().strip()
+
+    # Determine time of day if not specified
+    if not time_of_day:
+        hour = datetime.datetime.now().hour
+        time_of_day = "DAY" if 6 <= hour < 18 else "NIGHT"
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Find matching response plans
+    # Priority: exact match > fuzzy match > default
+    plans = c.execute("""
+        SELECT id, name, units, alarm_level, time_of_day, priority
+        FROM ResponsePlans
+        WHERE is_active = 1
+          AND (incident_type = ? OR incident_type = 'DEFAULT' OR ? LIKE incident_type || '%')
+          AND (alarm_level <= ? OR alarm_level = 1)
+          AND (time_of_day IS NULL OR time_of_day = '' OR time_of_day = ?)
+        ORDER BY
+            CASE WHEN incident_type = ? THEN 0 ELSE 1 END,
+            alarm_level ASC,
+            priority DESC
+    """, (incident_type, incident_type, alarm_level, time_of_day, incident_type)).fetchall()
+
+    # Get available units
+    available_units = {r[0] for r in c.execute(
+        "SELECT unit_id FROM Units WHERE status = 'AVAILABLE'"
+    ).fetchall()}
+
+    # Build recommended units list
+    recommended = []
+    seen_units = set()
+
+    for plan in plans:
+        plan_units = [u.strip() for u in (plan["units"] or "").split(",") if u.strip()]
+        for unit in plan_units:
+            if unit not in seen_units:
+                seen_units.add(unit)
+                is_available = unit in available_units
+                recommended.append({
+                    "unit_id": unit,
+                    "available": is_available,
+                    "plan_name": plan["name"],
+                    "alarm_level": plan["alarm_level"]
+                })
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "incident_type": incident_type,
+        "alarm_level": alarm_level,
+        "time_of_day": time_of_day,
+        "recommended": recommended,
+        "plans_matched": len(plans)
+    }
+
+
+@app.get("/admin/response_plans", response_class=HTMLResponse)
+async def admin_response_plans_page(request: Request):
+    """Admin page for managing response plans."""
+    return templates.TemplateResponse(
+        "admin/response_plans.html",
+        {"request": request}
+    )
+
+
+# ------------------------------------------------------
+# ANALYTICS DASHBOARD
+# ------------------------------------------------------
+
+@app.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(request: Request):
+    """Analytics dashboard page."""
+    return templates.TemplateResponse(
+        "admin/analytics.html",
+        {"request": request}
+    )
+
+
+@app.get("/api/analytics")
+async def get_analytics(
+    period: str = "week",
+    from_date: str = None,
+    to_date: str = None
+):
+    """
+    Get analytics data for the dashboard.
+    Period: today, week, month, year, custom
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Calculate date range
+    now = datetime.datetime.now()
+    if period == "today":
+        start_date = now.replace(hour=0, minute=0, second=0).isoformat()
+    elif period == "week":
+        start_date = (now - datetime.timedelta(days=7)).isoformat()
+    elif period == "month":
+        start_date = (now - datetime.timedelta(days=30)).isoformat()
+    elif period == "year":
+        start_date = f"{now.year}-01-01T00:00:00"
+    elif period == "custom" and from_date:
+        start_date = f"{from_date}T00:00:00"
+    else:
+        start_date = (now - datetime.timedelta(days=7)).isoformat()
+
+    end_date = to_date + "T23:59:59" if to_date else now.isoformat()
+
+    # Total incidents
+    total_row = c.execute("""
+        SELECT COUNT(*) as total
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+          AND created >= ? AND created <= ?
+    """, (start_date, end_date)).fetchone()
+    total_incidents = total_row["total"] if total_row else 0
+
+    # Incidents by type
+    type_rows = c.execute("""
+        SELECT type, COUNT(*) as count
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+          AND created >= ? AND created <= ?
+        GROUP BY type
+        ORDER BY count DESC
+        LIMIT 8
+    """, (start_date, end_date)).fetchall()
+
+    type_labels = [r["type"] or "Unknown" for r in type_rows]
+    type_data = [r["count"] for r in type_rows]
+
+    # Incidents by hour
+    hourly_data = [0] * 24
+    hour_rows = c.execute("""
+        SELECT substr(created, 12, 2) as hour, COUNT(*) as count
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+          AND created >= ? AND created <= ?
+        GROUP BY hour
+    """, (start_date, end_date)).fetchall()
+
+    for r in hour_rows:
+        try:
+            h = int(r["hour"])
+            if 0 <= h < 24:
+                hourly_data[h] = r["count"]
+        except:
+            pass
+
+    # Timeline data (group by day or hour depending on period)
+    if period == "today":
+        # Group by hour
+        timeline_rows = c.execute("""
+            SELECT substr(created, 12, 2) as period, COUNT(*) as count
+            FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND created >= ? AND created <= ?
+            GROUP BY period
+            ORDER BY period
+        """, (start_date, end_date)).fetchall()
+        timeline_labels = [f"{r['period']}:00" for r in timeline_rows]
+    else:
+        # Group by day
+        timeline_rows = c.execute("""
+            SELECT substr(created, 1, 10) as period, COUNT(*) as count
+            FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND created >= ? AND created <= ?
+            GROUP BY period
+            ORDER BY period
+        """, (start_date, end_date)).fetchall()
+        timeline_labels = [r["period"] for r in timeline_rows]
+
+    timeline_data = [r["count"] for r in timeline_rows]
+
+    # Response times calculation
+    response_times = []
+    rt_rows = c.execute("""
+        SELECT ua.dispatched, ua.enroute, ua.arrived,
+               i.type
+        FROM UnitAssignments ua
+        JOIN Incidents i ON ua.incident_id = i.incident_id
+        WHERE i.incident_number IS NOT NULL
+          AND i.created >= ? AND i.created <= ?
+          AND ua.dispatched IS NOT NULL
+          AND ua.arrived IS NOT NULL
+    """, (start_date, end_date)).fetchall()
+
+    for r in rt_rows:
+        try:
+            dispatched = datetime.datetime.fromisoformat(r["dispatched"].replace("Z", "+00:00"))
+            arrived = datetime.datetime.fromisoformat(r["arrived"].replace("Z", "+00:00"))
+            total_seconds = (arrived - dispatched).total_seconds()
+            if 0 < total_seconds < 3600:  # Sanity check: less than 1 hour
+                response_times.append({
+                    "total": total_seconds,
+                    "type": r["type"] or "Unknown",
+                    "dispatched": r["dispatched"],
+                    "enroute": r["enroute"],
+                    "arrived": r["arrived"]
+                })
+        except:
+            pass
+
+    # Calculate averages and percentiles
+    avg_response_time = 0
+    percentile_90 = 0
+    if response_times:
+        times = sorted([r["total"] for r in response_times])
+        avg_response_time = sum(times) / len(times)
+        idx_90 = int(len(times) * 0.9)
+        percentile_90 = times[idx_90] if idx_90 < len(times) else times[-1]
+
+    # Response time distribution
+    response_distribution = [0, 0, 0, 0, 0]  # <4, 4-6, 6-8, 8-10, >10 minutes
+    for r in response_times:
+        mins = r["total"] / 60
+        if mins < 4:
+            response_distribution[0] += 1
+        elif mins < 6:
+            response_distribution[1] += 1
+        elif mins < 8:
+            response_distribution[2] += 1
+        elif mins < 10:
+            response_distribution[3] += 1
+        else:
+            response_distribution[4] += 1
+
+    # Response times by type
+    response_by_type = {}
+    for r in response_times:
+        t = r["type"]
+        if t not in response_by_type:
+            response_by_type[t] = {"times": [], "d2e": [], "e2a": []}
+        response_by_type[t]["times"].append(r["total"])
+        # Calculate dispatch to enroute
+        if r["enroute"]:
+            try:
+                d = datetime.datetime.fromisoformat(r["dispatched"].replace("Z", "+00:00"))
+                e = datetime.datetime.fromisoformat(r["enroute"].replace("Z", "+00:00"))
+                response_by_type[t]["d2e"].append((e - d).total_seconds())
+            except:
+                pass
+        # Calculate enroute to arrived
+        if r["enroute"] and r["arrived"]:
+            try:
+                e = datetime.datetime.fromisoformat(r["enroute"].replace("Z", "+00:00"))
+                a = datetime.datetime.fromisoformat(r["arrived"].replace("Z", "+00:00"))
+                response_by_type[t]["e2a"].append((a - e).total_seconds())
+            except:
+                pass
+
+    response_by_type_list = []
+    for t, data in response_by_type.items():
+        times = sorted(data["times"])
+        d2e = data["d2e"]
+        e2a = data["e2a"]
+        response_by_type_list.append({
+            "type": t,
+            "count": len(times),
+            "avg_total": sum(times) / len(times) if times else 0,
+            "avg_dispatch_to_enroute": sum(d2e) / len(d2e) if d2e else 0,
+            "avg_enroute_to_arrived": sum(e2a) / len(e2a) if e2a else 0,
+            "percentile_90": times[int(len(times) * 0.9)] if times else 0
+        })
+    response_by_type_list.sort(key=lambda x: x["count"], reverse=True)
+
+    # Unit utilization (runs per unit)
+    unit_rows = c.execute("""
+        SELECT ua.unit_id, COUNT(*) as runs
+        FROM UnitAssignments ua
+        JOIN Incidents i ON ua.incident_id = i.incident_id
+        WHERE i.incident_number IS NOT NULL
+          AND i.created >= ? AND i.created <= ?
+        GROUP BY ua.unit_id
+        ORDER BY runs DESC
+        LIMIT 15
+    """, (start_date, end_date)).fetchall()
+
+    unit_labels = [r["unit_id"] for r in unit_rows]
+    unit_data = [r["runs"] for r in unit_rows]
+
+    # Active units count
+    active_units = c.execute("SELECT COUNT(*) FROM Units WHERE status != 'UNAVAILABLE'").fetchone()[0]
+
+    # Total transports
+    transport_count = c.execute("""
+        SELECT COUNT(DISTINCT incident_id)
+        FROM UnitAssignments
+        WHERE transporting IS NOT NULL
+    """).fetchone()[0]
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "period": period,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_incidents": total_incidents,
+        "avg_response_time": round(avg_response_time, 1),
+        "percentile_90": round(percentile_90, 1),
+        "active_units": active_units,
+        "total_transports": transport_count,
+        "type_labels": type_labels,
+        "type_data": type_data,
+        "hourly_data": hourly_data,
+        "timeline_labels": timeline_labels,
+        "timeline_data": timeline_data,
+        "response_distribution": response_distribution,
+        "unit_labels": unit_labels,
+        "unit_data": unit_data,
+        "response_by_type": response_by_type_list
+    }
+
+
+# ------------------------------------------------------
+# MOBILE MDT INTERFACE
+# ------------------------------------------------------
+
+@app.get("/mobile/mdt/{unit_id}", response_class=HTMLResponse)
+async def mobile_mdt(request: Request, unit_id: str):
+    """
+    Mobile Data Terminal interface for apparatus tablets.
+    Touch-optimized view for a single unit's dispatch operations.
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Get unit info
+    unit_row = c.execute("SELECT * FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+    if not unit_row:
+        conn.close()
+        return HTMLResponse(f"<h1>Unit {unit_id} not found</h1><a href='/'>Back to CAD</a>", status_code=404)
+
+    current_status = unit_row["status"] or "AVAILABLE"
+
+    # Find active incident assignment for this unit
+    assignment = c.execute("""
+        SELECT ua.*, i.incident_id, i.incident_number, i.type, i.location, i.priority,
+               i.caller_name, i.caller_phone, i.node, i.pole, i.narrative, i.status as incident_status
+        FROM UnitAssignments ua
+        JOIN Incidents i ON ua.incident_id = i.incident_id
+        WHERE ua.unit_id = ?
+          AND ua.cleared IS NULL
+          AND i.status IN ('OPEN', 'ACTIVE')
+        ORDER BY ua.dispatched DESC
+        LIMIT 1
+    """, (unit_id,)).fetchone()
+
+    incident = None
+    if assignment:
+        incident = dict(assignment)
+        # Determine current status from assignment
+        if assignment["cleared"]:
+            current_status = "CLEARED"
+        elif assignment["at_medical"]:
+            current_status = "AT_MEDICAL"
+        elif assignment["transporting"]:
+            current_status = "TRANSPORTING"
+        elif assignment["arrived"]:
+            current_status = "ARRIVED"
+        elif assignment["enroute"]:
+            current_status = "ENROUTE"
+        elif assignment["dispatched"]:
+            current_status = "DISPATCHED"
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        "mobile/mdt.html",
+        {
+            "request": request,
+            "unit_id": unit_id,
+            "unit": dict(unit_row),
+            "current_status": current_status,
+            "incident": incident,
+            "assignment": dict(assignment) if assignment else None,
+        }
+    )
+
+
+@app.get("/api/mobile/status/{unit_id}")
+async def mobile_status_check(unit_id: str):
+    """
+    Quick status check for mobile MDT auto-refresh.
+    Returns whether the page needs to refresh (new dispatch, status change).
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Check for active assignment
+    assignment = c.execute("""
+        SELECT ua.dispatched, ua.enroute, ua.arrived, ua.cleared
+        FROM UnitAssignments ua
+        JOIN Incidents i ON ua.incident_id = i.incident_id
+        WHERE ua.unit_id = ?
+          AND ua.cleared IS NULL
+          AND i.status IN ('OPEN', 'ACTIVE')
+        LIMIT 1
+    """, (unit_id,)).fetchone()
+
+    conn.close()
+
+    return {
+        "ok": True,
+        "has_assignment": assignment is not None,
+        "needs_refresh": False  # Could implement change detection later
+    }
+
+
+@app.get("/mobile", response_class=HTMLResponse)
+async def mobile_unit_select(request: Request):
+    """Mobile unit selection page."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    units = c.execute("""
+        SELECT unit_id, name, unit_type, status, is_apparatus, is_command
+        FROM Units
+        WHERE (is_apparatus = 1 OR is_command = 1)
+        ORDER BY unit_id
+    """).fetchall()
+
+    conn.close()
+
+    # Simple HTML for unit selection
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Select Unit - FORD CAD Mobile</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; }
+            h1 { color: #60a5fa; margin-bottom: 20px; }
+            .unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+            .unit-btn { padding: 20px; background: #1e293b; border: 2px solid #334155; border-radius: 12px; color: #fff; text-decoration: none; text-align: center; font-weight: 600; font-size: 18px; transition: all 0.15s; }
+            .unit-btn:hover { background: #334155; border-color: #60a5fa; }
+            .unit-status { font-size: 12px; color: #64748b; margin-top: 4px; }
+            .back-link { display: block; margin-top: 20px; color: #60a5fa; text-decoration: none; }
+        </style>
+    </head>
+    <body>
+        <h1>Select Your Unit</h1>
+        <div class="unit-grid">
+    """
+
+    for u in units:
+        status_class = (u["status"] or "available").lower()
+        html += f'''
+            <a href="/mobile/mdt/{u["unit_id"]}" class="unit-btn">
+                {u["unit_id"]}
+                <div class="unit-status">{u["status"] or "AVAILABLE"}</div>
+            </a>
+        '''
+
+    html += """
+        </div>
+        <a href="/" class="back-link">&larr; Back to Full CAD</a>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(html)
+
+
+# ------------------------------------------------------
 # ADMIN — EXPORT INCIDENTS TO CSV
 # ------------------------------------------------------
 
@@ -9994,6 +11137,302 @@ def admin_reset_full(
 
 
 # ------------------------------------------------------
+# ADMIN — UNIT MANAGEMENT APIs
+# ------------------------------------------------------
+
+@app.get("/api/admin/units", response_class=JSONResponse)
+def api_admin_units_list(user: str = "DISPATCH"):
+    """List all units for admin management."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("""
+        SELECT unit_id, name, unit_type, status, icon,
+               is_apparatus, is_command, is_mutual_aid,
+               display_order, aliases, last_updated
+        FROM Units
+        ORDER BY
+            CASE WHEN is_apparatus = 1 THEN 1
+                 WHEN is_command = 1 THEN 2
+                 ELSE 3 END,
+            display_order ASC,
+            unit_id ASC
+    """).fetchall()
+    conn.close()
+
+    return {
+        "ok": True,
+        "units": [dict(r) for r in rows]
+    }
+
+
+@app.post("/api/admin/units/add", response_class=JSONResponse)
+async def api_admin_units_add(request: Request, user: str = "DISPATCH"):
+    """Add a new unit."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid JSON"}, status_code=400)
+
+    unit_id = (data.get("unit_id") or "").strip().upper()
+    if not unit_id:
+        return JSONResponse({"ok": False, "error": "unit_id required"}, status_code=400)
+
+    name = (data.get("name") or unit_id).strip()
+    unit_type = (data.get("unit_type") or "PERSONNEL").upper()
+    icon = (data.get("icon") or "").strip()
+    is_apparatus = 1 if data.get("is_apparatus") else 0
+    is_command = 1 if data.get("is_command") else 0
+    is_mutual_aid = 1 if data.get("is_mutual_aid") else 0
+    display_order = int(data.get("display_order", 999))
+    aliases = (data.get("aliases") or "").strip()
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Check if unit exists
+    existing = c.execute("SELECT 1 FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+    if existing:
+        conn.close()
+        return JSONResponse({"ok": False, "error": f"Unit {unit_id} already exists"}, status_code=409)
+
+    c.execute("""
+        INSERT INTO Units (unit_id, name, unit_type, status, icon,
+                          is_apparatus, is_command, is_mutual_aid,
+                          display_order, aliases, last_updated)
+        VALUES (?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?)
+    """, (unit_id, name, unit_type, icon, is_apparatus, is_command, is_mutual_aid,
+          display_order, aliases, _ts()))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(event_type="UNIT_ADD", user=user, details=f"Added unit {unit_id}")
+
+    return {"ok": True, "unit_id": unit_id}
+
+
+@app.post("/api/admin/units/update/{unit_id}", response_class=JSONResponse)
+async def api_admin_units_update(request: Request, unit_id: str, user: str = "DISPATCH"):
+    """Update an existing unit."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid JSON"}, status_code=400)
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    existing = c.execute("SELECT 1 FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+    if not existing:
+        conn.close()
+        return JSONResponse({"ok": False, "error": f"Unit {unit_id} not found"}, status_code=404)
+
+    # Build update query
+    updates = []
+    params = []
+
+    if "name" in data:
+        updates.append("name = ?")
+        params.append((data["name"] or "").strip())
+    if "unit_type" in data:
+        updates.append("unit_type = ?")
+        params.append((data["unit_type"] or "PERSONNEL").upper())
+    if "icon" in data:
+        updates.append("icon = ?")
+        params.append((data["icon"] or "").strip())
+    if "is_apparatus" in data:
+        updates.append("is_apparatus = ?")
+        params.append(1 if data["is_apparatus"] else 0)
+    if "is_command" in data:
+        updates.append("is_command = ?")
+        params.append(1 if data["is_command"] else 0)
+    if "is_mutual_aid" in data:
+        updates.append("is_mutual_aid = ?")
+        params.append(1 if data["is_mutual_aid"] else 0)
+    if "display_order" in data:
+        updates.append("display_order = ?")
+        params.append(int(data["display_order"]))
+    if "aliases" in data:
+        updates.append("aliases = ?")
+        params.append((data["aliases"] or "").strip())
+
+    if not updates:
+        conn.close()
+        return JSONResponse({"ok": False, "error": "No fields to update"}, status_code=400)
+
+    updates.append("last_updated = ?")
+    params.append(_ts())
+    params.append(unit_id)
+
+    c.execute(f"UPDATE Units SET {', '.join(updates)} WHERE unit_id = ?", params)
+    conn.commit()
+    conn.close()
+
+    masterlog(event_type="UNIT_UPDATE", user=user, details=f"Updated unit {unit_id}")
+
+    return {"ok": True, "unit_id": unit_id}
+
+
+@app.post("/api/admin/units/delete/{unit_id}", response_class=JSONResponse)
+def api_admin_units_delete(unit_id: str, user: str = "DISPATCH"):
+    """Delete a unit."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    existing = c.execute("SELECT 1 FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+    if not existing:
+        conn.close()
+        return JSONResponse({"ok": False, "error": f"Unit {unit_id} not found"}, status_code=404)
+
+    c.execute("DELETE FROM Units WHERE unit_id = ?", (unit_id,))
+    conn.commit()
+    conn.close()
+
+    masterlog(event_type="UNIT_DELETE", user=user, details=f"Deleted unit {unit_id}")
+
+    return {"ok": True, "deleted": unit_id}
+
+
+@app.post("/api/admin/units/reorder", response_class=JSONResponse)
+async def api_admin_units_reorder(request: Request, user: str = "DISPATCH"):
+    """Reorder units by setting their display_order values."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid JSON"}, status_code=400)
+
+    # Expecting: {"orders": [{"unit_id": "Engine1", "display_order": 1}, ...]}
+    orders = data.get("orders", [])
+    if not orders:
+        return JSONResponse({"ok": False, "error": "No orders provided"}, status_code=400)
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    for item in orders:
+        uid = item.get("unit_id")
+        order = item.get("display_order", 999)
+        if uid:
+            c.execute("UPDATE Units SET display_order = ?, last_updated = ? WHERE unit_id = ?",
+                      (order, _ts(), uid))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(event_type="UNITS_REORDER", user=user, details=f"Reordered {len(orders)} units")
+
+    return {"ok": True, "updated": len(orders)}
+
+
+# ------------------------------------------------------
+# ADMIN — SYSTEM SETTINGS APIs
+# ------------------------------------------------------
+
+@app.get("/api/admin/settings", response_class=JSONResponse)
+def api_admin_settings_list(user: str = "DISPATCH"):
+    """Get all system settings."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("SELECT key, value, description, updated FROM SystemSettings ORDER BY key").fetchall()
+    conn.close()
+
+    return {
+        "ok": True,
+        "settings": {r["key"]: {"value": r["value"], "description": r["description"]} for r in rows}
+    }
+
+
+@app.post("/api/admin/settings", response_class=JSONResponse)
+async def api_admin_settings_save(request: Request, user: str = "DISPATCH"):
+    """Save a system setting."""
+    ensure_phase3_schema()
+
+    if not _is_admin(user):
+        return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Invalid JSON"}, status_code=400)
+
+    key = (data.get("key") or "").strip()
+    value = data.get("value", "")
+    description = data.get("description", "")
+
+    if not key:
+        return JSONResponse({"ok": False, "error": "key required"}, status_code=400)
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    c.execute("""
+        INSERT INTO SystemSettings (key, value, description, updated)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = ?, description = ?, updated = ?
+    """, (key, value, description, _ts(), value, description, _ts()))
+
+    conn.commit()
+    conn.close()
+
+    masterlog(event_type="SETTING_CHANGE", user=user, details=f"Changed setting: {key}")
+
+    return {"ok": True, "key": key}
+
+
+@app.get("/api/admin/icons", response_class=JSONResponse)
+def api_admin_icons_list():
+    """List available unit icons from the images directory."""
+    import os
+
+    icons = []
+    icons_dir = os.path.join("static", "images")
+
+    if os.path.exists(icons_dir):
+        for f in os.listdir(icons_dir):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')):
+                icons.append(f"/static/images/{f}")
+
+    # Also check icons subfolder
+    icons_sub = os.path.join("static", "images", "icons")
+    if os.path.exists(icons_sub):
+        for f in os.listdir(icons_sub):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')):
+                icons.append(f"/static/images/icons/{f}")
+
+    return {"ok": True, "icons": sorted(set(icons))}
+
+
+# ------------------------------------------------------
 # ADMIN — DASHBOARD PAGE (HTML)
 # ------------------------------------------------------
 
@@ -10010,6 +11449,23 @@ def admin_dashboard_page(request: Request, user: str = "DISPATCH"):
         {
             "request": request,
             "user": user
+        }
+    )
+
+
+# ------------------------------------------------------
+# SETTINGS — USER PREFERENCES PAGE (HTML)
+# ------------------------------------------------------
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, user: str = "DISPATCH"):
+    """General settings/preferences page (accessible to all users)."""
+    return templates.TemplateResponse(
+        "settings.html",
+        {
+            "request": request,
+            "user": user,
+            "is_admin": _is_admin(user)
         }
     )
 
@@ -10652,4 +12108,991 @@ async def api_contact_send_message(contact_id: int, request: Request):
     except ImportError:
         return {"ok": False, "error": "Reports module not available"}
 
+
+# ------------------------------------------------------
+# PRE-PLANS (Pre-Incident Plans for Buildings)
+# ------------------------------------------------------
+
+@app.get("/admin/preplans", response_class=HTMLResponse)
+async def admin_preplans_page(request: Request):
+    """Admin page for managing pre-incident plans."""
+    return templates.TemplateResponse(
+        "admin/preplans.html",
+        {"request": request}
+    )
+
+
+@app.get("/api/preplans")
+async def get_preplans(search: str = None, active_only: bool = True):
+    """Get all pre-plans with optional search."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        if search:
+            search_term = f"%{search}%"
+            if active_only:
+                rows = c.execute("""
+                    SELECT * FROM PrePlans
+                    WHERE is_active = 1
+                      AND (name LIKE ? OR address LIKE ? OR city LIKE ? OR hazards LIKE ?)
+                    ORDER BY name
+                """, (search_term, search_term, search_term, search_term)).fetchall()
+            else:
+                rows = c.execute("""
+                    SELECT * FROM PrePlans
+                    WHERE name LIKE ? OR address LIKE ? OR city LIKE ? OR hazards LIKE ?
+                    ORDER BY name
+                """, (search_term, search_term, search_term, search_term)).fetchall()
+        else:
+            if active_only:
+                rows = c.execute("SELECT * FROM PrePlans WHERE is_active = 1 ORDER BY name").fetchall()
+            else:
+                rows = c.execute("SELECT * FROM PrePlans ORDER BY name").fetchall()
+
+        return {"ok": True, "preplans": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.get("/api/preplans/{preplan_id}")
+async def get_preplan(preplan_id: int):
+    """Get a specific pre-plan by ID."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        row = c.execute("SELECT * FROM PrePlans WHERE id = ?", (preplan_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "Pre-plan not found"}
+        return {"ok": True, "preplan": dict(row)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/preplans/match/{address}")
+async def match_preplan(address: str):
+    """
+    Find pre-plans that match a given address.
+    Used during incident creation to show pre-plan info.
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        # Normalize the address for matching
+        normalized = address.upper().strip()
+
+        # Try exact match first
+        row = c.execute("""
+            SELECT * FROM PrePlans
+            WHERE is_active = 1
+              AND UPPER(address) = ?
+            LIMIT 1
+        """, (normalized,)).fetchone()
+
+        if row:
+            return {"ok": True, "matched": True, "preplan": dict(row)}
+
+        # Try partial match (address starts with or contains)
+        # Extract street number and name for fuzzy matching
+        search_term = f"%{normalized}%"
+        row = c.execute("""
+            SELECT * FROM PrePlans
+            WHERE is_active = 1
+              AND UPPER(address) LIKE ?
+            ORDER BY LENGTH(address) ASC
+            LIMIT 1
+        """, (search_term,)).fetchone()
+
+        if row:
+            return {"ok": True, "matched": True, "preplan": dict(row)}
+
+        return {"ok": True, "matched": False}
+    finally:
+        conn.close()
+
+
+@app.post("/api/preplans")
+async def create_or_update_preplan(request: Request):
+    """Create or update a pre-plan."""
+    ensure_phase3_schema()
+    data = await request.json()
+
+    preplan_id = data.get("id")
+    ts = datetime.datetime.now().isoformat()
+
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        if preplan_id:
+            # Update existing
+            c.execute("""
+                UPDATE PrePlans SET
+                    name = ?,
+                    address = ?,
+                    city = ?,
+                    occupancy_type = ?,
+                    construction_type = ?,
+                    stories = ?,
+                    square_footage = ?,
+                    contact_name = ?,
+                    contact_phone = ?,
+                    sprinkler_type = ?,
+                    standpipe_type = ?,
+                    fdc_location = ?,
+                    alarm_type = ?,
+                    alarm_panel_location = ?,
+                    knox_box_location = ?,
+                    gas_shutoff = ?,
+                    electric_shutoff = ?,
+                    water_shutoff = ?,
+                    hazards = ?,
+                    access_info = ?,
+                    tactical_notes = ?,
+                    last_reviewed = ?,
+                    is_active = ?,
+                    updated = ?
+                WHERE id = ?
+            """, (
+                data.get("name", ""),
+                data.get("address", ""),
+                data.get("city", ""),
+                data.get("occupancy_type", ""),
+                data.get("construction_type", ""),
+                data.get("stories", 1),
+                data.get("square_footage"),
+                data.get("contact_name", ""),
+                data.get("contact_phone", ""),
+                data.get("sprinkler_type", ""),
+                data.get("standpipe_type", ""),
+                data.get("fdc_location", ""),
+                data.get("alarm_type", ""),
+                data.get("alarm_panel_location", ""),
+                data.get("knox_box_location", ""),
+                data.get("gas_shutoff", ""),
+                data.get("electric_shutoff", ""),
+                data.get("water_shutoff", ""),
+                data.get("hazards", ""),
+                data.get("access_info", ""),
+                data.get("tactical_notes", ""),
+                data.get("last_reviewed", ts[:10]),
+                1 if data.get("is_active", True) else 0,
+                ts,
+                preplan_id
+            ))
+            conn.commit()
+            masterlog(event_type="PREPLAN_UPDATE", user="SYSTEM", details=f"Updated pre-plan ID={preplan_id}: {data.get('name')}")
+            return {"ok": True, "id": preplan_id, "action": "updated"}
+        else:
+            # Create new
+            c.execute("""
+                INSERT INTO PrePlans (
+                    name, address, city, occupancy_type, construction_type,
+                    stories, square_footage, contact_name, contact_phone,
+                    sprinkler_type, standpipe_type, fdc_location,
+                    alarm_type, alarm_panel_location, knox_box_location,
+                    gas_shutoff, electric_shutoff, water_shutoff,
+                    hazards, access_info, tactical_notes,
+                    last_reviewed, is_active, created, updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data.get("name", ""),
+                data.get("address", ""),
+                data.get("city", ""),
+                data.get("occupancy_type", ""),
+                data.get("construction_type", ""),
+                data.get("stories", 1),
+                data.get("square_footage"),
+                data.get("contact_name", ""),
+                data.get("contact_phone", ""),
+                data.get("sprinkler_type", ""),
+                data.get("standpipe_type", ""),
+                data.get("fdc_location", ""),
+                data.get("alarm_type", ""),
+                data.get("alarm_panel_location", ""),
+                data.get("knox_box_location", ""),
+                data.get("gas_shutoff", ""),
+                data.get("electric_shutoff", ""),
+                data.get("water_shutoff", ""),
+                data.get("hazards", ""),
+                data.get("access_info", ""),
+                data.get("tactical_notes", ""),
+                data.get("last_reviewed", ts[:10]),
+                1 if data.get("is_active", True) else 0,
+                ts,
+                ts
+            ))
+            conn.commit()
+            new_id = c.lastrowid
+            masterlog(event_type="PREPLAN_CREATE", user="SYSTEM", details=f"Created pre-plan ID={new_id}: {data.get('name')}")
+            return {"ok": True, "id": new_id, "action": "created"}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/preplans/{preplan_id}")
+async def delete_preplan(preplan_id: int):
+    """Delete (deactivate) a pre-plan."""
+    ensure_phase3_schema()
+    conn = get_conn()
+
+    try:
+        # Soft delete - set is_active to 0
+        conn.execute("UPDATE PrePlans SET is_active = 0, updated = ? WHERE id = ?",
+                    (datetime.datetime.now().isoformat(), preplan_id))
+        conn.commit()
+        masterlog(event_type="PREPLAN_DELETE", user="SYSTEM", details=f"Deactivated pre-plan ID={preplan_id}")
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------
+# DETERMINANT CODES (MPDS/FPDS)
+# ------------------------------------------------------
+
+# MPDS Protocol Reference - Medical Priority Dispatch System
+MPDS_PROTOCOLS = {
+    "1": {"name": "Abdominal Pain", "levels": ["A", "C", "D"]},
+    "2": {"name": "Allergies/Envenomations", "levels": ["A", "B", "C", "D", "E"]},
+    "3": {"name": "Animal Bites", "levels": ["A", "B", "D"]},
+    "4": {"name": "Assault/Sexual Assault", "levels": ["A", "B", "D"]},
+    "5": {"name": "Back Pain", "levels": ["A", "C", "D"]},
+    "6": {"name": "Breathing Problems", "levels": ["C", "D", "E"]},
+    "7": {"name": "Burns/Explosions", "levels": ["A", "B", "C", "D", "E"]},
+    "8": {"name": "Carbon Monoxide/Hazmat", "levels": ["B", "C", "D"]},
+    "9": {"name": "Cardiac Arrest", "levels": ["B", "D", "E"]},
+    "10": {"name": "Chest Pain", "levels": ["A", "C", "D"]},
+    "11": {"name": "Choking", "levels": ["A", "D", "E"]},
+    "12": {"name": "Convulsions/Seizures", "levels": ["A", "B", "C", "D"]},
+    "13": {"name": "Diabetic Problems", "levels": ["A", "C", "D"]},
+    "14": {"name": "Drowning", "levels": ["B", "C", "D", "E"]},
+    "15": {"name": "Electrocution", "levels": ["B", "C", "D", "E"]},
+    "16": {"name": "Eye Problems", "levels": ["A", "B", "D"]},
+    "17": {"name": "Falls", "levels": ["A", "B", "D"]},
+    "18": {"name": "Headache", "levels": ["A", "B", "C"]},
+    "19": {"name": "Heart Problems", "levels": ["A", "C", "D"]},
+    "20": {"name": "Heat/Cold Exposure", "levels": ["A", "B", "C", "D"]},
+    "21": {"name": "Hemorrhage/Lacerations", "levels": ["A", "B", "C", "D"]},
+    "22": {"name": "Inaccessible/Entrapment", "levels": ["A", "B", "D"]},
+    "23": {"name": "Overdose/Poisoning", "levels": ["B", "C", "D"]},
+    "24": {"name": "Pregnancy/Childbirth", "levels": ["A", "B", "C", "D"]},
+    "25": {"name": "Psychiatric/Suicide", "levels": ["A", "B", "D"]},
+    "26": {"name": "Sick Person", "levels": ["A", "B", "C", "D"]},
+    "27": {"name": "Stab/Gunshot Wound", "levels": ["A", "B", "D"]},
+    "28": {"name": "Stroke/CVA", "levels": ["A", "C"]},
+    "29": {"name": "Traffic Accident", "levels": ["A", "B", "D"]},
+    "30": {"name": "Traumatic Injuries", "levels": ["A", "B", "D"]},
+    "31": {"name": "Unconscious/Fainting", "levels": ["A", "C", "D", "E"]},
+    "32": {"name": "Unknown Problem", "levels": ["B", "D"]},
+    "33": {"name": "Transfer/Interfacility", "levels": ["A", "C", "D"]},
+}
+
+# FPDS Protocol Reference - Fire Priority Dispatch System
+FPDS_PROTOCOLS = {
+    "52": {"name": "Alarms", "levels": ["A", "B", "C", "D"]},
+    "53": {"name": "Citizen Assist", "levels": ["A", "B", "C"]},
+    "54": {"name": "Confined Space", "levels": ["B", "C", "D"]},
+    "55": {"name": "Electrical Hazard", "levels": ["B", "C", "D"]},
+    "56": {"name": "Elevator Emergency", "levels": ["A", "B", "C", "D"]},
+    "57": {"name": "Fuel Spill", "levels": ["B", "C", "D"]},
+    "58": {"name": "Hazmat Release", "levels": ["B", "C", "D"]},
+    "59": {"name": "High Angle Rescue", "levels": ["B", "C", "D"]},
+    "60": {"name": "Gas Leak", "levels": ["B", "C", "D"]},
+    "61": {"name": "Building Fire", "levels": ["C", "D", "E"]},
+    "62": {"name": "Outside Fire", "levels": ["A", "B", "C", "D"]},
+    "63": {"name": "Vehicle Fire", "levels": ["B", "C", "D"]},
+    "64": {"name": "Water Rescue", "levels": ["B", "C", "D"]},
+    "65": {"name": "Technical Rescue", "levels": ["B", "C", "D"]},
+    "66": {"name": "Smoke Investigation", "levels": ["B", "C", "D"]},
+    "67": {"name": "Appliance Fire", "levels": ["B", "C", "D"]},
+    "68": {"name": "Odor Investigation", "levels": ["A", "B", "C"]},
+    "69": {"name": "Aircraft Emergency", "levels": ["C", "D", "E"]},
+}
+
+# Determinant Level Descriptions
+DETERMINANT_LEVELS = {
+    "O": {"name": "Omega", "description": "Lowest - Possible phone advice", "priority": 5, "color": "gray"},
+    "A": {"name": "Alpha", "description": "Low - BLS ambulance", "priority": 4, "color": "green"},
+    "B": {"name": "Bravo", "description": "Moderate - BLS ambulance, possible ALS", "priority": 3, "color": "yellow"},
+    "C": {"name": "Charlie", "description": "Urgent - ALS evaluation", "priority": 2, "color": "orange"},
+    "D": {"name": "Delta", "description": "High priority - ALS response", "priority": 1, "color": "red"},
+    "E": {"name": "Echo", "description": "Highest - Cardiac arrest, immediate response", "priority": 0, "color": "purple"},
+}
+
+
+@app.get("/api/determinant_codes")
+async def get_determinant_codes(protocol: str = None):
+    """Get determinant code reference data."""
+    result = {
+        "ok": True,
+        "levels": DETERMINANT_LEVELS,
+    }
+
+    if protocol == "MPDS" or protocol is None:
+        result["mpds"] = MPDS_PROTOCOLS
+    if protocol == "FPDS" or protocol is None:
+        result["fpds"] = FPDS_PROTOCOLS
+
+    return result
+
+
+@app.get("/api/determinant_codes/{protocol}/{code}")
+async def get_determinant_info(protocol: str, code: str):
+    """Get info about a specific determinant code."""
+    protocol = protocol.upper()
+    protocols = MPDS_PROTOCOLS if protocol == "MPDS" else FPDS_PROTOCOLS
+
+    # Parse code like "10-D-1" or "10D1"
+    code = code.upper().replace("-", "")
+    # Extract protocol number and level
+    import re
+    match = re.match(r"(\d+)([A-E])(\d*)", code)
+    if not match:
+        return {"ok": False, "error": "Invalid code format"}
+
+    proto_num = match.group(1)
+    level = match.group(2)
+    suffix = match.group(3) or "1"
+
+    proto_info = protocols.get(proto_num)
+    if not proto_info:
+        return {"ok": False, "error": f"Unknown protocol {proto_num}"}
+
+    level_info = DETERMINANT_LEVELS.get(level)
+    if not level_info:
+        return {"ok": False, "error": f"Unknown level {level}"}
+
+    return {
+        "ok": True,
+        "code": f"{proto_num}-{level}-{suffix}",
+        "protocol": protocol,
+        "protocol_number": proto_num,
+        "protocol_name": proto_info["name"],
+        "level": level,
+        "level_name": level_info["name"],
+        "level_description": level_info["description"],
+        "priority": level_info["priority"],
+        "color": level_info["color"]
+    }
+
+
+@app.post("/api/incident/{incident_id}/determinant")
+async def set_incident_determinant(incident_id: int, request: Request):
+    """Set the determinant code for an incident."""
+    ensure_phase3_schema()
+    data = await request.json()
+
+    code = str(data.get("code", "")).strip().upper()
+    protocol = str(data.get("protocol", "MPDS")).strip().upper()
+    description = str(data.get("description", "")).strip()
+
+    if not code:
+        return {"ok": False, "error": "Code is required"}
+
+    conn = get_conn()
+    try:
+        # Update the incident
+        conn.execute("""
+            UPDATE Incidents
+            SET determinant_code = ?,
+                determinant_protocol = ?,
+                determinant_description = ?,
+                updated = ?
+            WHERE incident_id = ?
+        """, (code, protocol, description, datetime.datetime.now().isoformat(), incident_id))
+        conn.commit()
+
+        masterlog(
+            event_type="DETERMINANT_SET",
+            user="SYSTEM",
+            incident_id=incident_id,
+            details=f"Set determinant to {protocol} {code}"
+        )
+
+        return {"ok": True, "code": code, "protocol": protocol}
+    finally:
+        conn.close()
+
+
+@app.get("/incident/{incident_id}/determinant_picker", response_class=HTMLResponse)
+async def determinant_picker(request: Request, incident_id: int):
+    """Display the determinant code picker modal."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    incident = c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+    conn.close()
+
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    return templates.TemplateResponse(
+        "modals/determinant_picker.html",
+        {
+            "request": request,
+            "incident_id": incident_id,
+            "incident": dict(incident),
+            "mpds_protocols": MPDS_PROTOCOLS,
+            "fpds_protocols": FPDS_PROTOCOLS,
+            "determinant_levels": DETERMINANT_LEVELS
+        }
+    )
+
+
+# ------------------------------------------------------
+# STATION ALERTING (Webhooks)
+# ------------------------------------------------------
+
+@app.get("/admin/station_alerts", response_class=HTMLResponse)
+async def admin_station_alerts_page(request: Request):
+    """Admin page for managing station alert webhooks."""
+    return templates.TemplateResponse(
+        "admin/station_alerts.html",
+        {"request": request}
+    )
+
+
+@app.get("/api/station_alerts")
+async def get_station_alerts():
+    """Get all station alert configurations."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM StationAlerts ORDER BY name").fetchall()
+        return {"ok": True, "alerts": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.get("/api/station_alerts/{alert_id}")
+async def get_station_alert(alert_id: int):
+    """Get a specific station alert configuration."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT * FROM StationAlerts WHERE id = ?", (alert_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "Alert not found"}
+        return {"ok": True, "alert": dict(row)}
+    finally:
+        conn.close()
+
+
+@app.post("/api/station_alerts")
+async def create_or_update_station_alert(request: Request):
+    """Create or update a station alert webhook."""
+    ensure_phase3_schema()
+    data = await request.json()
+
+    alert_id = data.get("id")
+    ts = datetime.datetime.now().isoformat()
+
+    conn = get_conn()
+    try:
+        if alert_id:
+            # Update existing
+            conn.execute("""
+                UPDATE StationAlerts SET
+                    name = ?,
+                    station_id = ?,
+                    webhook_url = ?,
+                    webhook_method = ?,
+                    webhook_headers = ?,
+                    webhook_template = ?,
+                    trigger_on = ?,
+                    unit_filter = ?,
+                    incident_type_filter = ?,
+                    is_active = ?,
+                    updated = ?
+                WHERE id = ?
+            """, (
+                data.get("name", ""),
+                data.get("station_id", ""),
+                data.get("webhook_url", ""),
+                data.get("webhook_method", "POST"),
+                data.get("webhook_headers", ""),
+                data.get("webhook_template", ""),
+                data.get("trigger_on", "DISPATCH"),
+                data.get("unit_filter", ""),
+                data.get("incident_type_filter", ""),
+                1 if data.get("is_active", True) else 0,
+                ts,
+                alert_id
+            ))
+            conn.commit()
+            masterlog(event_type="STATION_ALERT_UPDATE", user="SYSTEM", details=f"Updated station alert ID={alert_id}")
+            return {"ok": True, "id": alert_id, "action": "updated"}
+        else:
+            # Create new
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO StationAlerts (
+                    name, station_id, webhook_url, webhook_method, webhook_headers,
+                    webhook_template, trigger_on, unit_filter, incident_type_filter,
+                    is_active, created, updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                data.get("name", ""),
+                data.get("station_id", ""),
+                data.get("webhook_url", ""),
+                data.get("webhook_method", "POST"),
+                data.get("webhook_headers", ""),
+                data.get("webhook_template", ""),
+                data.get("trigger_on", "DISPATCH"),
+                data.get("unit_filter", ""),
+                data.get("incident_type_filter", ""),
+                1 if data.get("is_active", True) else 0,
+                ts, ts
+            ))
+            conn.commit()
+            new_id = c.lastrowid
+            masterlog(event_type="STATION_ALERT_CREATE", user="SYSTEM", details=f"Created station alert ID={new_id}")
+            return {"ok": True, "id": new_id, "action": "created"}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/station_alerts/{alert_id}")
+async def delete_station_alert(alert_id: int):
+    """Delete a station alert webhook."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM StationAlerts WHERE id = ?", (alert_id,))
+        conn.commit()
+        masterlog(event_type="STATION_ALERT_DELETE", user="SYSTEM", details=f"Deleted station alert ID={alert_id}")
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.post("/api/station_alerts/{alert_id}/test")
+async def test_station_alert(alert_id: int):
+    """Test a station alert webhook with sample data."""
+    ensure_phase3_schema()
+    conn = get_conn()
+
+    try:
+        alert = conn.execute("SELECT * FROM StationAlerts WHERE id = ?", (alert_id,)).fetchone()
+        if not alert:
+            return {"ok": False, "error": "Alert not found"}
+        alert = dict(alert)
+    finally:
+        conn.close()
+
+    # Create test payload
+    test_data = {
+        "incident_id": 9999,
+        "incident_number": "2026-TEST",
+        "type": "STRUCTURE FIRE",
+        "location": "123 TEST STREET",
+        "priority": 1,
+        "units": ["ENGINE1", "LADDER1"],
+        "narrative": "This is a test alert",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "station_id": alert.get("station_id", ""),
+        "alert_name": alert.get("name", ""),
+        "test": True
+    }
+
+    result = await trigger_webhook(alert, test_data)
+    return result
+
+
+async def trigger_webhook(alert: dict, payload: dict) -> dict:
+    """Send a webhook notification using urllib."""
+    import json
+    import urllib.request
+    import urllib.parse
+    import asyncio
+
+    url = alert.get("webhook_url", "")
+    method = alert.get("webhook_method", "POST").upper()
+
+    if not url:
+        return {"ok": False, "error": "No webhook URL configured"}
+
+    # Parse headers
+    headers = {"Content-Type": "application/json"}
+    custom_headers = alert.get("webhook_headers", "")
+    if custom_headers:
+        try:
+            headers.update(json.loads(custom_headers))
+        except:
+            pass
+
+    # Apply template if exists
+    template = alert.get("webhook_template", "")
+    if template:
+        try:
+            # Simple template substitution
+            body = template
+            for key, value in payload.items():
+                body = body.replace(f"{{{{{key}}}}}", str(value))
+            data = body.encode('utf-8')
+        except Exception:
+            data = json.dumps(payload).encode('utf-8')
+    else:
+        data = json.dumps(payload).encode('utf-8')
+
+    def _do_request():
+        """Synchronous request function to run in thread pool."""
+        try:
+            if method == "GET":
+                query_string = urllib.parse.urlencode(payload)
+                full_url = f"{url}?{query_string}" if query_string else url
+                req = urllib.request.Request(full_url, headers=headers, method="GET")
+            else:
+                req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                status_code = response.status
+                response_text = response.read().decode('utf-8', errors='ignore')[:500]
+                return {"ok": status_code < 400, "status_code": status_code, "response": response_text}
+
+        except urllib.error.HTTPError as e:
+            return {"ok": False, "status_code": e.code, "error": str(e)}
+        except Exception as e:
+            return {"ok": False, "status_code": 0, "error": str(e)}
+
+    try:
+        # Run synchronous request in thread pool
+        result = await asyncio.to_thread(_do_request)
+
+        # Update last triggered status
+        conn = get_conn()
+        try:
+            conn.execute("""
+                UPDATE StationAlerts
+                SET last_triggered = ?, last_status = ?
+                WHERE id = ?
+            """, (datetime.datetime.now().isoformat(), result.get("status_code", 0), alert.get("id")))
+            conn.commit()
+        finally:
+            conn.close()
+
+        return result
+
+    except Exception as e:
+        # Update with error status
+        conn = get_conn()
+        try:
+            conn.execute("""
+                UPDATE StationAlerts
+                SET last_triggered = ?, last_status = ?
+                WHERE id = ?
+            """, (datetime.datetime.now().isoformat(), 0, alert.get("id")))
+            conn.commit()
+        finally:
+            conn.close()
+
+        return {"ok": False, "error": str(e)}
+
+
+async def fire_station_alerts(trigger_type: str, incident: dict, units: list = None):
+    """Fire all matching station alerts for a dispatch event."""
+    ensure_phase3_schema()
+    conn = get_conn()
+
+    try:
+        alerts = conn.execute("""
+            SELECT * FROM StationAlerts
+            WHERE is_active = 1
+              AND (trigger_on = ? OR trigger_on = 'ALL')
+        """, (trigger_type,)).fetchall()
+    finally:
+        conn.close()
+
+    if not alerts:
+        return
+
+    for alert in alerts:
+        alert = dict(alert)
+
+        # Check unit filter
+        unit_filter = alert.get("unit_filter", "")
+        if unit_filter and units:
+            filter_units = [u.strip().upper() for u in unit_filter.split(",")]
+            matching_units = [u for u in units if u.upper() in filter_units]
+            if not matching_units:
+                continue
+
+        # Check incident type filter
+        type_filter = alert.get("incident_type_filter", "")
+        if type_filter:
+            filter_types = [t.strip().upper() for t in type_filter.split(",")]
+            incident_type = (incident.get("type") or "").upper()
+            if incident_type not in filter_types:
+                continue
+
+        # Build payload
+        payload = {
+            "incident_id": incident.get("incident_id"),
+            "incident_number": incident.get("incident_number"),
+            "type": incident.get("type"),
+            "location": incident.get("location"),
+            "priority": incident.get("priority"),
+            "units": units or [],
+            "narrative": incident.get("narrative", ""),
+            "caller_name": incident.get("caller_name", ""),
+            "caller_phone": incident.get("caller_phone", ""),
+            "timestamp": datetime.datetime.now().isoformat(),
+            "station_id": alert.get("station_id", ""),
+            "alert_name": alert.get("name", ""),
+            "trigger_type": trigger_type
+        }
+
+        # Fire webhook asynchronously
+        try:
+            await trigger_webhook(alert, payload)
+        except Exception as e:
+            print(f"[STATION_ALERT] Error firing webhook {alert.get('name')}: {e}")
+
+
+# ------------------------------------------------------
+# CALLER & PREMISE HISTORY
+# ------------------------------------------------------
+
+@app.get("/api/premise_history/{location}")
+async def get_premise_history(location: str, limit: int = 10, exclude_id: int = None):
+    """
+    Get previous incidents at or near the same location.
+    Used to show dispatchers premise history.
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        # Normalize location for matching
+        normalized = location.upper().strip()
+        if not normalized:
+            return {"ok": True, "history": [], "count": 0}
+
+        # Search for exact and similar locations
+        query = """
+            SELECT incident_id, incident_number, type, location, status,
+                   created, closed_at, caller_name, caller_phone,
+                   narrative, priority
+            FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND UPPER(location) LIKE ?
+        """
+        params = [f"%{normalized}%"]
+
+        if exclude_id:
+            query += " AND incident_id != ?"
+            params.append(exclude_id)
+
+        query += " ORDER BY created DESC LIMIT ?"
+        params.append(limit)
+
+        rows = c.execute(query, params).fetchall()
+
+        history = []
+        for r in rows:
+            history.append({
+                "incident_id": r["incident_id"],
+                "incident_number": r["incident_number"],
+                "type": r["type"],
+                "location": r["location"],
+                "status": r["status"],
+                "created": r["created"],
+                "closed_at": r["closed_at"],
+                "caller_name": r["caller_name"],
+                "priority": r["priority"]
+            })
+
+        # Get total count
+        count_query = """
+            SELECT COUNT(*) as total FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND UPPER(location) LIKE ?
+        """
+        count_params = [f"%{normalized}%"]
+        if exclude_id:
+            count_query += " AND incident_id != ?"
+            count_params.append(exclude_id)
+
+        total = c.execute(count_query, count_params).fetchone()["total"]
+
+        return {"ok": True, "history": history, "count": total}
+    finally:
+        conn.close()
+
+
+@app.get("/api/caller_history/{phone}")
+async def get_caller_history(phone: str, limit: int = 10, exclude_id: int = None):
+    """
+    Get previous incidents from the same caller phone number.
+    Helps identify frequent callers.
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        # Normalize phone - remove non-digits for matching
+        digits_only = ''.join(filter(str.isdigit, phone))
+        if len(digits_only) < 7:
+            return {"ok": True, "history": [], "count": 0}
+
+        # Match last 7 digits (handles different formats)
+        search_term = f"%{digits_only[-7:]}%"
+
+        query = """
+            SELECT incident_id, incident_number, type, location, status,
+                   created, closed_at, caller_name, caller_phone, priority
+            FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND caller_phone IS NOT NULL
+              AND caller_phone != ''
+              AND (
+                  REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                  LIKE ?
+              )
+        """
+        params = [search_term]
+
+        if exclude_id:
+            query += " AND incident_id != ?"
+            params.append(exclude_id)
+
+        query += " ORDER BY created DESC LIMIT ?"
+        params.append(limit)
+
+        rows = c.execute(query, params).fetchall()
+
+        history = []
+        for r in rows:
+            history.append({
+                "incident_id": r["incident_id"],
+                "incident_number": r["incident_number"],
+                "type": r["type"],
+                "location": r["location"],
+                "status": r["status"],
+                "created": r["created"],
+                "closed_at": r["closed_at"],
+                "caller_name": r["caller_name"],
+                "caller_phone": r["caller_phone"],
+                "priority": r["priority"]
+            })
+
+        # Get total count
+        count_query = """
+            SELECT COUNT(*) as total FROM Incidents
+            WHERE incident_number IS NOT NULL
+              AND caller_phone IS NOT NULL
+              AND caller_phone != ''
+              AND (
+                  REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                  LIKE ?
+              )
+        """
+        count_params = [search_term]
+        if exclude_id:
+            count_query += " AND incident_id != ?"
+            count_params.append(exclude_id)
+
+        total = c.execute(count_query, count_params).fetchone()["total"]
+
+        return {"ok": True, "history": history, "count": total, "caller_phone": phone}
+    finally:
+        conn.close()
+
+
+@app.get("/api/incident/{incident_id}/history")
+async def get_incident_history_context(incident_id: int):
+    """
+    Get both premise and caller history for an incident.
+    Returns combined history for display in IAW.
+    """
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    try:
+        # Get current incident
+        incident = c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+        if not incident:
+            return {"ok": False, "error": "Incident not found"}
+
+        incident = dict(incident)
+        location = incident.get("location", "")
+        phone = incident.get("caller_phone", "")
+
+        result = {
+            "ok": True,
+            "premise_history": [],
+            "caller_history": [],
+            "premise_count": 0,
+            "caller_count": 0
+        }
+
+        # Get premise history
+        if location:
+            normalized = location.upper().strip()
+            rows = c.execute("""
+                SELECT incident_id, incident_number, type, status, created
+                FROM Incidents
+                WHERE incident_number IS NOT NULL
+                  AND UPPER(location) LIKE ?
+                  AND incident_id != ?
+                ORDER BY created DESC
+                LIMIT 5
+            """, (f"%{normalized}%", incident_id)).fetchall()
+            result["premise_history"] = [dict(r) for r in rows]
+
+            count = c.execute("""
+                SELECT COUNT(*) as total FROM Incidents
+                WHERE incident_number IS NOT NULL
+                  AND UPPER(location) LIKE ?
+                  AND incident_id != ?
+            """, (f"%{normalized}%", incident_id)).fetchone()
+            result["premise_count"] = count["total"]
+
+        # Get caller history
+        if phone:
+            digits_only = ''.join(filter(str.isdigit, phone))
+            if len(digits_only) >= 7:
+                search_term = f"%{digits_only[-7:]}%"
+                rows = c.execute("""
+                    SELECT incident_id, incident_number, type, status, created, location
+                    FROM Incidents
+                    WHERE incident_number IS NOT NULL
+                      AND caller_phone IS NOT NULL
+                      AND caller_phone != ''
+                      AND (
+                          REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                          LIKE ?
+                      )
+                      AND incident_id != ?
+                    ORDER BY created DESC
+                    LIMIT 5
+                """, (search_term, incident_id)).fetchall()
+                result["caller_history"] = [dict(r) for r in rows]
+
+                count = c.execute("""
+                    SELECT COUNT(*) as total FROM Incidents
+                    WHERE incident_number IS NOT NULL
+                      AND caller_phone IS NOT NULL
+                      AND caller_phone != ''
+                      AND (
+                          REPLACE(REPLACE(REPLACE(REPLACE(caller_phone, '-', ''), '(', ''), ')', ''), ' ', '')
+                          LIKE ?
+                      )
+                      AND incident_id != ?
+                """, (search_term, incident_id)).fetchone()
+                result["caller_count"] = count["total"]
+
+        return result
+    finally:
+        conn.close()
 
