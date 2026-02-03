@@ -2416,6 +2416,9 @@ def ford_incident_action_window(request: Request, incident_id: int):
 
     conn.close()
 
+    # Get NFIRS completeness status
+    nfirs_status = get_nfirs_completeness(incident_id)
+
     return templates.TemplateResponse(
         "iaw/incident_action_window.html",
         {
@@ -2427,7 +2430,8 @@ def ford_incident_action_window(request: Request, incident_id: int):
             "premise_history": premise_history,
             "premise_count": premise_count,
             "caller_history": caller_history,
-            "caller_count": caller_count
+            "caller_count": caller_count,
+            "nfirs_status": nfirs_status
         }
     )
 
@@ -5293,6 +5297,23 @@ async def submit_incident_disposition(incident_id: int, request: Request):
 
         conn.commit()
 
+        # Check NFIRS completeness on close
+        nfirs_warning = None
+        if resulting_status == "CLOSED":
+            nfirs_completeness = get_nfirs_completeness(incident_id)
+            if nfirs_completeness.get("status") == "red":
+                nfirs_warning = "NFIRS data incomplete - missing required fields"
+                # Log the incomplete NFIRS closure
+                try:
+                    masterlog(
+                        event_type="NFIRS_INCOMPLETE_CLOSE",
+                        incident_id=incident_id,
+                        ok=1,
+                        details=f"Incident closed with incomplete NFIRS: {nfirs_completeness.get('missing_required', [])}"
+                    )
+                except Exception:
+                    pass  # Don't fail the close due to logging
+
     except HTTPException:
         conn.rollback()
         raise
@@ -5302,13 +5323,18 @@ async def submit_incident_disposition(incident_id: int, request: Request):
     finally:
         conn.close()
 
-    return {
+    response = {
         "ok": True,
         "incident_id": incident_id,
         "disposition": dispo,
         "remaining_units": int(remaining),
         "status": resulting_status,
     }
+
+    if nfirs_warning:
+        response["nfirs_warning"] = nfirs_warning
+
+    return response
 
 
 @app.get("/incident/{incident_id}/remark", response_class=HTMLResponse)
@@ -9087,11 +9113,144 @@ async def nfirs_modal(request: Request, incident_id: int):
     )
 
 
+def validate_nfirs_data(body: dict) -> list:
+    """
+    Validate NFIRS data based on incident type.
+    Returns list of error messages (empty if valid).
+    """
+    errors = []
+    type_code = body.get("nfirs_type_code")
+
+    # Basic module - always required
+    if not type_code:
+        errors.append("NFIRS Incident Type Code is required")
+        return errors  # Can't validate further without type
+
+    try:
+        code = int(type_code)
+    except (ValueError, TypeError):
+        errors.append("Invalid NFIRS Incident Type Code")
+        return errors
+
+    # Fire module - required for types 100-173
+    if 100 <= code <= 173:
+        if not body.get("fire_cause"):
+            errors.append("Cause of Ignition is required for fire incidents")
+        if not body.get("fire_spread"):
+            errors.append("Extent of Fire Spread is required for fire incidents")
+
+    # EMS module - required for types 300-381
+    if 300 <= code <= 381:
+        if not body.get("patient_disposition"):
+            errors.append("Patient Disposition is required for EMS incidents")
+
+    return errors
+
+
+def get_nfirs_completeness(incident_id: int) -> dict:
+    """
+    Calculate NFIRS completeness for an incident.
+    Returns dict with: complete (bool), score (0-100), missing (list of field names), status (green/yellow/red)
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,))
+    row = c.fetchone()
+    conn.close()
+
+    if not row:
+        return {"complete": False, "score": 0, "missing": [], "status": "red"}
+
+    incident = dict(row)
+    type_code = incident.get("nfirs_type_code")
+
+    if not type_code:
+        return {
+            "complete": False,
+            "score": 0,
+            "missing": ["nfirs_type_code"],
+            "status": "red"
+        }
+
+    try:
+        code = int(type_code)
+    except (ValueError, TypeError):
+        return {
+            "complete": False,
+            "score": 0,
+            "missing": ["nfirs_type_code (invalid)"],
+            "status": "red"
+        }
+
+    required_fields = ["nfirs_type_code"]
+    optional_fields = ["property_use_code", "aid_given_received", "shift", "actions_taken"]
+
+    # Fire-specific fields
+    if 100 <= code <= 173:
+        required_fields.extend(["fire_cause", "fire_spread"])
+        optional_fields.extend([
+            "fire_origin_area", "heat_source", "item_first_ignited",
+            "structure_type", "detector_present", "aes_present",
+            "property_loss", "contents_loss"
+        ])
+
+    # EMS-specific fields
+    if 300 <= code <= 381:
+        required_fields.append("patient_disposition")
+        optional_fields.extend(["patient_count", "transport_count", "destination"])
+
+    # Check required fields
+    missing_required = []
+    for field in required_fields:
+        val = incident.get(field)
+        if not val or (isinstance(val, str) and val.strip() == ""):
+            missing_required.append(field)
+
+    # Check optional fields
+    missing_optional = []
+    for field in optional_fields:
+        val = incident.get(field)
+        if not val or (isinstance(val, str) and val.strip() == ""):
+            missing_optional.append(field)
+
+    # Calculate score
+    total_fields = len(required_fields) + len(optional_fields)
+    filled_fields = total_fields - len(missing_required) - len(missing_optional)
+    score = int((filled_fields / total_fields) * 100) if total_fields > 0 else 0
+
+    # Determine status
+    if missing_required:
+        status = "red"
+        complete = False
+    elif missing_optional:
+        status = "yellow"
+        complete = True  # Required fields are filled
+    else:
+        status = "green"
+        complete = True
+
+    return {
+        "complete": complete,
+        "score": score,
+        "missing": missing_required + missing_optional,
+        "missing_required": missing_required,
+        "missing_optional": missing_optional,
+        "status": status
+    }
+
+
 @app.post("/api/incident/{incident_id}/nfirs")
 async def save_nfirs_data(request: Request, incident_id: int):
     """Save NFIRS/NERIS compliance data for an incident."""
     ensure_phase3_schema()
     body = await request.json()
+
+    # Validate required fields based on incident type
+    validation_errors = validate_nfirs_data(body)
+    if validation_errors:
+        return {"ok": False, "errors": validation_errors}
 
     # List of NFIRS fields to update
     nfirs_fields = [
@@ -9139,7 +9298,9 @@ async def save_nfirs_data(request: Request, incident_id: int):
         masterlog(event_type="NFIRS_DATA_UPDATED", user=user, incident_id=incident_id, ok=1, details=f"Updated {len(updates)} NFIRS fields")
         incident_history(incident_id=incident_id, event_type="NFIRS_DATA_UPDATED", user=user, details=f"NFIRS data updated")
 
-        return {"ok": True}
+        # Return completeness info with success
+        completeness = get_nfirs_completeness(incident_id)
+        return {"ok": True, "completeness": completeness}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -9222,6 +9383,243 @@ async def export_nfirs_data(request: Request, incident_id: int):
     }
 
     return {"ok": True, "nfirs": nfirs_export}
+
+
+@app.get("/api/nfirs/export/csv")
+async def export_nfirs_csv(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    status: str = "CLOSED"
+):
+    """
+    Export NFIRS data as CSV for state submission.
+    Query params:
+      - start_date: Filter incidents from date (YYYY-MM-DD)
+      - end_date: Filter incidents to date (YYYY-MM-DD)
+      - status: Filter by status (default: CLOSED)
+    """
+    import csv
+    import io
+
+    ensure_phase3_schema()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Build query
+    where_clauses = ["incident_number IS NOT NULL", "nfirs_type_code IS NOT NULL"]
+    params = []
+
+    if status:
+        where_clauses.append("status = ?")
+        params.append(status.upper())
+
+    if start_date:
+        where_clauses.append("DATE(created) >= DATE(?)")
+        params.append(start_date)
+
+    if end_date:
+        where_clauses.append("DATE(created) <= DATE(?)")
+        params.append(end_date)
+
+    where_sql = " AND ".join(where_clauses)
+    c.execute(f"""
+        SELECT * FROM Incidents
+        WHERE {where_sql}
+        ORDER BY created DESC
+    """, params)
+
+    rows = c.fetchall()
+    conn.close()
+
+    # NFIRS column mapping (database column -> NFIRS standard name)
+    nfirs_columns = [
+        ("fdid", "FDID"),
+        ("state", "State"),
+        ("incident_number", "Incident Number"),
+        ("exposure", "Exposure"),
+        ("created", "Incident Date"),
+        ("nfirs_type_code", "Incident Type"),
+        ("property_use_code", "Property Use"),
+        ("aid_given_received", "Aid Given/Received"),
+        ("location", "Street Address"),
+        ("city", "City"),
+        ("state_code", "State Code"),
+        ("zip_code", "ZIP Code"),
+        ("shift", "Shift"),
+        ("alarm_time", "Alarm Time"),
+        ("arrival_time", "Arrival Time"),
+        ("controlled_time", "Controlled Time"),
+        ("last_unit_cleared", "Last Unit Cleared"),
+        ("actions_taken", "Actions Taken"),
+        ("fire_cause", "Cause of Ignition"),
+        ("fire_spread", "Fire Spread"),
+        ("fire_origin_area", "Area of Fire Origin"),
+        ("heat_source", "Heat Source"),
+        ("item_first_ignited", "Item First Ignited"),
+        ("structure_type", "Structure Type"),
+        ("stories_above_grade", "Stories Above Grade"),
+        ("stories_below_grade", "Stories Below Grade"),
+        ("detector_present", "Detector Present"),
+        ("detector_worked", "Detector Operated"),
+        ("aes_present", "AES Present"),
+        ("aes_type", "AES Type"),
+        ("aes_worked", "AES Operated"),
+        ("property_loss", "Property Loss"),
+        ("contents_loss", "Contents Loss"),
+        ("property_value", "Property Value"),
+        ("contents_value", "Contents Value"),
+        ("civilian_injuries", "Civilian Injuries"),
+        ("civilian_deaths", "Civilian Deaths"),
+        ("ff_injuries", "Firefighter Injuries"),
+        ("ff_deaths", "Firefighter Deaths"),
+        ("patient_count", "Patient Count"),
+        ("transport_count", "Patients Transported"),
+        ("patient_disposition", "Patient Disposition"),
+        ("destination", "Transport Destination"),
+    ]
+
+    # Get agency settings for FDID and State
+    fdid = "FORD"
+    state = "KY"
+    try:
+        settings_conn = sqlite3.connect(DB_PATH)
+        settings_conn.row_factory = sqlite3.Row
+        sc = settings_conn.cursor()
+        sc.execute("SELECT key, value FROM SystemSettings WHERE key IN ('fdid', 'state')")
+        settings = {r["key"]: r["value"] for r in sc.fetchall()}
+        settings_conn.close()
+        fdid = settings.get("fdid", "FORD")
+        state = settings.get("state", "KY")
+    except Exception:
+        pass  # Use defaults if settings table doesn't exist
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header row
+    writer.writerow([col[1] for col in nfirs_columns])
+
+    # Write data rows
+    for row in rows:
+        incident = dict(row)
+        csv_row = []
+        for db_col, _ in nfirs_columns:
+            if db_col == "fdid":
+                csv_row.append(fdid)
+            elif db_col == "state":
+                csv_row.append(state)
+            elif db_col == "exposure":
+                csv_row.append("0")  # Single incident, no exposures
+            elif db_col == "created":
+                # Format date as YYYY-MM-DD
+                val = incident.get("created", "")
+                csv_row.append(val[:10] if val else "")
+            elif db_col in ("city", "state_code", "zip_code"):
+                # Extract from location if not separate
+                csv_row.append(incident.get(db_col, ""))
+            else:
+                val = incident.get(db_col)
+                csv_row.append(val if val is not None else "")
+        writer.writerow(csv_row)
+
+    # Create response
+    csv_content = output.getvalue()
+    output.close()
+
+    # Generate filename with date range
+    today = datetime.datetime.now().strftime("%Y%m%d")
+    filename = f"NFIRS_Export_{today}.csv"
+
+    from fastapi.responses import Response
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@app.get("/api/nfirs/completeness/{incident_id}")
+async def api_nfirs_completeness(incident_id: int):
+    """Get NFIRS completeness status for an incident."""
+    ensure_phase3_schema()
+    return get_nfirs_completeness(incident_id)
+
+
+@app.get("/api/nfirs/stats")
+async def api_nfirs_stats():
+    """Get NFIRS compliance statistics for admin dashboard."""
+    ensure_phase3_schema()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Total incidents with NFIRS data
+    c.execute("""
+        SELECT COUNT(*) as count FROM Incidents
+        WHERE incident_number IS NOT NULL AND nfirs_type_code IS NOT NULL
+    """)
+    with_nfirs = c.fetchone()["count"]
+
+    # Total closed incidents
+    c.execute("""
+        SELECT COUNT(*) as count FROM Incidents
+        WHERE incident_number IS NOT NULL AND status = 'CLOSED'
+    """)
+    total_closed = c.fetchone()["count"]
+
+    # Incidents missing required NFIRS fields (closed incidents without type code)
+    c.execute("""
+        SELECT COUNT(*) as count FROM Incidents
+        WHERE incident_number IS NOT NULL
+        AND status = 'CLOSED'
+        AND (nfirs_type_code IS NULL OR nfirs_type_code = '')
+    """)
+    missing_type = c.fetchone()["count"]
+
+    # Fire incidents missing required fire fields
+    c.execute("""
+        SELECT COUNT(*) as count FROM Incidents
+        WHERE incident_number IS NOT NULL
+        AND status = 'CLOSED'
+        AND nfirs_type_code IS NOT NULL
+        AND CAST(nfirs_type_code AS INTEGER) BETWEEN 100 AND 173
+        AND (fire_cause IS NULL OR fire_cause = '' OR fire_spread IS NULL OR fire_spread = '')
+    """)
+    missing_fire = c.fetchone()["count"]
+
+    # EMS incidents missing required EMS fields
+    c.execute("""
+        SELECT COUNT(*) as count FROM Incidents
+        WHERE incident_number IS NOT NULL
+        AND status = 'CLOSED'
+        AND nfirs_type_code IS NOT NULL
+        AND CAST(nfirs_type_code AS INTEGER) BETWEEN 300 AND 381
+        AND (patient_disposition IS NULL OR patient_disposition = '')
+    """)
+    missing_ems = c.fetchone()["count"]
+
+    conn.close()
+
+    total_missing = missing_type + missing_fire + missing_ems
+    compliance_pct = int(((total_closed - total_missing) / total_closed * 100)) if total_closed > 0 else 100
+
+    return {
+        "ok": True,
+        "stats": {
+            "total_with_nfirs": with_nfirs,
+            "total_closed": total_closed,
+            "missing_type_code": missing_type,
+            "missing_fire_fields": missing_fire,
+            "missing_ems_fields": missing_ems,
+            "total_incomplete": total_missing,
+            "compliance_percentage": compliance_pct
+        }
+    }
 
 
 # ============================================================================

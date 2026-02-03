@@ -1,0 +1,809 @@
+<div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+  <div class="modal-header">
+    <h2>NFIRS / NERIS Incident Data</h2>
+    <button class="modal-close-btn" onclick="CAD_MODAL.close()" aria-label="Close">&times;</button>
+  </div>
+
+  <form id="nfirs-form" class="modal-body" style="padding: 1rem; overflow-y: auto; max-height: calc(90vh - 120px);">
+    <input type="hidden" name="incident_id" value="{{ incident.incident_id }}">
+
+    <!-- Incident Info Header -->
+    <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem;">
+      <strong>Incident:</strong> {{ incident.incident_number or 'DRAFT' }} |
+      <strong>Type:</strong> {{ incident.type or 'Not Set' }} |
+      <strong>Location:</strong> {{ incident.location or 'Not Set' }}
+    </div>
+
+    <!-- Validation Errors Display -->
+    <div id="nfirs-validation-errors" style="display: none; background: #fee2e2; border: 1px solid #ef4444; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+      <div style="font-weight: 600; color: #991b1b; margin-bottom: 0.5rem;">Missing Required Fields:</div>
+      <ul id="nfirs-error-list" style="margin: 0; padding-left: 1.5rem; color: #991b1b; font-size: 0.875rem;"></ul>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="nfirs-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">
+      <button type="button" class="nfirs-tab active" data-tab="basic" onclick="showNfirsTab('basic')">Basic Module</button>
+      <button type="button" class="nfirs-tab" data-tab="fire" id="fire-tab-btn" onclick="showNfirsTab('fire')">Fire Module</button>
+      <button type="button" class="nfirs-tab" data-tab="ems" id="ems-tab-btn" onclick="showNfirsTab('ems')">EMS Module</button>
+      <button type="button" class="nfirs-tab" data-tab="casualties" onclick="showNfirsTab('casualties')">Casualties</button>
+      <button type="button" class="nfirs-tab" data-tab="loss" id="loss-tab-btn" onclick="showNfirsTab('loss')">Property/Loss</button>
+    </div>
+
+    <!-- BASIC MODULE TAB -->
+    <div id="tab-basic" class="nfirs-tab-content active">
+      <h3 style="font-size: 0.9rem; color: var(--ford-blue); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Basic Module (Required for all incidents)
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label for="nfirs_type_code" class="nfirs-required">NFIRS Incident Type Code <span class="required-asterisk">*</span></label>
+          <select name="nfirs_type_code" id="nfirs_type_code" class="form-control" onchange="updateNfirsModuleVisibility()">
+            <option value="">-- Select Type --</option>
+            <optgroup label="Fire (100 Series)">
+              <option value="111" {{ 'selected' if incident.nfirs_type_code == '111' else '' }}>111 - Building Fire</option>
+              <option value="112" {{ 'selected' if incident.nfirs_type_code == '112' else '' }}>112 - Fires in structure (not building)</option>
+              <option value="113" {{ 'selected' if incident.nfirs_type_code == '113' else '' }}>113 - Cooking fire (confined)</option>
+              <option value="114" {{ 'selected' if incident.nfirs_type_code == '114' else '' }}>114 - Chimney fire (confined)</option>
+              <option value="116" {{ 'selected' if incident.nfirs_type_code == '116' else '' }}>116 - Fuel burner fire (confined)</option>
+              <option value="118" {{ 'selected' if incident.nfirs_type_code == '118' else '' }}>118 - Trash/rubbish fire (confined)</option>
+              <option value="120" {{ 'selected' if incident.nfirs_type_code == '120' else '' }}>120 - Fire in mobile property</option>
+              <option value="121" {{ 'selected' if incident.nfirs_type_code == '121' else '' }}>121 - Fire in mobile home</option>
+              <option value="122" {{ 'selected' if incident.nfirs_type_code == '122' else '' }}>122 - Fire in motor home/RV</option>
+              <option value="131" {{ 'selected' if incident.nfirs_type_code == '131' else '' }}>131 - Passenger vehicle fire</option>
+              <option value="132" {{ 'selected' if incident.nfirs_type_code == '132' else '' }}>132 - Road freight/transport fire</option>
+              <option value="140" {{ 'selected' if incident.nfirs_type_code == '140' else '' }}>140 - Natural vegetation fire</option>
+              <option value="141" {{ 'selected' if incident.nfirs_type_code == '141' else '' }}>141 - Forest/woods fire</option>
+              <option value="142" {{ 'selected' if incident.nfirs_type_code == '142' else '' }}>142 - Brush/brush-grass fire</option>
+              <option value="143" {{ 'selected' if incident.nfirs_type_code == '143' else '' }}>143 - Grass fire</option>
+              <option value="150" {{ 'selected' if incident.nfirs_type_code == '150' else '' }}>150 - Outside rubbish fire</option>
+              <option value="151" {{ 'selected' if incident.nfirs_type_code == '151' else '' }}>151 - Outside rubbish/trash fire</option>
+              <option value="154" {{ 'selected' if incident.nfirs_type_code == '154' else '' }}>154 - Dumpster fire</option>
+              <option value="160" {{ 'selected' if incident.nfirs_type_code == '160' else '' }}>160 - Special outside fire</option>
+              <option value="162" {{ 'selected' if incident.nfirs_type_code == '162' else '' }}>162 - Outside equipment fire</option>
+              <option value="164" {{ 'selected' if incident.nfirs_type_code == '164' else '' }}>164 - Outside mailbox fire</option>
+            </optgroup>
+            <optgroup label="Overpressure/Explosion (200 Series)">
+              <option value="211" {{ 'selected' if incident.nfirs_type_code == '211' else '' }}>211 - Overpressure rupture from steam</option>
+              <option value="212" {{ 'selected' if incident.nfirs_type_code == '212' else '' }}>212 - Overpressure rupture from air</option>
+              <option value="221" {{ 'selected' if incident.nfirs_type_code == '221' else '' }}>221 - Overpressure rupture (no fire)</option>
+            </optgroup>
+            <optgroup label="Rescue/EMS (300 Series)">
+              <option value="311" {{ 'selected' if incident.nfirs_type_code == '311' else '' }}>311 - Medical assist, assist EMS</option>
+              <option value="320" {{ 'selected' if incident.nfirs_type_code == '320' else '' }}>320 - Emergency medical service (EMS)</option>
+              <option value="321" {{ 'selected' if incident.nfirs_type_code == '321' else '' }}>321 - EMS call (excluding MVA)</option>
+              <option value="322" {{ 'selected' if incident.nfirs_type_code == '322' else '' }}>322 - Motor vehicle accident with injuries</option>
+              <option value="323" {{ 'selected' if incident.nfirs_type_code == '323' else '' }}>323 - Motor vehicle/pedestrian accident</option>
+              <option value="324" {{ 'selected' if incident.nfirs_type_code == '324' else '' }}>324 - Motor vehicle accident (no injury)</option>
+              <option value="331" {{ 'selected' if incident.nfirs_type_code == '331' else '' }}>331 - Lock-in</option>
+              <option value="340" {{ 'selected' if incident.nfirs_type_code == '340' else '' }}>340 - Search for person</option>
+              <option value="350" {{ 'selected' if incident.nfirs_type_code == '350' else '' }}>350 - Extrication, rescue</option>
+              <option value="352" {{ 'selected' if incident.nfirs_type_code == '352' else '' }}>352 - Extrication of victim from vehicle</option>
+              <option value="353" {{ 'selected' if incident.nfirs_type_code == '353' else '' }}>353 - Removal of victim from elevator</option>
+              <option value="360" {{ 'selected' if incident.nfirs_type_code == '360' else '' }}>360 - Water & ice rescue</option>
+              <option value="381" {{ 'selected' if incident.nfirs_type_code == '381' else '' }}>381 - Rescue or EMS standby</option>
+            </optgroup>
+            <optgroup label="Hazardous Condition (400 Series)">
+              <option value="410" {{ 'selected' if incident.nfirs_type_code == '410' else '' }}>410 - Flammable gas/liquid spill</option>
+              <option value="411" {{ 'selected' if incident.nfirs_type_code == '411' else '' }}>411 - Gasoline/flammable liquid spill</option>
+              <option value="412" {{ 'selected' if incident.nfirs_type_code == '412' else '' }}>412 - Gas leak (natural gas/LPG)</option>
+              <option value="413" {{ 'selected' if incident.nfirs_type_code == '413' else '' }}>413 - Oil or other combustible liquid spill</option>
+              <option value="420" {{ 'selected' if incident.nfirs_type_code == '420' else '' }}>420 - Toxic condition</option>
+              <option value="421" {{ 'selected' if incident.nfirs_type_code == '421' else '' }}>421 - Chemical hazard (no spill)</option>
+              <option value="422" {{ 'selected' if incident.nfirs_type_code == '422' else '' }}>422 - Chemical spill or leak</option>
+              <option value="424" {{ 'selected' if incident.nfirs_type_code == '424' else '' }}>424 - Carbon monoxide incident</option>
+              <option value="440" {{ 'selected' if incident.nfirs_type_code == '440' else '' }}>440 - Electrical wiring/equipment problem</option>
+              <option value="444" {{ 'selected' if incident.nfirs_type_code == '444' else '' }}>444 - Power line down</option>
+              <option value="445" {{ 'selected' if incident.nfirs_type_code == '445' else '' }}>445 - Arcing, shorted electrical equipment</option>
+              <option value="460" {{ 'selected' if incident.nfirs_type_code == '460' else '' }}>460 - Accident, potential accident</option>
+              <option value="461" {{ 'selected' if incident.nfirs_type_code == '461' else '' }}>461 - Building/structure weakened</option>
+              <option value="462" {{ 'selected' if incident.nfirs_type_code == '462' else '' }}>462 - Aircraft standby</option>
+            </optgroup>
+            <optgroup label="Service Call (500 Series)">
+              <option value="510" {{ 'selected' if incident.nfirs_type_code == '510' else '' }}>510 - Person in distress</option>
+              <option value="511" {{ 'selected' if incident.nfirs_type_code == '511' else '' }}>511 - Lock-out</option>
+              <option value="520" {{ 'selected' if incident.nfirs_type_code == '520' else '' }}>520 - Water problem</option>
+              <option value="531" {{ 'selected' if incident.nfirs_type_code == '531' else '' }}>531 - Smoke/odor removal</option>
+              <option value="540" {{ 'selected' if incident.nfirs_type_code == '540' else '' }}>540 - Animal problem</option>
+              <option value="550" {{ 'selected' if incident.nfirs_type_code == '550' else '' }}>550 - Public service assistance</option>
+              <option value="551" {{ 'selected' if incident.nfirs_type_code == '551' else '' }}>551 - Assist police or other agency</option>
+              <option value="552" {{ 'selected' if incident.nfirs_type_code == '552' else '' }}>552 - Police matter</option>
+              <option value="553" {{ 'selected' if incident.nfirs_type_code == '553' else '' }}>553 - Public service</option>
+              <option value="554" {{ 'selected' if incident.nfirs_type_code == '554' else '' }}>554 - Assist invalid</option>
+              <option value="561" {{ 'selected' if incident.nfirs_type_code == '561' else '' }}>561 - Unauthorized burning</option>
+              <option value="571" {{ 'selected' if incident.nfirs_type_code == '571' else '' }}>571 - Cover assignment, standby</option>
+            </optgroup>
+            <optgroup label="Good Intent Call (600 Series)">
+              <option value="611" {{ 'selected' if incident.nfirs_type_code == '611' else '' }}>611 - Dispatched, canceled en route</option>
+              <option value="621" {{ 'selected' if incident.nfirs_type_code == '621' else '' }}>621 - Wrong location</option>
+              <option value="622" {{ 'selected' if incident.nfirs_type_code == '622' else '' }}>622 - No incident found</option>
+              <option value="631" {{ 'selected' if incident.nfirs_type_code == '631' else '' }}>631 - Authorized controlled burning</option>
+              <option value="650" {{ 'selected' if incident.nfirs_type_code == '650' else '' }}>650 - Steam, other gas mistaken for smoke</option>
+              <option value="651" {{ 'selected' if incident.nfirs_type_code == '651' else '' }}>651 - Smoke scare, odor of smoke</option>
+              <option value="652" {{ 'selected' if incident.nfirs_type_code == '652' else '' }}>652 - Steam, vapor mistaken for smoke</option>
+              <option value="661" {{ 'selected' if incident.nfirs_type_code == '661' else '' }}>661 - EMS call (party transported by non-FD)</option>
+              <option value="671" {{ 'selected' if incident.nfirs_type_code == '671' else '' }}>671 - Hazmat release investigation (no hazmat)</option>
+            </optgroup>
+            <optgroup label="False Alarm (700 Series)">
+              <option value="700" {{ 'selected' if incident.nfirs_type_code == '700' else '' }}>700 - False alarm</option>
+              <option value="710" {{ 'selected' if incident.nfirs_type_code == '710' else '' }}>710 - Malicious, mischievous false call</option>
+              <option value="711" {{ 'selected' if incident.nfirs_type_code == '711' else '' }}>711 - Municipal alarm system, malicious</option>
+              <option value="730" {{ 'selected' if incident.nfirs_type_code == '730' else '' }}>730 - System malfunction</option>
+              <option value="733" {{ 'selected' if incident.nfirs_type_code == '733' else '' }}>733 - Smoke detector malfunction</option>
+              <option value="735" {{ 'selected' if incident.nfirs_type_code == '735' else '' }}>735 - Alarm system sounded (no fire)</option>
+              <option value="740" {{ 'selected' if incident.nfirs_type_code == '740' else '' }}>740 - Unintentional transmission</option>
+              <option value="743" {{ 'selected' if incident.nfirs_type_code == '743' else '' }}>743 - Smoke detector activation (no fire)</option>
+              <option value="744" {{ 'selected' if incident.nfirs_type_code == '744' else '' }}>744 - Detector activation (no fire)</option>
+              <option value="745" {{ 'selected' if incident.nfirs_type_code == '745' else '' }}>745 - Alarm system activation (no fire)</option>
+              <option value="746" {{ 'selected' if incident.nfirs_type_code == '746' else '' }}>746 - Carbon monoxide detector (no CO)</option>
+            </optgroup>
+            <optgroup label="Severe Weather/Disaster (800 Series)">
+              <option value="811" {{ 'selected' if incident.nfirs_type_code == '811' else '' }}>811 - Severe weather standby</option>
+              <option value="812" {{ 'selected' if incident.nfirs_type_code == '812' else '' }}>812 - Flood assessment</option>
+              <option value="813" {{ 'selected' if incident.nfirs_type_code == '813' else '' }}>813 - Wind storm assessment</option>
+              <option value="814" {{ 'selected' if incident.nfirs_type_code == '814' else '' }}>814 - Lightning strike investigation</option>
+            </optgroup>
+            <optgroup label="Special Incident (900 Series)">
+              <option value="900" {{ 'selected' if incident.nfirs_type_code == '900' else '' }}>900 - Special type of incident</option>
+              <option value="911" {{ 'selected' if incident.nfirs_type_code == '911' else '' }}>911 - Citizen complaint</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="property_use_code">Property Use Code</label>
+          <select name="property_use_code" id="property_use_code" class="form-control">
+            <option value="">-- Select Property Use --</option>
+            <optgroup label="Assembly (100 Series)">
+              <option value="110" {{ 'selected' if incident.property_use_code == '110' else '' }}>110 - Fixed-use recreation</option>
+              <option value="111" {{ 'selected' if incident.property_use_code == '111' else '' }}>111 - Bowling alley</option>
+              <option value="120" {{ 'selected' if incident.property_use_code == '120' else '' }}>120 - Variable-use amusement</option>
+              <option value="130" {{ 'selected' if incident.property_use_code == '130' else '' }}>130 - Places of worship</option>
+              <option value="131" {{ 'selected' if incident.property_use_code == '131' else '' }}>131 - Church, chapel</option>
+              <option value="140" {{ 'selected' if incident.property_use_code == '140' else '' }}>140 - Clubs</option>
+              <option value="150" {{ 'selected' if incident.property_use_code == '150' else '' }}>150 - Public assembly</option>
+              <option value="161" {{ 'selected' if incident.property_use_code == '161' else '' }}>161 - Restaurant</option>
+              <option value="162" {{ 'selected' if incident.property_use_code == '162' else '' }}>162 - Bar/tavern</option>
+            </optgroup>
+            <optgroup label="Educational (200 Series)">
+              <option value="210" {{ 'selected' if incident.property_use_code == '210' else '' }}>210 - Schools, non-adult</option>
+              <option value="213" {{ 'selected' if incident.property_use_code == '213' else '' }}>213 - Elementary school</option>
+              <option value="215" {{ 'selected' if incident.property_use_code == '215' else '' }}>215 - High school</option>
+              <option value="241" {{ 'selected' if incident.property_use_code == '241' else '' }}>241 - College, university</option>
+            </optgroup>
+            <optgroup label="Healthcare (300 Series)">
+              <option value="311" {{ 'selected' if incident.property_use_code == '311' else '' }}>311 - 24-hour care nursing home</option>
+              <option value="331" {{ 'selected' if incident.property_use_code == '331' else '' }}>331 - Hospital</option>
+              <option value="341" {{ 'selected' if incident.property_use_code == '341' else '' }}>341 - Clinic</option>
+              <option value="342" {{ 'selected' if incident.property_use_code == '342' else '' }}>342 - Doctor/dentist office</option>
+            </optgroup>
+            <optgroup label="Residential (400 Series)">
+              <option value="400" {{ 'selected' if incident.property_use_code == '400' else '' }}>400 - Residential</option>
+              <option value="419" {{ 'selected' if incident.property_use_code == '419' else '' }}>419 - 1 or 2 family dwelling</option>
+              <option value="429" {{ 'selected' if incident.property_use_code == '429' else '' }}>429 - Multifamily dwelling</option>
+              <option value="439" {{ 'selected' if incident.property_use_code == '439' else '' }}>439 - Boarding/rooming house</option>
+              <option value="449" {{ 'selected' if incident.property_use_code == '449' else '' }}>449 - Hotel/motel</option>
+              <option value="459" {{ 'selected' if incident.property_use_code == '459' else '' }}>459 - Mobile home</option>
+              <option value="460" {{ 'selected' if incident.property_use_code == '460' else '' }}>460 - Dormitory</option>
+            </optgroup>
+            <optgroup label="Mercantile (500 Series)">
+              <option value="500" {{ 'selected' if incident.property_use_code == '500' else '' }}>500 - Mercantile, business</option>
+              <option value="511" {{ 'selected' if incident.property_use_code == '511' else '' }}>511 - Convenience store</option>
+              <option value="519" {{ 'selected' if incident.property_use_code == '519' else '' }}>519 - Food/beverage sales</option>
+              <option value="539" {{ 'selected' if incident.property_use_code == '539' else '' }}>539 - Household goods sales</option>
+              <option value="557" {{ 'selected' if incident.property_use_code == '557' else '' }}>557 - Personal service</option>
+              <option value="564" {{ 'selected' if incident.property_use_code == '564' else '' }}>564 - Laundry</option>
+              <option value="571" {{ 'selected' if incident.property_use_code == '571' else '' }}>571 - Service station</option>
+              <option value="580" {{ 'selected' if incident.property_use_code == '580' else '' }}>580 - General retail</option>
+              <option value="581" {{ 'selected' if incident.property_use_code == '581' else '' }}>581 - Department store</option>
+              <option value="592" {{ 'selected' if incident.property_use_code == '592' else '' }}>592 - Bank</option>
+              <option value="596" {{ 'selected' if incident.property_use_code == '596' else '' }}>596 - Post office</option>
+            </optgroup>
+            <optgroup label="Industrial (600 Series)">
+              <option value="600" {{ 'selected' if incident.property_use_code == '600' else '' }}>600 - Industrial</option>
+              <option value="615" {{ 'selected' if incident.property_use_code == '615' else '' }}>615 - Electric generating plant</option>
+              <option value="629" {{ 'selected' if incident.property_use_code == '629' else '' }}>629 - Laboratories</option>
+              <option value="631" {{ 'selected' if incident.property_use_code == '631' else '' }}>631 - Defense/military installation</option>
+              <option value="635" {{ 'selected' if incident.property_use_code == '635' else '' }}>635 - Computer center</option>
+              <option value="642" {{ 'selected' if incident.property_use_code == '642' else '' }}>642 - Dry cleaning plant</option>
+              <option value="655" {{ 'selected' if incident.property_use_code == '655' else '' }}>655 - Textile manufacturing</option>
+              <option value="700" {{ 'selected' if incident.property_use_code == '700' else '' }}>700 - Manufacturing</option>
+            </optgroup>
+            <optgroup label="Storage (800 Series)">
+              <option value="800" {{ 'selected' if incident.property_use_code == '800' else '' }}>800 - Storage</option>
+              <option value="807" {{ 'selected' if incident.property_use_code == '807' else '' }}>807 - Outside storage area</option>
+              <option value="819" {{ 'selected' if incident.property_use_code == '819' else '' }}>819 - Livestock/poultry storage</option>
+              <option value="839" {{ 'selected' if incident.property_use_code == '839' else '' }}>839 - Refrigerated storage</option>
+              <option value="880" {{ 'selected' if incident.property_use_code == '880' else '' }}>880 - Vehicle storage</option>
+              <option value="882" {{ 'selected' if incident.property_use_code == '882' else '' }}>882 - Parking garage</option>
+              <option value="888" {{ 'selected' if incident.property_use_code == '888' else '' }}>888 - Fire station</option>
+            </optgroup>
+            <optgroup label="Outside/Special (900 Series)">
+              <option value="900" {{ 'selected' if incident.property_use_code == '900' else '' }}>900 - Outside/special property</option>
+              <option value="919" {{ 'selected' if incident.property_use_code == '919' else '' }}>919 - Dump/sanitary landfill</option>
+              <option value="931" {{ 'selected' if incident.property_use_code == '931' else '' }}>931 - Open land/field</option>
+              <option value="936" {{ 'selected' if incident.property_use_code == '936' else '' }}>936 - Vacant lot</option>
+              <option value="938" {{ 'selected' if incident.property_use_code == '938' else '' }}>938 - Graded/cared-for plot</option>
+              <option value="940" {{ 'selected' if incident.property_use_code == '940' else '' }}>940 - Water area</option>
+              <option value="946" {{ 'selected' if incident.property_use_code == '946' else '' }}>946 - Lake/river</option>
+              <option value="951" {{ 'selected' if incident.property_use_code == '951' else '' }}>951 - Railroad right-of-way</option>
+              <option value="960" {{ 'selected' if incident.property_use_code == '960' else '' }}>960 - Street/road</option>
+              <option value="962" {{ 'selected' if incident.property_use_code == '962' else '' }}>962 - Residential street</option>
+              <option value="963" {{ 'selected' if incident.property_use_code == '963' else '' }}>963 - Highway/divided highway</option>
+              <option value="965" {{ 'selected' if incident.property_use_code == '965' else '' }}>965 - Vehicle parking area</option>
+              <option value="981" {{ 'selected' if incident.property_use_code == '981' else '' }}>981 - Construction site</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="aid_given_received">Mutual Aid</label>
+          <select name="aid_given_received" id="aid_given_received" class="form-control">
+            <option value="N" {{ 'selected' if incident.aid_given_received == 'N' or not incident.aid_given_received else '' }}>N - None</option>
+            <option value="G" {{ 'selected' if incident.aid_given_received == 'G' else '' }}>G - Aid Given</option>
+            <option value="R" {{ 'selected' if incident.aid_given_received == 'R' else '' }}>R - Aid Received</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="shift">Shift</label>
+          <select name="shift" id="shift" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="A" {{ 'selected' if incident.shift == 'A' else '' }}>A Shift</option>
+            <option value="B" {{ 'selected' if incident.shift == 'B' else '' }}>B Shift</option>
+            <option value="C" {{ 'selected' if incident.shift == 'C' else '' }}>C Shift</option>
+            <option value="D" {{ 'selected' if incident.shift == 'D' else '' }}>D Shift</option>
+          </select>
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.85rem; margin-top: 1rem; margin-bottom: 0.5rem;">Timestamps</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.75rem;">
+        <div class="form-group">
+          <label for="alarm_time">Alarm Time</label>
+          <input type="datetime-local" name="alarm_time" id="alarm_time" class="form-control" value="{{ incident.alarm_time or '' }}">
+        </div>
+        <div class="form-group">
+          <label for="arrival_time">Arrival Time</label>
+          <input type="datetime-local" name="arrival_time" id="arrival_time" class="form-control" value="{{ incident.arrival_time or '' }}">
+        </div>
+        <div class="form-group">
+          <label for="controlled_time">Controlled Time</label>
+          <input type="datetime-local" name="controlled_time" id="controlled_time" class="form-control" value="{{ incident.controlled_time or '' }}">
+        </div>
+        <div class="form-group">
+          <label for="last_unit_cleared">Last Unit Cleared</label>
+          <input type="datetime-local" name="last_unit_cleared" id="last_unit_cleared" class="form-control" value="{{ incident.last_unit_cleared or '' }}">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label for="actions_taken">Actions Taken (comma-separated codes)</label>
+        <input type="text" name="actions_taken" id="actions_taken" class="form-control" value="{{ incident.actions_taken or '' }}" placeholder="e.g., 11,12,86">
+        <small style="color: var(--text-muted);">Common: 11=Extinguish, 12=Salvage, 32=Provide BLS, 33=Provide ALS, 86=Investigate</small>
+      </div>
+    </div>
+
+    <!-- FIRE MODULE TAB -->
+    <div id="tab-fire" class="nfirs-tab-content" style="display: none;">
+      <h3 style="font-size: 0.9rem; color: var(--ford-blue); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Fire Module (Required for fire incidents 100-173)
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label for="fire_cause" class="nfirs-required-fire">Cause of Ignition <span class="required-asterisk fire-required">*</span></label>
+          <select name="fire_cause" id="fire_cause" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.fire_cause == '1' else '' }}>1 - Intentional</option>
+            <option value="2" {{ 'selected' if incident.fire_cause == '2' else '' }}>2 - Unintentional</option>
+            <option value="3" {{ 'selected' if incident.fire_cause == '3' else '' }}>3 - Failure of equipment</option>
+            <option value="4" {{ 'selected' if incident.fire_cause == '4' else '' }}>4 - Act of nature</option>
+            <option value="5" {{ 'selected' if incident.fire_cause == '5' else '' }}>5 - Cause under investigation</option>
+            <option value="U" {{ 'selected' if incident.fire_cause == 'U' else '' }}>U - Cause undetermined after investigation</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fire_spread" class="nfirs-required-fire">Extent of Fire Spread <span class="required-asterisk fire-required">*</span></label>
+          <select name="fire_spread" id="fire_spread" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.fire_spread == '1' else '' }}>1 - Confined to object of origin</option>
+            <option value="2" {{ 'selected' if incident.fire_spread == '2' else '' }}>2 - Confined to room of origin</option>
+            <option value="3" {{ 'selected' if incident.fire_spread == '3' else '' }}>3 - Confined to floor of origin</option>
+            <option value="4" {{ 'selected' if incident.fire_spread == '4' else '' }}>4 - Confined to building of origin</option>
+            <option value="5" {{ 'selected' if incident.fire_spread == '5' else '' }}>5 - Beyond building of origin</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="fire_origin_area">Area of Fire Origin</label>
+          <input type="text" name="fire_origin_area" id="fire_origin_area" class="form-control" value="{{ incident.fire_origin_area or '' }}" placeholder="Area code">
+        </div>
+
+        <div class="form-group">
+          <label for="heat_source">Heat Source</label>
+          <input type="text" name="heat_source" id="heat_source" class="form-control" value="{{ incident.heat_source or '' }}" placeholder="Heat source code">
+        </div>
+
+        <div class="form-group">
+          <label for="item_first_ignited">Item First Ignited</label>
+          <input type="text" name="item_first_ignited" id="item_first_ignited" class="form-control" value="{{ incident.item_first_ignited or '' }}" placeholder="Item code">
+        </div>
+
+        <div class="form-group">
+          <label for="structure_type">Structure Type</label>
+          <select name="structure_type" id="structure_type" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.structure_type == '1' else '' }}>1 - Enclosed building</option>
+            <option value="2" {{ 'selected' if incident.structure_type == '2' else '' }}>2 - Fixed portable/mobile structure</option>
+            <option value="3" {{ 'selected' if incident.structure_type == '3' else '' }}>3 - Open structure</option>
+            <option value="4" {{ 'selected' if incident.structure_type == '4' else '' }}>4 - Air-supported structure</option>
+            <option value="5" {{ 'selected' if incident.structure_type == '5' else '' }}>5 - Tent</option>
+            <option value="0" {{ 'selected' if incident.structure_type == '0' else '' }}>0 - Not a structure</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="stories_above_grade">Stories Above Grade</label>
+          <input type="number" name="stories_above_grade" id="stories_above_grade" class="form-control" min="0" value="{{ incident.stories_above_grade or '' }}">
+        </div>
+
+        <div class="form-group">
+          <label for="stories_below_grade">Stories Below Grade</label>
+          <input type="number" name="stories_below_grade" id="stories_below_grade" class="form-control" min="0" value="{{ incident.stories_below_grade or '' }}">
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.85rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Detection & Suppression Systems</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label for="detector_present">Detector Present</label>
+          <select name="detector_present" id="detector_present" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.detector_present == '1' else '' }}>1 - Present</option>
+            <option value="2" {{ 'selected' if incident.detector_present == '2' else '' }}>2 - None present</option>
+            <option value="U" {{ 'selected' if incident.detector_present == 'U' else '' }}>U - Undetermined</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="detector_worked">Detector Operated</label>
+          <select name="detector_worked" id="detector_worked" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.detector_worked == '1' else '' }}>1 - Operated</option>
+            <option value="2" {{ 'selected' if incident.detector_worked == '2' else '' }}>2 - Did not operate</option>
+            <option value="3" {{ 'selected' if incident.detector_worked == '3' else '' }}>3 - Fire too small</option>
+            <option value="U" {{ 'selected' if incident.detector_worked == 'U' else '' }}>U - Undetermined</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="aes_present">Auto Extinguishing System</label>
+          <select name="aes_present" id="aes_present" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.aes_present == '1' else '' }}>1 - Present</option>
+            <option value="2" {{ 'selected' if incident.aes_present == '2' else '' }}>2 - None present</option>
+            <option value="U" {{ 'selected' if incident.aes_present == 'U' else '' }}>U - Undetermined</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="aes_type">AES Type</label>
+          <select name="aes_type" id="aes_type" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.aes_type == '1' else '' }}>1 - Wet pipe sprinkler</option>
+            <option value="2" {{ 'selected' if incident.aes_type == '2' else '' }}>2 - Dry pipe sprinkler</option>
+            <option value="3" {{ 'selected' if incident.aes_type == '3' else '' }}>3 - Other sprinkler</option>
+            <option value="4" {{ 'selected' if incident.aes_type == '4' else '' }}>4 - Dry chemical system</option>
+            <option value="5" {{ 'selected' if incident.aes_type == '5' else '' }}>5 - Wet chemical system</option>
+            <option value="6" {{ 'selected' if incident.aes_type == '6' else '' }}>6 - Foam system</option>
+            <option value="7" {{ 'selected' if incident.aes_type == '7' else '' }}>7 - Halogen system</option>
+            <option value="8" {{ 'selected' if incident.aes_type == '8' else '' }}>8 - CO2 system</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="aes_worked">AES Operated</label>
+          <select name="aes_worked" id="aes_worked" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.aes_worked == '1' else '' }}>1 - Operated</option>
+            <option value="2" {{ 'selected' if incident.aes_worked == '2' else '' }}>2 - Did not operate</option>
+            <option value="3" {{ 'selected' if incident.aes_worked == '3' else '' }}>3 - Fire too small to activate</option>
+            <option value="U" {{ 'selected' if incident.aes_worked == 'U' else '' }}>U - Undetermined</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMS MODULE TAB -->
+    <div id="tab-ems" class="nfirs-tab-content" style="display: none;">
+      <h3 style="font-size: 0.9rem; color: var(--ford-blue); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        EMS Module (For medical calls)
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label for="patient_count">Number of Patients</label>
+          <input type="number" name="patient_count" id="patient_count" class="form-control" min="0" value="{{ incident.patient_count or 0 }}">
+        </div>
+
+        <div class="form-group">
+          <label for="transport_count">Patients Transported</label>
+          <input type="number" name="transport_count" id="transport_count" class="form-control" min="0" value="{{ incident.transport_count or 0 }}">
+        </div>
+
+        <div class="form-group">
+          <label for="destination">Transport Destination</label>
+          <input type="text" name="destination" id="destination" class="form-control" value="{{ incident.destination or '' }}" placeholder="Hospital/facility name">
+        </div>
+
+        <div class="form-group">
+          <label for="patient_disposition" class="nfirs-required-ems">Patient Disposition <span class="required-asterisk ems-required">*</span></label>
+          <select name="patient_disposition" id="patient_disposition" class="form-control">
+            <option value="">-- Select --</option>
+            <option value="1" {{ 'selected' if incident.patient_disposition == '1' else '' }}>1 - No patient found</option>
+            <option value="2" {{ 'selected' if incident.patient_disposition == '2' else '' }}>2 - Patient refused care</option>
+            <option value="3" {{ 'selected' if incident.patient_disposition == '3' else '' }}>3 - Treated, released</option>
+            <option value="4" {{ 'selected' if incident.patient_disposition == '4' else '' }}>4 - Treated, transported by FD</option>
+            <option value="5" {{ 'selected' if incident.patient_disposition == '5' else '' }}>5 - Treated, transported by other</option>
+            <option value="6" {{ 'selected' if incident.patient_disposition == '6' else '' }}>6 - Treated, transferred care</option>
+            <option value="7" {{ 'selected' if incident.patient_disposition == '7' else '' }}>7 - Dead at scene</option>
+          </select>
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.85rem; margin-top: 1.5rem; margin-bottom: 0.5rem;">Scene Conditions</h4>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label for="weather_conditions">Weather Conditions</label>
+          <input type="text" name="weather_conditions" id="weather_conditions" class="form-control" value="{{ incident.weather_conditions or '' }}" placeholder="e.g., Clear, Rain, Snow">
+        </div>
+
+        <div class="form-group">
+          <label for="road_conditions">Road Conditions (MVA)</label>
+          <input type="text" name="road_conditions" id="road_conditions" class="form-control" value="{{ incident.road_conditions or '' }}" placeholder="e.g., Dry, Wet, Icy">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 1rem;">
+        <label for="special_circumstances">Special Circumstances</label>
+        <input type="text" name="special_circumstances" id="special_circumstances" class="form-control" value="{{ incident.special_circumstances or '' }}" placeholder="Codes separated by commas">
+      </div>
+    </div>
+
+    <!-- CASUALTIES TAB -->
+    <div id="tab-casualties" class="nfirs-tab-content" style="display: none;">
+      <h3 style="font-size: 0.9rem; color: var(--ford-blue); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Casualty Information
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+          <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem;">Civilian Casualties</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="civilian_injuries">Injuries</label>
+              <input type="number" name="civilian_injuries" id="civilian_injuries" class="form-control" min="0" value="{{ incident.civilian_injuries or 0 }}">
+            </div>
+            <div class="form-group">
+              <label for="civilian_deaths">Deaths</label>
+              <input type="number" name="civilian_deaths" id="civilian_deaths" class="form-control" min="0" value="{{ incident.civilian_deaths or 0 }}">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem;">Firefighter Casualties</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="ff_injuries">Injuries</label>
+              <input type="number" name="ff_injuries" id="ff_injuries" class="form-control" min="0" value="{{ incident.ff_injuries or 0 }}">
+            </div>
+            <div class="form-group">
+              <label for="ff_deaths">Deaths</label>
+              <input type="number" name="ff_deaths" id="ff_deaths" class="form-control" min="0" value="{{ incident.ff_deaths or 0 }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 1.5rem; padding: 1rem; background: #fff3cd; border-radius: 4px; color: #856404;">
+        <strong>Note:</strong> Detailed casualty reports (NFIRS-3 Civilian Fire Casualty, NFIRS-4 Fire Service Casualty) should be completed separately for each injury or death.
+      </div>
+    </div>
+
+    <!-- PROPERTY/LOSS TAB -->
+    <div id="tab-loss" class="nfirs-tab-content" style="display: none;">
+      <h3 style="font-size: 0.9rem; color: var(--ford-blue); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Property & Loss Estimates
+      </h3>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div>
+          <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem;">Loss Estimates</h4>
+          <div class="form-group">
+            <label for="property_loss">Property Loss ($)</label>
+            <input type="number" name="property_loss" id="property_loss" class="form-control" min="0" value="{{ incident.property_loss or '' }}" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label for="contents_loss">Contents Loss ($)</label>
+            <input type="number" name="contents_loss" id="contents_loss" class="form-control" min="0" value="{{ incident.contents_loss or '' }}" placeholder="0">
+          </div>
+        </div>
+
+        <div>
+          <h4 style="font-size: 0.85rem; margin-bottom: 0.75rem;">Pre-Incident Values</h4>
+          <div class="form-group">
+            <label for="property_value">Property Value ($)</label>
+            <input type="number" name="property_value" id="property_value" class="form-control" min="0" value="{{ incident.property_value or '' }}" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label for="contents_value">Contents Value ($)</label>
+            <input type="number" name="contents_value" id="contents_value" class="form-control" min="0" value="{{ incident.contents_value or '' }}" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 4px;">
+        <strong>Estimation Guidelines:</strong>
+        <ul style="margin: 0.5rem 0 0 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
+          <li>Estimate replacement cost in like kind and quantity</li>
+          <li>For total losses, estimate full replacement value</li>
+          <li>For partial losses, estimate cost to restore to pre-incident condition</li>
+          <li>Include smoke, water, and heat damage in estimates</li>
+        </ul>
+      </div>
+    </div>
+
+  </form>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" onclick="CAD_MODAL.close()">Cancel</button>
+    <button type="button" class="btn btn-primary" onclick="saveNfirsData()">Save NFIRS Data</button>
+  </div>
+</div>
+
+<style>
+  .nfirs-tab {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+  .nfirs-tab:hover {
+    color: var(--text-primary);
+  }
+  .nfirs-tab.active {
+    color: var(--ford-blue);
+    border-bottom-color: var(--ford-blue);
+    font-weight: 600;
+  }
+  .nfirs-tab.hidden-tab {
+    display: none;
+  }
+  .nfirs-tab-content {
+    display: none;
+  }
+  .nfirs-tab-content.active {
+    display: block;
+  }
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+  .form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--text-secondary);
+  }
+  .form-control {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+  .form-control:focus {
+    outline: none;
+    border-color: var(--ford-blue);
+    box-shadow: 0 0 0 2px rgba(0, 58, 143, 0.1);
+  }
+  .form-control.validation-error {
+    border-color: #ef4444;
+    background: #fef2f2;
+  }
+  .required-asterisk {
+    color: #ef4444;
+    font-weight: 700;
+  }
+</style>
+
+<script>
+// NFIRS Module Visibility based on Incident Type
+function updateNfirsModuleVisibility() {
+  const typeSelect = document.getElementById('nfirs_type_code');
+  const code = parseInt(typeSelect.value) || 0;
+
+  // Determine incident category
+  const isFireIncident = code >= 100 && code <= 173;
+  const isEMSIncident = code >= 300 && code <= 381;
+
+  // Update tab visibility
+  const fireTabBtn = document.getElementById('fire-tab-btn');
+  const emsTabBtn = document.getElementById('ems-tab-btn');
+  const lossTabBtn = document.getElementById('loss-tab-btn');
+
+  if (fireTabBtn) {
+    fireTabBtn.classList.toggle('hidden-tab', !isFireIncident);
+  }
+  if (emsTabBtn) {
+    emsTabBtn.classList.toggle('hidden-tab', !isEMSIncident);
+  }
+  if (lossTabBtn) {
+    lossTabBtn.classList.toggle('hidden-tab', !isFireIncident);
+  }
+
+  // If currently on a hidden tab, switch to basic
+  const activeTab = document.querySelector('.nfirs-tab.active');
+  if (activeTab && activeTab.classList.contains('hidden-tab')) {
+    showNfirsTab('basic');
+  }
+
+  // Clear validation errors when type changes
+  hideValidationErrors();
+}
+
+function showNfirsTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.nfirs-tab-content').forEach(el => {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  });
+  document.querySelectorAll('.nfirs-tab').forEach(el => {
+    el.classList.remove('active');
+  });
+
+  // Show selected tab
+  const tab = document.getElementById('tab-' + tabName);
+  const btn = document.querySelector(`.nfirs-tab[data-tab="${tabName}"]`);
+  if (tab) {
+    tab.classList.add('active');
+    tab.style.display = 'block';
+  }
+  if (btn) {
+    btn.classList.add('active');
+  }
+}
+
+function hideValidationErrors() {
+  const errDiv = document.getElementById('nfirs-validation-errors');
+  if (errDiv) errDiv.style.display = 'none';
+
+  // Remove error highlighting from all fields
+  document.querySelectorAll('.form-control.validation-error').forEach(el => {
+    el.classList.remove('validation-error');
+  });
+}
+
+function showValidationErrors(errors) {
+  const errDiv = document.getElementById('nfirs-validation-errors');
+  const errList = document.getElementById('nfirs-error-list');
+
+  if (!errDiv || !errList) return;
+
+  errList.innerHTML = errors.map(e => `<li>${e}</li>`).join('');
+  errDiv.style.display = 'block';
+
+  // Highlight the fields with errors
+  errors.forEach(err => {
+    // Extract field name from error message
+    if (err.includes('Incident Type')) {
+      document.getElementById('nfirs_type_code')?.classList.add('validation-error');
+    } else if (err.includes('Cause of Ignition')) {
+      document.getElementById('fire_cause')?.classList.add('validation-error');
+    } else if (err.includes('Fire Spread')) {
+      document.getElementById('fire_spread')?.classList.add('validation-error');
+    } else if (err.includes('Patient Disposition')) {
+      document.getElementById('patient_disposition')?.classList.add('validation-error');
+    }
+  });
+}
+
+function validateNfirsData(data) {
+  const errors = [];
+  const typeCode = parseInt(data.nfirs_type_code) || 0;
+
+  // Basic module - always required
+  if (!data.nfirs_type_code) {
+    errors.push('NFIRS Incident Type Code is required');
+  }
+
+  // Fire module - required for types 100-173
+  if (typeCode >= 100 && typeCode <= 173) {
+    if (!data.fire_cause) {
+      errors.push('Cause of Ignition is required for fire incidents');
+    }
+    if (!data.fire_spread) {
+      errors.push('Extent of Fire Spread is required for fire incidents');
+    }
+  }
+
+  // EMS module - required for types 300-381
+  if (typeCode >= 300 && typeCode <= 381) {
+    if (!data.patient_disposition) {
+      errors.push('Patient Disposition is required for EMS incidents');
+    }
+  }
+
+  return errors;
+}
+
+async function saveNfirsData() {
+  const form = document.getElementById('nfirs-form');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+
+  // Clear previous errors
+  hideValidationErrors();
+
+  // Client-side validation
+  const errors = validateNfirsData(data);
+  if (errors.length > 0) {
+    showValidationErrors(errors);
+    window.TOAST?.error?.('Please fill in all required fields');
+    return;
+  }
+
+  // Convert numeric fields
+  ['property_loss', 'contents_loss', 'property_value', 'contents_value',
+   'civilian_injuries', 'civilian_deaths', 'ff_injuries', 'ff_deaths',
+   'patient_count', 'transport_count', 'stories_above_grade', 'stories_below_grade'].forEach(field => {
+    if (data[field]) {
+      data[field] = parseInt(data[field], 10) || 0;
+    }
+  });
+
+  try {
+    const res = await fetch('/api/incident/' + data.incident_id + '/nfirs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+
+    if (result.ok) {
+      window.TOAST?.success?.('NFIRS data saved');
+      // Refresh IAW if open to update completeness indicator
+      if (window.IAW && typeof window.IAW.refresh === 'function') {
+        window.IAW.refresh();
+      }
+      CAD_MODAL.close();
+    } else if (result.errors && result.errors.length > 0) {
+      showValidationErrors(result.errors);
+      window.TOAST?.error?.('Validation failed - see errors above');
+    } else {
+      window.TOAST?.error?.(result.error || 'Failed to save NFIRS data');
+    }
+  } catch (err) {
+    window.TOAST?.error?.('Error saving NFIRS data: ' + err.message);
+  }
+}
+
+// Initialize module visibility on load
+document.addEventListener('DOMContentLoaded', function() {
+  updateNfirsModuleVisibility();
+});
+
+// Also run immediately in case DOM is already loaded
+if (document.readyState !== 'loading') {
+  updateNfirsModuleVisibility();
+}
+</script>

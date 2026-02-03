@@ -583,8 +583,423 @@
     <!-- RESET TAB -->
     <div class="tab-panel" id="tab-reset">
         <div class="card">
-            <h3>Reset & Maintenance Actions</h3>
-            <p>These actions will archive data to CSV before deletion. Archives are saved to <code>static/archives/</code>.</p>
+            <h3>Dispatch Configuration</h3>
+
+            <div class="settings-section">
+                <h4>Auto-Dispatch</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Auto-Dispatch</div>
+                        <div class="setting-desc">Automatically suggest units based on Response Plans</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-auto-dispatch">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Auto-Dispatch Delay</div>
+                        <div class="setting-desc">Seconds to wait before auto-dispatching</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="cfg-auto-dispatch-delay" value="0" min="0" max="60" style="width: 80px;"> sec
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Incident Defaults</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Default Incident Type</div>
+                        <div class="setting-desc">Pre-selected type for new incidents</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-default-incident-type">
+                            <option value="FIRE">Fire</option>
+                            <option value="EMS">EMS</option>
+                            <option value="RESCUE">Rescue</option>
+                            <option value="HAZMAT">HazMat</option>
+                            <option value="SERVICE">Service</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Default Priority</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-default-priority">
+                            <option value="1">1 - Emergency</option>
+                            <option value="2">2 - Urgent</option>
+                            <option value="3" selected>3 - Normal</option>
+                            <option value="4">4 - Low</option>
+                            <option value="5">5 - Scheduled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Determinant Codes</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable MPDS Codes</div>
+                        <div class="setting-desc">Medical Priority Dispatch System</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-mpds-enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable FPDS Codes</div>
+                        <div class="setting-desc">Fire Priority Dispatch System</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-fpds-enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Require Determinant Code</div>
+                        <div class="setting-desc">Require code before dispatching</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-require-determinant">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Run Numbers</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Current Year</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-run-year" readonly style="width: 80px; background: #f5f5f5;">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Next Run Number</div>
+                        <div class="setting-desc">Next incident will be assigned this number</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="cfg-next-run" min="1" style="width: 100px;">
+                        <button class="btn btn-sm btn-secondary" onclick="setRunNumber()" style="margin-left: 8px;">Set</button>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Run Number Format</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-run-format">
+                            <option value="YYYY-NNNNN">YYYY-NNNNN (2026-00001)</option>
+                            <option value="YYNNNNN">YYNNNNN (2600001)</option>
+                            <option value="NNNNN">NNNNN (00001)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveDispatchConfig()">Save Dispatch Configuration</button>
+        </div>
+    </div>
+
+    <!-- REPORTING TAB -->
+    <div class="tab-panel" id="tab-reporting">
+        <div class="card">
+            <h3>Reporting Configuration</h3>
+
+            <div class="settings-section">
+                <h4>Automatic Reports</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Auto-Reports</div>
+                        <div class="setting-desc">Automatically generate and send scheduled reports</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-auto-reports">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Daily Report Time</div>
+                        <div class="setting-desc">Time to generate daily activity report</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="time" id="cfg-daily-report-time" value="06:00">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Report Recipients</div>
+                        <div class="setting-desc">Email addresses (comma-separated)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-report-emails" placeholder="chief@dept.com">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>NFIRS Configuration</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable NFIRS</div>
+                        <div class="setting-desc">National Fire Incident Reporting System</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-nfirs-enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">NFIRS Version</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-nfirs-version">
+                            <option value="5.0" selected>NFIRS 5.0</option>
+                            <option value="NERIS">NERIS (Future)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Auto-Close Incidents</div>
+                        <div class="setting-desc">Auto-close incidents after X hours of inactivity</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="cfg-auto-close-hours" value="24" min="0" style="width: 80px;"> hours
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Data Export</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Export Format</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-export-format">
+                            <option value="CSV">CSV</option>
+                            <option value="JSON">JSON</option>
+                            <option value="XML">XML</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveReportingConfig()">Save Reporting Configuration</button>
+        </div>
+
+        <div class="card">
+            <h3>Export Data Now</h3>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="exportIncidents()">Export Incidents</button>
+                <button class="btn btn-success" onclick="exportLogs('masterlog')">Export MasterLog</button>
+                <button class="btn btn-success" onclick="exportLogs('dailylog')">Export DailyLog</button>
+            </div>
+        </div>
+
+        <!-- NFIRS Compliance Dashboard -->
+        <div class="card">
+            <h3>NFIRS Compliance Dashboard</h3>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid" style="margin-bottom: 20px;">
+                <div class="stat-card">
+                    <div class="label">Compliance Rate</div>
+                    <div class="value" id="nfirs-compliance-pct">--</div>
+                    <div class="subvalue">of closed incidents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Incidents with NFIRS</div>
+                    <div class="value" id="nfirs-total-with">--</div>
+                    <div class="subvalue">have NFIRS type code</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Missing Required Data</div>
+                    <div class="value" id="nfirs-total-incomplete" style="color: var(--danger);">--</div>
+                    <div class="subvalue">closed incidents</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Total Closed</div>
+                    <div class="value" id="nfirs-total-closed">--</div>
+                    <div class="subvalue">incidents</div>
+                </div>
+            </div>
+
+            <!-- Detail Breakdown -->
+            <div class="settings-section">
+                <h4>Compliance Issues</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Missing NFIRS Type Code</div>
+                        <div class="setting-desc">Closed incidents without incident type classification</div>
+                    </div>
+                    <div class="setting-control">
+                        <span id="nfirs-missing-type" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Fire Incidents Missing Data</div>
+                        <div class="setting-desc">Missing fire cause or spread (required for 100-173)</div>
+                    </div>
+                    <div class="setting-control">
+                        <span id="nfirs-missing-fire" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">EMS Incidents Missing Data</div>
+                        <div class="setting-desc">Missing patient disposition (required for 300-381)</div>
+                    </div>
+                    <div class="setting-control">
+                        <span id="nfirs-missing-ems" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NFIRS Export Section -->
+            <div class="settings-section">
+                <h4>Export NFIRS Data (State Submission)</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Start Date</label>
+                        <input type="date" id="nfirs-export-start" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>End Date</label>
+                        <input type="date" id="nfirs-export-end" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Status</label>
+                        <select id="nfirs-export-status" class="form-control">
+                            <option value="CLOSED" selected>Closed Only</option>
+                            <option value="">All Statuses</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="exportNfirsCSV()">Export CSV</button>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                    Exports NFIRS-compliant CSV file suitable for state submission. Only incidents with NFIRS type codes are included.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTEGRATIONS TAB -->
+    <div class="tab-panel" id="tab-integrations">
+        <div class="card">
+            <h3>System Integrations</h3>
+
+            <div class="settings-section">
+                <h4>Station Alerting</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable Station Alerts</div>
+                        <div class="setting-desc">Send webhook notifications on dispatch</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-station-alerts">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Configure Webhooks</div>
+                        <div class="setting-desc">Set up station alert endpoints</div>
+                    </div>
+                    <div class="setting-control">
+                        <a href="/admin/station_alerts" class="btn btn-secondary">Manage Webhooks</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>CAD-to-CAD</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Enable CAD-to-CAD</div>
+                        <div class="setting-desc">Inter-agency incident sharing</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-cad-to-cad">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>External Systems</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">RMS Integration</div>
+                        <div class="setting-desc">Records Management System sync</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-rms-integration">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">AVL/GPS Tracking</div>
+                        <div class="setting-desc">Automatic Vehicle Location</div>
+                    </div>
+                    <div class="setting-control">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="cfg-avl-enabled">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveIntegrationsConfig()">Save Integration Settings</button>
+        </div>
+    </div>
+
+    <!-- MAINTENANCE TAB -->
+    <div class="tab-panel" id="tab-maintenance">
+        <div class="warning-banner">
+            <span class="icon">&#9888;</span>
+            <span class="text">Maintenance actions can permanently delete data. Always create backups first.</span>
+        </div>
+
+        <div class="card">
+            <h3>System Maintenance</h3>
 
             <div class="reset-actions">
 
@@ -836,6 +1251,55 @@ async function fetchRunNumbers() {
     } catch (e) {
         console.error('Failed to fetch run numbers:', e);
     }
+}
+
+// =====================================================
+// NFIRS COMPLIANCE FUNCTIONS
+// =====================================================
+async function fetchNfirsStats() {
+    try {
+        const res = await fetch('/api/nfirs/stats');
+        const data = await res.json();
+        if (data.ok && data.stats) {
+            const s = data.stats;
+            document.getElementById('nfirs-compliance-pct').textContent = s.compliance_percentage + '%';
+            document.getElementById('nfirs-total-with').textContent = s.total_with_nfirs;
+            document.getElementById('nfirs-total-incomplete').textContent = s.total_incomplete;
+            document.getElementById('nfirs-total-closed').textContent = s.total_closed;
+            document.getElementById('nfirs-missing-type').textContent = s.missing_type_code;
+            document.getElementById('nfirs-missing-fire').textContent = s.missing_fire_fields;
+            document.getElementById('nfirs-missing-ems').textContent = s.missing_ems_fields;
+
+            // Color code compliance percentage
+            const pctEl = document.getElementById('nfirs-compliance-pct');
+            if (s.compliance_percentage >= 90) {
+                pctEl.style.color = 'var(--success)';
+            } else if (s.compliance_percentage >= 70) {
+                pctEl.style.color = 'var(--warning)';
+            } else {
+                pctEl.style.color = 'var(--danger)';
+            }
+        }
+    } catch (e) {
+        console.error('fetchNfirsStats:', e);
+    }
+}
+
+async function exportNfirsCSV() {
+    const startDate = document.getElementById('nfirs-export-start').value;
+    const endDate = document.getElementById('nfirs-export-end').value;
+    const status = document.getElementById('nfirs-export-status').value;
+
+    let url = '/api/nfirs/export/csv?';
+    const params = [];
+    if (startDate) params.push(`start_date=${startDate}`);
+    if (endDate) params.push(`end_date=${endDate}`);
+    if (status) params.push(`status=${status}`);
+    url += params.join('&');
+
+    // Trigger download
+    window.location.href = url;
+    showToast('NFIRS CSV export started');
 }
 
 async function fetchAdminLogs() {
@@ -1263,6 +1727,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchBattalionChiefs();
     fetchExtraRecipients();
     fetchShiftInfo();
+    fetchNfirsStats();
+
+    // Set default date range for NFIRS export (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('nfirs-export-end').value = today.toISOString().split('T')[0];
+    document.getElementById('nfirs-export-start').value = thirtyDaysAgo.toISOString().split('T')[0];
 });
 </script>
 

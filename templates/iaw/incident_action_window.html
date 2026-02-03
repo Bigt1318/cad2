@@ -25,6 +25,19 @@
         {% endif %}
       </div>
       <div class="iaw-incident-type">{{ incident.type or "UNKNOWN" }}</div>
+      {% if incident.determinant_code %}
+        <div class="iaw-determinant-badge iaw-det-{{ (incident.determinant_code or '')|replace('-','')|slice(0,3)|lower }}"
+             onclick="IAW.openDeterminantPicker({{ incident.incident_id }})"
+             title="{{ incident.determinant_protocol or 'MPDS' }} - Click to change">
+          {{ incident.determinant_code }}
+        </div>
+      {% else %}
+        {% if incident.status != 'CLOSED' %}
+        <button class="iaw-btn-determinant" onclick="IAW.openDeterminantPicker({{ incident.incident_id }})" title="Set Determinant Code">
+          + DET
+        </button>
+        {% endif %}
+      {% endif %}
       {% if incident.priority %}
         <div class="iaw-priority-badge iaw-priority-{{ incident.priority }}">P{{ incident.priority }}</div>
       {% endif %}
@@ -72,6 +85,137 @@
       </div>
       {% endif %}
     </div>
+
+    <!-- PRE-PLAN ALERT (if exists for this address) -->
+    {% if preplan %}
+    <div class="iaw-section iaw-preplan-alert">
+      <div class="iaw-section-header">
+        <h3 class="iaw-section-title iaw-preplan-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+            <polyline points="9,22 9,12 15,12 15,22"></polyline>
+          </svg>
+          PRE-PLAN: {{ preplan.name }}
+        </h3>
+      </div>
+      <div class="iaw-preplan-content">
+        <div class="iaw-preplan-grid">
+          {% if preplan.occupancy_type %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Occupancy</span>
+            <span class="iaw-preplan-value">{{ preplan.occupancy_type }}</span>
+          </div>
+          {% endif %}
+          {% if preplan.construction_type %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Construction</span>
+            <span class="iaw-preplan-value">{{ preplan.construction_type }}</span>
+          </div>
+          {% endif %}
+          {% if preplan.stories %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Stories</span>
+            <span class="iaw-preplan-value">{{ preplan.stories }}</span>
+          </div>
+          {% endif %}
+          {% if preplan.sprinkler_type %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Sprinkler</span>
+            <span class="iaw-preplan-value">{{ preplan.sprinkler_type }}</span>
+          </div>
+          {% endif %}
+          {% if preplan.standpipe_type %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Standpipe</span>
+            <span class="iaw-preplan-value">{{ preplan.standpipe_type }}</span>
+          </div>
+          {% endif %}
+          {% if preplan.alarm_type %}
+          <div class="iaw-preplan-item">
+            <span class="iaw-preplan-label">Alarm</span>
+            <span class="iaw-preplan-value">{{ preplan.alarm_type }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% if preplan.hazards %}
+        <div class="iaw-preplan-hazards">
+          <span class="iaw-preplan-hazard-label">HAZARDS:</span>
+          {{ preplan.hazards }}
+        </div>
+        {% endif %}
+        {% if preplan.fdc_location %}
+        <div class="iaw-preplan-row"><strong>FDC:</strong> {{ preplan.fdc_location }}</div>
+        {% endif %}
+        {% if preplan.knox_box_location %}
+        <div class="iaw-preplan-row"><strong>Knox Box:</strong> {{ preplan.knox_box_location }}</div>
+        {% endif %}
+        {% if preplan.contact_name or preplan.contact_phone %}
+        <div class="iaw-preplan-row"><strong>Contact:</strong> {{ preplan.contact_name or "" }} {{ preplan.contact_phone or "" }}</div>
+        {% endif %}
+        {% if preplan.tactical_notes %}
+        <div class="iaw-preplan-tactical">{{ preplan.tactical_notes }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- PREMISE / CALLER HISTORY -->
+    {% if premise_count > 0 or caller_count > 0 %}
+    <div class="iaw-section iaw-history-section">
+      <div class="iaw-section-header">
+        <h3 class="iaw-section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12,6 12,12 16,14"></polyline>
+          </svg>
+          History
+        </h3>
+      </div>
+
+      <div class="iaw-history-content">
+        {% if premise_count > 0 %}
+        <div class="iaw-history-block">
+          <div class="iaw-history-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            Premise History ({{ premise_count }} prior)
+          </div>
+          <div class="iaw-history-list">
+            {% for h in premise_history %}
+            <div class="iaw-history-item" onclick="IAW.open({{ h.incident_id }})" title="Open {{ h.incident_number }}">
+              <span class="iaw-hist-num">{{ h.incident_number }}</span>
+              <span class="iaw-hist-type">{{ h.type }}</span>
+              <span class="iaw-hist-date">{{ h.created[:10] if h.created else '' }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if caller_count > 0 %}
+        <div class="iaw-history-block">
+          <div class="iaw-history-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"></path>
+            </svg>
+            Caller History ({{ caller_count }} prior)
+          </div>
+          <div class="iaw-history-list">
+            {% for h in caller_history %}
+            <div class="iaw-history-item" onclick="IAW.open({{ h.incident_id }})" title="Open {{ h.incident_number }}">
+              <span class="iaw-hist-num">{{ h.incident_number }}</span>
+              <span class="iaw-hist-type">{{ h.type }}</span>
+              <span class="iaw-hist-date">{{ h.created[:10] if h.created else '' }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <!-- ASSIGNED UNITS -->
     <div class="iaw-section">
@@ -275,6 +419,23 @@
   <div class="iaw-footer-v2">
     <span class="iaw-footer-id">ID: {{ incident.incident_id }}</span>
     <div class="iaw-footer-buttons">
+      <div class="iaw-nfirs-btn-group">
+        <button class="iaw-btn-v2" onclick="CAD_MODAL.open('/incident/{{ incident.incident_id }}/nfirs')" title="NFIRS/NERIS Reporting Data">
+          NFIRS
+        </button>
+        {% if nfirs_status %}
+          {% if nfirs_status.status == 'green' %}
+            <span class="iaw-nfirs-badge iaw-nfirs-complete" title="NFIRS Complete ({{ nfirs_status.score }}%)">&#10003;</span>
+          {% elif nfirs_status.status == 'yellow' %}
+            <span class="iaw-nfirs-badge iaw-nfirs-partial" title="NFIRS Partial - Optional fields missing ({{ nfirs_status.score }}%)">!</span>
+          {% else %}
+            <span class="iaw-nfirs-badge iaw-nfirs-incomplete" title="NFIRS Incomplete - Required fields missing">&#10007;</span>
+          {% endif %}
+        {% else %}
+          <span class="iaw-nfirs-badge iaw-nfirs-incomplete" title="NFIRS Not Started">&#10007;</span>
+        {% endif %}
+      </div>
+
       {% if incident.status == 'HELD' %}
         <button class="iaw-btn-v2" onclick="IAW.unholdIncident({{ incident.incident_id }})">Unhold</button>
       {% else %}
@@ -885,6 +1046,237 @@
 
 .iaw-note-textarea::placeholder {
   color: #94a3b8;
+}
+
+/* Determinant Code Badge */
+.iaw-determinant-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.iaw-determinant-badge:hover {
+  opacity: 0.8;
+}
+
+/* Determinant levels by color */
+.iaw-det-a, [class*="iaw-det-"][class*="a"] { background: #22c55e; color: #fff; }
+.iaw-det-b, [class*="iaw-det-"][class*="b"] { background: #eab308; color: #000; }
+.iaw-det-c, [class*="iaw-det-"][class*="c"] { background: #f97316; color: #fff; }
+.iaw-det-d, [class*="iaw-det-"][class*="d"] { background: #dc2626; color: #fff; }
+.iaw-det-e, [class*="iaw-det-"][class*="e"] { background: #7c3aed; color: #fff; }
+
+.iaw-btn-determinant {
+  padding: 4px 8px;
+  background: #e2e8f0;
+  border: 1px dashed #94a3b8;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.iaw-btn-determinant:hover {
+  background: #cbd5e1;
+  border-color: #64748b;
+  color: #1e293b;
+}
+
+/* Pre-Plan Alert */
+.iaw-preplan-alert {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.iaw-preplan-title {
+  color: #92400e !important;
+  font-weight: 700;
+}
+
+.iaw-preplan-title svg {
+  stroke: #f59e0b;
+}
+
+.iaw-preplan-content {
+  padding: 0 12px 12px 12px;
+}
+
+.iaw-preplan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.iaw-preplan-item {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.iaw-preplan-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #92400e;
+  text-transform: uppercase;
+  display: block;
+}
+
+.iaw-preplan-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.iaw-preplan-hazards {
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.iaw-preplan-hazard-label {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.iaw-preplan-row {
+  font-size: 13px;
+  color: #1e293b;
+  padding: 2px 0;
+}
+
+.iaw-preplan-tactical {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1e293b;
+  margin-top: 8px;
+}
+
+/* History Section */
+.iaw-history-section {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.iaw-history-content {
+  padding: 0 12px 12px 12px;
+}
+
+.iaw-history-block {
+  margin-bottom: 12px;
+}
+
+.iaw-history-block:last-child {
+  margin-bottom: 0;
+}
+
+.iaw-history-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.iaw-history-label svg {
+  stroke: #64748b;
+}
+
+.iaw-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.iaw-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.15s;
+}
+
+.iaw-history-item:hover {
+  border-color: #003478;
+  background: #f8fafc;
+}
+
+.iaw-hist-num {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-weight: 600;
+  color: #003478;
+  min-width: 90px;
+}
+
+.iaw-hist-type {
+  flex: 1;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iaw-hist-date {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* NFIRS Badge Styles */
+.iaw-nfirs-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.iaw-nfirs-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: -4px;
+  position: relative;
+  top: 0;
+  cursor: help;
+}
+
+.iaw-nfirs-complete {
+  background: #22c55e;
+  color: #fff;
+}
+
+.iaw-nfirs-partial {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.iaw-nfirs-incomplete {
+  background: #ef4444;
+  color: #fff;
 }
 
 /* Responsive */
