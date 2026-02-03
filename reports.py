@@ -65,24 +65,60 @@ CONFIG = {
     "auto_report_enabled": os.getenv("CAD_AUTO_REPORTS", "true").lower() == "true",
 }
 
-# Battalion Chief Distribution List
-BATTALION_CHIEFS = {
-    "Battalion 1": {
+# ---------------------------------------------------------------------------
+# Smart Shift Logic (2-2-3-2-2-3 Rotation)
+# ---------------------------------------------------------------------------
+try:
+    from shift_logic import (
+        get_current_shift as smart_get_current_shift,
+        get_current_battalion_chief,
+        get_shift_info as smart_get_shift_info,
+        get_shift_schedule,
+        is_report_time,
+        BATTALION_CHIEFS as SHIFT_BATTALION_CHIEFS,
+        update_battalion_chief_contact,
+    )
+    USE_SMART_SHIFT = True
+    print("[REPORTS] Smart shift logic (2-2-3-2-2-3) loaded")
+except ImportError:
+    USE_SMART_SHIFT = False
+    print("[REPORTS] Smart shift logic not available, using simple rotation")
+
+# Battalion Chief Distribution List (by shift letter)
+# This is the authoritative source - synced with shift_logic.py
+BATTALION_CHIEFS_BY_SHIFT = {
+    "A": {
+        "unit_id": "Batt1",
         "name": "Bill Mullins",
-        "email": "bill.mullins@blueovalsk.com",
+        "email": "",  # Configure in admin
+        "phone": "",
     },
-    "Battalion 2": {
-        "name": "Daniel Highbaugh",
-        "email": "daniel.highbaugh@blueovalsky.com",
+    "B": {
+        "unit_id": "Batt2",
+        "name": "Daniel Highbaugh", 
+        "email": "",
+        "phone": "",
     },
-    "Battalion 3": {
+    "C": {
+        "unit_id": "Batt3",
         "name": "Kevin Jevning",
-        "email": "kevin.jevning@blueovalsk.com",
+        "email": "",
+        "phone": "",
     },
-    "Battalion 4": {
+    "D": {
+        "unit_id": "Batt4",
         "name": "Shane Carpenter",
-        "email": "shane.carpenter@blueovalsky.com",
+        "email": "",
+        "phone": "",
     },
+}
+
+# Legacy format for backward compatibility
+BATTALION_CHIEFS = {
+    "Battalion 1": BATTALION_CHIEFS_BY_SHIFT["A"],
+    "Battalion 2": BATTALION_CHIEFS_BY_SHIFT["B"],
+    "Battalion 3": BATTALION_CHIEFS_BY_SHIFT["C"],
+    "Battalion 4": BATTALION_CHIEFS_BY_SHIFT["D"],
 }
 
 # SMS Carrier Gateways (email-to-SMS)
@@ -127,25 +163,124 @@ def load_email_config():
                     CONFIG["smtp_from"] = cfg["from_email"]
                 if "auto_report_enabled" in cfg:
                     CONFIG["auto_report_enabled"] = cfg["auto_report_enabled"]
+                
+                # Load battalion chief contact info
+                if cfg.get("battalion_chiefs"):
+                    for shift, info in cfg["battalion_chiefs"].items():
+                        if shift in BATTALION_CHIEFS_BY_SHIFT:
+                            if info.get("email"):
+                                BATTALION_CHIEFS_BY_SHIFT[shift]["email"] = info["email"]
+                            if info.get("phone"):
+                                BATTALION_CHIEFS_BY_SHIFT[shift]["phone"] = info["phone"]
+                    print("[REPORTS] Battalion chief contacts loaded")
+                    
                 print("[REPORTS] Email config loaded from email_config.json")
         except Exception as e:
             print(f"[REPORTS] Failed to load email config: {e}")
 
 
-def save_email_config(smtp_user: str, smtp_pass: str):
+def save_email_config(smtp_user: str = None, smtp_pass: str = None):
     """Save email configuration to file."""
     config_path = Path("email_config.json")
+    
+    # Load existing config first
+    existing = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                existing = json.load(f)
+        except:
+            pass
+    
+    # Update with new values
+    if smtp_user is not None:
+        existing["smtp_user"] = smtp_user
+    if smtp_pass is not None:
+        existing["smtp_pass"] = smtp_pass
+    
     try:
         with open(config_path, "w") as f:
-            json.dump({
-                "smtp_user": smtp_user,
-                "smtp_pass": smtp_pass,
-            }, f, indent=2)
+            json.dump(existing, f, indent=2)
         print("[REPORTS] Email config saved")
         return True
     except Exception as e:
         print(f"[REPORTS] Failed to save email config: {e}")
         return False
+
+
+def save_battalion_chief_contact(shift: str, email: str = None, phone: str = None):
+    """
+    Save battalion chief contact info to config file.
+    
+    Args:
+        shift: Shift letter (A, B, C, or D)
+        email: Email address
+        phone: Phone number
+        
+    Returns:
+        bool: True if saved successfully
+    """
+    if shift not in BATTALION_CHIEFS_BY_SHIFT:
+        return False
+    
+    config_path = Path("email_config.json")
+    
+    # Load existing config
+    existing = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                existing = json.load(f)
+        except:
+            pass
+    
+    # Initialize battalion_chiefs dict if needed
+    if "battalion_chiefs" not in existing:
+        existing["battalion_chiefs"] = {}
+    
+    if shift not in existing["battalion_chiefs"]:
+        existing["battalion_chiefs"][shift] = {}
+    
+    # Update values
+    if email is not None:
+        existing["battalion_chiefs"][shift]["email"] = email
+        BATTALION_CHIEFS_BY_SHIFT[shift]["email"] = email
+    if phone is not None:
+        existing["battalion_chiefs"][shift]["phone"] = phone
+        BATTALION_CHIEFS_BY_SHIFT[shift]["phone"] = phone
+    
+    try:
+        with open(config_path, "w") as f:
+            json.dump(existing, f, indent=2)
+        print(f"[REPORTS] Battalion {shift} contact saved")
+        return True
+    except Exception as e:
+        print(f"[REPORTS] Failed to save BC contact: {e}")
+        return False
+
+
+def get_report_recipient() -> Dict:
+    """
+    Get the recipient info for the current shift's report.
+    
+    Returns:
+        dict: {
+            "shift": "A",
+            "name": "Bill Mullins",
+            "email": "...",
+            "phone": "...",
+        }
+    """
+    shift = get_current_shift()
+    bc = BATTALION_CHIEFS_BY_SHIFT.get(shift, {})
+    
+    return {
+        "shift": shift,
+        "name": bc.get("name", "Unknown"),
+        "email": bc.get("email", ""),
+        "phone": bc.get("phone", ""),
+        "unit_id": bc.get("unit_id", ""),
+    }
 
 
 # Load config on module import
@@ -161,28 +296,31 @@ def get_db_connection():
 
 def get_current_shift(dt: datetime.datetime = None) -> str:
     """
-    Determine current shift letter using 4-shift rotation (A, B, C, D).
+    Determine current shift letter using 2-2-3-2-2-3 rotation.
 
-    Rotation pattern:
-    - A and C are day shifts (0600-1800)
-    - B and D are night shifts (1800-0600)
-    - Cycle: A(day) -> B(night) -> C(day) -> D(night) -> repeat
-
-    Reference: Feb 2, 2026 day shift = A shift
+    Uses smart_get_current_shift from shift_logic.py if available,
+    otherwise falls back to simple rotation.
+    
+    The 2-2-3-2-2-3 pattern:
+    - 14-day cycle
+    - A and C alternate for day shifts
+    - B and D alternate for night shifts
+    
+    Reference: Feb 2, 2026 day shift = A shift (day 0 of cycle)
     """
+    if USE_SMART_SHIFT:
+        return smart_get_current_shift(dt)
+    
+    # Fallback to simple rotation if shift_logic not available
     if dt is None:
         dt = datetime.datetime.now()
 
-    # Reference date when A shift started (day shift)
     ref_date_str = CONFIG.get("shift_reference_date", "2026-02-02")
     ref_date = datetime.datetime.strptime(ref_date_str, "%Y-%m-%d").date()
 
-    # Calculate the current date and whether we're in day or night
     current_date = dt.date()
     hour = dt.hour
 
-    # Night shift spans two calendar days (1800-0600)
-    # If it's between 0000-0600, we're still on the previous day's night shift
     if hour < 6:
         current_date = current_date - datetime.timedelta(days=1)
         is_night = True
@@ -191,19 +329,25 @@ def get_current_shift(dt: datetime.datetime = None) -> str:
     else:
         is_night = False
 
-    # Calculate days since reference date
     days_diff = (current_date - ref_date).days
-
-    # Each calendar day has 2 shifts (day and night)
-    # shift_index cycles 0, 1, 2, 3 (A, B, C, D)
-    # Day 0: A(day=0), B(night=1)
-    # Day 1: C(day=2), D(night=3)
-    # Day 2: A(day=0), B(night=1) ... repeats every 2 days
     day_in_cycle = days_diff % 2
     shift_index = (day_in_cycle * 2) + (1 if is_night else 0)
 
     rotation = CONFIG.get("shift_rotation", ["A", "B", "C", "D"])
     return rotation[shift_index]
+
+
+def get_battalion_chief_for_shift(shift: str) -> Dict:
+    """
+    Get the battalion chief info for a specific shift letter.
+    
+    Args:
+        shift: Shift letter (A, B, C, or D)
+        
+    Returns:
+        dict: Battalion chief info including name, email, phone
+    """
+    return BATTALION_CHIEFS_BY_SHIFT.get(shift, {})
 
 
 def is_day_shift(shift: str) -> bool:
@@ -267,10 +411,17 @@ def get_shift_info() -> dict:
     Get comprehensive shift information for display.
 
     Returns:
-        dict with shift letter, type (day/night), times, etc.
+        dict with shift letter, type (day/night), times, battalion chief, etc.
     """
+    if USE_SMART_SHIFT:
+        info = smart_get_shift_info()
+        info["is_during_shift"] = is_during_shift()
+        return info
+    
+    # Fallback
     now = datetime.datetime.now()
     shift = get_current_shift(now)
+    bc = get_battalion_chief_for_shift(shift)
 
     if is_day_shift(shift):
         shift_type = "Day"
@@ -289,6 +440,10 @@ def get_shift_info() -> dict:
         "start_time": start_time,
         "end_time": end_time,
         "report_time": report_time,
+        "battalion_chief": bc.get("name", "Unknown"),
+        "battalion_unit": bc.get("unit_id", ""),
+        "bc_email": bc.get("email", ""),
+        "bc_phone": bc.get("phone", ""),
         "current_time": now.strftime("%H:%M"),
         "date": now.strftime("%Y-%m-%d"),
         "is_during_shift": is_during_shift(),
@@ -1603,8 +1758,48 @@ def register_report_routes(app):
 
     @app.get("/api/reports/battalion_chiefs")
     async def api_get_battalion_chiefs():
-        """Get battalion chief list."""
-        return {"battalion_chiefs": BATTALION_CHIEFS}
+        """Get battalion chief list with contact info."""
+        return {
+            "battalion_chiefs": BATTALION_CHIEFS_BY_SHIFT,
+            "current_shift": get_current_shift(),
+            "current_recipient": get_report_recipient(),
+        }
+
+    @app.post("/api/reports/battalion_chiefs/{shift}")
+    async def api_set_battalion_chief_contact(shift: str, request: Request):
+        """
+        Set battalion chief contact info.
+        
+        Body: {"email": "...", "phone": "..."}
+        """
+        shift = shift.upper()
+        if shift not in BATTALION_CHIEFS_BY_SHIFT:
+            return {"ok": False, "error": f"Invalid shift: {shift}. Use A, B, C, or D"}
+        
+        data = await request.json()
+        email = data.get("email")
+        phone = data.get("phone")
+        
+        success = save_battalion_chief_contact(shift, email=email, phone=phone)
+        if success:
+            return {
+                "ok": True,
+                "message": f"Contact info saved for {BATTALION_CHIEFS_BY_SHIFT[shift]['name']} (Shift {shift})",
+                "contact": BATTALION_CHIEFS_BY_SHIFT[shift]
+            }
+        return {"ok": False, "error": "Failed to save contact info"}
+
+    @app.get("/api/shift/schedule")
+    async def api_get_shift_schedule(days: int = 14):
+        """Get shift schedule for the next N days."""
+        if USE_SMART_SHIFT:
+            schedule = get_shift_schedule(days=min(days, 60))
+            return {
+                "schedule": schedule,
+                "current_shift": get_current_shift(),
+                "shift_info": get_shift_info(),
+            }
+        return {"error": "Smart shift logic not available"}
 
     @app.post("/api/reports/scheduler/start")
     async def api_start_scheduler():
