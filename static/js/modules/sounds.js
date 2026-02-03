@@ -20,14 +20,12 @@ const SOUNDS = {
         document.addEventListener("click", () => this._ensureContext(), { once: true });
         document.addEventListener("keydown", () => this._ensureContext(), { once: true });
 
-        console.log(`[SOUNDS] Initialized (enabled: ${this._enabled})`);
     },
 
     _ensureContext() {
         if (!this._ctx) {
             try {
                 this._ctx = new (window.AudioContext || window.webkitAudioContext)();
-                console.log("[SOUNDS] AudioContext created");
             } catch (e) {
                 console.warn("[SOUNDS] AudioContext failed:", e);
             }
@@ -202,6 +200,19 @@ const SOUNDS = {
             [440, 0.2, "triangle", 0.2],
             [440, 0.2, "triangle", 0.2],
         ], 0.3);
+    },
+
+    /**
+     * Timer alert - short siren sound (not excessive)
+     */
+    timerAlert() {
+        // Short two-tone siren (about 1 second total)
+        this._playSequence([
+            [800, 0.15, "sine", 0.35],
+            [600, 0.15, "sine", 0.35],
+            [800, 0.15, "sine", 0.35],
+            [600, 0.15, "sine", 0.35],
+        ], 0.02);
     },
 };
 

@@ -128,6 +128,9 @@ function _wireDrawer() {
         case "calendar":
           CAD_MODAL.open("/modals/calendar") || TOAST?.info?.("Calendar coming soon");
           break;
+        case "keyboard_help":
+          CAD_MODAL.open("/modals/keyboard_help");
+          break;
         case "noop":
         default:
           break;
@@ -329,14 +332,180 @@ LAYOUT.setRosterViewMode = async function (mode) {
 // ---------------------------------------------------------------------------
 function _wireGlobalShortcuts() {
   document.addEventListener("keydown", (e) => {
-    // Skip if user is typing in an input/textarea/select
+    // Skip if user is typing in an input/textarea/select (unless Alt is pressed)
     const tag = document.activeElement?.tagName?.toLowerCase();
-    if (tag === "input" || tag === "textarea" || tag === "select") return;
+    const isTyping = tag === "input" || tag === "textarea" || tag === "select";
 
-    // Skip if modifier keys are pressed (except for specific combos)
-    const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
+    // Handle ALT shortcuts (OSSI/Sungard CAD style) - work even in input fields
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const key = e.key.toLowerCase();
 
+      switch (key) {
+        case "n":
+          // Alt+N = New Incident
+          e.preventDefault();
+          window.CALLTAKER?.startNewIncident?.();
+          break;
+
+        case "k":
+          // Alt+K = Add Remark to current incident
+          e.preventDefault();
+          const incK = IAW?.getCurrentIncidentId?.();
+          if (incK) {
+            CAD_MODAL.open(`/incident/${encodeURIComponent(incK)}/remark`);
+          } else {
+            window.TOAST?.warning?.("Select an incident first") || alert("Select an incident first");
+          }
+          break;
+
+        case "d":
+          // Alt+D = Dispatch (focus command line with DSP prefix)
+          e.preventDefault();
+          const cmdD = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdD) {
+            cmdD.focus();
+            cmdD.value = "DSP ";
+            cmdD.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "e":
+          // Alt+E = Enroute (focus command line with ENR prefix)
+          e.preventDefault();
+          const cmdE = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdE) {
+            cmdE.focus();
+            cmdE.value = "ENR ";
+            cmdE.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "a":
+          // Alt+A = Arrived (focus command line with ARV prefix)
+          e.preventDefault();
+          const cmdA = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdA) {
+            cmdA.focus();
+            cmdA.value = "ARV ";
+            cmdA.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "c":
+          // Alt+C = Clear unit (focus command line with CLR prefix)
+          e.preventDefault();
+          const cmdC = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdC) {
+            cmdC.focus();
+            cmdC.value = "CLR ";
+            cmdC.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "h":
+          // Alt+H = Held calls
+          e.preventDefault();
+          CAD_MODAL.open("/modals/held");
+          break;
+
+        case "l":
+          // Alt+L = Daily Log
+          e.preventDefault();
+          CAD_MODAL.open("/modals/dailylog");
+          break;
+
+        case "r":
+          // Alt+R = Send Report
+          e.preventDefault();
+          if (window.ReportConfirm && window.ReportConfirm.triggerManualReport) {
+            window.ReportConfirm.triggerManualReport();
+          }
+          break;
+
+        case "i":
+          // Alt+I = Open incident in IAW (focus command line with INC prefix)
+          e.preventDefault();
+          const cmdI = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdI) {
+            cmdI.focus();
+            cmdI.value = "INC ";
+            cmdI.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "u":
+          // Alt+U = Units panel
+          e.preventDefault();
+          document.getElementById("panel-units")?.scrollIntoView({ behavior: "smooth" });
+          break;
+
+        case "s":
+          // Alt+S = Search / History
+          e.preventDefault();
+          CAD_MODAL.open("/history");
+          break;
+
+        case "t":
+          // Alt+T = Transport (focus command line with TRP prefix)
+          e.preventDefault();
+          const cmdT = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdT) {
+            cmdT.focus();
+            cmdT.value = "TRP ";
+            cmdT.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "o":
+          // Alt+O = On Scene (same as Arrived)
+          e.preventDefault();
+          const cmdO = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdO) {
+            cmdO.focus();
+            cmdO.value = "ARV ";
+            cmdO.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "b":
+          // Alt+B = Back in service (same as Clear)
+          e.preventDefault();
+          const cmdB = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdB) {
+            cmdB.focus();
+            cmdB.value = "CLR ";
+            cmdB.setSelectionRange(4, 4);
+          }
+          break;
+
+        case "f":
+          // Alt+F = Focus command line
+          e.preventDefault();
+          const cmdF = document.getElementById("cmdline-input") || document.querySelector(".cmdline-input");
+          if (cmdF) {
+            cmdF.focus();
+            cmdF.select();
+          }
+          break;
+
+        default:
+          // Unknown Alt combo - don't prevent default
+          break;
+      }
+      return; // Don't process further if Alt was pressed
+    }
+
+    // Skip non-Alt shortcuts if typing in input fields
+    if (isTyping) return;
+
+    // Non-Alt shortcuts (function keys, etc.)
     switch (e.key) {
+      case "F1":
+        // F1 = Keyboard shortcuts help
+        e.preventDefault();
+        CAD_MODAL.open("/modals/keyboard_help");
+        break;
+
       case "F2":
         // F2 = New Incident
         e.preventDefault();
@@ -365,10 +534,8 @@ function _wireGlobalShortcuts() {
 
       case "h":
         // H = Held calls (when no modifier)
-        if (!hasModifier) {
-          e.preventDefault();
-          CAD_MODAL.open("/modals/held");
-        }
+        e.preventDefault();
+        CAD_MODAL.open("/modals/held");
         break;
 
       default:
@@ -376,7 +543,6 @@ function _wireGlobalShortcuts() {
     }
   });
 
-  console.log("[LAYOUT] Global shortcuts: F2=New, F5=Refresh, F9=DailyLog, ESC=Close, H=Held");
 }
 
 // ---------------------------------------------------------------------------
@@ -389,7 +555,6 @@ LAYOUT.init = async () => {
   _wireGlobalShortcuts();
   _startHeldWatcher();
   await _refreshSessionStatus();
-  console.log("[LAYOUT] Module loaded (Ford-CAD — Canonical)");
 };
 
 // Global exposure (debug + templates may refer to LAYOUT)

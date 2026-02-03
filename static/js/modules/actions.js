@@ -24,13 +24,21 @@ const ACTIONS = {
     "dailylog-open-iaw": (el) => {
         const id = (el?.dataset?.incidentId || "").trim();
         if (!id) return;
-        IAW.open?.(id);
+        // Close current modal first, then open IAW
+        CAD_MODAL.close?.();
+        setTimeout(() => {
+            IAW.open?.(id);
+        }, 100);
     },
 
     "dailylog-open-history": (el) => {
         const id = (el?.dataset?.incidentId || "").trim();
         if (!id) return;
-        CAD_MODAL.open?.(`/history/${encodeURIComponent(id)}`);
+        // Close current modal first, then open history
+        CAD_MODAL.close?.();
+        setTimeout(() => {
+            CAD_MODAL.open?.(`/history/${encodeURIComponent(id)}`);
+        }, 100);
     },
 
     "incident-reopen": async (el) => {
@@ -70,8 +78,10 @@ document.addEventListener("click", (e) => {
         return;
     }
 
+    // Stop propagation to prevent modal close or other handlers interfering
     e.preventDefault();
+    e.stopPropagation();
+
     fn(el);
 });
 
-console.log("[ACTIONS] Canonical action bindings loaded.");

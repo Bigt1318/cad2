@@ -8680,6 +8680,15 @@ async def contacts_modal(request: Request):
     )
 
 
+@app.get("/modals/keyboard_help", response_class=HTMLResponse)
+async def keyboard_help_modal(request: Request):
+    """Keyboard shortcuts help modal."""
+    return templates.TemplateResponse(
+        "modals/keyboard_help_modal.html",
+        {"request": request},
+    )
+
+
 # ============================================================================
 # EVENT LOG API — Consolidated (Phase-3 Canon)
 # Shows: DAILYLOG + REMARK entries with issue_found support

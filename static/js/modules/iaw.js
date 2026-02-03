@@ -515,12 +515,47 @@ const IAW = {
     await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/issue`, {});
     CAD_UTIL.refreshPanels();
     this.reopen();
+  },
+
+  // ---------------------------------------------------------------------
+  // ADD NOTE (works for open OR closed incidents)
+  // ---------------------------------------------------------------------
+  async addNote(incidentId) {
+    const id = incidentId || _currentIncidentId;
+    if (!id) return;
+
+    const textarea = document.getElementById(`iaw-note-text-${id}`);
+    const text = (textarea?.value || "").trim();
+
+    if (!text) {
+      textarea?.focus();
+      return;
+    }
+
+    try {
+      await CAD_UTIL.postJSON("/remark", {
+        incident_id: Number(id),
+        text: text
+      });
+
+      // Clear the textarea
+      if (textarea) textarea.value = "";
+
+      // Show success feedback
+      window.TOAST?.success?.("Note added");
+
+      // Refresh and reopen to show updated narrative
+      CAD_UTIL.refreshPanels();
+      this.reopen();
+    } catch (err) {
+      console.error("[IAW] addNote failed:", err);
+      window.TOAST?.error?.("Failed to add note");
+    }
   }
 };
 
 window.IAW = IAW;
 Object.freeze(IAW);
 
-console.log("[IAW] Phase-3 IAW controller loaded (inline dispositions, no extra modals).");
 
 export default IAW;

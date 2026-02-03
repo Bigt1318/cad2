@@ -3,7 +3,7 @@
 // Enables push notifications only - NO caching for real-time dispatch
 // ============================================================================
 
-const CACHE_NAME = 'fordcad-v3';
+const CACHE_NAME = 'fordcad-v4';
 const STATIC_ASSETS = [
     // Minimal caching - only images/icons, never HTML or JS
     '/static/images/logo.png',
@@ -11,14 +11,14 @@ const STATIC_ASSETS = [
 
 // Force cleanup of old caches on load
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing v3 - minimal caching mode');
+    console.log('[SW] Installing v4 - minimal caching mode');
     self.skipWaiting();
 });
 
 
 // Activate: clean ALL old caches
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating v3 - cleaning all caches');
+    console.log('[SW] Activating v4 - cleaning all caches');
     event.waitUntil(
         caches.keys().then((keys) => {
             // Delete ALL caches to ensure fresh content
