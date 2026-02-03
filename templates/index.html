@@ -27,7 +27,7 @@
     </script>
 
     <!-- Bootloader (cache bust on deploy) -->
-    <script type="module" src="/static/js/bootloader.js?v=20260130i"></script>
+    <script type="module" src="/static/js/bootloader.js?v=20260202j"></script>
 </head>
 
 <body>
@@ -249,6 +249,13 @@
             </svg>
             History
         </button>
+        <button class="pill-btn secondary" id="btn-send-report" type="button" title="Send daily report to Battalion Chiefs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            Send Report
+        </button>
     </div>
 
     <div class="toolbar-right">
@@ -300,6 +307,9 @@
 <!-- MODAL ROOT -->
 <div id="fordcad-modal-container"></div>
 
+<!-- Report Confirmation Modal (polls for scheduled reports) -->
+{% include "modals/report_confirm_modal.html" %}
+
 <!-- COMMAND LINE -->
 <footer id="command-line">
     <div class="cmd-prefix">
@@ -308,13 +318,14 @@
             <line x1="12" y1="19" x2="20" y2="19"></line>
         </svg>
     </div>
-    <input id="cmd-input" type="text" autocomplete="off" placeholder="Command: NEW, 18 D, 18 E, 18 A, HELD, DAILY, HELP" spellcheck="false" />
+    <input id="cmd-input" type="text" autocomplete="off" placeholder="Command: NEW, 18 D, 18 E, 18 A, HELD, REPORT, HELP" spellcheck="false" />
     <div class="cmd-hints" id="cmd-hints">
         <span class="cmd-hint" title="New Incident (F2)">NEW</span>
         <span class="cmd-hint" title="Dispatch unit">18 D</span>
         <span class="cmd-hint" title="Unit Enroute">18 E</span>
         <span class="cmd-hint" title="Unit Arrived">18 A</span>
         <span class="cmd-hint" title="View held calls">HELD</span>
+        <span class="cmd-hint" title="Send daily report">REPORT</span>
         <span class="cmd-hint" title="Full command list">HELP</span>
     </div>
 </footer>

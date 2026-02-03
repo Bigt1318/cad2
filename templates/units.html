@@ -67,7 +67,7 @@
                     <!-- LEFT -->
                     <div class="units-col">
                         <div class="units-col-title">Command / Personnel</div>
-
+                        <div class="units-col-content">
                         {% if command_units|length == 0 and personnel_units|length == 0 and other_units|length == 0 %}
                             <div class="units-empty-col">None</div>
                         {% endif %}
@@ -142,12 +142,13 @@
                                 </div>
                             </div>
                         {% endfor %}
+                        </div><!-- /.units-col-content -->
                     </div>
 
                     <!-- RIGHT -->
                     <div class="units-col">
                         <div class="units-col-title">Apparatus / Mutual Aid</div>
-
+                        <div class="units-col-content">
                         {% if apparatus_units|length == 0 and mutual_units|length == 0 %}
                             <div class="units-empty-col">None</div>
                         {% endif %}
@@ -210,6 +211,7 @@
                                 </div>
                             </div>
                         {% endfor %}
+                        </div><!-- /.units-col-content -->
                     </div>
 
                 </div>

@@ -87,6 +87,7 @@
                                                       data-status="{{ us_u }}"
                                                       title="{{ us_u }}">{{ us_code }}</span>
                                             {% endif %}
+                                            <span class="unit-timer-badge" data-unit-timer="{{ u.unit_id }}" style="display:none" onclick="event.stopPropagation(); UAW.showTimerControls?.('{{ u.unit_id }}', this)" title="Timer active - click to manage"></span>
                                         </button>
                                     {% endfor %}
                                 </div>

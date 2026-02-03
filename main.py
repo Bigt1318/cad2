@@ -64,13 +64,9 @@ try:
     reports.register_report_routes(app)
     print("[MAIN] Reports module loaded")
 
-    # Optional: Start report scheduler as background thread
-    import os
-    import threading
-    if os.getenv("CAD_ENABLE_REPORT_SCHEDULER", "false").lower() == "true":
-        scheduler_thread = threading.Thread(target=reports.run_scheduler, daemon=True)
-        scheduler_thread.start()
-        print("[MAIN] Report scheduler started (30 min before shift change)")
+    # Initialize reports - starts scheduler if enabled (every 30 min during shift)
+    # Scheduler sends to all battalion chiefs: B1-B4
+    reports.init_reports()
 except ImportError as e:
     print(f"[MAIN] Reports module not available: {e}")
 
@@ -1984,11 +1980,6 @@ async def save_incident(request: Request, incident_id: int):
     # Daily Log subtype support (only meaningful when type_key == "DAILY LOG")
     dailylog_subtype = (data.get("dailylog_subtype") or data.get("subtype") or "").strip()
 
-    # If this is a DAILY LOG incident, narrative is required (it becomes the journal details)
-    if type_key == "DAILY LOG":
-        if not (data.get("narrative") or "").strip():
-            raise HTTPException(status_code=400, detail="Daily Log requires Narrative (used as the journal entry).")
-
     conn = get_conn()
     c = conn.cursor()
 
@@ -2613,31 +2604,50 @@ def determine_current_shift() -> str:
     """
     Ford KTP 4-shift rotation:
       - A/C work days (0600-1800), B/D work nights (1800-0600)
-      - Shifts rotate every other day:
-        Even days: A (day), B (night)
-        Odd days: C (day), D (night)
+      - Shifts rotate every 2 days:
+        Day 0: A (day), B (night)
+        Day 1: C (day), D (night)
+        Day 2: A (day), B (night) ... repeats
 
-    This uses day-of-year to determine which pair is on duty.
+    Reference date: Feb 2, 2026 is A shift (day)
     """
+    # Try to use reports module if available for consistency
+    try:
+        import reports
+        return reports.get_current_shift()
+    except ImportError:
+        pass
+
+    # Fallback calculation
     now_dt = datetime.datetime.now()
     hour = now_dt.hour
-    day_of_year = now_dt.timetuple().tm_yday
+    current_date = now_dt.date()
 
-    # Determine if it's day shift (6am-6pm) or night shift (6pm-6am)
-    is_day_shift = 6 <= hour < 18
+    # Reference date when A shift started (day shift)
+    ref_date = datetime.date(2026, 2, 2)
 
-    # Even days: A/B rotation, Odd days: C/D rotation
-    # Note: night shift belongs to the day it started (e.g., night of Jan 1 = Jan 1's rotation)
+    # Night shift spans two calendar days (1800-0600)
+    # If it's between 0000-0600, we're still on the previous day's night shift
     if hour < 6:
-        # After midnight but before 6am - belongs to previous day's night shift
-        day_of_year -= 1
-
-    is_even_day = (day_of_year % 2) == 0
-
-    if is_even_day:
-        return "A" if is_day_shift else "B"
+        current_date = current_date - datetime.timedelta(days=1)
+        is_night = True
+    elif hour >= 18:
+        is_night = True
     else:
-        return "C" if is_day_shift else "D"
+        is_night = False
+
+    # Calculate days since reference date
+    days_diff = (current_date - ref_date).days
+
+    # Each calendar day has 2 shifts (day and night)
+    # shift_index cycles 0, 1, 2, 3 (A, B, C, D)
+    # Day 0 (even): A(day=0), B(night=1)
+    # Day 1 (odd): C(day=2), D(night=3)
+    day_in_cycle = days_diff % 2
+    shift_index = (day_in_cycle * 2) + (1 if is_night else 0)
+
+    rotation = ["A", "B", "C", "D"]
+    return rotation[shift_index]
 
 
 # ================================================================
@@ -7940,10 +7950,14 @@ async def uaw_clear_all(request: Request):
     """
     Clears all units on an incident.
     Enforces your disposition rule by requiring the CURRENT command unit (if any) to have disposition.
+    Accepts optional disposition parameter to apply to command unit (and all units if desired).
     """
     ensure_phase3_schema()
     data = await request.json()
     incident_id = int(data.get("incident_id") or 0)
+    disposition = (data.get("disposition") or "").strip().upper()
+    remark = (data.get("remark") or data.get("comment") or "").strip()
+
     if not incident_id:
         return {"ok": False, "error": "incident_id required"}
 
@@ -7972,6 +7986,27 @@ async def uaw_clear_all(request: Request):
         WHERE incident_id = ?
           AND cleared IS NULL
     """, (incident_id,)).fetchall()
+
+    # If disposition provided, apply it to command unit (and optionally all units)
+    if disposition and cmd_unit:
+        c.execute("""
+            UPDATE UnitAssignments
+            SET disposition = ?
+            WHERE incident_id = ? AND unit_id = ?
+        """, (disposition, incident_id, cmd_unit))
+        conn.commit()
+
+    # Apply disposition to all units if provided
+    if disposition:
+        for r in unit_rows:
+            uid = r["unit_id"]
+            # Only set if not already set
+            c.execute("""
+                UPDATE UnitAssignments
+                SET disposition = ?
+                WHERE incident_id = ? AND unit_id = ? AND (disposition IS NULL OR disposition = '')
+            """, (disposition, incident_id, uid))
+        conn.commit()
 
     # Enforce: command unit must have disposition before clear-all
     if cmd_unit:

@@ -64,6 +64,513 @@ const STYLE_ID = "uaw-inline-style-v2";
 // Known unit registry cache
 let _knownUnits = null; // Set<string> | null
 
+// ---------------------------------------------------------------------------
+// TIMER SYSTEM
+// ---------------------------------------------------------------------------
+// Stores active timers: { unitId: { endTime, intervalId, label, paused, pausedRemaining } }
+const _unitTimers = {};
+let _timerControlPopup = null;
+
+// Load persisted timers from localStorage
+function _loadTimers() {
+  try {
+    const saved = localStorage.getItem("cad_unit_timers");
+    if (saved) {
+      const data = JSON.parse(saved);
+      const now = Date.now();
+      for (const [unitId, info] of Object.entries(data)) {
+        if (info.paused && info.pausedRemaining > 0) {
+          // Restore paused timer
+          _unitTimers[unitId] = {
+            endTime: 0,
+            intervalId: null,
+            label: info.label,
+            paused: true,
+            pausedRemaining: info.pausedRemaining,
+            incidentId: info.incidentId || null
+          };
+        } else if (info.endTime > now) {
+          _startTimerInterval(unitId, info.endTime, info.label, info.incidentId || null);
+        }
+      }
+    }
+  } catch (_) {}
+  // Start the global update interval
+  setInterval(_updateTimerDisplay, 1000);
+}
+
+// Save timers to localStorage
+function _saveTimers() {
+  try {
+    const data = {};
+    for (const [unitId, info] of Object.entries(_unitTimers)) {
+      if (info.paused) {
+        data[unitId] = { label: info.label, paused: true, pausedRemaining: info.pausedRemaining, incidentId: info.incidentId };
+      } else {
+        data[unitId] = { endTime: info.endTime, label: info.label, incidentId: info.incidentId };
+      }
+    }
+    localStorage.setItem("cad_unit_timers", JSON.stringify(data));
+  } catch (_) {}
+}
+
+// Start a timer for a unit
+function _startTimer(unitId, minutes, label, incidentId = null) {
+  // Clear existing timer if any (don't log, we're replacing)
+  if (_unitTimers[unitId]) {
+    clearInterval(_unitTimers[unitId].intervalId);
+    delete _unitTimers[unitId];
+  }
+
+  const endTime = Date.now() + (minutes * 60 * 1000);
+  const timerLabel = label || `${minutes}min`;
+
+  // Store incident ID with timer for logging
+  const incId = incidentId || _findIncidentForUnit(unitId);
+
+  _startTimerInterval(unitId, endTime, timerLabel, incId);
+  _saveTimers();
+  _updateTimerDisplay();
+
+  // Log to timeline
+  _logTimerEvent(unitId, incId, `TIMER STARTED: ${timerLabel}`);
+}
+
+function _startTimerInterval(unitId, endTime, label, incidentId = null) {
+  const intervalId = setInterval(() => {
+    const remaining = endTime - Date.now();
+    if (remaining <= 0) {
+      _timerExpired(unitId, label);
+    }
+    _updateTimerDisplay();
+  }, 1000);
+
+  _unitTimers[unitId] = { endTime, intervalId, label, incidentId };
+}
+
+// Log timer event to incident timeline
+async function _logTimerEvent(unitId, incidentId, message) {
+  if (!incidentId) return;
+
+  try {
+    await CAD_UTIL.postJSON("/remark", {
+      incident_id: Number(incidentId),
+      unit_id: String(unitId),
+      text: message
+    });
+  } catch (e) {
+    console.warn("[UAW] Failed to log timer event:", e);
+  }
+}
+
+// Clear a timer (with optional logging)
+function _clearTimer(unitId, logEvent = false) {
+  const timer = _unitTimers[unitId];
+  if (timer) {
+    const incidentId = timer.incidentId;
+    clearInterval(timer.intervalId);
+    delete _unitTimers[unitId];
+    _saveTimers();
+    _updateTimerDisplay();
+
+    if (logEvent && incidentId) {
+      _logTimerEvent(unitId, incidentId, `TIMER STOPPED: ${timer.label}`);
+    }
+  }
+}
+
+// Pause a timer
+function _pauseTimer(unitId) {
+  const timer = _unitTimers[unitId];
+  if (!timer || timer.paused) return;
+
+  const remaining = timer.endTime - Date.now();
+  if (remaining <= 0) return;
+
+  clearInterval(timer.intervalId);
+  timer.paused = true;
+  timer.pausedRemaining = remaining;
+  timer.intervalId = null;
+  _saveTimers();
+  _updateTimerDisplay();
+
+  // Log to timeline
+  _logTimerEvent(unitId, timer.incidentId, `TIMER PAUSED: ${timer.label} (${_formatTimer(remaining)} remaining)`);
+}
+
+// Resume a paused timer
+function _resumeTimer(unitId) {
+  const timer = _unitTimers[unitId];
+  if (!timer || !timer.paused) return;
+
+  const newEndTime = Date.now() + timer.pausedRemaining;
+  timer.endTime = newEndTime;
+  timer.paused = false;
+  const remainingForLog = timer.pausedRemaining;
+  timer.pausedRemaining = 0;
+
+  timer.intervalId = setInterval(() => {
+    const remaining = timer.endTime - Date.now();
+    if (remaining <= 0) {
+      _timerExpired(unitId, timer.label);
+    }
+    _updateTimerDisplay();
+  }, 1000);
+
+  _saveTimers();
+  _updateTimerDisplay();
+
+  // Log to timeline
+  _logTimerEvent(unitId, timer.incidentId, `TIMER RESUMED: ${timer.label} (${_formatTimer(remainingForLog)} remaining)`);
+}
+
+// Reset timer (restart from original duration)
+function _resetTimer(unitId) {
+  const timer = _unitTimers[unitId];
+  if (!timer) return;
+
+  const incidentId = timer.incidentId;
+  const label = timer.label;
+
+  // Parse the label to get the original duration
+  const match = label.match(/(\d+)/);
+  if (match) {
+    const minutes = parseInt(match[1], 10);
+
+    // Clear without logging (we'll log the reset instead)
+    if (timer) {
+      clearInterval(timer.intervalId);
+      delete _unitTimers[unitId];
+    }
+
+    // Start fresh timer
+    const endTime = Date.now() + (minutes * 60 * 1000);
+    _startTimerInterval(unitId, endTime, label, incidentId);
+    _saveTimers();
+    _updateTimerDisplay();
+
+    // Log reset
+    _logTimerEvent(unitId, incidentId, `TIMER RESET: ${label}`);
+  }
+}
+
+// Track flashing incidents
+const _flashingIncidents = new Set();
+
+// Timer expired - play alert and flash incident
+function _timerExpired(unitId, label) {
+  // Get incident ID from timer before clearing
+  const timer = _unitTimers[unitId];
+  const incidentId = timer?.incidentId || _findIncidentForUnit(unitId);
+
+  // Log expiration BEFORE clearing
+  _logTimerEvent(unitId, incidentId, `TIMER EXPIRED: ${label}`);
+
+  _clearTimer(unitId, false); // Don't double-log
+
+  // Play siren sound (short)
+  try {
+    if (window.SOUNDS?.timerAlert) {
+      window.SOUNDS.timerAlert();
+    } else {
+      // Fallback: create a short beep
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      osc.type = "sine";
+      gain.gain.value = 0.3;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1);
+      osc.stop(ctx.currentTime + 1);
+    }
+  } catch (_) {}
+
+  // Show toast notification
+  window.TOAST?.warning?.(`Timer expired: ${unitId} (${label})`);
+
+  // Flash the incident row
+  if (incidentId) {
+    _startFlashingIncident(incidentId, unitId);
+  }
+}
+
+// Find which incident a unit is assigned to
+function _findIncidentForUnit(unitId) {
+  // Check unit chips in the active incidents panel
+  const chip = document.querySelector(`.unit-chip[data-unit-id="${unitId}"]`);
+  if (chip) {
+    const incId = chip.dataset.incidentId;
+    if (incId) return incId;
+  }
+
+  // Check incident rows for the unit
+  const rows = document.querySelectorAll(".incident-row");
+  for (const row of rows) {
+    const unitChip = row.querySelector(`.unit-chip[data-unit-id="${unitId}"]`);
+    if (unitChip) {
+      return row.dataset.incidentId;
+    }
+  }
+
+  return null;
+}
+
+// Start flashing an incident row
+function _startFlashingIncident(incidentId, unitId) {
+  _flashingIncidents.add(incidentId);
+  _saveFlashingIncidents();
+  _applyFlashingToIncidents();
+
+  // Store info about why it's flashing
+  try {
+    const flashInfo = JSON.parse(localStorage.getItem("cad_flashing_info") || "{}");
+    flashInfo[incidentId] = { unitId, reason: "Timer expired", time: Date.now() };
+    localStorage.setItem("cad_flashing_info", JSON.stringify(flashInfo));
+  } catch (_) {}
+}
+
+// Stop flashing an incident
+function _stopFlashingIncident(incidentId) {
+  _flashingIncidents.delete(incidentId);
+  _saveFlashingIncidents();
+  _applyFlashingToIncidents();
+
+  // Clear flash info
+  try {
+    const flashInfo = JSON.parse(localStorage.getItem("cad_flashing_info") || "{}");
+    delete flashInfo[incidentId];
+    localStorage.setItem("cad_flashing_info", JSON.stringify(flashInfo));
+  } catch (_) {}
+}
+
+// Save flashing incidents to localStorage
+function _saveFlashingIncidents() {
+  try {
+    localStorage.setItem("cad_flashing_incidents", JSON.stringify([..._flashingIncidents]));
+  } catch (_) {}
+}
+
+// Load flashing incidents from localStorage
+function _loadFlashingIncidents() {
+  try {
+    const saved = localStorage.getItem("cad_flashing_incidents");
+    if (saved) {
+      const ids = JSON.parse(saved);
+      ids.forEach(id => _flashingIncidents.add(id));
+    }
+  } catch (_) {}
+  _applyFlashingToIncidents();
+}
+
+// Apply flashing class to incident rows
+function _applyFlashingToIncidents() {
+  // Remove flashing from all rows first
+  document.querySelectorAll(".incident-row.timer-flash").forEach(row => {
+    if (!_flashingIncidents.has(row.dataset.incidentId)) {
+      row.classList.remove("timer-flash");
+    }
+  });
+
+  // Add flashing to current flashing incidents
+  _flashingIncidents.forEach(incidentId => {
+    const row = document.querySelector(`.incident-row[data-incident-id="${incidentId}"]`);
+    if (row && !row.classList.contains("timer-flash")) {
+      row.classList.add("timer-flash");
+    }
+  });
+}
+
+// Global click interceptor for flashing rows - first click acknowledges, second opens IAW
+function _setupFlashClickInterceptor() {
+  document.addEventListener("click", (e) => {
+    // Find if click is on an incident row
+    const row = e.target.closest(".incident-row");
+    if (!row) return;
+
+    const incidentId = row.dataset.incidentId;
+    if (!incidentId) return;
+
+    // If this incident is flashing, intercept the click
+    if (_flashingIncidents.has(incidentId)) {
+      e.stopPropagation();
+      e.preventDefault();
+      _stopFlashingIncident(incidentId);
+      window.TOAST?.info?.("Timer acknowledged - click again to open incident");
+      return false;
+    }
+  }, true); // Use capture phase to intercept before other handlers
+}
+
+// Initialize click interceptor
+setTimeout(_setupFlashClickInterceptor, 100);
+
+// Re-apply flashing after panel refreshes (HTMX)
+function _setupFlashingObserver() {
+  // Watch for DOM changes in the incidents panel
+  const observer = new MutationObserver(() => {
+    if (_flashingIncidents.size > 0) {
+      setTimeout(_applyFlashingToIncidents, 50);
+    }
+  });
+
+  // Observe the main content area
+  const target = document.getElementById("panel-active") || document.body;
+  observer.observe(target.parentElement || document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+// Initialize flashing system
+setTimeout(() => {
+  _loadFlashingIncidents();
+  _setupFlashingObserver();
+}, 200);
+
+// Get remaining time for a unit
+function _getTimerRemaining(unitId) {
+  const timer = _unitTimers[unitId];
+  if (!timer) return null;
+
+  if (timer.paused) {
+    return timer.pausedRemaining > 0 ? timer.pausedRemaining : null;
+  }
+
+  const remaining = timer.endTime - Date.now();
+  if (remaining <= 0) return null;
+  return remaining;
+}
+
+// Check if timer is paused
+function _isTimerPaused(unitId) {
+  return !!_unitTimers[unitId]?.paused;
+}
+
+// Format milliseconds to MM:SS
+function _formatTimer(ms) {
+  if (!ms || ms <= 0) return "00:00";
+  const totalSec = Math.floor(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
+// Update timer display in panels (called by interval)
+function _updateTimerDisplay() {
+  // Update any visible timer badges in the incidents/units panels
+  document.querySelectorAll("[data-unit-timer]").forEach(el => {
+    const uid = el.dataset.unitTimer;
+    const remaining = _getTimerRemaining(uid);
+    const paused = _isTimerPaused(uid);
+
+    if (remaining) {
+      const timeStr = _formatTimer(remaining);
+      el.textContent = paused ? `⏸ ${timeStr}` : timeStr;
+      el.style.display = "";
+      el.classList.toggle("paused", paused);
+    } else {
+      el.style.display = "none";
+      el.classList.remove("paused");
+    }
+  });
+}
+
+// Show timer controls popup (for clicking on timer badge in panels)
+function _showTimerControlPopup(unitId, anchorEl) {
+  // Close any existing popup
+  _closeTimerControlPopup();
+
+  const timer = _unitTimers[unitId];
+  if (!timer) return;
+
+  const remaining = _getTimerRemaining(unitId);
+  const paused = _isTimerPaused(unitId);
+
+  const popup = document.createElement("div");
+  popup.className = "timer-control-popup";
+  popup.innerHTML = `
+    <div class="tcp-header">
+      <span class="tcp-unit">${unitId}</span>
+      <span class="tcp-time ${paused ? 'paused' : ''}">${_formatTimer(remaining)}</span>
+    </div>
+    <div class="tcp-buttons">
+      ${paused
+        ? `<button class="tcp-btn tcp-resume" data-action="resume">Resume</button>`
+        : `<button class="tcp-btn tcp-pause" data-action="pause">Pause</button>`
+      }
+      <button class="tcp-btn tcp-reset" data-action="reset">Reset</button>
+      <button class="tcp-btn tcp-stop" data-action="stop">Stop</button>
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  _timerControlPopup = popup;
+
+  // Position near anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const popupRect = popup.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 4;
+
+  // Keep on screen
+  if (left + popupRect.width > window.innerWidth - 8) {
+    left = window.innerWidth - popupRect.width - 8;
+  }
+  if (top + popupRect.height > window.innerHeight - 8) {
+    top = rect.top - popupRect.height - 4;
+  }
+
+  popup.style.left = `${Math.max(8, left)}px`;
+  popup.style.top = `${Math.max(8, top)}px`;
+
+  // Handle button clicks
+  popup.querySelectorAll(".tcp-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === "pause") {
+        _pauseTimer(unitId);
+        window.TOAST?.info?.(`Timer paused: ${unitId}`);
+      } else if (action === "resume") {
+        _resumeTimer(unitId);
+        window.TOAST?.info?.(`Timer resumed: ${unitId}`);
+      } else if (action === "reset") {
+        _resetTimer(unitId);
+        window.TOAST?.info?.(`Timer reset: ${unitId}`);
+      } else if (action === "stop") {
+        _clearTimer(unitId, true); // Log the stop event
+        window.TOAST?.info?.(`Timer stopped: ${unitId}`);
+      }
+      _closeTimerControlPopup();
+    });
+  });
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener("mousedown", _timerControlOutsideHandler);
+  }, 0);
+}
+
+function _timerControlOutsideHandler(e) {
+  if (_timerControlPopup && !_timerControlPopup.contains(e.target)) {
+    _closeTimerControlPopup();
+  }
+}
+
+function _closeTimerControlPopup() {
+  if (_timerControlPopup) {
+    _timerControlPopup.remove();
+    _timerControlPopup = null;
+  }
+  document.removeEventListener("mousedown", _timerControlOutsideHandler);
+}
+
+// Initialize timers on load
+setTimeout(_loadTimers, 100);
+
 function _ensureStyles() {
   // Remove old style if exists
   const old = document.getElementById("uaw-inline-style");
@@ -238,10 +745,10 @@ function _ensureStyles() {
     }
 
     /* Wider popup mode (used by mini-calltaker) */
-    .uaw-popup.uaw-wide{ min-width:420px; max-width:500px; }
+    .uaw-popup.uaw-wide{ min-width:420px; max-width:520px; }
 
-    /* Mini Calltaker form */
-    .uaw-scroll{ max-height:500px; overflow:auto; }
+    /* Mini Calltaker form - taller to avoid scrolling */
+    .uaw-scroll{ max-height:85vh; overflow:auto; }
     .uaw-form{
       padding:12px;
       display:flex;
@@ -395,6 +902,366 @@ function _ensureStyles() {
     .uaw-row:last-child{ border-bottom:none; }
     .uaw-row-main{ display:flex; align-items:center; gap:8px; }
     .uaw-muted{ padding:12px 14px; opacity:.5; font-size:12px; text-align:center; }
+
+    /* Clear form styles */
+    .uaw-clear-form{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .uaw-clear-label{
+      font-size:10px;
+      font-weight:700;
+      opacity:.6;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+    }
+    .uaw-dispo-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .uaw-dispo-btn{
+      padding:8px 12px;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      background:transparent;
+      color:#e8f0f8;
+      font-size:12px;
+      font-weight:700;
+      cursor:pointer;
+      transition:all 0.15s;
+    }
+    .uaw-dispo-btn:hover{
+      background:rgba(59, 130, 246, 0.2);
+      border-color:rgba(59, 130, 246, 0.4);
+    }
+    .uaw-dispo-btn.selected{
+      background:rgba(59, 130, 246, 0.5);
+      border-color:rgba(59, 130, 246, 0.7);
+      color:#fff;
+    }
+    .uaw-clear-form input{
+      width:100%;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      padding:8px 10px;
+      font-size:13px;
+      outline:none;
+      color:#e8f0f8;
+      background:rgba(0,0,0,0.3);
+      box-sizing:border-box;
+    }
+    .uaw-clear-form input::placeholder{ color:rgba(255,255,255,0.4); }
+    .uaw-clear-form input:focus{
+      border-color:rgba(59, 130, 246, 0.5);
+      background:rgba(0,0,0,0.4);
+    }
+    .uaw-clear-actions{
+      display:flex;
+      gap:8px;
+      margin-top:4px;
+    }
+    .uaw-btn-secondary{
+      flex:1;
+      padding:10px 14px;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      background:transparent;
+      color:#e8f0f8;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.1s;
+    }
+    .uaw-btn-secondary:hover{
+      background:rgba(255,255,255,0.1);
+    }
+    .uaw-btn-primary{
+      flex:1;
+      padding:10px 14px;
+      border:1px solid rgba(34, 197, 94, 0.5);
+      border-radius:6px;
+      background:rgba(34, 197, 94, 0.3);
+      color:#fff;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.1s;
+    }
+    .uaw-btn-primary:hover{
+      background:rgba(34, 197, 94, 0.5);
+    }
+    .uaw-clear-divider{
+      height:1px;
+      background:rgba(255,255,255,0.1);
+      margin:8px 0;
+    }
+    .uaw-btn-danger{
+      width:100%;
+      padding:10px 14px;
+      border:1px solid rgba(239, 68, 68, 0.5);
+      border-radius:6px;
+      background:rgba(239, 68, 68, 0.2);
+      color:#fca5a5;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.1s;
+    }
+    .uaw-btn-danger:hover{
+      background:rgba(239, 68, 68, 0.4);
+      color:#fff;
+    }
+
+    /* Timer UI */
+    .uaw-timer-grid{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:6px;
+      padding:10px;
+    }
+    .uaw-timer-preset{
+      padding:12px 8px;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      background:transparent;
+      color:#e8f0f8;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.1s;
+    }
+    .uaw-timer-preset:hover{
+      background:rgba(59, 130, 246, 0.3);
+      border-color:rgba(59, 130, 246, 0.5);
+    }
+    .uaw-timer-custom{
+      display:flex;
+      gap:6px;
+      padding:0 10px 10px;
+    }
+    .uaw-timer-custom input{
+      flex:1;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      padding:8px 10px;
+      font-size:13px;
+      outline:none;
+      color:#e8f0f8;
+      background:rgba(0,0,0,0.3);
+    }
+    .uaw-timer-custom input::placeholder{ color:rgba(255,255,255,0.4); }
+    .uaw-timer-custom button{
+      padding:8px 14px;
+      border:1px solid rgba(59, 130, 246, 0.5);
+      border-radius:6px;
+      background:rgba(59, 130, 246, 0.3);
+      color:#fff;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .uaw-timer-current{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:8px 10px;
+      margin:0 10px 10px;
+      background:rgba(34, 197, 94, 0.2);
+      border:1px solid rgba(34, 197, 94, 0.4);
+      border-radius:6px;
+      font-size:12px;
+      color:#86efac;
+    }
+    .uaw-btn-danger-sm{
+      padding:4px 8px;
+      border:1px solid rgba(239, 68, 68, 0.5);
+      border-radius:4px;
+      background:rgba(239, 68, 68, 0.2);
+      color:#fca5a5;
+      font-size:11px;
+      cursor:pointer;
+    }
+    .uaw-btn-danger-sm:hover{
+      background:rgba(239, 68, 68, 0.4);
+    }
+    .uaw-timer-active{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 14px;
+      background:rgba(34, 197, 94, 0.15);
+      border-top:1px solid rgba(34, 197, 94, 0.3);
+      font-size:12px;
+    }
+    .uaw-timer-label{
+      color:#86efac;
+      font-weight:500;
+    }
+    .uaw-timer-remaining{
+      font-family:ui-monospace, monospace;
+      color:#4ade80;
+      font-weight:700;
+    }
+    .uaw-timer-clear-btn{
+      margin-left:auto;
+      padding:4px 8px;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:4px;
+      background:transparent;
+      color:#e8f0f8;
+      font-size:10px;
+      cursor:pointer;
+    }
+    .uaw-timer-clear-btn:hover{
+      background:rgba(239, 68, 68, 0.3);
+    }
+
+    /* Timer badge on unit chips in panels */
+    .unit-timer-badge{
+      display:inline-flex;
+      align-items:center;
+      margin-left:4px;
+      padding:2px 5px;
+      background:rgba(34, 197, 94, 0.3);
+      border:1px solid rgba(34, 197, 94, 0.5);
+      border-radius:4px;
+      font-size:10px;
+      font-weight:700;
+      font-family:ui-monospace, monospace;
+      color:#4ade80;
+      cursor:pointer;
+      transition:all 0.15s;
+    }
+    .unit-timer-badge:hover{
+      background:rgba(34, 197, 94, 0.5);
+      transform:scale(1.05);
+    }
+    .unit-timer-badge.paused{
+      background:rgba(251, 191, 36, 0.3);
+      border-color:rgba(251, 191, 36, 0.5);
+      color:#fbbf24;
+    }
+
+    /* Timer control popup */
+    .timer-control-popup{
+      position:fixed;
+      z-index:10000;
+      min-width:160px;
+      background:rgba(15, 23, 34, 0.98);
+      border:1px solid rgba(255, 255, 255, 0.15);
+      border-radius:8px;
+      box-shadow:0 8px 32px rgba(0,0,0,.5);
+      overflow:hidden;
+      font-family:"Segoe UI", system-ui, sans-serif;
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+    }
+    .tcp-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,0.1);
+      background:rgba(0,0,0,0.2);
+    }
+    .tcp-unit{
+      font-weight:700;
+      font-size:13px;
+      color:#fff;
+    }
+    .tcp-time{
+      font-family:ui-monospace, monospace;
+      font-size:14px;
+      font-weight:700;
+      color:#4ade80;
+    }
+    .tcp-time.paused{
+      color:#fbbf24;
+    }
+    .tcp-buttons{
+      display:flex;
+      flex-direction:column;
+      padding:6px;
+      gap:4px;
+    }
+    .tcp-btn{
+      padding:8px 12px;
+      border:1px solid rgba(255,255,255,0.2);
+      border-radius:6px;
+      background:transparent;
+      color:#e8f0f8;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.1s;
+      text-align:center;
+    }
+    .tcp-btn:hover{
+      background:rgba(59, 130, 246, 0.2);
+      border-color:rgba(59, 130, 246, 0.4);
+    }
+    .tcp-pause{
+      border-color:rgba(251, 191, 36, 0.4);
+      color:#fbbf24;
+    }
+    .tcp-pause:hover{
+      background:rgba(251, 191, 36, 0.2);
+    }
+    .tcp-resume{
+      border-color:rgba(34, 197, 94, 0.4);
+      color:#4ade80;
+    }
+    .tcp-resume:hover{
+      background:rgba(34, 197, 94, 0.2);
+    }
+    .tcp-reset{
+      border-color:rgba(59, 130, 246, 0.4);
+      color:#60a5fa;
+    }
+    .tcp-reset:hover{
+      background:rgba(59, 130, 246, 0.2);
+    }
+    .tcp-stop{
+      border-color:rgba(239, 68, 68, 0.4);
+      color:#f87171;
+    }
+    .tcp-stop:hover{
+      background:rgba(239, 68, 68, 0.2);
+    }
+
+    /* Flashing incident row (timer expired) */
+    @keyframes timer-flash-pulse {
+      0%, 100% {
+        background-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+      }
+      50% {
+        background-color: rgba(239, 68, 68, 0.6);
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+      }
+    }
+    .incident-row.timer-flash {
+      animation: timer-flash-pulse 0.8s ease-in-out infinite;
+      position: relative;
+      z-index: 10;
+    }
+    .incident-row.timer-flash::before {
+      content: "TIMER";
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #ef4444;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 4px;
+      border-radius: 3px;
+      animation: timer-flash-pulse 0.8s ease-in-out infinite;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -997,12 +1864,20 @@ export const UAW = {
         <button data-action="clear">Clear / Available</button>
         <div class="uaw-separator"></div>
         <button data-action="add_remark">Add Remark</button>
+        <button data-action="timer">Set Timer</button>
         <button data-action="misc">Set Misc Status</button>
         <button data-action="ten7">10-7 (Out of Service)</button>
         <button data-action="transfer-command" ${hasInc ? "" : "disabled"}>Transfer Command</button>
         <div class="uaw-separator"></div>
         <button data-action="${assignAction}">${assignLabel}</button>
       </div>
+      ${_unitTimers[_unitId] ? `
+      <div class="uaw-timer-active">
+        <span class="uaw-timer-label">Timer: ${_unitTimers[_unitId].label}</span>
+        <span class="uaw-timer-remaining">${_formatTimer(_getTimerRemaining(_unitId))}</span>
+        <button data-action="timer_clear" class="uaw-timer-clear-btn">Clear</button>
+      </div>
+      ` : ""}
     `;
   },
 
@@ -1113,9 +1988,21 @@ export const UAW = {
             </select>
           </div>
 
-          <div>
-            <label>Narrative</label>
+          <div id="uaw-ct-narrative-row">
+            <label id="uaw-ct-narrative-label">Narrative</label>
             <textarea id="uaw-ct-narrative" placeholder="What happened?"></textarea>
+          </div>
+
+          <div id="uaw-ct-dispo-row" style="display:none;">
+            <label>Disposition (to close immediately)</label>
+            <select id="uaw-ct-disposition">
+              <option value="" selected>Leave Open</option>
+              <option value="R">R - Routine</option>
+              <option value="C">C - Completed</option>
+              <option value="X">X - Cancelled</option>
+              <option value="T">T - Training</option>
+              <option value="NC">NC - No Contact</option>
+            </select>
           </div>
 
           <div class="uaw-row-2">
@@ -1140,14 +2027,24 @@ export const UAW = {
 
     try { _applyTypeOptions(_popup.querySelector("#uaw-ct-type")); } catch (_) {}
 
-    // Show/hide subtype dropdown based on type selection
+    // Show/hide subtype and disposition dropdowns based on type selection
     const typeSelect = _popup.querySelector("#uaw-ct-type");
     const subtypeRow = _popup.querySelector("#uaw-ct-subtype-row");
-    if (typeSelect && subtypeRow) {
-      typeSelect.addEventListener("change", () => {
-        const val = (typeSelect.value || "").toUpperCase();
-        subtypeRow.style.display = (val === "DAILY LOG") ? "block" : "none";
-      });
+    const dispoRow = _popup.querySelector("#uaw-ct-dispo-row");
+    const narrativeLabel = _popup.querySelector("#uaw-ct-narrative-label");
+    const saveBtn = _popup.querySelector("#uaw-ct-save");
+
+    const updateDailyLogUI = () => {
+      const val = (typeSelect?.value || "").toUpperCase();
+      const isDailyLog = (val === "DAILY LOG");
+      if (subtypeRow) subtypeRow.style.display = isDailyLog ? "block" : "none";
+      if (dispoRow) dispoRow.style.display = isDailyLog ? "block" : "none";
+      if (narrativeLabel) narrativeLabel.textContent = isDailyLog ? "Narrative *" : "Narrative";
+      if (saveBtn) saveBtn.textContent = isDailyLog ? "Save & Close" : "Save";
+    };
+
+    if (typeSelect) {
+      typeSelect.addEventListener("change", updateDailyLogUI);
     }
 
     _placePopup("center");
@@ -1171,14 +2068,17 @@ export const UAW = {
       const type = (_popup.querySelector("#uaw-ct-type")?.value || "").trim();
       const subtype = (_popup.querySelector("#uaw-ct-subtype")?.value || "").trim();
       const narrative = (_popup.querySelector("#uaw-ct-narrative")?.value || "").trim();
+      const disposition = (_popup.querySelector("#uaw-ct-disposition")?.value || "").trim();
 
       let unitsRaw = (_popup.querySelector("#uaw-ct-units")?.value || "").trim();
       let units = _parseUnits(unitsRaw);
       if (!units.includes(String(uid))) units.unshift(String(uid));
       units = units.filter(Boolean);
 
-      if (!location) {
-        _safeAlert("Location is required.");
+      // Location is valid if any location field is filled (location, node, or pole)
+      const hasLocation = location || node || (pole_alpha && pole_number);
+      if (!hasLocation) {
+        _safeAlert("Location is required. Enter address, node, or pole coordinates.");
         try { _popup.querySelector("#uaw-ct-location")?.focus(); } catch (_) {}
         if (saveBtn) saveBtn.disabled = false;
         return;
@@ -1215,8 +2115,20 @@ export const UAW = {
           if (incEl) incEl.value = String(newId);
         } catch (_) {}
 
+        // Build location from components if main location is empty
+        let finalLocation = location;
+        if (!finalLocation && (node || (pole_alpha && pole_number))) {
+          const parts = [];
+          if (node) parts.push(`Node: ${node}`);
+          if (pole_alpha && pole_number) {
+            const poleStr = `${pole_alpha}${pole_alpha_dec || ''}-${pole_number}${pole_number_dec || ''}`;
+            parts.push(`Pole: ${poleStr}`);
+          }
+          finalLocation = parts.join(', ');
+        }
+
         const payload = {
-          location,
+          location: finalLocation,
           node,
           pole_alpha,
           pole_alpha_dec,
@@ -1248,6 +2160,19 @@ export const UAW = {
             text: `SELF INITIATED by ${uid}`
           });
         } catch (_) {}
+
+        // If Daily Log with disposition selected, close immediately
+        if (type.toUpperCase() === "DAILY LOG" && disposition) {
+          try {
+            await CAD_UTIL.postJSON(`/api/incident/${newId}/clear_all_and_close`, {
+              disposition: disposition,
+              comment: `${subtype}: ${narrative}`
+            });
+          } catch (closeErr) {
+            console.error("[UAW] auto-close failed:", closeErr);
+            // Don't fail the whole operation, just warn
+          }
+        }
 
         _refreshPanels();
         await this.close();
@@ -1566,6 +2491,20 @@ export const UAW = {
       this._showQuickRemark();
       return;
     }
+
+    if (action === "timer") {
+      this._showTimerOptions();
+      return;
+    }
+
+    if (action === "timer_clear") {
+      _clearTimer(uid, true); // Log the stop event
+      // Refresh the menu to update timer display
+      _render(this._menuHTML(!!_incidentId));
+      _bindActions();
+      _focusFirst();
+      return;
+    }
   },
 
   // ------------------------------------------------------------
@@ -1715,24 +2654,56 @@ export const UAW = {
     const uid = _unitId;
     const inc = _incidentId;
 
+    // Disposition codes (all optional)
+    const dispoCodes = ["R", "C", "X", "FA", "NR", "NC", "T"];
+    const dispoButtons = dispoCodes.map(code =>
+      `<button class="uaw-dispo-btn" data-dispo="${code}">${code}</button>`
+    ).join("");
+
     _render(`
       <div class="uaw-head">
         <div class="uaw-title">Clear ${uid}</div>
         <div class="uaw-sub">${inc ? `Inc #${inc}` : "Not assigned"}</div>
       </div>
 
-      <div class="uaw-grid">
+      <div class="uaw-clear-form">
+        <div class="uaw-clear-label">Disposition (optional)</div>
+        <div class="uaw-dispo-grid">
+          ${dispoButtons}
+        </div>
+
+        <div class="uaw-clear-label">Remark (optional)</div>
+        <input type="text" id="uaw-clear-remark" placeholder="Enter remark..." />
+
+        <div class="uaw-clear-actions">
+          <button id="uaw-clear-cancel" class="uaw-btn-secondary">Cancel</button>
+          <button id="uaw-clear-submit" class="uaw-btn-primary">Clear Unit</button>
+        </div>
+
         ${inc ? `
-          <button data-clear="unit">Clear Unit (Return Available)</button>
-          <button data-clear="all">Clear All Units on Incident</button>
-        ` : `
-          <button data-clear="avail">Set Available</button>
-          <button data-clear="misc">Clear Misc Status Only</button>
-        `}
-        <div class="uaw-separator"></div>
-        <button data-clear="back">Back</button>
+        <div class="uaw-clear-divider"></div>
+        <button id="uaw-clear-all" class="uaw-btn-danger">Clear All Units on Incident</button>
+        ` : ""}
       </div>
     `);
+
+    let selectedDispo = "";
+
+    // Handle disposition button clicks
+    _popup.querySelectorAll(".uaw-dispo-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Toggle selection
+        if (btn.classList.contains("selected")) {
+          btn.classList.remove("selected");
+          selectedDispo = "";
+        } else {
+          _popup.querySelectorAll(".uaw-dispo-btn").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          selectedDispo = btn.dataset.dispo;
+        }
+      });
+    });
 
     const back = () => {
       _render(this._menuHTML(!!inc));
@@ -1742,115 +2713,93 @@ export const UAW = {
       _focusFirst();
     };
 
-    _onEscape = back;
-    _onEnter = null;
+    const submit = async () => {
+      const remark = (_popup.querySelector("#uaw-clear-remark")?.value || "").trim();
 
-    _popup.querySelectorAll("[data-clear]").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const mode = btn.dataset.clear;
+      try {
+        if (inc) {
+          // Clear from incident with optional disposition and remark
+          const res = await _postUnitClear(uid, inc, selectedDispo || "R", remark);
 
-        if (mode === "back") {
-          back();
-          return;
-        }
-
-        if (!inc) {
-          if (mode === "misc") {
-            try {
-              await _postUnitMisc(uid, "");
-              _refreshPanels();
-            } catch (err) {
-              console.error("[UAW] clear misc failed:", err);
-              _safeAlert("Clear misc failed.");
-            }
-            await this.close();
+          if (res?.ok === false) {
+            _safeAlert(res?.error || "Clear rejected by backend.");
             return;
           }
 
-          if (mode === "avail") {
+          try { await _postUnitMisc(uid, ""); } catch (_) {}
+
+          _refreshPanels();
+
+          const needs = !!(res?.requires_event_disposition || res?.last_unit_cleared || res?.requires_disposition);
+          await this.close();
+          if (needs) {
+            try { DISP.open(inc); } catch (_) {}
+          }
+        } else {
+          // No incident - just set available
+          await _postUnitMisc(uid, "");
+          await _postUnitStatus(uid, "AVAILABLE");
+
+          // If there's a remark, log it to the daily log
+          if (remark) {
             try {
-              await _postUnitMisc(uid, "");
-              await _postUnitStatus(uid, "AVAILABLE");
-              _refreshPanels();
-            } catch (err) {
-              console.error("[UAW] set available failed:", err);
-              _safeAlert("Set available failed.");
-            }
-            await this.close();
-            return;
+              await CAD_UTIL.postJSON("/remark", {
+                unit_id: uid,
+                text: `Clear: ${remark}`
+              });
+            } catch (_) {}
           }
 
-          return;
+          _refreshPanels();
+          await this.close();
         }
+      } catch (err) {
+        console.error("[UAW] clear failed:", err);
+        _safeAlert("Clear failed.");
+      }
+    };
 
-        if (mode === "unit") {
-          try {
-            const dispo = prompt("Unit disposition code (R/NA/NF/C/CT/O). Enter H to HOLD the incident:", "R") || "R";
-            const code = dispo.trim().toUpperCase();
-            const note = (code === "H")
-              ? (prompt("Held reason (required):", "") || "")
-              : (prompt("Disposition note (optional):", "") || "");
-
-            if (code === "H") {
-              if (!note.trim()) {
-                _safeAlert("Held requires a reason.");
-                return;
-              }
-              const held = await CAD_UTIL.postJSON(`/incident/${encodeURIComponent(inc)}/hold`, { reason: note.trim() });
-              if (held?.ok === false) {
-                _safeAlert(held?.error || "Unable to hold incident.");
-                return;
-              }
-              _refreshPanels();
-              await this.close();
-              return;
-            }
-
-            const res = await _postUnitClear(uid, inc, code, note);
-
-            if (res?.ok === false) {
-              _safeAlert(res?.error || "Clear rejected by backend.");
-              return;
-            }
-
-            try { await _postUnitMisc(uid, ""); } catch (_) {}
-
-            _refreshPanels();
-
-            const needs = !!(res?.requires_event_disposition || res?.last_unit_cleared || res?.requires_disposition);
-            await this.close();
-            if (needs) {
-              try { DISP.open(inc); } catch (_) {}
-            }
-          } catch (err) {
-            console.error("[UAW] clear unit failed:", err);
-            _safeAlert("Clear failed.");
-          }
-          return;
-        }
-
-        if (mode === "all") {
-          try {
-            const res = await CAD_UTIL.postJSON("/api/uaw/clear_all", { incident_id: inc });
-            _refreshPanels();
-
-            const needs = !!(res?.requires_event_disposition || res?.last_unit_cleared || res?.requires_disposition);
-            await this.close();
-
-            if (needs) {
-              try { DISP.open(inc); } catch (_) {}
-            }
-          } catch (err) {
-            console.error("[UAW] clear all failed:", err);
-            _safeAlert("Clear All failed (endpoint missing or error).");
-            await this.close();
-          }
-        }
-      });
+    _popup.querySelector("#uaw-clear-cancel")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      back();
     });
 
-    _focusFirst("[data-clear]");
+    _popup.querySelector("#uaw-clear-submit")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      submit();
+    });
+
+    // Clear All Units button (only shown when on an incident)
+    _popup.querySelector("#uaw-clear-all")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!inc) return;
+
+      const remark = (_popup.querySelector("#uaw-clear-remark")?.value || "").trim();
+
+      try {
+        const res = await CAD_UTIL.postJSON("/api/uaw/clear_all", {
+          incident_id: inc,
+          disposition: selectedDispo || "R",
+          remark: remark
+        });
+        _refreshPanels();
+
+        const needs = !!(res?.requires_event_disposition || res?.last_unit_cleared || res?.requires_disposition);
+        await this.close();
+
+        if (needs) {
+          try { DISP.open(inc); } catch (_) {}
+        }
+      } catch (err) {
+        console.error("[UAW] clear all failed:", err);
+        _safeAlert(err?.message || "Clear All failed.");
+      }
+    });
+
+    _onEscape = back;
+    _onEnter = submit;
+
+    _focusFirst("#uaw-clear-remark");
   },
 
   // ------------------------------------------------------------
@@ -1924,6 +2873,104 @@ export const UAW = {
     _onEnter = submit;
 
     _focusFirst("#uaw-remark-input");
+  },
+
+  // ------------------------------------------------------------
+  // TIMER OPTIONS
+  // ------------------------------------------------------------
+  _showTimerOptions() {
+    if (!_popup) return;
+
+    const uid = _unitId;
+    const inc = _incidentId;
+    const hasTimer = !!_unitTimers[uid];
+
+    _render(`
+      <div class="uaw-head">
+        <div class="uaw-title">Set Timer</div>
+        <div class="uaw-sub">${uid}</div>
+      </div>
+
+      <div class="uaw-timer-grid">
+        <button class="uaw-timer-preset" data-minutes="5">5 min</button>
+        <button class="uaw-timer-preset" data-minutes="10">10 min</button>
+        <button class="uaw-timer-preset" data-minutes="15">15 min</button>
+        <button class="uaw-timer-preset" data-minutes="20">20 min</button>
+        <button class="uaw-timer-preset" data-minutes="30">30 min</button>
+        <button class="uaw-timer-preset" data-minutes="45">45 min</button>
+      </div>
+
+      <div class="uaw-timer-custom">
+        <input id="uaw-timer-custom" type="number" min="1" max="120" placeholder="Custom (min)" />
+        <button id="uaw-timer-custom-set">Set</button>
+      </div>
+
+      ${hasTimer ? `
+      <div class="uaw-timer-current">
+        <span>Active: ${_unitTimers[uid].label} - ${_formatTimer(_getTimerRemaining(uid))}</span>
+        <button id="uaw-timer-reset" class="uaw-btn-danger-sm">Clear Timer</button>
+      </div>
+      ` : ""}
+
+      <div class="uaw-foot">
+        <button data-back>Back</button>
+      </div>
+    `);
+
+    const back = () => {
+      _render(this._menuHTML(!!inc));
+      _bindActions();
+      _onEscape = null;
+      _onEnter = null;
+      _focusFirst();
+    };
+
+    const setTimer = (minutes, label) => {
+      _startTimer(uid, minutes, label || `${minutes}min`);
+      window.TOAST?.info?.(`Timer set: ${uid} - ${minutes} minutes`);
+      back();
+    };
+
+    // Preset buttons
+    _popup.querySelectorAll(".uaw-timer-preset").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const min = parseInt(btn.dataset.minutes, 10);
+        if (min > 0) setTimer(min);
+      });
+    });
+
+    // Custom timer
+    _popup.querySelector("#uaw-timer-custom-set")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const val = parseInt(_popup.querySelector("#uaw-timer-custom")?.value || "0", 10);
+      if (val > 0 && val <= 120) {
+        setTimer(val, `${val}min`);
+      } else {
+        _safeAlert("Enter 1-120 minutes");
+      }
+    });
+
+    // Clear timer button
+    _popup.querySelector("#uaw-timer-reset")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      _clearTimer(uid, true); // Log the stop event
+      window.TOAST?.info?.(`Timer cleared: ${uid}`);
+      back();
+    });
+
+    _popup.querySelector("[data-back]")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      back();
+    });
+
+    _onEscape = back;
+    _onEnter = () => {
+      const val = parseInt(_popup.querySelector("#uaw-timer-custom")?.value || "0", 10);
+      if (val > 0 && val <= 120) setTimer(val, `${val}min`);
+    };
+
+    _focusFirst(".uaw-timer-preset");
   },
 
   // ------------------------------------------------------------
@@ -2078,7 +3125,21 @@ export const UAW = {
   },
 };
 
+// Public timer controls function (called from panel badges)
+UAW.showTimerControls = function(unitId, anchorEl) {
+  _ensureStyles();
+  _showTimerControlPopup(unitId, anchorEl);
+};
+
+// Public getter for timer state (for external use)
+UAW.hasActiveTimer = function(unitId) {
+  return !!_unitTimers[unitId];
+};
+
+UAW.getTimerRemaining = function(unitId) {
+  return _getTimerRemaining(unitId);
+};
+
 globalThis.UAW = UAW;
 
-console.log("[UAW] Inline popup UAW module loaded (crew assignments + registry validation + mini calltaker + disposition forcing).");
 export default UAW;

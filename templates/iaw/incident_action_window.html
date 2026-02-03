@@ -12,7 +12,7 @@
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 
 <!-- IAW Modal -->
-<div class="iaw-modal-v2" id="iaw-modal" data-incident-id="{{ incident.incident_id }}">
+<div class="cad-modal iaw-modal-v2" id="iaw-modal" data-incident-id="{{ incident.incident_id }}">
 
   <!-- HEADER -->
   <div class="iaw-header-v2">
@@ -84,9 +84,11 @@
           Units
           <span class="iaw-unit-count-badge">{{ units|length }}</span>
         </h3>
+        {% if incident.status != 'CLOSED' %}
         <button class="iaw-btn-v2 iaw-btn-primary-v2" onclick="IAW.openDispatchPicker({{ incident.incident_id }})">
           + Dispatch Unit
         </button>
+        {% endif %}
       </div>
 
       {% if units|length == 0 %}
@@ -116,6 +118,17 @@
                 {% endif %}
               </div>
 
+              <!-- Unit Times (always visible) -->
+              <div class="iaw-unit-times">
+                {% if u.dispatched %}<span class="iaw-time-chip">D: {{ u.dispatched[11:16] if u.dispatched|length > 16 else u.dispatched }}</span>{% endif %}
+                {% if u.enroute %}<span class="iaw-time-chip">E: {{ u.enroute[11:16] if u.enroute|length > 16 else u.enroute }}</span>{% endif %}
+                {% if u.arrived %}<span class="iaw-time-chip">A: {{ u.arrived[11:16] if u.arrived|length > 16 else u.arrived }}</span>{% endif %}
+                {% if u.transporting %}<span class="iaw-time-chip">T: {{ u.transporting[11:16] if u.transporting|length > 16 else u.transporting }}</span>{% endif %}
+                {% if u.at_medical %}<span class="iaw-time-chip">H: {{ u.at_medical[11:16] if u.at_medical|length > 16 else u.at_medical }}</span>{% endif %}
+                {% if u.cleared %}<span class="iaw-time-chip">C: {{ u.cleared[11:16] if u.cleared|length > 16 else u.cleared }}</span>{% endif %}
+              </div>
+
+              {% if incident.status != 'CLOSED' %}
               <div class="iaw-unit-buttons">
                 {% if not u.enroute and not u.arrived and not u.transporting and not u.at_medical and not u.cleared %}
                   <button class="iaw-unit-btn" onclick="IAW.enrouteUnit({{ incident.incident_id }}, '{{ u.unit_id }}')">ENR</button>
@@ -133,8 +146,10 @@
                   <button class="iaw-unit-btn iaw-unit-btn-warn" onclick="IAW.ui.toggleUnitDisposition({{ incident.incident_id }}, '{{ u.unit_id }}')">CLR</button>
                 {% endif %}
               </div>
+              {% endif %}
             </div>
 
+            {% if incident.status != 'CLOSED' %}
             <!-- INLINE CLEAR UNIT PANEL -->
             <div id="iaw-dispo-row-{{ incident.incident_id }}-{{ u.unit_id }}"
                  class="iaw-clear-panel"
@@ -164,9 +179,57 @@
                         onclick="IAW.ui.submitUnitClear({{ incident.incident_id }}, '{{ u.unit_id }}')">Clear Unit</button>
               </div>
             </div>
+            {% endif %}
           {% endfor %}
         </div>
       {% endif %}
+    </div>
+
+    <!-- REMARKS/NARRATIVE SECTION -->
+    {% if narrative|length > 0 %}
+    <div class="iaw-section">
+      <div class="iaw-section-header">
+        <h3 class="iaw-section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+          </svg>
+          Remarks
+        </h3>
+      </div>
+      <div class="iaw-remarks-list">
+        {% for n in narrative %}
+        <div class="iaw-remark-entry">
+          <span class="iaw-remark-time">{{ n.timestamp[11:16] if n.timestamp|length > 16 else n.timestamp }}</span>
+          <span class="iaw-remark-user">{{ n.user or "System" }}</span>
+          <span class="iaw-remark-text">{{ n.text }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ADD NOTE SECTION -->
+    <div class="iaw-section">
+      <div class="iaw-section-header">
+        <h3 class="iaw-section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          Add Note
+        </h3>
+      </div>
+      <div class="iaw-add-note-form">
+        <textarea id="iaw-note-text-{{ incident.incident_id }}"
+                  class="iaw-note-textarea"
+                  placeholder="Enter note or remark..."
+                  rows="2"></textarea>
+        <button class="iaw-btn-v2 iaw-btn-primary-v2"
+                onclick="IAW.addNote({{ incident.incident_id }})"
+                style="align-self: flex-end;">
+          Add Note
+        </button>
+      </div>
     </div>
 
     <!-- CLOSE INCIDENT PANEL (Hidden by default) -->
@@ -457,9 +520,8 @@
 
 .iaw-unit-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
+  flex-direction: column;
+  padding: 10px 14px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -515,9 +577,26 @@
   border-radius: 4px;
 }
 
+.iaw-unit-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.iaw-time-chip {
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  padding: 2px 6px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 3px;
+}
+
 .iaw-unit-buttons {
   display: flex;
   gap: 6px;
+  margin-top: 8px;
 }
 
 .iaw-unit-btn {
@@ -733,6 +812,79 @@
 .iaw-footer-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* Remarks List */
+.iaw-remarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.iaw-remark-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.iaw-remark-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: #64748b;
+  padding: 2px 4px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.iaw-remark-user {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.iaw-remark-text {
+  color: #1e293b;
+}
+
+/* Add Note Form */
+.iaw-add-note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.iaw-note-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1e293b;
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.iaw-note-textarea:focus {
+  outline: none;
+  border-color: #003478;
+  box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
+}
+
+.iaw-note-textarea::placeholder {
+  color: #94a3b8;
 }
 
 /* Responsive */

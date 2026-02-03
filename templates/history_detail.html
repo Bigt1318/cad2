@@ -14,6 +14,11 @@
         <h2>Incident #{{ incident.incident_number or incident.incident_id }}</h2>
 
         <div style="display:flex; gap:8px; align-items:center;">
+          <button class="pill-btn pill-btn-primary" type="button"
+                  onclick="window._openIAWFromHistory({{ incident.incident_id }})">
+            Open IAW
+          </button>
+
           {% if (incident.status or "")|upper == "CLOSED" %}
             <button class="pill-btn" type="button"
                     data-action="incident-reopen"
@@ -73,7 +78,111 @@
         {% endif %}
       </div>
 
+      <h3>Add Note</h3>
+      <div class="history-add-note">
+        <textarea id="history-note-text-{{ incident.incident_id }}"
+                  class="history-note-textarea"
+                  placeholder="Enter note or remark..."
+                  rows="2"></textarea>
+        <button class="pill-btn pill-btn-primary"
+                onclick="window._addNoteFromHistory({{ incident.incident_id }})">
+          Add Note
+        </button>
+      </div>
+
     </div>
 
   </div>
 </div>
+
+<style>
+.history-add-note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.history-note-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #1e293b);
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.history-note-textarea:focus {
+  outline: none;
+  border-color: var(--ford-blue, #003478);
+  box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
+}
+
+.history-note-textarea::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.pill-btn-primary {
+  background: var(--ford-blue, #003478);
+  color: #ffffff;
+  border-color: var(--ford-blue, #003478);
+}
+
+.pill-btn-primary:hover {
+  background: #002855;
+}
+</style>
+
+<script>
+// Helper to open IAW from history detail
+window._openIAWFromHistory = function(incidentId) {
+  if (!incidentId) return;
+  CAD_MODAL.close();
+  setTimeout(() => {
+    if (window.IAW?.open) {
+      window.IAW.open(incidentId);
+    }
+  }, 150);
+};
+
+// Helper to add note from history detail
+window._addNoteFromHistory = async function(incidentId) {
+  if (!incidentId) return;
+
+  const textarea = document.getElementById(`history-note-text-${incidentId}`);
+  const text = (textarea?.value || "").trim();
+
+  if (!text) {
+    textarea?.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch('/remark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        incident_id: Number(incidentId),
+        text: text
+      })
+    });
+
+    if (res.ok) {
+      textarea.value = "";
+      window.TOAST?.success?.("Note added");
+      // Reload the history detail to show updated narrative
+      CAD_MODAL.open(`/history/${encodeURIComponent(incidentId)}`);
+    } else {
+      window.TOAST?.error?.("Failed to add note");
+    }
+  } catch (err) {
+    console.error("[HISTORY] Add note failed:", err);
+    window.TOAST?.error?.("Failed to add note");
+  }
+};
+</script>

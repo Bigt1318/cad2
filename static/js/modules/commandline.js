@@ -130,6 +130,7 @@ const CLI = {
         { key: "VIEW_ACTIVE", aliases: ["ACTIVE"], desc: "View active incidents" },
         { key: "VIEW_DAILY", aliases: ["DAILY", "DAILYLOG"], desc: "View daily log" },
         { key: "VIEW_HISTORY", aliases: ["HISTORY", "HIST"], desc: "Search history" },
+        { key: "SEND_REPORT", aliases: ["REPORT", "RPT", "SENDREPORT"], desc: "Send daily report" },
     ],
 
     // Unit Disposition codes
@@ -176,7 +177,6 @@ const CLI = {
             input.value = "";
         });
 
-        console.log("[CLI] Professional CLI ready.");
     },
 
     async _loadAliases() {
@@ -185,7 +185,6 @@ const CLI = {
             if (resp.ok) {
                 this._aliasMap = await resp.json();
                 this._unitIds = new Set(Object.values(this._aliasMap));
-                console.log(`[CLI] Loaded ${Object.keys(this._aliasMap).length} unit aliases`);
             }
         } catch (err) {
             console.warn("[CLI] Failed to load unit aliases:", err);
@@ -981,6 +980,16 @@ DISPOSITION CODES
             return;
         }
 
+        if (firstCmd === "SEND_REPORT") {
+            // Trigger manual report via ReportConfirm module
+            if (window.ReportConfirm && window.ReportConfirm.triggerManualReport) {
+                window.ReportConfirm.triggerManualReport();
+            } else {
+                TOAST.error("Report module not loaded");
+            }
+            return;
+        }
+
         if (firstCmd === "VIEW_IAW") {
             if (tokens[1]) IAW.open(this._normalizeIncidentRef(tokens[1]));
             return;
@@ -1352,7 +1361,6 @@ window.CAD.cli = CLI;
 window.CAD.cli.pickIncident = (incidentId) => CLI.pickIncident(incidentId);
 window.CAD.cli.refreshAliases = () => CLI._loadAliases();
 
-console.log("[CLI] Professional command line loaded.");
 
 export default CLI;
 
@@ -1368,7 +1376,7 @@ document.addEventListener("click", (e) => {
     input.value = cmd;
     input.focus();
 
-    if (!cmd.includes(" ") && ["NEW", "HELD", "DAILY", "HELP", "HISTORY", "?"].includes(cmd.toUpperCase())) {
+    if (!cmd.includes(" ") && ["NEW", "HELD", "DAILY", "HELP", "HISTORY", "REPORT", "?"].includes(cmd.toUpperCase())) {
         const event = new KeyboardEvent("keydown", { key: "Enter" });
         input.dispatchEvent(event);
     }

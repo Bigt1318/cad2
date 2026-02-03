@@ -1,4 +1,4 @@
-<!-- FILE: templates/login.html (NEW FILE) -->
+<!-- FILE: templates/login.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,137 +6,201 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>FORD-CAD — Login</title>
 
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="/static/modals.css">
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+  <link rel="stylesheet" href="/static/css/themes.css">
 
   <style>
     body {
       margin: 0;
       min-height: 100vh;
-      background: #0b1622;
-      color: #e7edf5;
+      background: var(--bg-app, #f1f5f9);
+      color: var(--text-primary, #0f172a);
       display: grid;
       place-items: center;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     }
     .login-shell {
-      width: min(520px, calc(100vw - 32px));
-      background: #131d27;
-      border: 1px solid #1f2a35;
-      border-radius: 14px;
-      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      width: min(480px, calc(100vw - 32px));
+      background: var(--bg-surface, #ffffff);
+      border: 1px solid var(--border-default, #cbd5e1);
+      border-radius: 16px;
+      box-shadow: var(--shadow-xl, 0 20px 25px rgba(0,0,0,0.15));
       overflow: hidden;
     }
     .login-top {
-      padding: 18px 18px 12px 18px;
-      background: linear-gradient(180deg, #122131, #0f1b28);
-      border-bottom: 1px solid #1f2a35;
+      padding: 20px 24px;
+      background: var(--bg-header, linear-gradient(135deg, #003478 0%, #1351a3 100%));
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
     .login-logo {
-      width: 56px;
-      height: 56px;
+      width: 52px;
+      height: 52px;
       object-fit: contain;
       border-radius: 10px;
-      background: #0b1622;
-      border: 1px solid #1f2a35;
+      background: rgba(255,255,255,0.15);
       padding: 6px;
     }
     .login-title {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      color: var(--text-on-dark, #ffffff);
     }
     .login-title h1 {
       margin: 0;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 0.4px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
     .login-title div {
-      opacity: 0.85;
-      font-size: 12px;
-      font-weight: 700;
+      opacity: 0.9;
+      font-size: 13px;
+      font-weight: 500;
     }
 
-    .login-body { padding: 16px 18px 18px 18px; }
+    .login-body { padding: 24px; }
 
     .field {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
     .field label {
-      font-size: 12px;
-      font-weight: 800;
-      color: #9fb3c8;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary, #475569);
     }
     .field input, .field select {
-      height: 40px;
-      border-radius: 10px;
-      border: 1px solid #1f2a35;
-      background: #0f1b28;
-      color: #e7edf5;
-      padding: 0 12px;
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border-default, #cbd5e1);
+      background: var(--bg-surface, #ffffff);
+      color: var(--text-primary, #0f172a);
+      padding: 0 14px;
       outline: none;
-      font-weight: 800;
-      letter-spacing: 0.2px;
+      font-size: 15px;
+      font-weight: 500;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--ford-blue, #003478);
+      box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
+    }
+    .field input::placeholder {
+      color: var(--text-muted, #64748b);
     }
     .hint {
       font-size: 12px;
-      opacity: 0.85;
-      color: #9fb3c8;
+      color: var(--text-muted, #64748b);
       margin-top: 2px;
     }
     .row2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 16px;
     }
     .checks {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
-      margin-top: 2px;
-      font-size: 12px;
-      color: #9fb3c8;
-      font-weight: 700;
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--text-secondary, #475569);
+      font-weight: 500;
     }
-    .checks input { transform: translateY(1px); }
+    .checks input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--ford-blue, #003478);
+    }
     .actions {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
-      gap: 10px;
-      margin-top: 14px;
+      gap: 12px;
+      margin-top: 20px;
     }
-    .pill {
-      height: 40px;
-      border-radius: 999px;
-      border: 1px solid #1f2a35;
-      background: #162436;
-      color: #e7edf5;
-      padding: 0 16px;
-      font-weight: 900;
+    .btn {
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border-default, #cbd5e1);
+      background: var(--bg-surface, #ffffff);
+      color: var(--text-primary, #0f172a);
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      letter-spacing: 0.3px;
+      transition: all 0.15s;
     }
-    .pill.primary {
-      background: #1b4b8a;
-      border-color: #2a6fbe;
+    .btn:hover {
+      background: var(--bg-hover, #e2e8f0);
+    }
+    .btn.primary {
+      background: var(--ford-blue, #003478);
+      border-color: var(--ford-blue, #003478);
+      color: var(--text-on-brand, #ffffff);
+    }
+    .btn.primary:hover {
+      background: var(--ford-blue-dark, #00264d);
     }
     .error {
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #2a1212;
-      border: 1px solid #5b1f1f;
-      color: #ffd2d2;
-      font-weight: 800;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--danger-bg, #fee2e2);
+      border: 1px solid var(--danger, #dc2626);
+      color: var(--danger, #dc2626);
+      font-weight: 500;
+      font-size: 14px;
       display: {% if error %}block{% else %}none{% endif %};
+    }
+
+    /* Shift Banner */
+    .shift-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-bottom: 1px solid var(--border-light, #e2e8f0);
+    }
+    .shift-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted, #64748b);
+    }
+    .shift-letter {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--ford-blue, #003478);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shift-type {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary, #475569);
+    }
+
+    /* Footer */
+    .login-footer {
+      padding: 16px 24px;
+      background: var(--bg-elevated, #f8fafc);
+      border-top: 1px solid var(--border-light, #e2e8f0);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted, #64748b);
     }
   </style>
 </head>
@@ -148,15 +212,12 @@
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (let registration of registrations) {
           registration.unregister();
-          console.log('[Login] Unregistered service worker:', registration.scope);
         }
       });
-      // Also clear caches
       if ('caches' in window) {
         caches.keys().then(function(names) {
           for (let name of names) {
             caches.delete(name);
-            console.log('[Login] Deleted cache:', name);
           }
         });
       }
@@ -167,8 +228,15 @@
       <img class="login-logo" src="/static/images/logo.png" alt="Ford">
       <div class="login-title">
         <h1>FORD-CAD</h1>
-        <div>Dispatcher Login • Shift Context</div>
+        <div>Dispatcher Login</div>
       </div>
+    </div>
+
+    <!-- Current Shift Indicator -->
+    <div class="shift-banner">
+      <div class="shift-label">Current Shift</div>
+      <div class="shift-letter">{{ suggested_shift_letter or 'A' }}</div>
+      <div class="shift-type">{% if suggested_shift_letter in ['A', 'C'] %}Day Shift (0600-1800){% else %}Night Shift (1800-0600){% endif %}</div>
     </div>
 
     <div class="login-body">
@@ -181,7 +249,7 @@
                  type="text"
                  inputmode="text"
                  autofocus
-                 placeholder="e.g., 17"
+                 placeholder="Enter your unit number (e.g., 17)"
                  value="{{ (dispatcher_unit or '') }}"
                  list="dispatcher-options" />
           <datalist id="dispatcher-options">
@@ -189,7 +257,7 @@
               <option value="{{ opt.unit_id }}">{{ opt.label }}</option>
             {% endfor %}
           </datalist>
-          <div class="hint">Type your unit number. Example: 17 shows “17 - T. Williams”.</div>
+          <div class="hint">Type your unit number to see matching options</div>
         </div>
 
         <div class="row2">
@@ -200,16 +268,16 @@
                 <option value="{{ s }}" {% if (shift_letter or suggested_shift_letter) == s %}selected{% endif %}>{{ s }} Shift</option>
               {% endfor %}
             </select>
-            <div class="hint">Defaults to the current on-duty shift.</div>
+            <div class="hint">Current on-duty shift</div>
           </div>
 
           <div class="field">
-            <label for="password">Password (optional for non-admin)</label>
+            <label for="password">Password</label>
             <input id="password"
                    name="password"
                    type="password"
-                   placeholder="Leave blank if not required" />
-            <div class="hint">Admins must set/enter a password.</div>
+                   placeholder="Optional for non-admin" />
+            <div class="hint">Required for admin users</div>
           </div>
         </div>
 
@@ -218,13 +286,16 @@
         </div>
 
         <div class="actions">
-          <button type="button" class="pill" onclick="window.location='/'">Cancel</button>
-          <button type="submit" class="pill primary">Enter Console</button>
+          <button type="submit" class="btn primary">Sign In</button>
         </div>
 
         <div class="error" id="login-error">{% if error %}{{ error }}{% endif %}</div>
 
       </form>
+    </div>
+
+    <div class="login-footer">
+      Ford Motor Company Fire Department &bull; Computer Aided Dispatch
     </div>
   </div>
 </body>
