@@ -208,6 +208,30 @@ def save_email_config(smtp_user: str = None, smtp_pass: str = None):
         return False
 
 
+def _save_report_settings():
+    """Save report settings (auto_report_enabled, etc.) to config file."""
+    config_path = Path("email_config.json")
+    
+    existing = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                existing = json.load(f)
+        except:
+            pass
+    
+    existing["auto_report_enabled"] = CONFIG.get("auto_report_enabled", False)
+    
+    try:
+        with open(config_path, "w") as f:
+            json.dump(existing, f, indent=2)
+        print(f"[REPORTS] Report settings saved (auto_report_enabled={existing['auto_report_enabled']})")
+        return True
+    except Exception as e:
+        print(f"[REPORTS] Failed to save report settings: {e}")
+        return False
+
+
 def save_battalion_chief_contact(shift: str, email: str = None, phone: str = None):
     """
     Save battalion chief contact info to config file.
@@ -548,6 +572,27 @@ def generate_daily_report(shift: str = None, date: datetime.date = None) -> Dict
                 narratives[inc_id] = []
             narratives[inc_id].append(dict(n))
 
+    # Get issue details for incidents with issues
+    incident_issues = {}
+    if incident_ids:
+        placeholders = ",".join("?" * len(incident_ids))
+        try:
+            issue_rows = conn.execute(f"""
+                SELECT incident_id, timestamp, category, description, resolution, followup_required, reported_by
+                FROM Issues
+                WHERE incident_id IN ({placeholders})
+                ORDER BY timestamp ASC
+            """, incident_ids).fetchall()
+
+            for issue in issue_rows:
+                inc_id = issue["incident_id"]
+                if inc_id not in incident_issues:
+                    incident_issues[inc_id] = []
+                incident_issues[inc_id].append(dict(issue))
+        except Exception as e:
+            # Issues table may not exist in older databases
+            print(f"[REPORTS] Issues query failed (table may not exist): {e}")
+
     # Get daily log entries for this shift
     daily_log = conn.execute("""
         SELECT
@@ -597,23 +642,41 @@ def generate_daily_report(shift: str = None, date: datetime.date = None) -> Dict
         inc = dict(row)
         inc["units"] = unit_assignments.get(inc["incident_id"], [])
         inc["remarks"] = narratives.get(inc["incident_id"], [])
+        inc["issues"] = incident_issues.get(inc["incident_id"], [])
         incidents_list.append(inc)
 
     daily_log_list = [dict(row) for row in daily_log]
     units_list = [dict(row) for row in units_on_shift]
     master_log_list = [dict(row) for row in master_log]
 
-    # Find issues
+    # Find issues - include actual issue details from Issues table
     issues_found = []
     for inc in incidents_list:
-        if inc.get("issue_found") == 1:
-            issues_found.append({
-                "type": "INCIDENT",
-                "id": inc["incident_id"],
-                "number": inc.get("incident_number"),
-                "description": f"{inc.get('type', '')} at {inc.get('location', '')}",
-                "timestamp": inc.get("created")
-            })
+        if inc.get("issue_found") == 1 or inc.get("issues"):
+            # If we have issue details from Issues table, use them
+            if inc.get("issues"):
+                for issue in inc["issues"]:
+                    issues_found.append({
+                        "type": "INCIDENT",
+                        "id": inc["incident_id"],
+                        "number": inc.get("incident_number"),
+                        "category": issue.get("category", "Issue"),
+                        "description": issue.get("description", f"{inc.get('type', '')} at {inc.get('location', '')}"),
+                        "resolution": issue.get("resolution", ""),
+                        "followup_required": issue.get("followup_required", 0),
+                        "timestamp": issue.get("timestamp") or inc.get("created"),
+                        "reported_by": issue.get("reported_by", "")
+                    })
+            else:
+                # Fallback if issue_found flag set but no Issues table entry
+                issues_found.append({
+                    "type": "INCIDENT",
+                    "id": inc["incident_id"],
+                    "number": inc.get("incident_number"),
+                    "category": "Issue",
+                    "description": f"{inc.get('type', '')} at {inc.get('location', '')}",
+                    "timestamp": inc.get("created")
+                })
 
     for log in daily_log_list:
         if log.get("issue_found") == 1:
@@ -702,10 +765,18 @@ def format_report_text(report: Dict[str, Any]) -> str:
         lines.append("*** ISSUES FLAGGED FOR REVIEW ***")
         lines.append("-" * 50)
         for issue in report["issues_found"]:
-            lines.append(f"  [{issue['type']}] {issue.get('number') or issue.get('category', 'N/A')}")
+            inc_ref = f"#{issue.get('number')}" if issue.get('number') else f"ID:{issue.get('id', 'N/A')}"
+            category = issue.get('category', 'Issue')
+            lines.append(f"  [{issue['type']}] {inc_ref} - {category}")
             lines.append(f"    {issue['description']}")
+            if issue.get("resolution"):
+                lines.append(f"    Resolution: {issue['resolution']}")
+            if issue.get("followup_required"):
+                lines.append(f"    ** FOLLOWUP REQUIRED **")
             if issue.get("unit"):
                 lines.append(f"    Unit: {issue['unit']}")
+            if issue.get("reported_by"):
+                lines.append(f"    Reported by: {issue['reported_by']}")
             lines.append(f"    Time: {issue['timestamp']}")
             lines.append("")
 
@@ -715,17 +786,33 @@ def format_report_text(report: Dict[str, Any]) -> str:
     lines.append("-" * 50)
     if report["incidents"]:
         for inc in report["incidents"]:
-            issue_flag = " *** ISSUE ***" if inc.get("issue_found") == 1 else ""
-            lines.append(f"\n  INCIDENT #{inc.get('incident_number', inc['incident_id'])}{issue_flag}")
+            has_issue = inc.get("issue_found") == 1 or inc.get("issues")
+            issue_indicator = " [!]" if has_issue else "    "
+            # Format: Time [!] Incident# Type
+            created_time = inc.get('created', '')[:16] if inc.get('created') else 'N/A'
+            lines.append(f"\n  {created_time}{issue_indicator} #{inc.get('incident_number', inc['incident_id'])}")
             lines.append(f"  {'-' * 40}")
             lines.append(f"    Type:      {inc.get('type', 'N/A')}")
             lines.append(f"    Location:  {inc.get('location', 'N/A')}")
             lines.append(f"    Status:    {inc.get('status', 'N/A')}")
             if inc.get("final_disposition") or inc.get("disposition"):
                 lines.append(f"    Dispo:     {inc.get('final_disposition') or inc.get('disposition')}")
-            lines.append(f"    Created:   {inc.get('created', 'N/A')}")
             if inc.get("closed_at"):
                 lines.append(f"    Closed:    {inc.get('closed_at')}")
+
+            # Show issue details if present
+            if inc.get("issues"):
+                lines.append("")
+                lines.append("    *** ISSUES FOUND ***")
+                for issue in inc["issues"]:
+                    lines.append(f"      Category:    {issue.get('category', 'N/A')}")
+                    lines.append(f"      Description: {issue.get('description', 'N/A')}")
+                    if issue.get("resolution"):
+                        lines.append(f"      Resolution:  {issue.get('resolution')}")
+                    if issue.get("followup_required"):
+                        lines.append(f"      Followup:    REQUIRED")
+                    lines.append(f"      Reported:    {issue.get('timestamp', '')} by {issue.get('reported_by', 'N/A')}")
+                    lines.append("")
 
             # Unit assignments with times
             if inc.get("units"):
@@ -795,25 +882,29 @@ def format_report_html(report: Dict[str, Any]) -> str:
     if report["issues_found"]:
         issues_rows = ""
         for issue in report["issues_found"]:
+            inc_ref = f"#{issue.get('number')}" if issue.get('number') else f"ID:{issue.get('id', '-')}"
+            category = issue.get('category', 'Issue')
+            followup_badge = '<span style="background:#f59e0b;color:white;padding:1px 4px;border-radius:3px;font-size:10px;margin-left:5px;">FOLLOWUP</span>' if issue.get("followup_required") else ""
+            resolution = f"<br><em style='color:#6b7280;font-size:11px;'>Resolution: {issue.get('resolution')}</em>" if issue.get("resolution") else ""
             issues_rows += f"""
             <tr style="background:#fff5f5;">
+                <td style="padding:8px;border:1px solid #e5e7eb;">{issue.get('timestamp', '-')}</td>
                 <td style="padding:8px;border:1px solid #e5e7eb;">{issue['type']}</td>
-                <td style="padding:8px;border:1px solid #e5e7eb;">{issue.get('number') or issue.get('category', 'N/A')}</td>
-                <td style="padding:8px;border:1px solid #e5e7eb;">{issue['description']}</td>
-                <td style="padding:8px;border:1px solid #e5e7eb;">{issue.get('unit', '-')}</td>
-                <td style="padding:8px;border:1px solid #e5e7eb;">{issue['timestamp']}</td>
+                <td style="padding:8px;border:1px solid #e5e7eb;">{inc_ref}</td>
+                <td style="padding:8px;border:1px solid #e5e7eb;">{category}{followup_badge}</td>
+                <td style="padding:8px;border:1px solid #e5e7eb;">{issue['description']}{resolution}</td>
             </tr>
             """
         issues_html = f"""
         <div style="background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:15px;margin:20px 0;">
-            <h2 style="color:#dc2626;margin-top:0;">Issues Flagged for Review ({len(report['issues_found'])})</h2>
+            <h2 style="color:#dc2626;margin-top:0;">⚠️ Issues Flagged for Review ({len(report['issues_found'])})</h2>
             <table style="width:100%;border-collapse:collapse;">
                 <tr style="background:#fecaca;">
-                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Type</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">ID</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Description</th>
-                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Unit</th>
                     <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Time</th>
+                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Type</th>
+                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Incident</th>
+                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Category</th>
+                    <th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Description</th>
                 </tr>
                 {issues_rows}
             </table>
@@ -823,8 +914,12 @@ def format_report_html(report: Dict[str, Any]) -> str:
     # Build incidents section
     incidents_html = ""
     for inc in report["incidents"]:
-        bg = "background:#fff5f5;" if inc.get("issue_found") == 1 else ""
-        issue_badge = '<span style="background:#dc2626;color:white;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:8px;">ISSUE</span>' if inc.get("issue_found") == 1 else ""
+        has_issue = inc.get("issue_found") == 1 or inc.get("issues")
+        bg = "background:#fff5f5;" if has_issue else ""
+        issue_badge = '<span style="background:#dc2626;color:white;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:8px;">ISSUE</span>' if has_issue else ""
+        
+        # Format created time for display
+        created_time = inc.get('created', 'N/A')
 
         # Unit assignments
         units_html = ""
@@ -856,6 +951,22 @@ def format_report_html(report: Dict[str, Any]) -> str:
             </table>
             """
 
+        # Issues section (new - shows issue details with incident)
+        issues_html = ""
+        if inc.get("issues"):
+            issues_items = ""
+            for issue in inc["issues"]:
+                followup = '<span style="background:#f59e0b;color:white;padding:1px 4px;border-radius:3px;font-size:10px;">FOLLOWUP REQUIRED</span>' if issue.get("followup_required") else ""
+                issues_items += f'''
+                <div style="margin:6px 0;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;font-size:12px;">
+                    <div style="font-weight:bold;color:#dc2626;">{issue.get("category", "Issue")} {followup}</div>
+                    <div style="margin-top:4px;">{issue.get("description", "")}</div>
+                    {f'<div style="margin-top:4px;color:#6b7280;"><em>Resolution: {issue.get("resolution")}</em></div>' if issue.get("resolution") else ""}
+                    <div style="margin-top:4px;color:#9ca3af;font-size:11px;">Reported: {issue.get("timestamp", "")} by {issue.get("reported_by", "")}</div>
+                </div>
+                '''
+            issues_html = f'<div style="margin-top:10px;"><strong style="color:#dc2626;">⚠️ Issues Found:</strong>{issues_items}</div>'
+
         # Remarks
         remarks_html = ""
         if inc.get("remarks"):
@@ -867,16 +978,16 @@ def format_report_html(report: Dict[str, Any]) -> str:
         incidents_html += f"""
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:15px;margin-bottom:15px;{bg}">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <h3 style="margin:0;color:#1e40af;">#{inc.get('incident_number', inc['incident_id'])}{issue_badge}</h3>
+                <h3 style="margin:0;color:#1e40af;"><span style="color:#6b7280;font-weight:normal;font-size:14px;">{created_time}</span> {issue_badge} #{inc.get('incident_number', inc['incident_id'])}</h3>
                 <span style="background:#e5e7eb;padding:4px 8px;border-radius:4px;font-size:12px;">{inc.get('status', 'N/A')}</span>
             </div>
             <table style="width:100%;font-size:13px;">
                 <tr><td style="width:100px;color:#6b7280;">Type:</td><td><strong>{inc.get('type', 'N/A')}</strong></td></tr>
                 <tr><td style="color:#6b7280;">Location:</td><td>{inc.get('location', 'N/A')}</td></tr>
-                <tr><td style="color:#6b7280;">Created:</td><td>{inc.get('created', 'N/A')}</td></tr>
                 {'<tr><td style="color:#6b7280;">Closed:</td><td>' + inc.get('closed_at', '') + '</td></tr>' if inc.get('closed_at') else ''}
                 {'<tr><td style="color:#6b7280;">Disposition:</td><td>' + (inc.get('final_disposition') or inc.get('disposition', '')) + '</td></tr>' if inc.get('final_disposition') or inc.get('disposition') else ''}
             </table>
+            {issues_html}
             {units_html}
             {remarks_html}
         </div>
@@ -1805,13 +1916,150 @@ def register_report_routes(app):
     async def api_start_scheduler():
         """Start the automatic report scheduler."""
         start_scheduler()
+        CONFIG["auto_report_enabled"] = True
+        _save_report_settings()
         return {"ok": True, "message": "Scheduler started"}
 
     @app.post("/api/reports/scheduler/stop")
     async def api_stop_scheduler():
         """Stop the automatic report scheduler."""
         stop_scheduler()
+        CONFIG["auto_report_enabled"] = False
+        _save_report_settings()
         return {"ok": True, "message": "Scheduler stopped"}
+
+    @app.post("/api/reports/config/auto_report")
+    async def api_toggle_auto_report(request: Request):
+        """Toggle auto-reporting on/off (Admin only)."""
+        data = await request.json()
+        enabled = data.get("enabled", False)
+        
+        CONFIG["auto_report_enabled"] = bool(enabled)
+        _save_report_settings()
+        
+        if enabled:
+            start_scheduler()
+        else:
+            stop_scheduler()
+        
+        return {
+            "ok": True,
+            "auto_report_enabled": CONFIG["auto_report_enabled"],
+            "scheduler_running": _scheduler_running,
+            "message": f"Auto-reporting {'enabled' if enabled else 'disabled'}"
+        }
+
+    @app.get("/api/reports/config/recipients")
+    async def api_get_report_recipients():
+        """Get configured report email recipients."""
+        config_path = Path("email_config.json")
+        recipients = []
+        
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    cfg = json.load(f)
+                    recipients = cfg.get("report_recipients", [])
+            except Exception:
+                pass
+        
+        return {
+            "ok": True,
+            "recipients": recipients,
+            "battalion_chiefs": BATTALION_CHIEFS_BY_SHIFT
+        }
+
+    @app.post("/api/reports/config/recipients")
+    async def api_set_report_recipients(request: Request):
+        """Set custom email recipients for reports."""
+        data = await request.json()
+        recipients = data.get("recipients", [])
+        
+        # Validate email format
+        import re
+        email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        valid_recipients = []
+        invalid = []
+        
+        for email in recipients:
+            email = str(email).strip()
+            if email and email_pattern.match(email):
+                valid_recipients.append(email)
+            elif email:
+                invalid.append(email)
+        
+        # Save to config
+        config_path = Path("email_config.json")
+        existing = {}
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    existing = json.load(f)
+            except Exception:
+                pass
+        
+        existing["report_recipients"] = valid_recipients
+        
+        try:
+            with open(config_path, "w") as f:
+                json.dump(existing, f, indent=2)
+        except Exception as e:
+            return {"ok": False, "error": f"Failed to save: {e}"}
+        
+        return {
+            "ok": True,
+            "recipients": valid_recipients,
+            "invalid": invalid if invalid else None,
+            "message": f"Saved {len(valid_recipients)} recipient(s)"
+        }
+
+    @app.post("/api/reports/send")
+    async def api_send_report_now(request: Request):
+        """Send report immediately to specified recipients."""
+        data = await request.json()
+        recipients = data.get("recipients", [])
+        include_battalion_chiefs = data.get("include_battalion_chiefs", True)
+        
+        # Build recipient list
+        all_recipients = list(recipients) if recipients else []
+        
+        if include_battalion_chiefs:
+            for bc in BATTALION_CHIEFS_BY_SHIFT.values():
+                if bc.get("email"):
+                    all_recipients.append(bc["email"])
+        
+        if not all_recipients:
+            return {"ok": False, "error": "No recipients specified"}
+        
+        # Generate and send
+        report = generate_daily_report()
+        text_report = format_report_text(report)
+        html_report = format_report_html(report)
+        
+        email_to = ",".join(set(all_recipients))
+        subject = f"[FORD CAD] Daily Report - {report['shift']} Shift - {report['date']}"
+        
+        success = send_email(
+            to=email_to,
+            subject=subject,
+            body_text=text_report,
+            body_html=html_report
+        )
+        
+        return {
+            "ok": success,
+            "recipients": list(set(all_recipients)),
+            "shift": report["shift"],
+            "date": report["date"]
+        }
+
+    @app.get("/api/reports/preview")
+    async def api_preview_report():
+        """Preview the current daily report as HTML."""
+        from fastapi.responses import HTMLResponse
+        report = generate_daily_report()
+        html = format_report_html(report)
+        return HTMLResponse(content=html)
 
     @app.post("/api/message/email")
     async def api_send_email(request: Request):

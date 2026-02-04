@@ -14,58 +14,78 @@
     </div>
     <div class="cad-modal-body">
         <div class="reports-container">
-            <div class="report-section">
-                <div class="report-section-title">Quick Reports</div>
-                <div class="report-grid">
-                    <button class="report-btn" onclick="REPORTS.run('daily_activity')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
-                            <polyline points="14,2 14,8 20,8"></polyline>
-                        </svg>
-                        <span>Daily Activity</span>
-                    </button>
-                    <button class="report-btn" onclick="REPORTS.run('unit_summary')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="1" y="3" width="15" height="13" rx="2"></rect>
-                            <path d="M16 8h4a2 2 0 012 2v8a2 2 0 01-2 2H6"></path>
-                        </svg>
-                        <span>Unit Summary</span>
-                    </button>
-                    <button class="report-btn" onclick="REPORTS.run('response_times')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12,6 12,12 16,14"></polyline>
-                        </svg>
-                        <span>Response Times</span>
-                    </button>
-                    <button class="report-btn" onclick="REPORTS.run('incident_types')">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
-                        </svg>
-                        <span>Incident Types</span>
-                    </button>
+            <!-- Tab Navigation -->
+            <div class="report-tabs">
+                <button class="report-tab active" data-tab="send">Send Report</button>
+                <button class="report-tab" data-tab="settings">Report Settings</button>
+            </div>
+
+            <!-- SEND REPORT TAB -->
+            <div class="report-tab-content active" id="tab-send">
+                <div class="report-section">
+                    <div class="report-section-title">Quick Send</div>
+                    <div class="report-grid">
+                        <button class="report-btn" onclick="REPORTS.sendToAll()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                            </svg>
+                            <span>Send to All Recipients</span>
+                        </button>
+                        <button class="report-btn" onclick="REPORTS.preview()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                                <polyline points="14,2 14,8 20,8"></polyline>
+                            </svg>
+                            <span>Preview Report</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Send to Specific Email</div>
+                    <div class="report-form">
+                        <div class="form-row">
+                            <label>Email</label>
+                            <input type="email" id="report-send-email" placeholder="email@example.com" style="flex:1;">
+                        </div>
+                        <button class="btn-primary" onclick="REPORTS.sendToEmail()">Send Report</button>
+                    </div>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Shift Status</div>
+                    <div id="shift-status" class="shift-status-box">Loading...</div>
                 </div>
             </div>
 
-            <div class="report-section">
-                <div class="report-section-title">Custom Report</div>
-                <div class="report-form">
-                    <div class="form-row">
-                        <label>Date Range</label>
-                        <input type="date" id="report-start-date">
-                        <span>to</span>
-                        <input type="date" id="report-end-date">
+            <!-- SETTINGS TAB -->
+            <div class="report-tab-content" id="tab-settings">
+                <div class="report-section">
+                    <div class="report-section-title">Email Recipients</div>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Additional email addresses that receive all reports (comma-separated).
+                    </p>
+                    <div class="report-form">
+                        <textarea id="report-recipients" placeholder="email1@example.com, email2@example.com" 
+                            style="width:100%; min-height:60px; padding:8px; border:1px solid var(--border-default); border-radius:var(--radius-sm);"></textarea>
+                        <button class="btn-primary" onclick="REPORTS.saveRecipients()">Save Recipients</button>
                     </div>
-                    <div class="form-row">
-                        <label>Report Type</label>
-                        <select id="report-type">
-                            <option value="all">All Incidents</option>
-                            <option value="fire">Fire Calls</option>
-                            <option value="ems">EMS Calls</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <button class="btn-primary" onclick="REPORTS.generate()">Generate Report</button>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Battalion Chief Emails</div>
+                    <div id="bc-emails-list" style="font-size:13px;">Loading...</div>
+                    <p style="font-size:11px; color:var(--text-secondary); margin-top:8px;">
+                        * Battalion Chief emails are configured in Admin → Reports
+                    </p>
+                </div>
+
+                <div class="report-section">
+                    <div class="report-section-title">Auto-Report Status</div>
+                    <div id="auto-report-status" class="status-badge">Loading...</div>
+                    <p style="font-size:11px; color:var(--text-secondary); margin-top:8px;">
+                        * Auto-report settings are controlled in Admin → Reports
+                    </p>
                 </div>
             </div>
         </div>
@@ -76,8 +96,40 @@
 </div>
 
 <style>
-.reports-modal { min-width: 550px; }
+.reports-modal { min-width: 550px; max-width: 600px; }
 .reports-container { padding: var(--space-2); }
+
+.report-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: var(--space-3);
+}
+.report-tab {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+}
+.report-tab:hover {
+    color: var(--ford-blue);
+}
+.report-tab.active {
+    color: var(--ford-blue);
+    border-bottom-color: var(--ford-blue);
+}
+.report-tab-content {
+    display: none;
+}
+.report-tab-content.active {
+    display: block;
+}
+
 .report-section { margin-bottom: var(--space-4); }
 .report-section-title {
     font-size: var(--text-sm);
@@ -118,24 +170,195 @@
     gap: var(--space-2);
 }
 .form-row label {
-    min-width: 100px;
+    min-width: 60px;
     font-weight: 600;
     font-size: var(--text-sm);
+}
+.shift-status-box {
+    background: var(--bg-elevated);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.status-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-badge.enabled {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-badge.disabled {
+    background: #fee2e2;
+    color: #991b1b;
 }
 </style>
 
 <script>
 window.REPORTS = {
-    run(type) {
-        TOAST?.info?.(`Generating ${type.replace('_', ' ')} report...`);
-        // TODO: Implement report generation
+    init() {
+        // Tab switching
+        document.querySelectorAll('.report-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.report-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
+            });
+        });
+        
+        this.loadStatus();
+        this.loadRecipients();
+        this.loadBCEmails();
     },
-    generate() {
-        const start = document.getElementById('report-start-date')?.value;
-        const end = document.getElementById('report-end-date')?.value;
-        const type = document.getElementById('report-type')?.value;
-        TOAST?.info?.(`Generating custom report: ${type} from ${start} to ${end}`);
-        // TODO: Implement custom report generation
+
+    async loadStatus() {
+        try {
+            const [configRes, shiftRes] = await Promise.all([
+                fetch('/api/reports/config'),
+                fetch('/api/shift')
+            ]);
+            const config = await configRes.json();
+            const shift = await shiftRes.json();
+            
+            // Update auto-report status
+            const statusEl = document.getElementById('auto-report-status');
+            if (config.auto_report_enabled) {
+                statusEl.textContent = 'Auto-reporting: ENABLED';
+                statusEl.className = 'status-badge enabled';
+            } else {
+                statusEl.textContent = 'Auto-reporting: DISABLED';
+                statusEl.className = 'status-badge disabled';
+            }
+            
+            // Update shift status
+            document.getElementById('shift-status').innerHTML = `
+                <strong>Current Shift:</strong> ${shift.shift} (${shift.shift_type})<br>
+                <strong>Battalion Chief:</strong> ${shift.battalion_chief || 'Not configured'}<br>
+                <strong>Period:</strong> ${shift.start_time} - ${shift.end_time}<br>
+                <strong>Active:</strong> ${shift.is_during_shift ? 'Yes' : 'No (outside shift hours)'}
+            `;
+        } catch (e) {
+            console.error('Failed to load status:', e);
+        }
+    },
+
+    async loadRecipients() {
+        try {
+            const res = await fetch('/api/reports/config/recipients');
+            const data = await res.json();
+            if (data.recipients?.length) {
+                document.getElementById('report-recipients').value = data.recipients.join(', ');
+            }
+        } catch (e) {
+            console.error('Failed to load recipients:', e);
+        }
+    },
+
+    async loadBCEmails() {
+        try {
+            const res = await fetch('/api/reports/battalion_chiefs');
+            const data = await res.json();
+            
+            const el = document.getElementById('bc-emails-list');
+            if (data.battalion_chiefs) {
+                el.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => 
+                    `<div style="padding:4px 0;"><strong>Shift ${shift}:</strong> ${bc.name} - ${bc.email || '<em style="color:var(--text-secondary)">not configured</em>'}</div>`
+                ).join('');
+            }
+        } catch (e) {
+            console.error('Failed to load BC emails:', e);
+        }
+    },
+
+    async saveRecipients() {
+        const input = document.getElementById('report-recipients').value;
+        const recipients = input.split(',').map(e => e.trim()).filter(e => e);
+        
+        try {
+            const res = await fetch('/api/reports/config/recipients', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({recipients})
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                TOAST?.success?.(data.message || 'Saved');
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async sendToAll() {
+        if (!confirm('Send daily report to all configured recipients now?')) return;
+        
+        TOAST?.info?.('Sending report...');
+        
+        try {
+            const input = document.getElementById('report-recipients')?.value || '';
+            const extraRecipients = input.split(',').map(e => e.trim()).filter(e => e);
+            
+            const res = await fetch('/api/reports/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    recipients: extraRecipients,
+                    include_battalion_chiefs: true
+                })
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                TOAST?.success?.(`Report sent to ${data.recipients?.length || 0} recipient(s)`);
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async sendToEmail() {
+        const email = document.getElementById('report-send-email')?.value?.trim();
+        if (!email) {
+            TOAST?.error?.('Enter an email address');
+            return;
+        }
+        
+        TOAST?.info?.('Sending report...');
+        
+        try {
+            const res = await fetch('/api/reports/test', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                TOAST?.success?.('Report sent!');
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    preview() {
+        // Open report preview in new tab
+        window.open('/api/reports/preview', '_blank');
     }
 };
+
+// Initialize when modal opens
+setTimeout(() => REPORTS.init(), 100);
 </script>
