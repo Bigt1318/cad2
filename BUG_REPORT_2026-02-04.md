@@ -167,3 +167,40 @@ curl -X POST http://localhost:8888/api/dailylog/add -d '{"subtype": "BUILDING_CH
 
 **Report Generated:** 2026-02-04 14:52 UTC  
 **Tester:** Rosie (AI Assistant)
+
+---
+
+## 🔴 ADDITIONAL BUG: Settings API Wipes Data
+
+### Problem
+`POST /api/settings` expects nested structure `{"settings": {...}}`
+
+If client sends flat structure like `{"theme": "dark"}`, the API:
+1. Returns `{"ok": true}` (success!)
+2. But saves empty `{}` to database
+3. **All user settings are lost**
+
+**Location:** main.py line 3351: `settings_json = json.dumps(payload.get("settings", {}))`
+
+### Fix
+Add validation or accept both formats:
+```python
+# Accept both nested and flat structures
+settings = payload.get("settings") or payload
+if not settings or not isinstance(settings, dict):
+    return {"ok": False, "error": "No settings provided"}
+settings_json = json.dumps(settings)
+```
+
+---
+
+## Summary of All Bugs Found
+
+| Bug | Severity | Status |
+|-----|----------|--------|
+| UAW undefined function | 🔴 Critical | Blocks feature |
+| Response Plans missing template | 🔴 Critical | Blocks feature |
+| Settings API wipes data | 🔴 Critical | Data loss |
+| Incident /new ignores data | 🟡 Medium | Workaround exists |
+| Pole field merge | 🟡 Medium | Minor data issue |
+| Admin login requires password | 🟢 Low | By design |
