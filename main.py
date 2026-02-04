@@ -402,6 +402,7 @@ INCIDENT_TYPE_CATALOG = [
     {"key": "TRANSPORT",          "group": "OPS",  "requires_number": False},  # non-emergency transport
     {"key": "TEST",               "group": "OPS",  "requires_number": False},
     {"key": "DAILY LOG",          "group": "OPS",  "requires_number": False},
+    {"key": "SELF-INITIATED",     "group": "OPS",  "requires_number": True},   # unit self-initiated incident
 ]
 
 INCIDENT_TYPE_KEYS = {t["key"] for t in INCIDENT_TYPE_CATALOG}
@@ -426,6 +427,10 @@ INCIDENT_TYPE_ALIASES = {
     "COURTESY": "TRANSPORT",
     "COURTESY RIDE": "TRANSPORT",
     "RIDE": "TRANSPORT",
+
+    "SI": "SELF-INITIATED",
+    "SELFINIT": "SELF-INITIATED",
+    "SELF INIT": "SELF-INITIATED",
 }
 
 def normalize_incident_type(raw: str) -> str:
