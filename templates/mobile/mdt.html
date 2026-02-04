@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#003478">
+  <title>MDT - {{ unit_id }} | FORD CAD</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    .mdt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #003478;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .mdt-unit-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mdt-unit-id {
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .mdt-status-indicator {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-available { background: #22c55e; color: #000; }
+    .status-dispatched { background: #f97316; color: #000; }
+    .status-enroute { background: #eab308; color: #000; }
+    .status-arrived { background: #06b6d4; color: #fff; }
+    .status-transporting { background: #8b5cf6; color: #fff; }
+    .status-at_medical { background: #ec4899; color: #fff; }
+    .status-busy { background: #ef4444; color: #fff; }
+    .status-unavailable { background: #64748b; color: #fff; }
+
+    .mdt-time {
+      font-size: 20px;
+      font-weight: 600;
+      font-family: ui-monospace, monospace;
+      color: #94a3b8;
+    }
+
+    /* Main Container */
+    .mdt-main {
+      padding: 16px;
+    }
+
+    /* Current Incident Card */
+    .incident-card {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      border: 2px solid #3b82f6;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .incident-card.no-incident {
+      border-color: #334155;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .incident-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .incident-number {
+      font-size: 28px;
+      font-weight: 800;
+      color: #60a5fa;
+    }
+
+    .incident-type-badge {
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 12px;
+      background: #dc2626;
+      color: #fff;
+      border-radius: 8px;
+    }
+
+    .incident-location {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    .incident-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .detail-item {
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .detail-label {
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .incident-notes {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    /* No Incident State */
+    .no-incident-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .no-incident-text {
+      font-size: 18px;
+      color: #64748b;
+    }
+
+    /* Status Buttons */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .status-btn {
+      padding: 24px 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+      text-align: center;
+    }
+
+    .status-btn:active {
+      transform: scale(0.97);
+    }
+
+    .status-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-enroute {
+      background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+      color: #000;
+    }
+
+    .btn-arrived {
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+      color: #fff;
+    }
+
+    .btn-transport {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+      color: #fff;
+    }
+
+    .btn-at-hospital {
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      color: #fff;
+    }
+
+    .btn-clear {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: #000;
+      grid-column: span 2;
+    }
+
+    .btn-available {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: #000;
+      grid-column: span 2;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .quick-btn {
+      flex: 1;
+      padding: 16px;
+      border: 2px solid #334155;
+      border-radius: 10px;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .quick-btn:active {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    /* Timer Display */
+    .timer-row {
+      display: flex;
+      justify-content: space-around;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .timer-item {
+      text-align: center;
+    }
+
+    .timer-label {
+      font-size: 12px;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .timer-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      color: #e2e8f0;
+    }
+
+    /* Footer */
+    .mdt-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 16px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-link {
+      color: #64748b;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .refresh-btn {
+      padding: 10px 20px;
+      background: #003478;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 200;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.success { border-left: 4px solid #22c55e; }
+    .toast.error { border-left: 4px solid #ef4444; }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive padding for footer */
+    .mdt-main {
+      padding-bottom: 80px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="mdt-header">
+    <div class="mdt-unit-badge">
+      <span class="mdt-unit-id">{{ unit_id }}</span>
+      <span id="status-badge" class="mdt-status-indicator status-{{ (current_status or 'available')|lower }}">
+        {{ current_status or 'AVAILABLE' }}
+      </span>
+    </div>
+    <div class="mdt-time" id="clock">--:--</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="mdt-main">
+    {% if incident %}
+    <!-- Active Incident -->
+    <div class="incident-card" id="incident-card">
+      <div class="incident-header">
+        <div class="incident-number">{{ incident.incident_number or 'INC-' ~ incident.incident_id }}</div>
+        <div class="incident-type-badge">{{ incident.type or 'UNKNOWN' }}</div>
+      </div>
+
+      <div class="incident-location">{{ incident.location or 'Location not specified' }}</div>
+
+      <div class="incident-details">
+        <div class="detail-item">
+          <div class="detail-label">Priority</div>
+          <div class="detail-value">P{{ incident.priority or '3' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Caller</div>
+          <div class="detail-value">{{ incident.caller_name or '-' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Phone</div>
+          <div class="detail-value">{{ incident.caller_phone or '-' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Node/Pole</div>
+          <div class="detail-value">{{ incident.node or '-' }} / {{ incident.pole or '-' }}</div>
+        </div>
+      </div>
+
+      {% if incident.narrative %}
+      <div class="incident-notes">
+        <strong>Notes:</strong> {{ incident.narrative }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Timers -->
+    <div class="timer-row">
+      <div class="timer-item">
+        <div class="timer-label">Dispatched</div>
+        <div class="timer-value" id="timer-dispatched">{{ assignment.dispatched[11:16] if assignment and assignment.dispatched else '--:--' }}</div>
+      </div>
+      <div class="timer-item">
+        <div class="timer-label">Enroute</div>
+        <div class="timer-value" id="timer-enroute">{{ assignment.enroute[11:16] if assignment and assignment.enroute else '--:--' }}</div>
+      </div>
+      <div class="timer-item">
+        <div class="timer-label">Arrived</div>
+        <div class="timer-value" id="timer-arrived">{{ assignment.arrived[11:16] if assignment and assignment.arrived else '--:--' }}</div>
+      </div>
+      <div class="timer-item">
+        <div class="timer-label">Cleared</div>
+        <div class="timer-value" id="timer-cleared">{{ assignment.cleared[11:16] if assignment and assignment.cleared else '--:--' }}</div>
+      </div>
+    </div>
+
+    <!-- Status Buttons -->
+    <div class="status-grid" id="status-buttons">
+      {% set st = current_status or 'DISPATCHED' %}
+
+      {% if st == 'DISPATCHED' %}
+        <button class="status-btn btn-enroute" onclick="setStatus('ENROUTE')">ENROUTE</button>
+        <button class="status-btn btn-arrived" onclick="setStatus('ARRIVED')" disabled>ARRIVED</button>
+      {% elif st == 'ENROUTE' %}
+        <button class="status-btn btn-enroute" disabled>ENROUTE</button>
+        <button class="status-btn btn-arrived" onclick="setStatus('ARRIVED')">ARRIVED</button>
+      {% elif st == 'ARRIVED' %}
+        <button class="status-btn btn-transport" onclick="setStatus('TRANSPORTING')">TRANSPORT</button>
+        <button class="status-btn btn-at-hospital" onclick="setStatus('AT_MEDICAL')">AT HOSPITAL</button>
+        <button class="status-btn btn-clear" onclick="clearUnit()">CLEAR</button>
+      {% elif st == 'TRANSPORTING' %}
+        <button class="status-btn btn-at-hospital" onclick="setStatus('AT_MEDICAL')">AT HOSPITAL</button>
+        <button class="status-btn btn-clear" onclick="clearUnit()">CLEAR</button>
+      {% elif st == 'AT_MEDICAL' %}
+        <button class="status-btn btn-clear" onclick="clearUnit()">CLEAR & AVAILABLE</button>
+      {% else %}
+        <button class="status-btn btn-enroute" onclick="setStatus('ENROUTE')">ENROUTE</button>
+        <button class="status-btn btn-arrived" onclick="setStatus('ARRIVED')">ARRIVED</button>
+        <button class="status-btn btn-clear" onclick="clearUnit()">CLEAR</button>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <!-- No Active Incident -->
+    <div class="incident-card no-incident">
+      <div class="no-incident-icon">&#128690;</div>
+      <div class="no-incident-text">No Active Incident</div>
+      <div style="margin-top: 8px; color: #475569; font-size: 14px;">Standing by for dispatch</div>
+    </div>
+
+    <div class="status-grid">
+      <button class="status-btn btn-available" onclick="setAvailable()">SET AVAILABLE</button>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="openFullCAD()">Full CAD</button>
+      <button class="quick-btn" onclick="refreshMDT()">Refresh</button>
+      {% if incident %}
+      <button class="quick-btn" onclick="addNote()">Add Note</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="mdt-footer">
+    <a href="/" class="footer-link">Exit MDT</a>
+    <span style="color: #475569; font-size: 12px;">FORD CAD Mobile</span>
+    <button class="refresh-btn" onclick="refreshMDT()">&#8635; Refresh</button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script>
+    const UNIT_ID = '{{ unit_id }}';
+    const INCIDENT_ID = {{ incident.incident_id if incident else 'null' }};
+
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      const h = now.getHours().toString().padStart(2, '0');
+      const m = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('clock').textContent = `${h}:${m}`;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Toast
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast ' + type + ' show';
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Loading
+    function showLoading() {
+      document.getElementById('loading').classList.add('active');
+    }
+    function hideLoading() {
+      document.getElementById('loading').classList.remove('active');
+    }
+
+    // Set Status
+    async function setStatus(status) {
+      if (!INCIDENT_ID) {
+        showToast('No active incident', 'error');
+        return;
+      }
+
+      showLoading();
+      try {
+        const res = await fetch(`/incident/${INCIDENT_ID}/unit/${UNIT_ID}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          showToast(`Status: ${status}`);
+          setTimeout(() => location.reload(), 500);
+        } else {
+          showToast(data.error || 'Failed', 'error');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Clear Unit
+    async function clearUnit() {
+      if (!INCIDENT_ID) return;
+
+      showLoading();
+      try {
+        const res = await fetch(`/incident/${INCIDENT_ID}/unit/${UNIT_ID}/clear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ disposition: 'C' })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          showToast('Cleared');
+          setTimeout(() => location.reload(), 500);
+        } else {
+          showToast(data.error || 'Failed', 'error');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Set Available
+    async function setAvailable() {
+      showLoading();
+      try {
+        const res = await fetch(`/api/unit_status/${UNIT_ID}/AVAILABLE`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          showToast('Status: AVAILABLE');
+          setTimeout(() => location.reload(), 500);
+        } else {
+          showToast(data.error || 'Failed', 'error');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Refresh
+    function refreshMDT() {
+      location.reload();
+    }
+
+    // Open Full CAD
+    function openFullCAD() {
+      window.location.href = '/';
+    }
+
+    // Add Note (simplified)
+    function addNote() {
+      const note = prompt('Enter note:');
+      if (!note || !INCIDENT_ID) return;
+
+      fetch('/remark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident_id: INCIDENT_ID,
+          text: note,
+          user: UNIT_ID
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.ok) showToast('Note added');
+        else showToast('Failed to add note', 'error');
+      }).catch(err => showToast('Error', 'error'));
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+      fetch(`/api/mobile/status/${UNIT_ID}`).then(r => r.json()).then(data => {
+        if (data.needs_refresh) {
+          location.reload();
+        }
+      }).catch(() => {});
+    }, 30000);
+  </script>
+</body>
+</html>

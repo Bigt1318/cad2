@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Response Plans - FORD CAD Admin</title>
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+    }
+    .admin-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #003478;
+    }
+    .admin-header h1 {
+      margin: 0;
+      color: #003478;
+      font-size: 1.75rem;
+    }
+    .admin-header .back-link {
+      color: #003478;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .admin-header .back-link:hover {
+      text-decoration: underline;
+    }
+    .btn {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: #003478;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #002855;
+    }
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+    .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.75rem;
+    }
+
+    /* Plans Grid */
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1rem;
+    }
+    .plan-card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid #003478;
+    }
+    .plan-card.inactive {
+      opacity: 0.6;
+      border-left-color: #94a3b8;
+    }
+    .plan-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .plan-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #1e293b;
+      margin: 0;
+    }
+    .plan-type {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      background: #003478;
+      color: #fff;
+      border-radius: 4px;
+    }
+    .plan-details {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+    .plan-details strong {
+      color: #1e293b;
+    }
+    .plan-units {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .unit-chip {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      background: #e2e8f0;
+      color: #475569;
+      border-radius: 4px;
+    }
+    .plan-actions {
+      display: flex;
+      gap: 0.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .alarm-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      background: #f59e0b;
+      color: #000;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+    }
+
+    /* Form Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 500px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #1e293b;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #64748b;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    .form-control {
+      width: 100%;
+      padding: 0.6rem;
+      font-size: 0.875rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #003478;
+      box-shadow: 0 0 0 2px rgba(0,52,120,0.1);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .form-help {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      background: #fff;
+      border-radius: 8px;
+      color: #64748b;
+    }
+    .empty-state h3 {
+      margin: 0 0 0.5rem 0;
+      color: #475569;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+      color: #1e40af;
+    }
+    .info-box strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="admin-header">
+      <div>
+        <a href="/" class="back-link">&larr; Back to CAD</a>
+        <h1>Response Plans (Run Cards)</h1>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">+ New Response Plan</button>
+    </div>
+
+    <div class="info-box">
+      <strong>How Response Plans Work</strong>
+      Response plans define which units to recommend when a specific incident type is created.
+      Units are suggested in order based on priority and alarm level. You can create multiple
+      plans for different incident types, alarm levels, and times of day.
+    </div>
+
+    <div id="plans-container" class="plans-grid">
+      <div class="empty-state">
+        <h3>Loading...</h3>
+        <p>Fetching response plans from server</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit/Create Modal -->
+  <div id="plan-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-title">New Response Plan</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <form id="plan-form" onsubmit="savePlan(event)">
+        <input type="hidden" id="plan-id" value="">
+
+        <div class="form-group">
+          <label for="plan-name">Plan Name *</label>
+          <input type="text" id="plan-name" class="form-control" required placeholder="e.g., Structure Fire - 1st Alarm">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="plan-type">Incident Type *</label>
+            <select id="plan-type" class="form-control" required>
+              <option value="">-- Select Type --</option>
+              <option value="DEFAULT">DEFAULT (All Types)</option>
+              <option value="THERMAL EVENT">THERMAL EVENT</option>
+              <option value="VEGETATION FIRE">VEGETATION FIRE</option>
+              <option value="PERSONAL MEDICAL">PERSONAL MEDICAL</option>
+              <option value="INJURY">INJURY</option>
+              <option value="FALL">FALL</option>
+              <option value="RESCUE">RESCUE</option>
+              <option value="MVA">MVA</option>
+              <option value="TRANSPORT">TRANSPORT</option>
+              <option value="HAZMAT">HAZMAT</option>
+              <option value="ALARM">ALARM</option>
+              <option value="GAS LEAK">GAS LEAK</option>
+              <option value="POWER LINE">POWER LINE</option>
+              <option value="WATER RESCUE">WATER RESCUE</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="plan-alarm">Alarm Level</label>
+            <select id="plan-alarm" class="form-control">
+              <option value="1">1st Alarm</option>
+              <option value="2">2nd Alarm</option>
+              <option value="3">3rd Alarm</option>
+              <option value="4">4th Alarm</option>
+              <option value="5">5th Alarm</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="plan-units">Units (comma-separated) *</label>
+          <input type="text" id="plan-units" class="form-control" required placeholder="e.g., E1, E2, T1, B1, R1">
+          <div class="form-help">Enter unit IDs in dispatch priority order. First unit listed will be recommended first.</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="plan-time">Time of Day</label>
+            <select id="plan-time" class="form-control">
+              <option value="">Any Time</option>
+              <option value="DAY">Day Shift (0600-1800)</option>
+              <option value="NIGHT">Night Shift (1800-0600)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="plan-priority">Priority</label>
+            <input type="number" id="plan-priority" class="form-control" value="0" min="0" max="100">
+            <div class="form-help">Higher priority plans are used first</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="plan-location">Location Pattern (optional)</label>
+          <input type="text" id="plan-location" class="form-control" placeholder="e.g., MAIN ST, BUILDING A">
+          <div class="form-help">If set, plan only applies to locations matching this pattern</div>
+        </div>
+
+        <div class="form-group">
+          <label for="plan-notes">Notes</label>
+          <textarea id="plan-notes" class="form-control" rows="2" placeholder="Optional notes about this plan"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="plan-active" checked> Active
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Plan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allPlans = [];
+
+    async function loadPlans() {
+      try {
+        const res = await fetch('/api/response_plans');
+        const data = await res.json();
+        if (data.ok) {
+          allPlans = data.plans;
+          renderPlans();
+        }
+      } catch (err) {
+        document.getElementById('plans-container').innerHTML = `
+          <div class="empty-state">
+            <h3>Error</h3>
+            <p>Failed to load response plans: ${err.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderPlans() {
+      const container = document.getElementById('plans-container');
+
+      if (allPlans.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <h3>No Response Plans</h3>
+            <p>Create your first response plan to get started. Response plans define which units
+               to recommend for different incident types.</p>
+            <button class="btn btn-primary" onclick="openModal()" style="margin-top: 1rem;">
+              + Create First Plan
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = allPlans.map(plan => {
+        const units = (plan.units || '').split(',').map(u => u.trim()).filter(u => u);
+        return `
+          <div class="plan-card ${plan.is_active ? '' : 'inactive'}">
+            <div class="plan-header">
+              <div>
+                <h3 class="plan-name">${escapeHtml(plan.name)}</h3>
+              </div>
+              <div>
+                <span class="plan-type">${escapeHtml(plan.incident_type)}</span>
+                ${plan.alarm_level > 1 ? `<span class="alarm-badge">${plan.alarm_level}${getOrdinal(plan.alarm_level)} Alarm</span>` : ''}
+              </div>
+            </div>
+            <div class="plan-units">
+              ${units.map(u => `<span class="unit-chip">${escapeHtml(u)}</span>`).join('')}
+            </div>
+            <div class="plan-details">
+              ${plan.time_of_day ? `<strong>Time:</strong> ${plan.time_of_day} shift | ` : ''}
+              <strong>Priority:</strong> ${plan.priority}
+              ${plan.location_pattern ? ` | <strong>Location:</strong> ${escapeHtml(plan.location_pattern)}` : ''}
+              ${!plan.is_active ? ' | <em style="color:#dc2626;">INACTIVE</em>' : ''}
+            </div>
+            ${plan.notes ? `<div class="plan-details" style="font-style:italic;">${escapeHtml(plan.notes)}</div>` : ''}
+            <div class="plan-actions">
+              <button class="btn btn-secondary btn-sm" onclick="editPlan(${plan.id})">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deletePlan(${plan.id}, '${escapeHtml(plan.name)}')">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getOrdinal(n) {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = n % 100;
+      return s[(v - 20) % 10] || s[v] || s[0];
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[m]);
+    }
+
+    function openModal(plan = null) {
+      document.getElementById('modal-title').textContent = plan ? 'Edit Response Plan' : 'New Response Plan';
+      document.getElementById('plan-id').value = plan ? plan.id : '';
+      document.getElementById('plan-name').value = plan ? plan.name : '';
+      document.getElementById('plan-type').value = plan ? plan.incident_type : '';
+      document.getElementById('plan-units').value = plan ? plan.units : '';
+      document.getElementById('plan-alarm').value = plan ? plan.alarm_level : '1';
+      document.getElementById('plan-time').value = plan ? (plan.time_of_day || '') : '';
+      document.getElementById('plan-priority').value = plan ? plan.priority : '0';
+      document.getElementById('plan-location').value = plan ? (plan.location_pattern || '') : '';
+      document.getElementById('plan-notes').value = plan ? (plan.notes || '') : '';
+      document.getElementById('plan-active').checked = plan ? !!plan.is_active : true;
+      document.getElementById('plan-modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('plan-modal').classList.remove('active');
+    }
+
+    function editPlan(id) {
+      const plan = allPlans.find(p => p.id === id);
+      if (plan) openModal(plan);
+    }
+
+    async function savePlan(event) {
+      event.preventDefault();
+
+      const planId = document.getElementById('plan-id').value;
+      const data = {
+        name: document.getElementById('plan-name').value.trim(),
+        incident_type: document.getElementById('plan-type').value,
+        units: document.getElementById('plan-units').value.trim(),
+        alarm_level: parseInt(document.getElementById('plan-alarm').value),
+        time_of_day: document.getElementById('plan-time').value || null,
+        priority: parseInt(document.getElementById('plan-priority').value) || 0,
+        location_pattern: document.getElementById('plan-location').value.trim() || null,
+        notes: document.getElementById('plan-notes').value.trim() || null,
+        is_active: document.getElementById('plan-active').checked ? 1 : 0
+      };
+
+      try {
+        const url = planId ? `/api/response_plans/${planId}` : '/api/response_plans';
+        const method = planId ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+
+        if (result.ok) {
+          closeModal();
+          loadPlans();
+        } else {
+          alert('Error: ' + (result.error || 'Failed to save'));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    async function deletePlan(id, name) {
+      if (!confirm(`Delete response plan "${name}"?`)) return;
+
+      try {
+        const res = await fetch(`/api/response_plans/${id}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.ok) {
+          loadPlans();
+        } else {
+          alert('Error: ' + (result.error || 'Failed to delete'));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Close modal on escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Close modal on overlay click
+    document.getElementById('plan-modal').addEventListener('click', e => {
+      if (e.target.classList.contains('modal-overlay')) closeModal();
+    });
+
+    // Load on page load
+    loadPlans();
+  </script>
+</body>
+</html>

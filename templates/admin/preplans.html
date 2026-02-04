@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pre-Plans - FORD CAD</title>
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+    }
+    .preplans-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .preplans-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #003478;
+    }
+    .preplans-header h1 {
+      margin: 0;
+      color: #003478;
+      font-size: 1.75rem;
+    }
+    .back-link {
+      color: #003478;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Search and Actions */
+    .toolbar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .search-box {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn-primary {
+      background: #003478;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #002356;
+    }
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    /* Pre-Plans Grid */
+    .preplans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1rem;
+    }
+    .preplan-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .preplan-card:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-2px);
+    }
+    .preplan-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 0.25rem;
+    }
+    .preplan-address {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    .preplan-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-occupancy {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .badge-construction {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .badge-hazard {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .badge-sprinkler {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .preplan-meta {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 1rem 1.5rem;
+      background: #003478;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      background: #f8fafc;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    /* Form Styles */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .form-group {
+      margin-bottom: 0;
+    }
+    .form-group.full-width {
+      grid-column: span 2;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .form-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .form-section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #003478;
+      margin-bottom: 1rem;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #64748b;
+    }
+    .empty-state h3 {
+      margin-bottom: 0.5rem;
+      color: #475569;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .form-group.full-width {
+        grid-column: span 1;
+      }
+      .preplans-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="preplans-container">
+    <div class="preplans-header">
+      <div>
+        <a href="/" class="back-link">&larr; Back to CAD</a>
+        <h1>Pre-Incident Plans</h1>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" class="search-box" id="search-input"
+             placeholder="Search by name, address, or hazards..."
+             oninput="searchPrePlans()">
+      <button class="btn btn-primary" onclick="openModal()">+ New Pre-Plan</button>
+    </div>
+
+    <div class="preplans-grid" id="preplans-grid">
+      <div class="empty-state">
+        <h3>Loading...</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modal-title">New Pre-Plan</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="preplan-form">
+          <input type="hidden" id="preplan-id">
+
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Building Name *</label>
+              <input type="text" id="pp-name" required placeholder="e.g., Ford Motor Company - World Headquarters">
+            </div>
+
+            <div class="form-group full-width">
+              <label>Address *</label>
+              <input type="text" id="pp-address" required placeholder="e.g., 1 American Road">
+            </div>
+
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="pp-city" placeholder="e.g., Dearborn">
+            </div>
+
+            <div class="form-group">
+              <label>Occupancy Type</label>
+              <select id="pp-occupancy">
+                <option value="">Select...</option>
+                <option value="Assembly">Assembly</option>
+                <option value="Business">Business</option>
+                <option value="Educational">Educational</option>
+                <option value="Factory/Industrial">Factory/Industrial</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="High Hazard">High Hazard</option>
+                <option value="Institutional">Institutional</option>
+                <option value="Mercantile">Mercantile</option>
+                <option value="Residential">Residential</option>
+                <option value="Storage">Storage</option>
+                <option value="Utility/Miscellaneous">Utility/Miscellaneous</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Construction Type</label>
+              <select id="pp-construction">
+                <option value="">Select...</option>
+                <option value="Type I (Fire Resistive)">Type I (Fire Resistive)</option>
+                <option value="Type II (Non-Combustible)">Type II (Non-Combustible)</option>
+                <option value="Type III (Ordinary)">Type III (Ordinary)</option>
+                <option value="Type IV (Heavy Timber)">Type IV (Heavy Timber)</option>
+                <option value="Type V (Wood Frame)">Type V (Wood Frame)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Stories</label>
+              <input type="number" id="pp-stories" min="1" value="1">
+            </div>
+
+            <div class="form-group">
+              <label>Square Footage</label>
+              <input type="number" id="pp-sqft" placeholder="e.g., 50000">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Contact Information</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Contact Name</label>
+                <input type="text" id="pp-contact-name" placeholder="Building manager or security">
+              </div>
+              <div class="form-group">
+                <label>Contact Phone</label>
+                <input type="tel" id="pp-contact-phone" placeholder="e.g., 313-555-1234">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Fire Protection Systems</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Sprinkler System</label>
+                <select id="pp-sprinkler">
+                  <option value="">None</option>
+                  <option value="Full - Wet">Full - Wet System</option>
+                  <option value="Full - Dry">Full - Dry System</option>
+                  <option value="Partial">Partial Coverage</option>
+                  <option value="Deluge">Deluge System</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Standpipe System</label>
+                <select id="pp-standpipe">
+                  <option value="">None</option>
+                  <option value="Class I">Class I (2.5" - Fire Dept)</option>
+                  <option value="Class II">Class II (1.5" - Occupant)</option>
+                  <option value="Class III">Class III (Combined)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>FDC Location</label>
+                <input type="text" id="pp-fdc" placeholder="e.g., Front of building, A side">
+              </div>
+              <div class="form-group">
+                <label>Fire Alarm Type</label>
+                <select id="pp-alarm">
+                  <option value="">None</option>
+                  <option value="Local">Local Alarm Only</option>
+                  <option value="Central Station">Central Station Monitored</option>
+                  <option value="Remote Station">Remote Station</option>
+                  <option value="Proprietary">Proprietary System</option>
+                </select>
+              </div>
+              <div class="form-group full-width">
+                <label>Alarm Panel Location</label>
+                <input type="text" id="pp-alarm-panel" placeholder="e.g., Main lobby, right of entrance">
+              </div>
+              <div class="form-group full-width">
+                <label>Knox Box Location</label>
+                <input type="text" id="pp-knox" placeholder="e.g., Front door, left side">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Utility Shutoffs</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Gas Shutoff</label>
+                <input type="text" id="pp-gas" placeholder="e.g., Rear of building, yellow valve">
+              </div>
+              <div class="form-group">
+                <label>Electric Shutoff</label>
+                <input type="text" id="pp-electric" placeholder="e.g., Electrical room, C side">
+              </div>
+              <div class="form-group full-width">
+                <label>Water Shutoff</label>
+                <input type="text" id="pp-water" placeholder="e.g., Pit at front sidewalk">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Hazards & Tactical Information</div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Known Hazards</label>
+                <textarea id="pp-hazards" placeholder="e.g., Hazmat storage in Bldg 3, compressed gas cylinders in loading dock"></textarea>
+              </div>
+              <div class="form-group full-width">
+                <label>Access Information</label>
+                <textarea id="pp-access" placeholder="e.g., Gate code 1234, key required for roof access"></textarea>
+              </div>
+              <div class="form-group full-width">
+                <label>Tactical Notes</label>
+                <textarea id="pp-tactical" placeholder="e.g., Command post location, staging area, evacuation assembly point"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Last Reviewed Date</label>
+                <input type="date" id="pp-reviewed">
+              </div>
+              <div class="form-group">
+                <label>&nbsp;</label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal;">
+                  <input type="checkbox" id="pp-active" checked>
+                  Active Pre-Plan
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="deletePrePlan()">Delete</button>
+        <button class="btn btn-primary" onclick="savePrePlan()">Save Pre-Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let preplans = [];
+    let editingId = null;
+
+    async function loadPrePlans() {
+      try {
+        const res = await fetch('/api/preplans?active_only=false');
+        const data = await res.json();
+        if (data.ok) {
+          preplans = data.preplans;
+          renderPrePlans(preplans);
+        }
+      } catch (err) {
+        console.error('Load error:', err);
+      }
+    }
+
+    function renderPrePlans(list) {
+      const grid = document.getElementById('preplans-grid');
+
+      if (list.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>No Pre-Plans Found</h3>
+            <p>Click "New Pre-Plan" to add your first pre-incident plan.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = list.map(pp => `
+        <div class="preplan-card ${pp.is_active ? '' : 'inactive'}" onclick="editPrePlan(${pp.id})">
+          <div class="preplan-name">${escapeHtml(pp.name)}</div>
+          <div class="preplan-address">${escapeHtml(pp.address)}${pp.city ? ', ' + escapeHtml(pp.city) : ''}</div>
+          <div class="preplan-badges">
+            ${pp.occupancy_type ? `<span class="badge badge-occupancy">${escapeHtml(pp.occupancy_type)}</span>` : ''}
+            ${pp.construction_type ? `<span class="badge badge-construction">${escapeHtml(pp.construction_type)}</span>` : ''}
+            ${pp.hazards ? `<span class="badge badge-hazard">HAZARDS</span>` : ''}
+            ${pp.sprinkler_type ? `<span class="badge badge-sprinkler">${escapeHtml(pp.sprinkler_type)}</span>` : ''}
+          </div>
+          <div class="preplan-meta">
+            ${pp.stories ? pp.stories + ' stor' + (pp.stories > 1 ? 'ies' : 'y') : ''}
+            ${pp.square_footage ? ' &bull; ' + Number(pp.square_footage).toLocaleString() + ' sq ft' : ''}
+            ${pp.last_reviewed ? ' &bull; Reviewed: ' + pp.last_reviewed : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function searchPrePlans() {
+      const term = document.getElementById('search-input').value.toLowerCase();
+      if (!term) {
+        renderPrePlans(preplans);
+        return;
+      }
+      const filtered = preplans.filter(pp =>
+        (pp.name && pp.name.toLowerCase().includes(term)) ||
+        (pp.address && pp.address.toLowerCase().includes(term)) ||
+        (pp.city && pp.city.toLowerCase().includes(term)) ||
+        (pp.hazards && pp.hazards.toLowerCase().includes(term))
+      );
+      renderPrePlans(filtered);
+    }
+
+    function openModal(pp = null) {
+      editingId = pp ? pp.id : null;
+      document.getElementById('modal-title').textContent = pp ? 'Edit Pre-Plan' : 'New Pre-Plan';
+      document.getElementById('delete-btn').style.display = pp ? 'inline-block' : 'none';
+
+      // Reset form
+      document.getElementById('preplan-id').value = pp?.id || '';
+      document.getElementById('pp-name').value = pp?.name || '';
+      document.getElementById('pp-address').value = pp?.address || '';
+      document.getElementById('pp-city').value = pp?.city || '';
+      document.getElementById('pp-occupancy').value = pp?.occupancy_type || '';
+      document.getElementById('pp-construction').value = pp?.construction_type || '';
+      document.getElementById('pp-stories').value = pp?.stories || 1;
+      document.getElementById('pp-sqft').value = pp?.square_footage || '';
+      document.getElementById('pp-contact-name').value = pp?.contact_name || '';
+      document.getElementById('pp-contact-phone').value = pp?.contact_phone || '';
+      document.getElementById('pp-sprinkler').value = pp?.sprinkler_type || '';
+      document.getElementById('pp-standpipe').value = pp?.standpipe_type || '';
+      document.getElementById('pp-fdc').value = pp?.fdc_location || '';
+      document.getElementById('pp-alarm').value = pp?.alarm_type || '';
+      document.getElementById('pp-alarm-panel').value = pp?.alarm_panel_location || '';
+      document.getElementById('pp-knox').value = pp?.knox_box_location || '';
+      document.getElementById('pp-gas').value = pp?.gas_shutoff || '';
+      document.getElementById('pp-electric').value = pp?.electric_shutoff || '';
+      document.getElementById('pp-water').value = pp?.water_shutoff || '';
+      document.getElementById('pp-hazards').value = pp?.hazards || '';
+      document.getElementById('pp-access').value = pp?.access_info || '';
+      document.getElementById('pp-tactical').value = pp?.tactical_notes || '';
+      document.getElementById('pp-reviewed').value = pp?.last_reviewed || new Date().toISOString().slice(0, 10);
+      document.getElementById('pp-active').checked = pp ? pp.is_active : true;
+
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function closeModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('modal-overlay').classList.remove('active');
+      editingId = null;
+    }
+
+    async function editPrePlan(id) {
+      const pp = preplans.find(p => p.id === id);
+      if (pp) openModal(pp);
+    }
+
+    async function savePrePlan() {
+      const data = {
+        id: editingId,
+        name: document.getElementById('pp-name').value,
+        address: document.getElementById('pp-address').value,
+        city: document.getElementById('pp-city').value,
+        occupancy_type: document.getElementById('pp-occupancy').value,
+        construction_type: document.getElementById('pp-construction').value,
+        stories: parseInt(document.getElementById('pp-stories').value) || 1,
+        square_footage: parseInt(document.getElementById('pp-sqft').value) || null,
+        contact_name: document.getElementById('pp-contact-name').value,
+        contact_phone: document.getElementById('pp-contact-phone').value,
+        sprinkler_type: document.getElementById('pp-sprinkler').value,
+        standpipe_type: document.getElementById('pp-standpipe').value,
+        fdc_location: document.getElementById('pp-fdc').value,
+        alarm_type: document.getElementById('pp-alarm').value,
+        alarm_panel_location: document.getElementById('pp-alarm-panel').value,
+        knox_box_location: document.getElementById('pp-knox').value,
+        gas_shutoff: document.getElementById('pp-gas').value,
+        electric_shutoff: document.getElementById('pp-electric').value,
+        water_shutoff: document.getElementById('pp-water').value,
+        hazards: document.getElementById('pp-hazards').value,
+        access_info: document.getElementById('pp-access').value,
+        tactical_notes: document.getElementById('pp-tactical').value,
+        last_reviewed: document.getElementById('pp-reviewed').value,
+        is_active: document.getElementById('pp-active').checked
+      };
+
+      if (!data.name || !data.address) {
+        alert('Name and Address are required.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/preplans', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.ok) {
+          closeModal();
+          loadPrePlans();
+        } else {
+          alert('Error: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+      }
+    }
+
+    async function deletePrePlan() {
+      if (!editingId) return;
+      if (!confirm('Are you sure you want to deactivate this pre-plan?')) return;
+
+      try {
+        const res = await fetch(`/api/preplans/${editingId}`, {method: 'DELETE'});
+        const result = await res.json();
+        if (result.ok) {
+          closeModal();
+          loadPrePlans();
+        }
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
+    }
+
+    // Init
+    loadPrePlans();
+  </script>
+</body>
+</html>

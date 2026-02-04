@@ -1,0 +1,413 @@
+<!-- ============================================================
+     FORD-CAD — DETERMINANT CODE PICKER
+     MPDS/FPDS Priority Dispatch Code Selection
+============================================================= -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal det-picker-modal" id="det-picker">
+
+    <!-- HEADER -->
+    <div class="det-header">
+        <div class="det-title">
+            Set Determinant Code — Incident #{{ incident.incident_number or incident.incident_id }}
+        </div>
+        <div class="det-close" onclick="CAD_MODAL.close()">&times;</div>
+    </div>
+
+    <!-- BODY -->
+    <div class="det-body">
+        <!-- Protocol Selection -->
+        <div class="det-protocol-tabs">
+            <button class="det-tab active" data-protocol="MPDS" onclick="DET.switchProtocol('MPDS')">
+                MPDS (Medical)
+            </button>
+            <button class="det-tab" data-protocol="FPDS" onclick="DET.switchProtocol('FPDS')">
+                FPDS (Fire)
+            </button>
+        </div>
+
+        <!-- Quick Entry -->
+        <div class="det-quick-entry">
+            <label>Enter Code:</label>
+            <input type="text" id="det-code-input" placeholder="e.g., 10-D-1"
+                   value="{{ incident.determinant_code or '' }}"
+                   onkeyup="if(event.key==='Enter')DET.submit()">
+            <button class="det-submit-btn" onclick="DET.submit()">Set</button>
+        </div>
+
+        <!-- Level Legend -->
+        <div class="det-level-legend">
+            <span class="det-level det-level-a">A - Alpha (BLS)</span>
+            <span class="det-level det-level-b">B - Bravo</span>
+            <span class="det-level det-level-c">C - Charlie (ALS)</span>
+            <span class="det-level det-level-d">D - Delta (High)</span>
+            <span class="det-level det-level-e">E - Echo (Critical)</span>
+        </div>
+
+        <!-- MPDS Protocols -->
+        <div class="det-protocols" id="mpds-protocols">
+            <div class="det-protocol-grid">
+                {% for num, proto in mpds_protocols.items() %}
+                <div class="det-proto-card" onclick="DET.selectProtocol('{{ num }}', '{{ proto.name }}')">
+                    <div class="det-proto-num">{{ num }}</div>
+                    <div class="det-proto-name">{{ proto.name }}</div>
+                    <div class="det-proto-levels">
+                        {% for level in proto.levels %}
+                        <span class="det-level-btn det-level-{{ level|lower }}"
+                              onclick="event.stopPropagation(); DET.setCode('{{ num }}-{{ level }}-1')">
+                            {{ level }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- FPDS Protocols -->
+        <div class="det-protocols" id="fpds-protocols" style="display: none;">
+            <div class="det-protocol-grid">
+                {% for num, proto in fpds_protocols.items() %}
+                <div class="det-proto-card" onclick="DET.selectProtocol('{{ num }}', '{{ proto.name }}')">
+                    <div class="det-proto-num">{{ num }}</div>
+                    <div class="det-proto-name">{{ proto.name }}</div>
+                    <div class="det-proto-levels">
+                        {% for level in proto.levels %}
+                        <span class="det-level-btn det-level-{{ level|lower }}"
+                              onclick="event.stopPropagation(); DET.setCode('{{ num }}-{{ level }}-1')">
+                            {{ level }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="det-footer">
+        {% if incident.determinant_code %}
+        <button class="det-clear-btn" onclick="DET.clear()">Clear Code</button>
+        {% endif %}
+        <button class="det-cancel-btn" onclick="CAD_MODAL.close()">Cancel</button>
+    </div>
+</div>
+
+<style>
+/* ============================================================
+   DETERMINANT PICKER STYLES
+============================================================ */
+
+.det-picker-modal {
+    width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    background: #f8fafc;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.det-header {
+    padding: 12px 16px;
+    background: #003478;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.det-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.det-close {
+    font-size: 22px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+.det-close:hover { opacity: 1; }
+
+.det-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+/* Protocol Tabs */
+.det-protocol-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.det-tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.det-tab.active {
+    border-color: #003478;
+    background: #003478;
+    color: #fff;
+}
+
+/* Quick Entry */
+.det-quick-entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.det-quick-entry label {
+    font-weight: 600;
+    color: #475569;
+}
+
+.det-quick-entry input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    text-transform: uppercase;
+}
+
+.det-submit-btn {
+    padding: 8px 20px;
+    background: #003478;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.det-submit-btn:hover { background: #002356; }
+
+/* Level Legend */
+.det-level-legend {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.det-level {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.det-level-a { background: #dcfce7; color: #166534; }
+.det-level-b { background: #fef9c3; color: #854d0e; }
+.det-level-c { background: #fed7aa; color: #c2410c; }
+.det-level-d { background: #fecaca; color: #b91c1c; }
+.det-level-e { background: #e9d5ff; color: #7c3aed; }
+
+/* Protocol Grid */
+.det-protocol-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.det-proto-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.det-proto-card:hover {
+    border-color: #003478;
+    box-shadow: 0 2px 8px rgba(0, 52, 120, 0.15);
+}
+
+.det-proto-num {
+    font-size: 24px;
+    font-weight: 700;
+    color: #003478;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.det-proto-name {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.det-proto-levels {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.det-level-btn {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.det-level-btn:hover {
+    transform: scale(1.1);
+}
+
+.det-level-btn.det-level-a { background: #22c55e; color: #fff; }
+.det-level-btn.det-level-b { background: #eab308; color: #000; }
+.det-level-btn.det-level-c { background: #f97316; color: #fff; }
+.det-level-btn.det-level-d { background: #dc2626; color: #fff; }
+.det-level-btn.det-level-e { background: #7c3aed; color: #fff; }
+
+/* Footer */
+.det-footer {
+    padding: 12px 16px;
+    background: #f1f5f9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.det-cancel-btn {
+    padding: 8px 16px;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.det-clear-btn {
+    padding: 8px 16px;
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+@media (max-width: 600px) {
+    .det-picker-modal {
+        width: 95vw;
+    }
+    .det-protocol-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>
+
+<script>
+const DET = {
+    incidentId: {{ incident_id }},
+    protocol: 'MPDS',
+
+    switchProtocol(proto) {
+        this.protocol = proto;
+        document.querySelectorAll('.det-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.protocol === proto);
+        });
+        document.getElementById('mpds-protocols').style.display = proto === 'MPDS' ? 'block' : 'none';
+        document.getElementById('fpds-protocols').style.display = proto === 'FPDS' ? 'block' : 'none';
+    },
+
+    setCode(code) {
+        document.getElementById('det-code-input').value = code;
+        this.submit();
+    },
+
+    selectProtocol(num, name) {
+        // Set the protocol number in input and focus
+        document.getElementById('det-code-input').value = num + '-';
+        document.getElementById('det-code-input').focus();
+    },
+
+    async submit() {
+        const code = document.getElementById('det-code-input').value.trim().toUpperCase();
+        if (!code) {
+            alert('Please enter a determinant code');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/incident/${this.incidentId}/determinant`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    code: code,
+                    protocol: this.protocol
+                })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                window.TOAST?.success?.(`Determinant set: ${code}`);
+                CAD_MODAL.close();
+                // Refresh the IAW
+                if (window.CAD_UTIL?.refreshPanels) {
+                    CAD_UTIL.refreshPanels();
+                }
+                if (window.IAW?.reopen) {
+                    setTimeout(() => IAW.reopen(), 200);
+                }
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Set determinant failed:', err);
+            alert('Failed to set determinant code');
+        }
+    },
+
+    async clear() {
+        if (!confirm('Clear the determinant code for this incident?')) return;
+
+        try {
+            const res = await fetch(`/api/incident/${this.incidentId}/determinant`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: '', protocol: ''})
+            });
+            const data = await res.json();
+            if (data.ok) {
+                window.TOAST?.success?.('Determinant cleared');
+                CAD_MODAL.close();
+                if (window.CAD_UTIL?.refreshPanels) {
+                    CAD_UTIL.refreshPanels();
+                }
+                if (window.IAW?.reopen) {
+                    setTimeout(() => IAW.reopen(), 200);
+                }
+            }
+        } catch (err) {
+            console.error('Clear determinant failed:', err);
+        }
+    }
+};
+
+// Auto-focus the input
+document.getElementById('det-code-input')?.focus();
+</script>
