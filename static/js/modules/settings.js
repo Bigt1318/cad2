@@ -196,7 +196,11 @@ export const SETTINGS = {
             "inter": 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
             "mono": 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
             "verdana": 'Verdana, Geneva, sans-serif',
-            "tahoma": 'Tahoma, Geneva, sans-serif'
+            "tahoma": 'Tahoma, Geneva, sans-serif',
+            "narrow": '"Arial Narrow", "Helvetica Condensed", Arial, sans-serif',
+            "georgia": 'Georgia, "Times New Roman", Times, serif',
+            "bold": '"Arial Black", "Helvetica Bold", Impact, sans-serif',
+            "emergency": '"Highway Gothic", "Interstate", "DIN", Arial, sans-serif'
         };
         const f = fontMap[family] || fontMap["system"];
         document.documentElement.style.setProperty("--font-sans", f);
@@ -468,11 +472,15 @@ export const SETTINGS = {
                                 <option value="system" ${current.fontFamily === 'system' ? 'selected' : ''}>System Default</option>
                                 <option value="segoe" ${current.fontFamily === 'segoe' ? 'selected' : ''}>Segoe UI</option>
                                 <option value="arial" ${current.fontFamily === 'arial' ? 'selected' : ''}>Arial</option>
+                                <option value="narrow" ${current.fontFamily === 'narrow' ? 'selected' : ''}>Arial Narrow</option>
                                 <option value="verdana" ${current.fontFamily === 'verdana' ? 'selected' : ''}>Verdana</option>
                                 <option value="tahoma" ${current.fontFamily === 'tahoma' ? 'selected' : ''}>Tahoma</option>
+                                <option value="georgia" ${current.fontFamily === 'georgia' ? 'selected' : ''}>Georgia (Serif)</option>
                                 <option value="roboto" ${current.fontFamily === 'roboto' ? 'selected' : ''}>Roboto</option>
                                 <option value="inter" ${current.fontFamily === 'inter' ? 'selected' : ''}>Inter</option>
                                 <option value="mono" ${current.fontFamily === 'mono' ? 'selected' : ''}>Monospace</option>
+                                <option value="bold" ${current.fontFamily === 'bold' ? 'selected' : ''}>Bold (Arial Black)</option>
+                                <option value="emergency" ${current.fontFamily === 'emergency' ? 'selected' : ''}>Emergency (Highway)</option>
                             </select>
                         </div>
 

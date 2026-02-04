@@ -32,7 +32,8 @@ const CLI = {
         // ─────────────────────────────────────────────────────────────────────
         { key: "FIND", aliases: ["FIND", "F", "SEARCH", "SRCH"], desc: "Search: F <text>" },
         { key: "SHOW_UNITS", aliases: ["SU", "SHOWUNITS"], desc: "Show units: SU [ALL|A|B|C|D]" },
-        { key: "SHOW_INCIDENTS", aliases: ["SI", "SHOWINCIDENTS"], desc: "Show incidents: SI [OPEN|ACTIVE|HELD]" },
+        { key: "SHOW_INCIDENTS", aliases: ["SHI", "SHOWINCIDENTS"], desc: "Show incidents: SHI [OPEN|ACTIVE|HELD]" },
+        { key: "SELF_INITIATE", aliases: ["SI", "SELFINIT"], desc: "Self-initiate: <unit> SI [type]" },
         { key: "SHOW", aliases: ["SHOW", "SH"], desc: "Show unit/incident: SHOW <id>" },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -325,7 +326,8 @@ const CLI = {
 ╠───────────────────────────────────────────────────────────╣
 ║  F <text>    Search                                       ║
 ║  SU [ALL]    Show units                                   ║
-║  SI [OPEN]   Show incidents                               ║
+║  SHI [OPEN]  Show incidents                               ║
+║  E1 SI       Self-initiate (creates incident)             ║
 ║  VA          View all units                               ║
 ║  VS A        View shift A                                 ║
 ╠───────────────────────────────────────────────────────────╣
@@ -363,8 +365,9 @@ SEARCH & SHOW
   SU                       Show units (current shift)
   SU ALL                   Show all units
   SU A|B|C|D               Show shift units
-  SI                       Show incidents
-  SI OPEN|ACTIVE|HELD      Filter incidents
+  SHI                      Show incidents
+  SHI OPEN|ACTIVE|HELD     Filter incidents
+  E1 SI                    Self-initiate (clears current, creates new)
   SHOW <unit>              Show unit details
   SHOW <#>                 Show incident details
 
@@ -740,6 +743,66 @@ DISPOSITION CODES
         } catch (err) {
             console.error("[CLI] Daily log failed:", err);
             this._toast("Daily log failed", "error");
+        }
+    },
+
+    // --- Self-Initiate ---
+    async _selfInitiate(unitId, incidentType = null) {
+        try {
+            // Check if unit is currently assigned to an incident
+            const ctx = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(unitId)}`);
+            const currentIncidentId = Number(ctx?.active_incident_id || 0);
+
+            // If unit is on an incident, auto-clear with SI disposition
+            if (currentIncidentId) {
+                this._toast(`${unitId} clearing from incident ${currentIncidentId}...`, "info");
+                try {
+                    await CAD_UTIL.postJSON(`/api/uaw/clear_unit`, {
+                        unit_id: unitId,
+                        incident_id: currentIncidentId,
+                        disposition: "R" // Resolved - unit is going to new call
+                    });
+                } catch (clearErr) {
+                    console.warn(`[CLI] Auto-clear failed for ${unitId}:`, clearErr);
+                    // Continue anyway - maybe unit wasn't fully assigned
+                }
+            }
+
+            // Create a new incident
+            const newRes = await fetch("/incident/new", { method: "POST" });
+            if (!newRes.ok) {
+                this._toast("Failed to create incident", "error");
+                return;
+            }
+            const newInc = await newRes.json();
+            const newIncidentId = newInc.incident_id;
+
+            // Save incident with SI type and basic info
+            const saveData = {
+                type: incidentType || "SELF-INITIATED",
+                nature: "Self-initiated by " + unitId,
+                status: "OPEN"
+            };
+
+            await CAD_UTIL.postJSON(`/incident/save/${newIncidentId}`, saveData);
+
+            // Dispatch unit to new incident
+            await CAD_UTIL.postJSON("/api/cli/dispatch", {
+                incident_id: newIncidentId,
+                units: [unitId],
+                mode: "DE" // Dispatch + Enroute
+            });
+
+            CAD_UTIL.refreshPanels();
+            this._toast(`${unitId} self-initiated → Incident ${newIncidentId}`, "success");
+
+            // Open the new incident in IAW
+            if (window.IAW?.open) {
+                window.IAW.open(newIncidentId);
+            }
+        } catch (err) {
+            console.error("[CLI] Self-initiate failed:", err);
+            this._toast(err?.message || "Self-initiate failed", "error");
         }
     },
 
@@ -1271,6 +1334,15 @@ DISPOSITION CODES
         // --- Clear Unit ---
         if (action === "CLEAR") {
             await this._clearUnit(units);
+            return;
+        }
+
+        // --- Self-Initiate ---
+        if (action === "SELF_INITIATE") {
+            const incidentType = rest[0] || null; // Optional type like EMS, FIRE
+            for (const u of units) {
+                await this._selfInitiate(u, incidentType);
+            }
             return;
         }
 

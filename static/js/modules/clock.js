@@ -41,6 +41,9 @@ export const CLOCK = {
     }
 };
 
+// Expose globally for bootloader
+window.CLOCK = CLOCK;
+
 Object.freeze(CLOCK);
 export default CLOCK;
 

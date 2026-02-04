@@ -620,13 +620,14 @@ a {
 
 .header-clock {
     font-family: var(--font-mono);
-    font-size: 1.1em;
+    font-size: 1.3em;
     font-weight: 700;
-    color: var(--clock-color);
-    padding: 0.2em 0.5em;
-    background: rgba(0, 0, 0, 0.3);
+    color: #22c55e;
+    padding: 0.3em 0.6em;
+    background: rgba(0, 0, 0, 0.4);
     border-radius: var(--radius-sm);
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
 }
 
 .header-btn {
@@ -2162,7 +2163,8 @@ textarea {
    ============================================================================ */
 
 .calendar-modal {
-    width: min(400px, 95vw);
+    width: min(700px, 95vw);
+    min-height: 500px;
 }
 
 .calendar-header {
@@ -2213,6 +2215,7 @@ textarea {
 .calendar-day {
     position: relative;
     aspect-ratio: 1;
+    min-height: 55px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2235,13 +2238,42 @@ textarea {
     font-size: 0.9em;
 }
 
-.calendar-day .shift-label {
-    font-size: 10px;
-    font-weight: 600;
+.calendar-day .shift-labels {
+    display: flex;
+    flex-direction: row;
+    gap: 3px;
     position: absolute;
-    bottom: 2px;
-    right: 4px;
-    opacity: 0.8;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.calendar-day .shift-label {
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 3px;
+    border-radius: 2px;
+    opacity: 0.9;
+}
+
+.calendar-day .shift-label.shift-day {
+    background: rgba(255, 200, 0, 0.4);
+    color: #7d6000;
+}
+
+.calendar-day .shift-label.shift-night {
+    background: rgba(100, 100, 200, 0.4);
+    color: #3030a0;
+}
+
+[data-theme="dark"] .calendar-day .shift-label.shift-day {
+    background: rgba(255, 200, 0, 0.3);
+    color: #ffd700;
+}
+
+[data-theme="dark"] .calendar-day .shift-label.shift-night {
+    background: rgba(120, 120, 255, 0.3);
+    color: #a0a0ff;
 }
 
 /* Calendar Shift Colors */

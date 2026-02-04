@@ -45,12 +45,19 @@ window.CALENDAR = {
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const shift = schedule[dateStr];
-            const shiftClass = shift ? `shift-${shift.day_shift.toLowerCase()}` : '';
+            const dayShift = shift?.day_shift || '';
+            const nightShift = shift?.night_shift || '';
+            const shiftClass = shift ? `shift-${dayShift.toLowerCase()}` : '';
             const isToday = this.isToday(year, month, day) ? 'today' : '';
 
             html += `<div class="calendar-day ${shiftClass} ${isToday}" data-date="${dateStr}">
                 <span class="day-num">${day}</span>
-                ${shift ? `<span class="shift-label">${shift.day_shift}</span>` : ''}
+                ${shift ? `
+                    <div class="shift-labels">
+                        <span class="shift-label shift-day" title="Day Shift">${dayShift}</span>
+                        <span class="shift-label shift-night" title="Night Shift">${nightShift}</span>
+                    </div>
+                ` : ''}
             </div>`;
         }
 

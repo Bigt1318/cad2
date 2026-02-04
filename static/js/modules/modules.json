@@ -1,6 +1,6 @@
 [
   "/static/js/modules/utils.js?v=20260202a",
-  "/static/js/modules/settings.js?v=20260204a",
+  "/static/js/modules/settings.js?v=20260204b",
   "/static/js/modules/sounds.js?v=20260202b",
   "/static/js/modules/state.js?v=20260202a",
   "/static/js/modules/toast.js?v=20260202a",
@@ -10,9 +10,9 @@
   "/static/js/modules/panels.js?v=20260202a",
   "/static/js/modules/drag.js?v=20260202a",
   "/static/js/modules/drag_dispatch.js?v=20260202a",
-  "/static/js/modules/clock.js?v=20260202a",
+  "/static/js/modules/clock.js?v=20260204b",
   "/static/js/modules/timers.js?v=20260202a",
-  "/static/js/modules/commandline.js?v=20260204a",
+  "/static/js/modules/commandline.js?v=20260204b",
   "/static/js/modules/actions.js?v=20260202c",
   "/static/js/modules/calltaker.js?v=20260202a",
   "/static/js/modules/iaw.js?v=20260202b",
@@ -22,5 +22,5 @@
   "/static/js/modules/disposition.js?v=20260202a",
   "/static/js/modules/issue.js?v=20260202a",
   "/static/js/modules/eventlog.js?v=20260202a",
-  "/static/js/modules/calendar.js?v=20260204a"
+  "/static/js/modules/calendar.js?v=20260204b"
 ]
