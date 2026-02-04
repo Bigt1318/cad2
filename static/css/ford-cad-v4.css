@@ -424,6 +424,51 @@ html[data-density="spacious"] {
     gap: 0.8em;
 }
 
+/* Apply density to buttons and inputs */
+[data-density="compact"] button,
+[data-density="compact"] .btn,
+[data-density="compact"] input,
+[data-density="compact"] select {
+    padding: 0.25em 0.5em;
+}
+
+[data-density="spacious"] button,
+[data-density="spacious"] .btn,
+[data-density="spacious"] input,
+[data-density="spacious"] select {
+    padding: 0.6em 1em;
+}
+
+/* Apply density to panels */
+[data-density="compact"] .panel-header {
+    padding: 0.35em 0.5em;
+}
+
+[data-density="spacious"] .panel-header {
+    padding: 0.6em 0.8em;
+}
+
+[data-density="compact"] .panel-body {
+    padding: 0.25em;
+}
+
+[data-density="spacious"] .panel-body {
+    padding: 0.6em;
+}
+
+/* Apply density to cards and sections */
+[data-density="compact"] .card,
+[data-density="compact"] .section {
+    padding: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+[data-density="spacious"] .card,
+[data-density="spacious"] .section {
+    padding: 1em;
+    margin-bottom: 1em;
+}
+
 /* ============================================================================
    RESET & BASE
    ============================================================================ */

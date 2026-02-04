@@ -8,6 +8,7 @@ const STORAGE_KEY = "fordcad_settings";
 const DEFAULT_SETTINGS = {
     theme: "light",
     fontSize: "medium",      // small, medium, large, xlarge
+    fontFamily: "system",    // system, segoe, arial, roboto, mono
     density: "normal",       // compact, normal, spacious
     soundEnabled: true,
     autoRefresh: true,
@@ -130,6 +131,8 @@ export const SETTINGS = {
             this.applyTheme(value);
         } else if (key === "fontSize") {
             this.applyFontSize(value);
+        } else if (key === "fontFamily") {
+            this.applyFontFamily(value);
         } else if (key === "density") {
             this.applyDensity(value);
         } else if (key === "statusColors") {
@@ -182,6 +185,24 @@ export const SETTINGS = {
     },
 
     // -------------------------------------------------------------------------
+    // Apply font family to document
+    // -------------------------------------------------------------------------
+    applyFontFamily(family) {
+        const fontMap = {
+            "system": '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            "segoe": '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+            "arial": 'Arial, Helvetica, sans-serif',
+            "roboto": 'Roboto, "Helvetica Neue", Arial, sans-serif',
+            "inter": 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            "mono": 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+            "verdana": 'Verdana, Geneva, sans-serif',
+            "tahoma": 'Tahoma, Geneva, sans-serif'
+        };
+        const f = fontMap[family] || fontMap["system"];
+        document.documentElement.style.setProperty("--font-sans", f);
+    },
+
+    // -------------------------------------------------------------------------
     // Apply display density to document
     // -------------------------------------------------------------------------
     applyDensity(density) {
@@ -227,6 +248,7 @@ export const SETTINGS = {
         this.load();
         this.applyTheme(_settings.theme);
         this.applyFontSize(_settings.fontSize);
+        this.applyFontFamily(_settings.fontFamily);
         this.applyDensity(_settings.density);
         this.applyPanelWidths();
         this.applyStatusColors();
@@ -239,6 +261,7 @@ export const SETTINGS = {
             // Re-apply settings from server
             this.applyTheme(_settings.theme);
             this.applyFontSize(_settings.fontSize);
+            this.applyFontFamily(_settings.fontFamily);
             this.applyDensity(_settings.density);
             this.applyPanelWidths();
             this.applyStatusColors();
@@ -437,6 +460,20 @@ export const SETTINGS = {
                                 <span class="slider-label-right">A</span>
                                 <span class="slider-value" id="fontsize-label">${{small:'Small',medium:'Medium',large:'Large',xlarge:'Extra Large'}[current.fontSize]}</span>
                             </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <div class="settings-group-title">Font Family</div>
+                            <select class="settings-select" onchange="SETTINGS.set('fontFamily', this.value)">
+                                <option value="system" ${current.fontFamily === 'system' ? 'selected' : ''}>System Default</option>
+                                <option value="segoe" ${current.fontFamily === 'segoe' ? 'selected' : ''}>Segoe UI</option>
+                                <option value="arial" ${current.fontFamily === 'arial' ? 'selected' : ''}>Arial</option>
+                                <option value="verdana" ${current.fontFamily === 'verdana' ? 'selected' : ''}>Verdana</option>
+                                <option value="tahoma" ${current.fontFamily === 'tahoma' ? 'selected' : ''}>Tahoma</option>
+                                <option value="roboto" ${current.fontFamily === 'roboto' ? 'selected' : ''}>Roboto</option>
+                                <option value="inter" ${current.fontFamily === 'inter' ? 'selected' : ''}>Inter</option>
+                                <option value="mono" ${current.fontFamily === 'mono' ? 'selected' : ''}>Monospace</option>
+                            </select>
                         </div>
 
                         <div class="settings-group">
