@@ -62,6 +62,22 @@ const DEBUG = false;  // Set to true to enable boot logging
         window.CAD.modules = modules;
 
         // ----------------------------
+        // 0) Settings (apply theme/font/density early)
+        // ----------------------------
+        try {
+            const settingsMod = modules.settings;
+            const settings = settingsMod?.SETTINGS || settingsMod?.default || window.SETTINGS;
+            if (settings?.init) {
+                await settings.init();
+                if (DEBUG) console.log("[BOOT] Settings initialized.");
+            } else {
+                console.warn("[BOOT] settings.js loaded but SETTINGS.init() not found.");
+            }
+        } catch (e) {
+            console.error("[BOOT] Settings init failed:", e);
+        }
+
+        // ----------------------------
         // 1) Modal Engine
         // ----------------------------
         try {

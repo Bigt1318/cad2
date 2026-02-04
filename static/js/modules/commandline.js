@@ -688,17 +688,12 @@ DISPOSITION CODES
         const list = this._asUnitList(units);
         for (const u of list) {
             try {
-                const ctx = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(u)}`);
-                const incId = Number(ctx?.active_incident_id || 0);
-                if (!incId) {
-                    this._toast(`${u} is not on an active incident.`, "error");
-                    continue;
-                }
-                // Open UAW for disposition
-                if (window.UAW?.openIncidentUnit) {
-                    window.UAW.openIncidentUnit(incId, u);
+                // Use openForClear which works from CLI (no row anchor needed)
+                if (window.UAW?.openForClear) {
+                    await window.UAW.openForClear(u);
                 } else {
-                    window.UAW?.open(u);
+                    // Fallback: just show toast if UAW not available
+                    this._toast(`Cannot open clear dialog for ${u}`, "error");
                 }
             } catch (err) {
                 console.error(`[CLI] Clear failed for ${u}:`, err);

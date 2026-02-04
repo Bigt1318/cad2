@@ -1817,6 +1817,51 @@ export const UAW = {
     this._showClearOptions();
   },
 
+  // CLI helper: open UAW centered (no anchor element needed) and jump to clear options
+  async openForClear(unitId) {
+    if (!unitId) return;
+
+    await this.close();
+
+    _ensureStyles();
+    await _loadKnownUnits();
+
+    _unitId = unitId;
+    _incidentId = null;
+
+    _isApparatus = false;
+    _parentApparatusId = null;
+    _crew = [];
+
+    if (!_validateKnownUnitOrWarn(_unitId)) return;
+
+    // Get unit context to find active incident
+    const ctx = await _tryGetUnitContext(unitId);
+    if (ctx && (ctx.active_incident_id || ctx.incident_id)) {
+      _incidentId = Number(ctx.active_incident_id || ctx.incident_id);
+    }
+
+    _isApparatus = !!ctx?.is_apparatus;
+    _parentApparatusId = ctx?.parent_apparatus_id || null;
+    _crew = Array.isArray(ctx?.crew) ? ctx.crew : [];
+
+    // Create popup (no anchor - will center)
+    _popup = document.createElement("div");
+    _popup.className = "uaw-popup";
+    _popup.dataset.mode = "clear";
+    _popup.style.visibility = "hidden";
+    _popup.style.left = "-9999px";
+    _popup.style.top = "-9999px";
+    document.body.appendChild(_popup);
+
+    // Jump directly to clear options
+    this._showClearOptions();
+    _placePopup("center", true);
+
+    _setOutsideAndKeyHandlers();
+    _focusFirst();
+  },
+
   async close() {
     if (_popup) _popup.remove();
     _popup = null;
