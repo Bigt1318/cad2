@@ -10107,8 +10107,43 @@ from fastapi import HTTPException
 
 ADMIN_UNITS = {"1578", "CAR1", "BATT1", "BATT2", "BATT3", "BATT4", "17", "47"}
 
+# Super-admins have full system access (agency config, admin user management, system reset)
+# Default super-admins - can be extended via SystemSettings
+SUPER_ADMIN_UNITS = {"1578", "17"}
+
 def _is_admin(user: str) -> bool:
+    """Check if user has admin access (operational admin)."""
     return (user or "").upper() in ADMIN_UNITS
+
+def _is_super_admin(user: str) -> bool:
+    """Check if user has super-admin access (system configuration)."""
+    user_upper = (user or "").upper()
+    if user_upper in SUPER_ADMIN_UNITS:
+        return True
+    # Also check SystemSettings for additional super-admins
+    try:
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT value FROM SystemSettings WHERE key = 'super_admin_users'"
+        ).fetchone()
+        conn.close()
+        if row and row["value"]:
+            extra_admins = {u.strip().upper() for u in row["value"].split(",")}
+            return user_upper in extra_admins
+    except Exception:
+        pass
+    return False
+
+def _get_user_permission_level(user: str) -> str:
+    """
+    Get permission level for a user.
+    Returns: 'super_admin', 'admin', or 'user'
+    """
+    if _is_super_admin(user):
+        return "super_admin"
+    elif _is_admin(user):
+        return "admin"
+    return "user"
 
 
 # ------------------------------------------------------
@@ -11383,8 +11418,8 @@ def admin_reset_incidents(
     """Archive then clear ALL incidents. Requires confirm='DELETE ALL'"""
     ensure_phase3_schema()
 
-    if not _is_admin(user):
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+    if not _is_super_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Super-admin access required to delete all incidents"})
 
     if confirm != "DELETE ALL":
         return {"ok": False, "error": "Type 'DELETE ALL' to confirm this action"}
@@ -11439,8 +11474,8 @@ def admin_reset_full(
     """Full system reset: archive everything, clear all data, reset run numbers. Requires confirm='RESET'"""
     ensure_phase3_schema()
 
-    if not _is_admin(user):
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+    if not _is_super_admin(user):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Super-admin access required for full system reset"})
 
     if confirm != "RESET":
         return {"ok": False, "error": "Type 'RESET' to confirm full system reset"}
@@ -11772,11 +11807,25 @@ def api_admin_settings_list(user: str = "DISPATCH"):
 
 @app.post("/api/admin/settings", response_class=JSONResponse)
 async def api_admin_settings_save(request: Request, user: str = "DISPATCH"):
-    """Save a system setting."""
+    """Save a system setting. Super-admin required for system settings."""
     ensure_phase3_schema()
 
     if not _is_admin(user):
         return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
+
+    # Check if setting requires super-admin
+    try:
+        body = await request.json()
+        key = body.get("key", "")
+        # System-critical settings require super-admin
+        super_admin_keys = {
+            "agency_name", "dept_name", "dept_code", "fdid", "state",
+            "address", "city", "phone", "super_admin_users", "admin_users"
+        }
+        if key in super_admin_keys and not _is_super_admin(user):
+            return JSONResponse({"ok": False, "error": "Super-admin access required for system settings"}, status_code=403)
+    except Exception:
+        pass
 
     try:
         data = await request.json()
@@ -11839,14 +11888,18 @@ def admin_dashboard_page(request: Request, user: str = "DISPATCH"):
     """Admin dashboard HTML page."""
     ensure_phase3_schema()
 
-    if not _is_admin(user):
+    permission_level = _get_user_permission_level(user)
+    if permission_level == "user":
         return HTMLResponse("<h1>403 Forbidden</h1><p>Admin access required.</p>", status_code=403)
 
     return templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
-            "user": user
+            "user": user,
+            "permission_level": permission_level,
+            "is_super_admin": permission_level == "super_admin",
+            "is_admin": True  # They passed the check above
         }
     )
 

@@ -33,6 +33,35 @@
         {% else %}
 
             <!-- ====================================================
+                 SECTION 0 — RECOMMENDED UNITS (Run Card)
+            ====================================================== -->
+            {% if recommended_units|default([])|length > 0 %}
+            <div class="dp-section dp-recommended">
+                <div class="dp-section-title dp-recommended-title">
+                    Recommended for {{ incident_type or 'this incident' }}
+                </div>
+
+                {% for u in recommended_units %}
+                <div class="dp-unit-row dp-recommended-row"
+                     onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                    <img src="/static/images/{{ u.icon }}"
+                         class="dp-unit-icon"
+                         alt="{{ u.unit_id }}">
+
+                    <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                    <div class="dp-unit-status">
+                        <span class="status-badge status-{{ (u.status or '')|lower }}">
+                            {{ u.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- ====================================================
                  SECTION 1 — COMMAND UNITS
             ====================================================== -->
             <div class="dp-section">
@@ -280,5 +309,37 @@
 
 #mutual-aid-container.collapsed {
     display: none;
+}
+
+/* RECOMMENDED SECTION */
+.dp-recommended {
+    background: linear-gradient(135deg, #1a3a1a 0%, #0d2818 100%);
+    border: 1px solid #2e8b57;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 16px;
+}
+
+.dp-recommended-title {
+    color: #4ade80 !important;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dp-recommended-title::before {
+    content: "★";
+    color: #fbbf24;
+}
+
+.dp-recommended-row {
+    background: rgba(46, 139, 87, 0.15);
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.dp-recommended-row:hover {
+    background: rgba(46, 139, 87, 0.3);
 }
 </style>

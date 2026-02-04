@@ -1,6 +1,6 @@
 <!-- ============================================================
      FORD-CAD — ADMIN SYSTEM MANAGEMENT
-     Phase-3 Canon • Admin Dashboard
+     Phase-3 Canon • Comprehensive Admin Dashboard
      templates/admin.html
 ============================================================ -->
 
@@ -27,11 +27,7 @@
             --warning-light: #fff3e0;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: "Segoe UI", system-ui, sans-serif;
@@ -40,7 +36,6 @@
             min-height: 100vh;
         }
 
-        /* Header */
         .admin-header {
             background: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
             color: white;
@@ -50,40 +45,24 @@
             justify-content: space-between;
         }
 
-        .admin-header h1 {
-            font-size: 22px;
-            font-weight: 600;
-        }
-
+        .admin-header h1 { font-size: 22px; font-weight: 600; }
         .admin-header .user-badge {
             background: rgba(255,255,255,0.15);
             padding: 6px 14px;
             border-radius: 6px;
             font-size: 13px;
         }
+        .back-link { color: white; text-decoration: none; font-size: 13px; opacity: 0.85; }
+        .back-link:hover { opacity: 1; }
 
-        .back-link {
-            color: white;
-            text-decoration: none;
-            font-size: 13px;
-            opacity: 0.85;
-        }
-
-        .back-link:hover {
-            opacity: 1;
-        }
-
-        /* Tabs */
         .tab-container {
             background: white;
             border-bottom: 1px solid var(--panel-border);
             padding: 0 24px;
+            overflow-x: auto;
         }
 
-        .tabs {
-            display: flex;
-            gap: 4px;
-        }
+        .tabs { display: flex; gap: 4px; min-width: max-content; }
 
         .tab-btn {
             padding: 14px 20px;
@@ -95,37 +74,19 @@
             color: var(--text-muted);
             border-bottom: 3px solid transparent;
             transition: all 0.2s;
+            white-space: nowrap;
         }
 
-        .tab-btn:hover {
-            color: var(--ford-blue);
-            background: var(--ford-blue-light);
-        }
+        .tab-btn:hover { color: var(--ford-blue); background: var(--ford-blue-light); }
+        .tab-btn.active { color: var(--ford-blue); border-bottom-color: var(--ford-blue); }
 
-        .tab-btn.active {
-            color: var(--ford-blue);
-            border-bottom-color: var(--ford-blue);
-        }
+        .content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
 
-        /* Content */
-        .content {
-            padding: 24px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .tab-panel {
-            display: none;
-        }
-
-        .tab-panel.active {
-            display: block;
-        }
-
-        /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -145,19 +106,9 @@
             margin-bottom: 6px;
         }
 
-        .stat-card .value {
-            font-size: 28px;
-            font-weight: 600;
-            color: var(--ford-blue);
-        }
+        .stat-card .value { font-size: 28px; font-weight: 600; color: var(--ford-blue); }
+        .stat-card .subvalue { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-        .stat-card .subvalue {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-
-        /* Cards */
         .card {
             background: white;
             border-radius: 10px;
@@ -166,24 +117,245 @@
             margin-bottom: 16px;
         }
 
-        .card h3 {
-            font-size: 16px;
-            margin-bottom: 12px;
-            color: var(--text-main);
+        .card h3 { font-size: 16px; margin-bottom: 12px; color: var(--text-main); }
+        .card h4 { font-size: 14px; margin: 16px 0 8px 0; color: var(--ford-blue); border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; }
+        .card p { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; }
+
+        .settings-section {
+            background: var(--panel-bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--panel-border);
         }
 
-        .card p {
+        .settings-section h4 {
             font-size: 13px;
-            color: var(--text-muted);
+            font-weight: 600;
+            color: var(--ford-blue);
             margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        /* Reset Actions */
-        .reset-actions {
+        .setting-row {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--panel-border);
         }
+
+        .setting-row:last-child { border-bottom: none; }
+
+        .setting-info { flex: 1; }
+        .setting-info .setting-label { font-size: 14px; font-weight: 500; color: var(--text-main); }
+        .setting-info .setting-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+        .setting-control { min-width: 200px; text-align: right; }
+        .setting-control input[type="text"],
+        .setting-control input[type="number"],
+        .setting-control select {
+            padding: 8px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            display: inline-block;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider { background-color: var(--ford-blue); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-primary { background: var(--ford-blue); color: white; }
+        .btn-primary:hover { background: var(--ford-blue-dark); }
+        .btn-secondary { background: #e0e0e0; color: var(--text-main); }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { background: #e65100; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+        .form-group label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 8px 12px;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--ford-blue);
+        }
+
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .form-row .form-group { flex: 1; min-width: 150px; }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th, .data-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .data-table th {
+            background: var(--panel-bg);
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+        }
+        .data-table tr:hover { background: var(--ford-blue-light); }
+        .data-table .actions { display: flex; gap: 6px; }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+        }
+
+        .icon-preview {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
+            border-radius: 4px;
+            background: var(--panel-bg);
+        }
+
+        .icon-placeholder {
+            width: 32px;
+            height: 32px;
+            background: var(--panel-bg);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .unit-type-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .unit-type-badge.apparatus { background: #e3f2fd; color: #1565c0; }
+        .unit-type-badge.command { background: #fff3e0; color: #e65100; }
+        .unit-type-badge.personnel { background: #e8f5e9; color: #2e7d32; }
+
+        .quick-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+
+        .quick-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+
+        .quick-link:hover { background: var(--ford-blue-light); border-color: var(--ford-blue); }
+        .quick-link .icon { font-size: 24px; }
+        .quick-link .text { flex: 1; }
+        .quick-link .text h4 { font-size: 14px; margin-bottom: 2px; }
+        .quick-link .text p { font-size: 11px; color: var(--text-muted); margin: 0; }
+
+        .admin-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--danger-light);
+            color: var(--danger);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .admin-user-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .admin-user-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .admin-user-chip .remove-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .reset-actions { display: flex; flex-direction: column; gap: 12px; }
 
         .reset-row {
             display: flex;
@@ -195,129 +367,10 @@
             border: 1px solid var(--panel-border);
         }
 
-        .reset-row.danger {
-            background: var(--danger-light);
-            border-color: var(--danger);
-        }
+        .reset-row.danger { background: var(--danger-light); border-color: var(--danger); }
+        .reset-info h4 { font-size: 14px; margin-bottom: 4px; }
+        .reset-info p { font-size: 12px; color: var(--text-muted); margin: 0; }
 
-        .reset-info h4 {
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .reset-info p {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin: 0;
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: var(--ford-blue);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--ford-blue-dark);
-        }
-
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-
-        .btn-warning:hover {
-            background: #e65100;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #b71c1c;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #1b5e20;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Run Number Form */
-        .run-number-form {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .form-group label {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .form-group input {
-            padding: 8px 12px;
-            border: 1px solid var(--panel-border);
-            border-radius: 6px;
-            font-size: 14px;
-            width: 120px;
-        }
-
-        /* Log Table */
-        .log-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .log-table th,
-        .log-table td {
-            padding: 10px 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--panel-border);
-        }
-
-        .log-table th {
-            background: var(--panel-bg);
-            font-weight: 600;
-            color: var(--text-muted);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .log-table tr:hover {
-            background: var(--ford-blue-light);
-        }
-
-        /* Toast */
         .toast {
             position: fixed;
             bottom: 24px;
@@ -331,37 +384,18 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .toast.success {
-            background: var(--success);
-        }
-
-        .toast.error {
-            background: var(--danger);
-        }
-
-        .toast.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.show { display: block; animation: slideIn 0.3s ease; }
 
         @keyframes slideIn {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
-        /* Modal */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5);
             display: none;
             align-items: center;
@@ -369,77 +403,97 @@
             z-index: 900;
         }
 
-        .modal-overlay.show {
-            display: flex;
-        }
+        .modal-overlay.show { display: flex; }
 
         .modal {
             background: white;
             border-radius: 12px;
             padding: 24px;
-            max-width: 400px;
+            max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
         }
 
-        .modal h3 {
-            margin-bottom: 12px;
-            color: var(--danger);
-        }
+        .modal h3 { margin-bottom: 16px; color: var(--text-main); }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
 
-        .modal p {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin-bottom: 16px;
-        }
+        .order-input { width: 60px; padding: 4px 8px; text-align: center; }
 
-        .modal input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--panel-border);
+        .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .checkbox-label input { width: 18px; height: 18px; }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            background: var(--panel-bg);
             border-radius: 6px;
-            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .icon-option {
+            padding: 8px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .icon-option:hover { background: white; border-color: var(--panel-border); }
+        .icon-option.selected { background: white; border-color: var(--ford-blue); }
+        .icon-option img { width: 40px; height: 40px; object-fit: contain; }
+
+        .warning-banner {
+            background: var(--warning-light);
+            border: 1px solid var(--warning);
+            border-radius: 8px;
+            padding: 12px 16px;
             margin-bottom: 16px;
-        }
-
-        .modal-actions {
             display: flex;
+            align-items: center;
             gap: 12px;
-            justify-content: flex-end;
         }
 
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        /* Yearly counts table */
-        .yearly-table {
-            margin-top: 16px;
-        }
-
-        .yearly-table th,
-        .yearly-table td {
-            padding: 8px 16px;
-        }
+        .warning-banner .icon { font-size: 20px; }
+        .warning-banner .text { font-size: 13px; color: #e65100; }
     </style>
 </head>
 <body>
 
 <header class="admin-header">
     <div>
-        <a href="/" class="back-link">Back to CAD</a>
+        <a href="/" class="back-link">&#8592; Back to CAD</a>
         <h1>System Administration</h1>
     </div>
-    <div class="user-badge">Logged in as: {{ user }}</div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+        {% if is_super_admin %}
+        <span class="admin-badge" style="background: #7c3aed20; color: #7c3aed;">&#128081; SUPER ADMIN</span>
+        {% else %}
+        <span class="admin-badge">&#128274; ADMIN</span>
+        {% endif %}
+        <div class="user-badge">{{ user }}</div>
+    </div>
 </header>
 
 <div class="tab-container">
     <div class="tabs">
         <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-        <button class="tab-btn" data-tab="reports">Reports</button>
-        <button class="tab-btn" data-tab="reset">Reset & Maintenance</button>
-        <button class="tab-btn" data-tab="runnumbers">Run Numbers</button>
-        <button class="tab-btn" data-tab="logs">Admin Logs</button>
+        {% if is_super_admin %}
+        <button class="tab-btn" data-tab="agency">Agency Config</button>
+        <button class="tab-btn" data-tab="users">Admin Users</button>
+        {% endif %}
+        <button class="tab-btn" data-tab="units">Units</button>
+        <button class="tab-btn" data-tab="dispatch">Dispatch Config</button>
+        <button class="tab-btn" data-tab="reporting">Reporting</button>
+        {% if is_super_admin %}
+        <button class="tab-btn" data-tab="integrations">Integrations</button>
+        <button class="tab-btn" data-tab="maintenance">Maintenance</button>
+        {% endif %}
     </div>
 </div>
 
@@ -447,7 +501,7 @@
 
     <!-- DASHBOARD TAB -->
     <div class="tab-panel active" id="tab-dashboard">
-        <div class="stats-grid" id="stats-grid">
+        <div class="stats-grid">
             <div class="stat-card">
                 <div class="label">Total Incidents</div>
                 <div class="value" id="stat-total">--</div>
@@ -461,10 +515,6 @@
                 <div class="value" id="stat-closed">--</div>
             </div>
             <div class="stat-card">
-                <div class="label">Draft Incidents</div>
-                <div class="value" id="stat-drafts">--</div>
-            </div>
-            <div class="stat-card">
                 <div class="label">Current Run #</div>
                 <div class="value" id="stat-run">--</div>
             </div>
@@ -474,114 +524,313 @@
                 <div class="subvalue" id="stat-units-avail">-- available</div>
             </div>
             <div class="stat-card">
-                <div class="label">MasterLog Entries</div>
-                <div class="value" id="stat-masterlog">--</div>
-            </div>
-            <div class="stat-card">
-                <div class="label">DailyLog Entries</div>
-                <div class="value" id="stat-dailylog">--</div>
+                <div class="label">Admin Users</div>
+                <div class="value" id="stat-admins">--</div>
             </div>
         </div>
 
         <div class="card">
-            <h3>Last Incident</h3>
+            <h3>Quick Links</h3>
+            <div class="quick-links">
+                <a href="/admin/response_plans" class="quick-link">
+                    <span class="icon">&#128203;</span>
+                    <div class="text">
+                        <h4>Response Plans</h4>
+                        <p>Run cards & auto-dispatch</p>
+                    </div>
+                </a>
+                <a href="/admin/preplans" class="quick-link">
+                    <span class="icon">&#127970;</span>
+                    <div class="text">
+                        <h4>Pre-Plans</h4>
+                        <p>Building pre-incident plans</p>
+                    </div>
+                </a>
+                <a href="/admin/station_alerts" class="quick-link">
+                    <span class="icon">&#128276;</span>
+                    <div class="text">
+                        <h4>Station Alerts</h4>
+                        <p>Webhook notifications</p>
+                    </div>
+                </a>
+                <a href="/settings?user={{ user }}" class="quick-link">
+                    <span class="icon">&#9881;</span>
+                    <div class="text">
+                        <h4>General Settings</h4>
+                        <p>User preferences & display</p>
+                    </div>
+                </a>
+                <a href="/analytics" class="quick-link">
+                    <span class="icon">&#128200;</span>
+                    <div class="text">
+                        <h4>Analytics</h4>
+                        <p>Reports & statistics</p>
+                    </div>
+                </a>
+                <a href="/nfirs" class="quick-link">
+                    <span class="icon">&#128221;</span>
+                    <div class="text">
+                        <h4>NFIRS Reports</h4>
+                        <p>Incident reporting</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>System Status</h3>
             <p id="last-incident">Loading...</p>
-        </div>
-
-        <div class="card">
-            <h3>Incidents by Year</h3>
-            <table class="log-table yearly-table" id="yearly-table">
-                <thead>
-                    <tr>
-                        <th>Year</th>
-                        <th>Count</th>
-                    </tr>
-                </thead>
-                <tbody id="yearly-tbody">
-                    <tr><td colspan="2">Loading...</td></tr>
-                </tbody>
-            </table>
         </div>
     </div>
 
-    <!-- REPORTS TAB -->
-    <div class="tab-panel" id="tab-reports">
+    <!-- AGENCY CONFIG TAB (Super-Admin Only) -->
+    {% if is_super_admin %}
+    <div class="tab-panel" id="tab-agency">
+        <div class="warning-banner">
+            <span class="icon">&#9888;</span>
+            <span class="text">Changes to agency configuration affect all users and system-wide settings. Super-admin access required.</span>
+        </div>
+
         <div class="card">
-            <h3>Auto-Reporting Control</h3>
-            <p>Enable or disable automatic shift reports. When enabled, reports are sent every 30 minutes during active shifts.</p>
-            
-            <div class="reset-row" id="auto-report-row">
-                <div class="reset-info">
-                    <h4>Automatic Report Scheduling</h4>
-                    <p id="auto-report-status">Loading...</p>
+            <h3>Agency Information</h3>
+
+            <div class="settings-section">
+                <h4>Department Identity</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Department Name</div>
+                        <div class="setting-desc">Official name displayed throughout the system</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-dept-name" placeholder="Fire Department">
+                    </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-success" id="btn-enable-reports" onclick="toggleAutoReports(true)">Enable</button>
-                    <button class="btn btn-danger" id="btn-disable-reports" onclick="toggleAutoReports(false)">Disable</button>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Department Code</div>
+                        <div class="setting-desc">Short identifier (e.g., FD01, HCFD)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-dept-code" placeholder="FD01" style="width: 100px;">
+                    </div>
                 </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">FDID (Fire Department ID)</div>
+                        <div class="setting-desc">5-digit NFIRS identifier</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-fdid" placeholder="12345" style="width: 100px;">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">State</div>
+                        <div class="setting-desc">State code for NFIRS reporting</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-state" style="width: 100px;">
+                            <option value="IN">IN</option>
+                            <option value="OH">OH</option>
+                            <option value="KY">KY</option>
+                            <option value="IL">IL</option>
+                            <option value="MI">MI</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Contact Information</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Station Address</div>
+                        <div class="setting-desc">Primary station address</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-address" placeholder="123 Main St">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">City</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-city" placeholder="City">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Phone Number</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" id="cfg-phone" placeholder="(555) 555-5555">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Time & Locale</h4>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Time Zone</div>
+                        <div class="setting-desc">System-wide time zone for timestamps</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-timezone">
+                            <option value="America/New_York">Eastern (ET)</option>
+                            <option value="America/Chicago">Central (CT)</option>
+                            <option value="America/Denver">Mountain (MT)</option>
+                            <option value="America/Los_Angeles">Pacific (PT)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Date Format</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-date-format">
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-label">Time Format</div>
+                    </div>
+                    <div class="setting-control">
+                        <select id="cfg-time-format">
+                            <option value="24">24-hour (14:30)</option>
+                            <option value="12">12-hour (2:30 PM)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveAgencyConfig()">Save Agency Configuration</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ADMIN USERS TAB (Super-Admin Only) -->
+    {% if is_super_admin %}
+    <div class="tab-panel" id="tab-users">
+        <div class="warning-banner">
+            <span class="icon">&#128274;</span>
+            <span class="text">Admin users have full system access. Only super-admins can manage admin privileges.</span>
+        </div>
+
+        <div class="card">
+            <h3>Admin User Management</h3>
+            <p>Users with administrative privileges. Admin access is granted by unit ID.</p>
+
+            <div class="settings-section">
+                <h4>Current Admin Users</h4>
+                <div class="admin-user-list" id="admin-user-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h4>Add Admin User</h4>
+                <div class="form-row" style="align-items: flex-end;">
+                    <div class="form-group" style="flex: 2;">
+                        <label>Unit ID</label>
+                        <select id="new-admin-unit">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 0;">
+                        <button class="btn btn-primary" onclick="addAdminUser()">Add Admin</button>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                    Note: Admin changes require server restart to take effect.
+                </p>
             </div>
         </div>
 
         <div class="card">
-            <h3>Email Recipients</h3>
-            <p>Configure who receives daily reports. Battalion Chiefs receive reports by default based on shift.</p>
-            
-            <div style="margin: 16px 0;">
-                <h4 style="font-size: 14px; margin-bottom: 12px;">Battalion Chiefs (by Shift)</h4>
-                <table class="log-table" id="bc-table">
+            <h3>Admin Permissions</h3>
+            <p>Admin users can perform the following actions:</p>
+            <ul style="margin-left: 20px; font-size: 13px; color: var(--text-muted);">
+                <li>Add, edit, and delete units</li>
+                <li>Modify agency configuration</li>
+                <li>Manage response plans and pre-plans</li>
+                <li>Configure station alerts and integrations</li>
+                <li>Reset system data and run numbers</li>
+                <li>Export and archive data</li>
+                <li>View audit logs</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- UNITS TAB -->
+    <div class="tab-panel" id="tab-units">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="margin: 0;">Unit Management</h3>
+                <button class="btn btn-primary" onclick="openAddUnitModal()">+ Add Unit</button>
+            </div>
+            <p>Manage apparatus, command units, and personnel. Changes affect dispatch and unit panels.</p>
+
+            <div class="table-container" style="margin-top: 16px;">
+                <table class="data-table" id="units-table">
                     <thead>
                         <tr>
-                            <th>Shift</th>
+                            <th>Icon</th>
+                            <th>Unit ID</th>
                             <th>Name</th>
-                            <th>Email</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Order</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="bc-tbody">
-                        <tr><td colspan="4">Loading...</td></tr>
+                    <tbody id="units-tbody">
+                        <tr><td colspan="7">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
+        </div>
 
-            <div style="margin: 20px 0; padding-top: 16px; border-top: 1px solid var(--panel-border);">
-                <h4 style="font-size: 14px; margin-bottom: 12px;">Additional Recipients</h4>
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-                    Add extra email addresses that should receive all reports (comma-separated).
-                </p>
-                <div style="display: flex; gap: 12px; align-items: flex-start;">
-                    <textarea id="extra-recipients" placeholder="email1@example.com, email2@example.com" 
-                        style="flex: 1; padding: 10px; border: 1px solid var(--panel-border); border-radius: 6px; font-size: 13px; min-height: 60px;"></textarea>
-                    <button class="btn btn-primary" onclick="saveExtraRecipients()">Save Recipients</button>
+        <div class="card">
+            <h3>Unit Display Order</h3>
+            <p>Control the order units appear in panels. Lower numbers appear first.</p>
+
+            <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <button class="btn btn-primary" onclick="saveUnitOrders()">Save Order Changes</button>
+                <button class="btn btn-secondary" onclick="autoOrderUnits()">Auto-Order (A-Z)</button>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <strong>Apparatus</strong>
+                <div class="table-container" style="margin-top: 8px; max-height: 250px;">
+                    <table class="data-table">
+                        <thead><tr><th>Unit</th><th>Name</th><th style="width: 80px;">Order</th></tr></thead>
+                        <tbody id="order-apparatus-tbody"></tbody>
+                    </table>
                 </div>
             </div>
-        </div>
 
-        <div class="card">
-            <h3>Send Test Report</h3>
-            <p>Send a test report to verify email configuration.</p>
-            <div style="display: flex; gap: 12px; align-items: center; margin-top: 12px;">
-                <input type="email" id="test-email" placeholder="test@example.com" 
-                    style="padding: 10px; border: 1px solid var(--panel-border); border-radius: 6px; font-size: 14px; width: 250px;">
-                <button class="btn btn-primary" onclick="sendTestReport()">Send Test</button>
-                <button class="btn btn-warning" onclick="sendReportNow()">Send Report to All Recipients Now</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <h3>Report Schedule</h3>
-            <p>Reports are sent automatically during shift hours:</p>
-            <ul style="margin: 12px 0; padding-left: 24px; font-size: 13px; color: var(--text-muted);">
-                <li><strong>Day Shifts (A/C):</strong> 0600-1730 (every 30 min)</li>
-                <li><strong>Night Shifts (B/D):</strong> 1800-0530 (every 30 min)</li>
-            </ul>
-            <div id="current-shift-info" style="background: var(--panel-bg); padding: 12px; border-radius: 6px; font-size: 13px;">
-                Loading shift info...
+            <div style="margin-top: 16px;">
+                <strong>Command</strong>
+                <div class="table-container" style="margin-top: 8px; max-height: 200px;">
+                    <table class="data-table">
+                        <thead><tr><th>Unit</th><th>Name</th><th style="width: 80px;">Order</th></tr></thead>
+                        <tbody id="order-command-tbody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- RESET TAB -->
-    <div class="tab-panel" id="tab-reset">
+    <!-- DISPATCH CONFIG TAB -->
+    <div class="tab-panel" id="tab-dispatch">
         <div class="card">
             <h3>Dispatch Configuration</h3>
 
@@ -913,7 +1162,8 @@
         </div>
     </div>
 
-    <!-- INTEGRATIONS TAB -->
+    <!-- INTEGRATIONS TAB (Super-Admin Only) -->
+    {% if is_super_admin %}
     <div class="tab-panel" id="tab-integrations">
         <div class="card">
             <h3>System Integrations</h3>
@@ -990,23 +1240,24 @@
             <button class="btn btn-primary" onclick="saveIntegrationsConfig()">Save Integration Settings</button>
         </div>
     </div>
+    {% endif %}
 
-    <!-- MAINTENANCE TAB -->
+    <!-- MAINTENANCE TAB (Super-Admin Only) -->
+    {% if is_super_admin %}
     <div class="tab-panel" id="tab-maintenance">
         <div class="warning-banner">
             <span class="icon">&#9888;</span>
-            <span class="text">Maintenance actions can permanently delete data. Always create backups first.</span>
+            <span class="text">Maintenance actions can permanently delete data. Super-admin access required. Always create backups first.</span>
         </div>
 
         <div class="card">
             <h3>System Maintenance</h3>
 
             <div class="reset-actions">
-
                 <div class="reset-row">
                     <div class="reset-info">
                         <h4>Reset Unit Status</h4>
-                        <p>Set all units to AVAILABLE and clear active assignments</p>
+                        <p>Set all units to AVAILABLE and clear assignments</p>
                     </div>
                     <button class="btn btn-primary" onclick="resetUnits()">Reset Units</button>
                 </div>
@@ -1014,7 +1265,7 @@
                 <div class="reset-row">
                     <div class="reset-info">
                         <h4>Clear Closed Incidents</h4>
-                        <p>Archive and remove all closed incidents (keeps open/active)</p>
+                        <p>Archive and remove completed incidents</p>
                     </div>
                     <button class="btn btn-warning" onclick="clearClosedIncidents()">Clear Closed</button>
                 </div>
@@ -1022,132 +1273,136 @@
                 <div class="reset-row">
                     <div class="reset-info">
                         <h4>Clear Audit Logs</h4>
-                        <p>Archive and purge MasterLog and DailyLog entries</p>
+                        <p>Archive and purge system logs</p>
                     </div>
                     <button class="btn btn-warning" onclick="clearLogs()">Clear Logs</button>
                 </div>
 
                 <div class="reset-row">
                     <div class="reset-info">
-                        <h4>Clear ALL Incidents</h4>
-                        <p>Archive and remove ALL incident data (requires confirmation)</p>
+                        <h4>Reset Run Numbers</h4>
+                        <p>Reset incident counter to 1 for current year</p>
                     </div>
-                    <button class="btn btn-danger" onclick="showConfirmModal('DELETE ALL', clearAllIncidents)">Clear All Incidents</button>
+                    <button class="btn btn-warning" onclick="resetRunNumber()">Reset to 1</button>
+                </div>
+
+                <div class="reset-row">
+                    <div class="reset-info">
+                        <h4>Clear ALL Incidents</h4>
+                        <p>Archive and remove all incident data</p>
+                    </div>
+                    <button class="btn btn-danger" onclick="showConfirmModal('DELETE ALL', clearAllIncidents)">Clear All</button>
                 </div>
 
                 <div class="reset-row danger">
                     <div class="reset-info">
                         <h4>FULL SYSTEM RESET</h4>
-                        <p>Archive everything, clear all data, reset run numbers to 1</p>
+                        <p>Archive everything and reset system to defaults</p>
                     </div>
                     <button class="btn btn-danger" onclick="showConfirmModal('RESET', fullSystemReset)">Full Reset</button>
                 </div>
-
             </div>
         </div>
 
         <div class="card">
-            <h3>Export Data</h3>
-            <p>Download system data as CSV files.</p>
-            <div style="display: flex; gap: 12px; margin-top: 12px;">
-                <button class="btn btn-success" onclick="exportIncidents()">Export Incidents</button>
-                <button class="btn btn-success" onclick="exportLogs('masterlog')">Export MasterLog</button>
-                <button class="btn btn-success" onclick="exportLogs('dailylog')">Export DailyLog</button>
+            <h3>Recent Admin Activity</h3>
+            <div class="table-container" style="max-height: 300px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-log-tbody">
+                        <tr><td colspan="4">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-
-    <!-- RUN NUMBERS TAB -->
-    <div class="tab-panel" id="tab-runnumbers">
-        <div class="card">
-            <h3>Run Number Management</h3>
-            <p>Current run number sequence for incident numbering.</p>
-
-            <div id="run-number-display" style="margin: 20px 0;">
-                <div class="stat-card" style="display: inline-block;">
-                    <div class="label">Next Run Number</div>
-                    <div class="value" id="next-run-display">--</div>
-                </div>
-            </div>
-
-            <div class="run-number-form">
-                <div class="form-group">
-                    <label>Year</label>
-                    <input type="number" id="run-year" value="" readonly style="background: #f5f5f5;">
-                </div>
-                <div class="form-group">
-                    <label>Next Sequence</label>
-                    <input type="number" id="run-seq" value="1" min="1">
-                </div>
-                <button class="btn btn-primary" onclick="setRunNumber()">Set Run Number</button>
-                <button class="btn btn-warning" onclick="resetRunNumber()">Reset to 1</button>
-            </div>
-
-            <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
-                Note: Setting run numbers when incidents already exist for the year requires force mode.
-            </p>
-        </div>
-
-        <div class="card">
-            <h3>Run Number History</h3>
-            <table class="log-table" id="counter-table">
-                <thead>
-                    <tr>
-                        <th>Year</th>
-                        <th>Next Sequence</th>
-                    </tr>
-                </thead>
-                <tbody id="counter-tbody">
-                    <tr><td colspan="2">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- LOGS TAB -->
-    <div class="tab-panel" id="tab-logs">
-        <div class="card">
-            <h3>Recent Admin Actions</h3>
-            <p>Last 50 admin-related entries from MasterLog.</p>
-
-            <table class="log-table" id="admin-log-table">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>User</th>
-                        <th>Action</th>
-                        <th>Details</th>
-                    </tr>
-                </thead>
-                <tbody id="admin-log-tbody">
-                    <tr><td colspan="4">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% endif %}
 
 </div>
 
 <!-- Confirmation Modal -->
 <div class="modal-overlay" id="confirm-modal">
     <div class="modal">
-        <h3>Confirm Action</h3>
+        <h3 style="color: var(--danger);">Confirm Dangerous Action</h3>
         <p id="modal-message">Type the confirmation text to proceed.</p>
-        <input type="text" id="confirm-input" placeholder="Type here...">
+        <input type="text" id="confirm-input" placeholder="Type here..." style="width: 100%; padding: 10px; margin: 12px 0;">
         <div class="modal-actions">
-            <button class="btn" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-danger" id="confirm-btn" onclick="executeConfirmedAction()">Confirm</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="executeConfirmedAction()">Confirm</button>
         </div>
     </div>
 </div>
 
-<!-- Toast -->
+<!-- Add/Edit Unit Modal -->
+<div class="modal-overlay" id="unit-modal">
+    <div class="modal">
+        <h3 id="unit-modal-title">Add Unit</h3>
+        <div class="form-group">
+            <label>Unit ID *</label>
+            <input type="text" id="unit-id" placeholder="e.g., Engine1, 15, CAR1">
+        </div>
+        <div class="form-group">
+            <label>Display Name</label>
+            <input type="text" id="unit-name" placeholder="e.g., Engine 1">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Unit Type</label>
+                <select id="unit-type">
+                    <option value="PERSONNEL">Personnel</option>
+                    <option value="APPARATUS">Apparatus</option>
+                    <option value="COMMAND">Command</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Display Order</label>
+                <input type="number" id="unit-order" value="999" min="1">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" id="unit-is-apparatus"> Is Apparatus (vehicle)</label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" id="unit-is-command"> Is Command Unit</label>
+        </div>
+        <div class="form-group">
+            <label class="checkbox-label"><input type="checkbox" id="unit-is-mutual-aid"> Is Mutual Aid</label>
+        </div>
+        <div class="form-group">
+            <label>Icon Path</label>
+            <input type="text" id="unit-icon" placeholder="/static/images/engine.png">
+            <div id="unit-icon-grid" class="icon-grid" style="display: none;"></div>
+        </div>
+        <div class="form-group">
+            <label>Aliases (comma-separated)</label>
+            <input type="text" id="unit-aliases" placeholder="e.g., E1, eng1">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeUnitModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveUnit()">Save Unit</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const USER = '{{ user }}';
 let confirmText = '';
 let confirmCallback = null;
+let editingUnitId = null;
+let allUnits = [];
+let availableIcons = [];
+
+// Current admin users (loaded from server)
+let adminUsers = ['1578', 'CAR1', 'BATT1', 'BATT2', 'BATT3', 'BATT4', '17', '47'];
 
 // Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1156,10 +1411,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'units') fetchUnits();
     });
 });
 
-// Toast notification
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
@@ -1167,11 +1422,10 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.classList.remove('show'), 4000);
 }
 
-// Modal
 function showConfirmModal(text, callback) {
     confirmText = text;
     confirmCallback = callback;
-    document.getElementById('modal-message').textContent = `Type "${text}" to confirm this action.`;
+    document.getElementById('modal-message').textContent = `Type "${text}" to confirm this destructive action.`;
     document.getElementById('confirm-input').value = '';
     document.getElementById('confirm-modal').classList.add('show');
 }
@@ -1182,8 +1436,7 @@ function closeModal() {
 }
 
 function executeConfirmedAction() {
-    const input = document.getElementById('confirm-input').value;
-    if (input === confirmText && confirmCallback) {
+    if (document.getElementById('confirm-input').value === confirmText && confirmCallback) {
         closeModal();
         confirmCallback();
     } else {
@@ -1191,7 +1444,9 @@ function executeConfirmedAction() {
     }
 }
 
-// API calls
+// =====================================================
+// DASHBOARD & STATS
+// =====================================================
 async function fetchStats() {
     try {
         const res = await fetch(`/admin/stats?user=${USER}`);
@@ -1201,56 +1456,414 @@ async function fetchStats() {
             document.getElementById('stat-total').textContent = s.total_incidents.toLocaleString();
             document.getElementById('stat-open').textContent = s.open_incidents.toLocaleString();
             document.getElementById('stat-closed').textContent = s.closed_incidents.toLocaleString();
-            document.getElementById('stat-drafts').textContent = s.draft_incidents.toLocaleString();
             document.getElementById('stat-run').textContent = s.current_run_number;
             document.getElementById('stat-units').textContent = s.total_units.toLocaleString();
             document.getElementById('stat-units-avail').textContent = s.available_units + ' available';
-            document.getElementById('stat-masterlog').textContent = s.masterlog_entries.toLocaleString();
-            document.getElementById('stat-dailylog').textContent = s.dailylog_entries.toLocaleString();
+            document.getElementById('stat-admins').textContent = adminUsers.length;
 
-            document.getElementById('next-run-display').textContent = s.current_run_number;
-            document.getElementById('run-year').value = s.current_year;
-            document.getElementById('run-seq').value = s.next_seq;
+            document.getElementById('cfg-run-year').value = s.current_year;
+            document.getElementById('cfg-next-run').value = s.next_seq;
 
-            if (s.last_incident) {
-                document.getElementById('last-incident').textContent =
-                    `${s.last_incident.incident_number} - Created: ${s.last_incident.created}`;
-            } else {
-                document.getElementById('last-incident').textContent = 'No incidents yet';
-            }
-
-            // Yearly counts
-            const tbody = document.getElementById('yearly-tbody');
-            if (s.yearly_counts && s.yearly_counts.length > 0) {
-                tbody.innerHTML = s.yearly_counts.map(y =>
-                    `<tr><td>${y.year}</td><td>${y.count.toLocaleString()}</td></tr>`
-                ).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="2">No data</td></tr>';
-            }
+            document.getElementById('last-incident').textContent = s.last_incident
+                ? `Last: ${s.last_incident.incident_number} - ${s.last_incident.created}`
+                : 'No incidents yet';
         }
-    } catch (e) {
-        console.error('Failed to fetch stats:', e);
+    } catch (e) { console.error('fetchStats:', e); }
+}
+
+// =====================================================
+// ADMIN USERS
+// =====================================================
+function renderAdminUsers() {
+    const list = document.getElementById('admin-user-list');
+    list.innerHTML = adminUsers.map(u => `
+        <div class="admin-user-chip">
+            <span>${u}</span>
+            <button class="remove-btn" onclick="removeAdminUser('${u}')" title="Remove">&times;</button>
+        </div>
+    `).join('');
+
+    // Populate dropdown with non-admin units
+    const select = document.getElementById('new-admin-unit');
+    const nonAdmins = allUnits.filter(u => !adminUsers.includes(u.unit_id));
+    select.innerHTML = '<option value="">Select unit...</option>' +
+        nonAdmins.map(u => `<option value="${u.unit_id}">${u.unit_id} - ${u.name || u.unit_id}</option>`).join('');
+}
+
+function addAdminUser() {
+    const select = document.getElementById('new-admin-unit');
+    const unitId = select.value;
+    if (!unitId) return showToast('Select a unit', 'error');
+    if (adminUsers.includes(unitId)) return showToast('Already an admin', 'error');
+
+    adminUsers.push(unitId);
+    renderAdminUsers();
+    showToast(`${unitId} added as admin (requires restart)`);
+    saveAdminUsers();
+}
+
+function removeAdminUser(unitId) {
+    if (adminUsers.length <= 1) return showToast('Must have at least one admin', 'error');
+    if (!confirm(`Remove ${unitId} from admins?`)) return;
+
+    adminUsers = adminUsers.filter(u => u !== unitId);
+    renderAdminUsers();
+    showToast(`${unitId} removed from admins (requires restart)`);
+    saveAdminUsers();
+}
+
+async function saveAdminUsers() {
+    await fetch(`/api/admin/settings?user=${USER}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: 'admin_users', value: adminUsers.join(','), description: 'Admin user IDs'})
+    });
+}
+
+// =====================================================
+// UNITS MANAGEMENT
+// =====================================================
+async function fetchUnits() {
+    try {
+        const res = await fetch(`/api/admin/units?user=${USER}`);
+        const data = await res.json();
+        if (data.ok) {
+            allUnits = data.units;
+            renderUnitsTable();
+            renderOrderingTables();
+            renderAdminUsers();
+        }
+    } catch (e) { console.error('fetchUnits:', e); }
+}
+
+function renderUnitsTable() {
+    const tbody = document.getElementById('units-tbody');
+    if (!allUnits.length) { tbody.innerHTML = '<tr><td colspan="7">No units</td></tr>'; return; }
+
+    tbody.innerHTML = allUnits.map(u => {
+        const typeClass = u.is_apparatus ? 'apparatus' : (u.is_command ? 'command' : 'personnel');
+        const typeLabel = u.is_apparatus ? 'Apparatus' : (u.is_command ? 'Command' : 'Personnel');
+        const iconHtml = u.icon ? `<img src="${u.icon}" class="icon-preview" onerror="this.style.display='none'">` : '<div class="icon-placeholder">--</div>';
+        return `<tr>
+            <td>${iconHtml}</td>
+            <td><strong>${u.unit_id}</strong></td>
+            <td>${u.name || '--'}</td>
+            <td><span class="unit-type-badge ${typeClass}">${typeLabel}</span></td>
+            <td>${u.status || 'AVAILABLE'}</td>
+            <td>${u.display_order || 999}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-secondary" onclick="editUnit('${u.unit_id}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUnit('${u.unit_id}')">Delete</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderOrderingTables() {
+    const apparatus = allUnits.filter(u => u.is_apparatus).sort((a,b) => (a.display_order||999) - (b.display_order||999));
+    const command = allUnits.filter(u => u.is_command && !u.is_apparatus).sort((a,b) => (a.display_order||999) - (b.display_order||999));
+
+    document.getElementById('order-apparatus-tbody').innerHTML = apparatus.map(u => `
+        <tr><td><strong>${u.unit_id}</strong></td><td>${u.name||'--'}</td>
+        <td><input type="number" class="order-input" value="${u.display_order||999}" min="1" data-unit="${u.unit_id}"></td></tr>
+    `).join('') || '<tr><td colspan="3">No apparatus</td></tr>';
+
+    document.getElementById('order-command-tbody').innerHTML = command.map(u => `
+        <tr><td><strong>${u.unit_id}</strong></td><td>${u.name||'--'}</td>
+        <td><input type="number" class="order-input" value="${u.display_order||999}" min="1" data-unit="${u.unit_id}"></td></tr>
+    `).join('') || '<tr><td colspan="3">No command</td></tr>';
+}
+
+function openAddUnitModal() {
+    editingUnitId = null;
+    document.getElementById('unit-modal-title').textContent = 'Add Unit';
+    document.getElementById('unit-id').value = '';
+    document.getElementById('unit-id').disabled = false;
+    document.getElementById('unit-name').value = '';
+    document.getElementById('unit-type').value = 'PERSONNEL';
+    document.getElementById('unit-order').value = '999';
+    document.getElementById('unit-is-apparatus').checked = false;
+    document.getElementById('unit-is-command').checked = false;
+    document.getElementById('unit-is-mutual-aid').checked = false;
+    document.getElementById('unit-icon').value = '';
+    document.getElementById('unit-aliases').value = '';
+    document.getElementById('unit-modal').classList.add('show');
+    loadIconGrid();
+}
+
+function editUnit(unitId) {
+    const u = allUnits.find(x => x.unit_id === unitId);
+    if (!u) return;
+    editingUnitId = unitId;
+    document.getElementById('unit-modal-title').textContent = 'Edit Unit';
+    document.getElementById('unit-id').value = u.unit_id;
+    document.getElementById('unit-id').disabled = true;
+    document.getElementById('unit-name').value = u.name || '';
+    document.getElementById('unit-type').value = u.unit_type || 'PERSONNEL';
+    document.getElementById('unit-order').value = u.display_order || 999;
+    document.getElementById('unit-is-apparatus').checked = !!u.is_apparatus;
+    document.getElementById('unit-is-command').checked = !!u.is_command;
+    document.getElementById('unit-is-mutual-aid').checked = !!u.is_mutual_aid;
+    document.getElementById('unit-icon').value = u.icon || '';
+    document.getElementById('unit-aliases').value = u.aliases || '';
+    document.getElementById('unit-modal').classList.add('show');
+    loadIconGrid();
+}
+
+function closeUnitModal() { document.getElementById('unit-modal').classList.remove('show'); editingUnitId = null; }
+
+async function loadIconGrid() {
+    if (!availableIcons.length) {
+        try {
+            const res = await fetch('/api/admin/icons');
+            const data = await res.json();
+            if (data.ok) availableIcons = data.icons;
+        } catch (e) {}
+    }
+    const grid = document.getElementById('unit-icon-grid');
+    if (availableIcons.length) {
+        grid.style.display = 'grid';
+        grid.innerHTML = availableIcons.map(icon => `<div class="icon-option" onclick="selectIcon('${icon}')"><img src="${icon}"></div>`).join('');
     }
 }
 
-async function fetchRunNumbers() {
+function selectIcon(path) { document.getElementById('unit-icon').value = path; }
+
+async function saveUnit() {
+    const unitId = document.getElementById('unit-id').value.trim().toUpperCase();
+    if (!unitId) return showToast('Unit ID required', 'error');
+
+    const data = {
+        unit_id: unitId,
+        name: document.getElementById('unit-name').value.trim() || unitId,
+        unit_type: document.getElementById('unit-type').value,
+        display_order: parseInt(document.getElementById('unit-order').value) || 999,
+        is_apparatus: document.getElementById('unit-is-apparatus').checked,
+        is_command: document.getElementById('unit-is-command').checked,
+        is_mutual_aid: document.getElementById('unit-is-mutual-aid').checked,
+        icon: document.getElementById('unit-icon').value.trim(),
+        aliases: document.getElementById('unit-aliases').value.trim()
+    };
+
+    const url = editingUnitId ? `/api/admin/units/update/${editingUnitId}?user=${USER}` : `/api/admin/units/add?user=${USER}`;
+    const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+    const result = await res.json();
+    if (result.ok) { showToast(editingUnitId ? 'Unit updated' : 'Unit added'); closeUnitModal(); fetchUnits(); }
+    else showToast(result.error || 'Failed', 'error');
+}
+
+async function deleteUnit(unitId) {
+    if (!confirm(`Delete unit "${unitId}"?`)) return;
+    const res = await fetch(`/api/admin/units/delete/${unitId}?user=${USER}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) { showToast(`${unitId} deleted`); fetchUnits(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function saveUnitOrders() {
+    const orders = [];
+    document.querySelectorAll('.order-input').forEach(input => {
+        orders.push({ unit_id: input.dataset.unit, display_order: parseInt(input.value) || 999 });
+    });
+    const res = await fetch(`/api/admin/units/reorder?user=${USER}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({orders})
+    });
+    const data = await res.json();
+    if (data.ok) { showToast(`Updated ${data.updated} units`); fetchUnits(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+function autoOrderUnits() {
+    ['order-apparatus-tbody', 'order-command-tbody'].forEach(id => {
+        const rows = Array.from(document.querySelectorAll(`#${id} tr`));
+        rows.forEach((row, i) => { const input = row.querySelector('.order-input'); if (input) input.value = i + 1; });
+    });
+    showToast('Auto-ordered. Click Save to apply.');
+}
+
+// =====================================================
+// SETTINGS SAVE FUNCTIONS
+// =====================================================
+async function saveSetting(key, value, desc = '') {
+    await fetch(`/api/admin/settings?user=${USER}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key, value: String(value), description: desc})
+    });
+}
+
+async function saveAgencyConfig() {
+    await saveSetting('dept_name', document.getElementById('cfg-dept-name').value);
+    await saveSetting('dept_code', document.getElementById('cfg-dept-code').value);
+    await saveSetting('fdid', document.getElementById('cfg-fdid').value);
+    await saveSetting('state', document.getElementById('cfg-state').value);
+    await saveSetting('address', document.getElementById('cfg-address').value);
+    await saveSetting('city', document.getElementById('cfg-city').value);
+    await saveSetting('phone', document.getElementById('cfg-phone').value);
+    await saveSetting('timezone', document.getElementById('cfg-timezone').value);
+    await saveSetting('date_format', document.getElementById('cfg-date-format').value);
+    await saveSetting('time_format', document.getElementById('cfg-time-format').value);
+    showToast('Agency configuration saved');
+}
+
+async function saveDispatchConfig() {
+    await saveSetting('auto_dispatch', document.getElementById('cfg-auto-dispatch').checked);
+    await saveSetting('auto_dispatch_delay', document.getElementById('cfg-auto-dispatch-delay').value);
+    await saveSetting('default_incident_type', document.getElementById('cfg-default-incident-type').value);
+    await saveSetting('default_priority', document.getElementById('cfg-default-priority').value);
+    await saveSetting('mpds_enabled', document.getElementById('cfg-mpds-enabled').checked);
+    await saveSetting('fpds_enabled', document.getElementById('cfg-fpds-enabled').checked);
+    await saveSetting('require_determinant', document.getElementById('cfg-require-determinant').checked);
+    await saveSetting('run_format', document.getElementById('cfg-run-format').value);
+    showToast('Dispatch configuration saved');
+}
+
+async function saveReportingConfig() {
+    await saveSetting('auto_reports', document.getElementById('cfg-auto-reports').checked);
+    await saveSetting('daily_report_time', document.getElementById('cfg-daily-report-time').value);
+    await saveSetting('report_emails', document.getElementById('cfg-report-emails').value);
+    await saveSetting('nfirs_enabled', document.getElementById('cfg-nfirs-enabled').checked);
+    await saveSetting('nfirs_version', document.getElementById('cfg-nfirs-version').value);
+    await saveSetting('auto_close_hours', document.getElementById('cfg-auto-close-hours').value);
+    await saveSetting('export_format', document.getElementById('cfg-export-format').value);
+    showToast('Reporting configuration saved');
+}
+
+async function saveIntegrationsConfig() {
+    await saveSetting('station_alerts', document.getElementById('cfg-station-alerts').checked);
+    await saveSetting('cad_to_cad', document.getElementById('cfg-cad-to-cad').checked);
+    await saveSetting('rms_integration', document.getElementById('cfg-rms-integration').checked);
+    await saveSetting('avl_enabled', document.getElementById('cfg-avl-enabled').checked);
+    showToast('Integration settings saved');
+}
+
+async function setRunNumber() {
+    const seq = parseInt(document.getElementById('cfg-next-run').value);
+    if (!seq || seq < 1) return showToast('Invalid number', 'error');
+    const res = await fetch(`/admin/run_numbers/set_next?user=${USER}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({year: new Date().getFullYear(), next_seq: seq})
+    });
+    const data = await res.json();
+    if (data.ok) { showToast('Run number updated'); fetchStats(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+// =====================================================
+// LOAD SETTINGS
+// =====================================================
+async function loadSettings() {
     try {
-        const res = await fetch(`/admin/run_numbers?user=${USER}`);
+        const res = await fetch(`/api/admin/settings?user=${USER}`);
         const data = await res.json();
-        if (data.ok) {
-            const tbody = document.getElementById('counter-tbody');
-            if (data.counters && data.counters.length > 0) {
-                tbody.innerHTML = data.counters.map(c =>
-                    `<tr><td>${c.year}</td><td>${c.next_seq}</td></tr>`
-                ).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="2">No counters set</td></tr>';
-            }
+        if (data.ok && data.settings) {
+            const s = data.settings;
+            const val = (k) => s[k]?.value || '';
+            const bool = (k) => s[k]?.value === 'true';
+
+            // Agency
+            document.getElementById('cfg-dept-name').value = val('dept_name');
+            document.getElementById('cfg-dept-code').value = val('dept_code');
+            document.getElementById('cfg-fdid').value = val('fdid');
+            if (val('state')) document.getElementById('cfg-state').value = val('state');
+            document.getElementById('cfg-address').value = val('address');
+            document.getElementById('cfg-city').value = val('city');
+            document.getElementById('cfg-phone').value = val('phone');
+            if (val('timezone')) document.getElementById('cfg-timezone').value = val('timezone');
+            if (val('date_format')) document.getElementById('cfg-date-format').value = val('date_format');
+            if (val('time_format')) document.getElementById('cfg-time-format').value = val('time_format');
+
+            // Dispatch
+            document.getElementById('cfg-auto-dispatch').checked = bool('auto_dispatch');
+            document.getElementById('cfg-auto-dispatch-delay').value = val('auto_dispatch_delay') || '0';
+            if (val('default_incident_type')) document.getElementById('cfg-default-incident-type').value = val('default_incident_type');
+            if (val('default_priority')) document.getElementById('cfg-default-priority').value = val('default_priority');
+            document.getElementById('cfg-mpds-enabled').checked = val('mpds_enabled') !== 'false';
+            document.getElementById('cfg-fpds-enabled').checked = val('fpds_enabled') !== 'false';
+            document.getElementById('cfg-require-determinant').checked = bool('require_determinant');
+            if (val('run_format')) document.getElementById('cfg-run-format').value = val('run_format');
+
+            // Reporting
+            document.getElementById('cfg-auto-reports').checked = bool('auto_reports');
+            document.getElementById('cfg-daily-report-time').value = val('daily_report_time') || '06:00';
+            document.getElementById('cfg-report-emails').value = val('report_emails');
+            document.getElementById('cfg-nfirs-enabled').checked = val('nfirs_enabled') !== 'false';
+            if (val('nfirs_version')) document.getElementById('cfg-nfirs-version').value = val('nfirs_version');
+            document.getElementById('cfg-auto-close-hours').value = val('auto_close_hours') || '24';
+            if (val('export_format')) document.getElementById('cfg-export-format').value = val('export_format');
+
+            // Integrations
+            document.getElementById('cfg-station-alerts').checked = bool('station_alerts');
+            document.getElementById('cfg-cad-to-cad').checked = bool('cad_to_cad');
+            document.getElementById('cfg-rms-integration').checked = bool('rms_integration');
+            document.getElementById('cfg-avl-enabled').checked = bool('avl_enabled');
+
+            // Admin users
+            if (val('admin_users')) adminUsers = val('admin_users').split(',').filter(x => x);
         }
-    } catch (e) {
-        console.error('Failed to fetch run numbers:', e);
-    }
+    } catch (e) { console.error('loadSettings:', e); }
+}
+
+// =====================================================
+// MAINTENANCE ACTIONS
+// =====================================================
+async function resetUnits() {
+    if (!confirm('Reset all units to AVAILABLE?')) return;
+    const res = await fetch(`/admin/reset/units?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: true}) });
+    const data = await res.json();
+    if (data.ok) { showToast(`Reset ${data.units_reset} units`); fetchStats(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function clearClosedIncidents() {
+    if (!confirm('Archive and clear closed incidents?')) return;
+    const res = await fetch(`/admin/reset/closed?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: true}) });
+    const data = await res.json();
+    if (data.ok) { showToast(`Cleared ${data.count} incidents`); fetchStats(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function clearLogs() {
+    if (!confirm('Archive and clear audit logs?')) return;
+    const res = await fetch(`/admin/reset/logs?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: true, keep_days: 0}) });
+    const data = await res.json();
+    if (data.ok) { showToast('Logs cleared'); fetchStats(); fetchAdminLogs(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function resetRunNumber() {
+    if (!confirm('Reset run number to 1?')) return;
+    const res = await fetch(`/admin/reset/run_numbers?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: true, force: true}) });
+    const data = await res.json();
+    if (data.ok) { showToast(`Reset to ${data.year}-00001`); fetchStats(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function clearAllIncidents() {
+    const res = await fetch(`/admin/reset/incidents?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: 'DELETE ALL'}) });
+    const data = await res.json();
+    if (data.ok) { showToast(`Cleared ${data.count} incidents`); fetchStats(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function fullSystemReset() {
+    const res = await fetch(`/admin/reset/full?user=${USER}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({confirm: 'RESET'}) });
+    const data = await res.json();
+    if (data.ok) { showToast('System reset complete'); fetchStats(); fetchAdminLogs(); }
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function exportIncidents() {
+    const res = await fetch(`/admin/export/incidents?user=${USER}`);
+    const data = await res.json();
+    if (data.ok) showToast(`Exported ${data.count} incidents`);
+    else showToast(data.error || 'Failed', 'error');
+}
+
+async function exportLogs(type) {
+    const res = await fetch(`/admin/export/logs?user=${USER}&log_type=${type}`);
+    const data = await res.json();
+    if (data.ok) showToast(`Exported ${data.count} entries`);
+    else showToast(data.error || 'Failed', 'error');
 }
 
 // =====================================================
@@ -1307,426 +1920,20 @@ async function fetchAdminLogs() {
         const res = await fetch(`/api/admin/logs?user=${USER}&limit=50`);
         const data = await res.json();
         const tbody = document.getElementById('admin-log-tbody');
-        if (data.ok && data.entries && data.entries.length > 0) {
+        if (data.ok && data.entries?.length) {
             tbody.innerHTML = data.entries.map(e => `
-                <tr>
-                    <td>${e.timestamp || ''}</td>
-                    <td>${e.user || ''}</td>
-                    <td>${e.action || ''}</td>
-                    <td>${(e.details || '').substring(0, 100)}</td>
-                </tr>
+                <tr><td>${e.timestamp||''}</td><td>${e.user||''}</td><td>${e.action||''}</td><td>${(e.details||'').substring(0,80)}</td></tr>
             `).join('');
-        } else {
-            tbody.innerHTML = '<tr><td colspan="4">No admin actions found</td></tr>';
-        }
-    } catch (e) {
-        console.error('Failed to fetch admin logs:', e);
-        document.getElementById('admin-log-tbody').innerHTML = '<tr><td colspan="4">Error loading logs</td></tr>';
-    }
-}
-
-// Reset actions
-async function resetUnits() {
-    if (!confirm('Reset all units to AVAILABLE status?')) return;
-    try {
-        const res = await fetch(`/admin/reset/units?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: true})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Reset ${data.units_reset} units to AVAILABLE`);
-            fetchStats();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function clearClosedIncidents() {
-    if (!confirm('Archive and clear all CLOSED incidents?')) return;
-    try {
-        const res = await fetch(`/admin/reset/closed?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: true})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Cleared ${data.count} closed incidents. Archived to: ${data.file}`);
-            fetchStats();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function clearLogs() {
-    if (!confirm('Archive and clear all audit logs?')) return;
-    try {
-        const res = await fetch(`/admin/reset/logs?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: true, keep_days: 0})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Archived ${data.masterlog_archived} MasterLog, ${data.dailylog_archived} DailyLog entries`);
-            fetchStats();
-            fetchAdminLogs();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function clearAllIncidents() {
-    try {
-        const res = await fetch(`/admin/reset/incidents?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: 'DELETE ALL'})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Cleared ${data.count} incidents. Archived to: ${data.file}`);
-            fetchStats();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function fullSystemReset() {
-    try {
-        const res = await fetch(`/admin/reset/full?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: 'RESET'})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast('Full system reset complete!');
-            fetchStats();
-            fetchRunNumbers();
-            fetchAdminLogs();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function setRunNumber() {
-    const year = parseInt(document.getElementById('run-year').value);
-    const seq = parseInt(document.getElementById('run-seq').value);
-    if (!year || !seq || seq < 1) {
-        showToast('Invalid year or sequence', 'error');
-        return;
-    }
-
-    try {
-        const res = await fetch(`/admin/run_numbers/set_next?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({year, next_seq: seq})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Run number set to ${year}-${String(seq).padStart(5, '0')}`);
-            fetchStats();
-            fetchRunNumbers();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function resetRunNumber() {
-    if (!confirm('Reset run number to 1 for current year?')) return;
-    try {
-        const res = await fetch(`/admin/reset/run_numbers?user=${USER}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({confirm: true, force: true})
-        });
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Run number reset to ${data.year}-00001`);
-            fetchStats();
-            fetchRunNumbers();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function exportIncidents() {
-    try {
-        const res = await fetch(`/admin/export/incidents?user=${USER}`);
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Exported ${data.count} incidents to ${data.file}`);
-        } else {
-            showToast(data.error || 'Export failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function exportLogs(logType) {
-    try {
-        const res = await fetch(`/admin/export/logs?user=${USER}&log_type=${logType}`);
-        const data = await res.json();
-        if (data.ok) {
-            showToast(`Exported ${data.count} ${logType} entries to ${data.file}`);
-        } else {
-            showToast(data.error || 'Export failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-// =========================================
-// REPORTS TAB FUNCTIONS
-// =========================================
-
-async function fetchReportConfig() {
-    try {
-        const res = await fetch('/api/reports/config');
-        const data = await res.json();
-        
-        // Update auto-report status
-        const status = document.getElementById('auto-report-status');
-        const row = document.getElementById('auto-report-row');
-        const enableBtn = document.getElementById('btn-enable-reports');
-        const disableBtn = document.getElementById('btn-disable-reports');
-        
-        if (data.auto_report_enabled) {
-            status.textContent = `Enabled - Scheduler ${data.scheduler_running ? 'running' : 'not running'}`;
-            row.style.background = 'var(--success-light)';
-            row.style.borderColor = 'var(--success)';
-            enableBtn.disabled = true;
-            disableBtn.disabled = false;
-        } else {
-            status.textContent = 'Disabled - Reports will not be sent automatically';
-            row.style.background = 'var(--panel-bg)';
-            row.style.borderColor = 'var(--panel-border)';
-            enableBtn.disabled = false;
-            disableBtn.disabled = true;
-        }
-    } catch (e) {
-        console.error('Failed to fetch report config:', e);
-    }
-}
-
-async function fetchBattalionChiefs() {
-    try {
-        const res = await fetch('/api/reports/battalion_chiefs');
-        const data = await res.json();
-        const tbody = document.getElementById('bc-tbody');
-        
-        if (data.battalion_chiefs) {
-            tbody.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => `
-                <tr>
-                    <td><strong>Shift ${shift}</strong></td>
-                    <td>${bc.name || '-'}</td>
-                    <td>
-                        <input type="email" id="bc-email-${shift}" value="${bc.email || ''}" 
-                            placeholder="email@example.com" style="width: 200px; padding: 4px 8px; border: 1px solid var(--panel-border); border-radius: 4px;">
-                    </td>
-                    <td>
-                        <button class="btn btn-primary" onclick="saveBCEmail('${shift}')" style="padding: 4px 12px; font-size: 12px;">Save</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-    } catch (e) {
-        console.error('Failed to fetch battalion chiefs:', e);
-    }
-}
-
-async function fetchExtraRecipients() {
-    try {
-        const res = await fetch('/api/reports/config/recipients');
-        const data = await res.json();
-        
-        if (data.recipients && data.recipients.length > 0) {
-            document.getElementById('extra-recipients').value = data.recipients.join(', ');
-        }
-    } catch (e) {
-        console.error('Failed to fetch recipients:', e);
-    }
-}
-
-async function fetchShiftInfo() {
-    try {
-        const res = await fetch('/api/shift');
-        const data = await res.json();
-        
-        const info = document.getElementById('current-shift-info');
-        info.innerHTML = `
-            <strong>Current Shift:</strong> ${data.shift} (${data.shift_type})<br>
-            <strong>Battalion Chief:</strong> ${data.battalion_chief || 'Not configured'}<br>
-            <strong>Current Time:</strong> ${data.current_time}<br>
-            <strong>Active Period:</strong> ${data.is_during_shift ? 'Yes - reports active' : 'No - outside shift hours'}
-        `;
-    } catch (e) {
-        console.error('Failed to fetch shift info:', e);
-    }
-}
-
-async function toggleAutoReports(enabled) {
-    if (!confirm(`${enabled ? 'Enable' : 'Disable'} automatic report scheduling?`)) return;
-    
-    try {
-        const res = await fetch('/api/reports/config/auto_report', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({enabled})
-        });
-        const data = await res.json();
-        
-        if (data.ok) {
-            showToast(data.message);
-            fetchReportConfig();
-        } else {
-            showToast(data.error || 'Failed', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function saveBCEmail(shift) {
-    const email = document.getElementById(`bc-email-${shift}`).value.trim();
-    
-    try {
-        const res = await fetch(`/api/reports/battalion_chiefs/${shift}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email})
-        });
-        const data = await res.json();
-        
-        if (data.ok) {
-            showToast(data.message);
-        } else {
-            showToast(data.error || 'Failed to save', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function saveExtraRecipients() {
-    const input = document.getElementById('extra-recipients').value;
-    const recipients = input.split(',').map(e => e.trim()).filter(e => e);
-    
-    try {
-        const res = await fetch('/api/reports/config/recipients', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({recipients})
-        });
-        const data = await res.json();
-        
-        if (data.ok) {
-            showToast(data.message);
-            if (data.invalid && data.invalid.length > 0) {
-                showToast(`Invalid emails skipped: ${data.invalid.join(', ')}`, 'error');
-            }
-            fetchExtraRecipients();
-        } else {
-            showToast(data.error || 'Failed to save', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function sendTestReport() {
-    const email = document.getElementById('test-email').value.trim();
-    if (!email) {
-        showToast('Enter an email address', 'error');
-        return;
-    }
-    
-    showToast('Sending test report...');
-    
-    try {
-        const res = await fetch('/api/reports/test', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email})
-        });
-        const data = await res.json();
-        
-        if (data.ok) {
-            showToast('Test report sent!');
-        } else {
-            showToast(data.error || 'Failed to send', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function sendReportNow() {
-    if (!confirm('Send daily report to all configured recipients now?')) return;
-    
-    showToast('Sending report...');
-    
-    try {
-        // Get extra recipients
-        const input = document.getElementById('extra-recipients').value;
-        const extraRecipients = input.split(',').map(e => e.trim()).filter(e => e);
-        
-        const res = await fetch('/api/reports/send', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                recipients: extraRecipients,
-                include_battalion_chiefs: true
-            })
-        });
-        const data = await res.json();
-        
-        if (data.ok) {
-            showToast(`Report sent to ${data.recipients.length} recipient(s)`);
-        } else {
-            showToast(data.error || 'Failed to send', 'error');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
+        } else tbody.innerHTML = '<tr><td colspan="4">No recent activity</td></tr>';
+    } catch (e) { console.error('fetchAdminLogs:', e); }
 }
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     fetchStats();
-    fetchRunNumbers();
+    fetchUnits();
+    loadSettings();
     fetchAdminLogs();
-    fetchReportConfig();
-    fetchBattalionChiefs();
-    fetchExtraRecipients();
-    fetchShiftInfo();
     fetchNfirsStats();
 
     // Set default date range for NFIRS export (last 30 days)
@@ -1736,6 +1943,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('nfirs-export-start').value = thirtyDaysAgo.toISOString().split('T')[0];
 });
 </script>
-
 </body>
 </html>

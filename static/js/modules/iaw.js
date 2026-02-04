@@ -551,6 +551,21 @@ const IAW = {
       console.error("[IAW] addNote failed:", err);
       window.TOAST?.error?.("Failed to add note");
     }
+  },
+
+  /**
+   * Open the determinant code picker modal
+   */
+  async openDeterminantPicker(incidentId) {
+    try {
+      const html = await CAD_UTIL.fetchText(`/incident/${incidentId}/determinant_picker`);
+      if (html) {
+        CAD_MODAL.openRaw(html);
+      }
+    } catch (err) {
+      console.error("[IAW] openDeterminantPicker failed:", err);
+      window.TOAST?.error?.("Failed to open determinant picker");
+    }
   }
 };
 
