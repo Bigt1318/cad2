@@ -502,6 +502,19 @@ def _sqlite_exec_retry(cursor, sql: str, params=(), retries: int = 8, sleep_base
     return cursor.execute(sql, params)
 
 
+# ================================================================
+# MESSAGING MODULE
+# ================================================================
+try:
+    from app.messaging.routes import register_messaging_routes
+    register_messaging_routes(app, templates, get_conn)
+    print("[MAIN] Messaging module loaded")
+except ImportError as e:
+    print(f"[MAIN] Messaging module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Messaging module error: {e}")
+
+
 def assert_known_unit(unit_id: str):
     """Raise 400 if unit_id is not present in Units table."""
     ensure_phase3_schema()

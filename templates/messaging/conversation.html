@@ -1,0 +1,422 @@
+<!-- ============================================================================
+     FORD-CAD Messaging — Conversation Thread View
+============================================================================ -->
+
+<div class="conversation-view" data-conversation-id="{{ conversation.conversation_id }}">
+    <div class="conv-view-header">
+        <button class="btn-icon btn-back" onclick="MessagingUI.closeConversation()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+        </button>
+
+        <div class="conv-view-title">
+            {% if conversation.title %}
+                <h3>{{ conversation.title }}</h3>
+            {% else %}
+                {% set other = conversation.participants|selectattr('id', 'ne', user_id)|first %}
+                <h3>{{ other.name if other else 'Conversation' }}</h3>
+            {% endif %}
+            <span class="conv-view-subtitle">
+                {% if conversation.conversation_type == 'direct' %}
+                    Direct message
+                {% else %}
+                    {{ conversation.participants|length }} participants
+                {% endif %}
+            </span>
+        </div>
+
+        <div class="conv-view-actions">
+            <button class="btn-icon" onclick="MessagingUI.showConversationInfo({{ conversation.conversation_id }})" title="Info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="message-list" id="message-list-{{ conversation.conversation_id }}">
+        {% if messages|length == 0 %}
+        <div class="empty-messages">
+            <p>No messages yet. Start the conversation!</p>
+        </div>
+        {% else %}
+        {% set prev_sender = None %}
+        {% set prev_date = None %}
+        {% for msg in messages %}
+
+        {% set msg_date = msg.created_at[:10] %}
+        {% if msg_date != prev_date %}
+        <div class="date-divider">
+            <span>{{ msg_date }}</span>
+        </div>
+        {% endif %}
+
+        <div class="message {% if msg.sender_id == user_id %}outbound{% else %}inbound{% endif %} {% if msg.sender_id == prev_sender %}consecutive{% endif %}"
+             data-message-id="{{ msg.message_id }}">
+
+            {% if msg.sender_id != prev_sender and msg.sender_id != user_id %}
+            <div class="message-sender">{{ msg.sender_name or msg.sender_address or 'Unknown' }}</div>
+            {% endif %}
+
+            <div class="message-bubble">
+                {% if msg.subject %}
+                <div class="message-subject">{{ msg.subject }}</div>
+                {% endif %}
+
+                <div class="message-body">{{ msg.body }}</div>
+
+                {% if msg.attachments and msg.attachments|length > 0 %}
+                <div class="message-attachments">
+                    {% for att in msg.attachments %}
+                    <a href="{{ att.url or '#' }}" class="attachment" target="_blank">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                        </svg>
+                        {{ att.name or 'Attachment' }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="message-meta">
+                    <span class="message-time">{{ msg.created_at[11:16] }}</span>
+                    {% if msg.sender_id == user_id %}
+                    <span class="message-status status-{{ msg.status }}">
+                        {% if msg.status == 'sent' %}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        {% elif msg.status == 'delivered' %}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="18 6 7 17 2 12"/>
+                            <polyline points="22 6 11 17"/>
+                        </svg>
+                        {% elif msg.status == 'read' %}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
+                            <polyline points="18 6 7 17 2 12"/>
+                            <polyline points="22 6 11 17"/>
+                        </svg>
+                        {% elif msg.status == 'failed' %}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                        {% endif %}
+                    </span>
+                    {% endif %}
+                    {% if msg.channel != 'internal' %}
+                    <span class="message-channel">via {{ msg.channel }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% set prev_sender = msg.sender_id %}
+        {% set prev_date = msg_date %}
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="message-composer">
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <span></span><span></span><span></span>
+            <span class="typing-text">typing...</span>
+        </div>
+
+        <form class="composer-form"
+              hx-post="/api/messaging/send"
+              hx-trigger="submit"
+              hx-swap="none"
+              hx-on::after-request="MessagingUI.afterSend(event)">
+
+            <input type="hidden" name="conversation_id" value="{{ conversation.conversation_id }}">
+
+            {% set other = conversation.participants|selectattr('id', 'ne', user_id)|first %}
+            <input type="hidden" name="to" value="{{ other.id if other else '' }}">
+            <input type="hidden" name="channel" value="internal">
+
+            <div class="composer-input-wrap">
+                <textarea name="message"
+                          placeholder="Type a message..."
+                          rows="1"
+                          oninput="MessagingUI.autoResize(this); MessagingUI.sendTyping({{ conversation.conversation_id }})"
+                          onkeydown="MessagingUI.handleKeyDown(event, this)"></textarea>
+
+                <div class="composer-actions">
+                    <button type="button" class="btn-icon" onclick="MessagingUI.attachFile()" title="Attach file">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                        </svg>
+                    </button>
+
+                    <button type="submit" class="btn-send" title="Send">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.conversation-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-default);
+}
+
+.conv-view-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.btn-back {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .btn-back {
+        display: flex;
+    }
+}
+
+.conv-view-title {
+    flex: 1;
+}
+
+.conv-view-title h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.conv-view-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.empty-messages {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+.date-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 16px 0;
+}
+
+.date-divider span {
+    background: var(--bg-elevated);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+}
+
+.message.inbound {
+    align-self: flex-start;
+}
+
+.message.outbound {
+    align-self: flex-end;
+}
+
+.message.consecutive {
+    margin-top: -2px;
+}
+
+.message-sender {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+    padding-left: 12px;
+}
+
+.message-bubble {
+    padding: 8px 12px;
+    border-radius: 16px;
+    word-wrap: break-word;
+}
+
+.message.inbound .message-bubble {
+    background: var(--bg-elevated);
+    border-bottom-left-radius: 4px;
+}
+
+.message.outbound .message-bubble {
+    background: var(--ford-blue);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.message.consecutive.inbound .message-bubble {
+    border-top-left-radius: 4px;
+}
+
+.message.consecutive.outbound .message-bubble {
+    border-top-right-radius: 4px;
+}
+
+.message-subject {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+.message-body {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.message-attachments {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.attachment {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.message.outbound .attachment {
+    background: rgba(255,255,255,0.2);
+}
+
+.message-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.message-status {
+    display: flex;
+    align-items: center;
+}
+
+.message-channel {
+    font-style: italic;
+}
+
+.message-composer {
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border-default);
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.typing-indicator span:not(.typing-text) {
+    width: 6px;
+    height: 6px;
+    background: var(--text-muted);
+    border-radius: 50%;
+    animation: typing 1.4s infinite both;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4px); }
+}
+
+.composer-form {
+    display: flex;
+}
+
+.composer-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--bg-default);
+    border: 1px solid var(--border-default);
+    border-radius: 20px;
+    padding: 8px 12px;
+}
+
+.composer-input-wrap textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    resize: none;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    max-height: 120px;
+    outline: none;
+}
+
+.composer-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-send {
+    background: var(--ford-blue);
+    color: white;
+    border: none;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-send:hover {
+    background: var(--ford-blue-dark);
+}
+</style>

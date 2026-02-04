@@ -1,0 +1,260 @@
+<!-- ============================================================================
+     FORD-CAD Messaging — Panel Component
+     Sidebar panel showing conversation list with unread badges
+============================================================================ -->
+
+<div class="messaging-panel" id="messaging-panel">
+    <div class="messaging-header">
+        <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+            </svg>
+            Messages
+            {% if unread_count > 0 %}
+            <span class="unread-badge">{{ unread_count }}</span>
+            {% endif %}
+        </h3>
+        <button class="btn-icon" onclick="MessagingUI.openCompose()" title="New Message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="messaging-search">
+        <input type="text"
+               placeholder="Search conversations..."
+               oninput="MessagingUI.searchConversations(this.value)"
+               id="msg-search">
+    </div>
+
+    <div class="conversation-list" id="conversation-list">
+        {% if conversations|length == 0 %}
+        <div class="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+            </svg>
+            <p>No conversations yet</p>
+            <button class="btn-primary btn-sm" onclick="MessagingUI.openCompose()">
+                Start a conversation
+            </button>
+        </div>
+        {% else %}
+        {% for conv in conversations %}
+        <div class="conversation-item {% if conv.unread_count > 0 %}unread{% endif %}"
+             data-conversation-id="{{ conv.conversation_id }}"
+             onclick="MessagingUI.openConversation({{ conv.conversation_id }})"
+             hx-get="/api/messaging/conversation/{{ conv.conversation_id }}/fragment"
+             hx-target="#conversation-view"
+             hx-swap="innerHTML">
+
+            <div class="conv-avatar">
+                {% set other = conv.participants|selectattr('id', 'ne', user_id)|first %}
+                {{ (other.name or 'U')[0]|upper }}
+            </div>
+
+            <div class="conv-content">
+                <div class="conv-header">
+                    <span class="conv-name">
+                        {% if conv.title %}
+                            {{ conv.title }}
+                        {% else %}
+                            {% set other = conv.participants|selectattr('id', 'ne', user_id)|first %}
+                            {{ other.name or 'Unknown' }}
+                        {% endif %}
+                    </span>
+                    <span class="conv-time">
+                        {{ conv.last_message_at[11:16] if conv.last_message_at else '' }}
+                    </span>
+                </div>
+                <div class="conv-preview">
+                    {% if conv.last_message %}
+                    {{ conv.last_message.body[:50] }}{% if conv.last_message.body|length > 50 %}...{% endif %}
+                    {% else %}
+                    <em>No messages</em>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if conv.unread_count > 0 %}
+            <span class="unread-dot"></span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.messaging-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-surface);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.messaging-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-elevated);
+}
+
+.messaging-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.unread-badge {
+    background: #ef4444;
+    color: white;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.messaging-search {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.messaging-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: var(--bg-default);
+}
+
+.conversation-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s;
+}
+
+.conversation-item:hover {
+    background: var(--bg-hover);
+}
+
+.conversation-item.active {
+    background: var(--bg-selected);
+}
+
+.conversation-item.unread {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.conv-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--ford-blue);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.conv-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.conv-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.conv-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conv-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.conv-preview {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.unread-dot {
+    width: 10px;
+    height: 10px;
+    background: #3b82f6;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.empty-state svg {
+    opacity: 0.4;
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    margin: 0 0 16px 0;
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+}
+
+.btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn-primary.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+}
+</style>
