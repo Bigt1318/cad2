@@ -1187,6 +1187,60 @@ def roster_personnel_ids_for_shift(shift_letter: str) -> set[str]:
         conn.close()
 
 
+def expire_stale_shift_overrides() -> int:
+    """
+    Auto-expire shift overrides when the shift they were moved to is no longer active.
+    Called on panel load to clean up overrides from previous shifts.
+
+    Returns the count of expired overrides.
+    """
+    try:
+        from shift_logic import get_shift_for_date
+        import datetime
+        today = datetime.date.today()
+        day_shift, night_shift = get_shift_for_date(today)
+        active_shifts = {day_shift, night_shift}
+    except Exception:
+        # Fallback: don't expire anything if shift_logic unavailable
+        return 0
+
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    expired_count = 0
+    try:
+        # Find overrides where to_shift_letter is NOT an active shift today
+        rows = c.execute(
+            """
+            SELECT id, unit_id, to_shift_letter
+            FROM ShiftOverrides
+            WHERE end_ts IS NULL
+            """
+        ).fetchall()
+
+        for r in (rows or []):
+            to_shift = (r["to_shift_letter"] or "").strip().upper()
+            if to_shift and to_shift not in active_shifts:
+                # Expire this override - it was for a previous shift
+                c.execute(
+                    "UPDATE ShiftOverrides SET end_ts = ? WHERE id = ?",
+                    (_ts(), r["id"])
+                )
+                expired_count += 1
+                try:
+                    log_master("SHIFT_OVERRIDE_AUTO_EXPIRE",
+                              f"Auto-expired coverage for {r['unit_id']} (was on {to_shift} shift, now {day_shift}/{night_shift})")
+                except Exception:
+                    pass
+
+        if expired_count > 0:
+            conn.commit()
+    finally:
+        conn.close()
+
+    return expired_count
+
+
 def apply_active_shift_overrides(shift_letter: str, base_ids: set[str]) -> set[str]:
     """
     Apply temporary shift overrides:
@@ -8806,10 +8860,17 @@ def _build_units_panel_context(request: Request) -> dict:
     shift_letter = get_session_shift_letter(request) or ""
     shift_effective = get_session_shift_effective(request) or ""
 
+    # Auto-expire shift overrides from previous shifts
+    try:
+        expire_stale_shift_overrides()
+    except Exception:
+        pass  # Don't fail panel load if cleanup fails
+
     ensure_phase3_schema()
     conn = get_conn()
     try:
-        rows = conn.execute("SELECT * FROM Units").fetchall()
+        # Use get_units_for_panel() for proper categorization and sorting
+        rows = get_units_for_panel()
 
         # Get units with active shift coverage for current shift
         coverage_rows = conn.execute(
