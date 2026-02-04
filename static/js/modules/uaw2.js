@@ -2699,8 +2699,9 @@ export const UAW = {
     const uid = _unitId;
     const inc = _incidentId;
 
-    // Disposition codes (all optional)
-    const dispoCodes = ["R", "C", "X", "FA", "NR", "NC", "T"];
+    // Disposition codes - must match VALID_DISPOSITIONS in backend
+    // R=Released, C=Cancelled, CT=Cancelled Enroute, FA=False Alarm, NA=No Action, NF=No Finding, MF=Medical First Aid
+    const dispoCodes = ["R", "C", "CT", "FA", "NA", "NF", "MF"];
     const dispoButtons = dispoCodes.map(code =>
       `<button class="uaw-dispo-btn" data-dispo="${code}">${code}</button>`
     ).join("");

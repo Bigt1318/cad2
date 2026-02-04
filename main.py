@@ -8390,7 +8390,7 @@ async def uaw_clear_unit(request: Request):
     # Proceed with clear
     mark_assignment(incident_id, unit_id, "cleared")
     set_unit_status_pipeline(unit_id, "AVAILABLE")
-    incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id, detail=f"Disposition: {disposition}" if disposition else None)
+    incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id, details=f"Disposition: {disposition}" if disposition else "")
 
     # If you have finalize logic, keep it
     try:
