@@ -21,5 +21,6 @@
   "/static/js/modules/remark.js?v=20260202a",
   "/static/js/modules/disposition.js?v=20260202a",
   "/static/js/modules/issue.js?v=20260202a",
-  "/static/js/modules/eventlog.js?v=20260202a"
+  "/static/js/modules/eventlog.js?v=20260202a",
+  "/static/js/modules/calendar.js?v=20260204a"
 ]

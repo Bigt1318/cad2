@@ -2885,6 +2885,28 @@ async def api_dispatch_picker_refresh(request: Request, incident_id: int):
     )
 
 
+def _load_unit_for_uaw(unit_id: str):
+    """Load unit data for UAW modal."""
+    conn = get_conn()
+    c = conn.cursor()
+    unit = c.execute(
+        "SELECT * FROM Units WHERE unit_id = ?", (unit_id,)
+    ).fetchone()
+    if not unit:
+        conn.close()
+        return None, None
+
+    # Find active incident if any
+    active = c.execute("""
+        SELECT incident_id FROM UnitAssignments
+        WHERE unit_id = ? AND cleared IS NULL
+        ORDER BY assigned DESC LIMIT 1
+    """, (unit_id,)).fetchone()
+
+    conn.close()
+    return dict(unit), active["incident_id"] if active else None
+
+
 @app.get("/api/unit/{unit_id}/metadata_refresh", response_class=HTMLResponse)
 async def api_unit_metadata_refresh(request: Request, unit_id: str):
     """
@@ -4726,6 +4748,11 @@ VALID_UNIT_STATUSES = {
     "CLEARED",
     "EMERGENCY",
     "UNAVAILABLE",
+    "AVAILABLE",
+    "OOS",
+    "ON_SCENE",
+    "OPERATING",
+    "BUSY",
 }
 
 VALID_DISPOSITIONS = {"R", "NA", "NF", "C", "CT", "O", "FA", "FF", "MF", "MT", "PR"}
@@ -6017,11 +6044,17 @@ async def iaw_narrative_feed(request: Request, incident_id: int):
 # BLOCK 13 — UNIT STATUS ENGINE (Phase-3 CANONICAL)
 # ================================================================
 
-VALID_UNIT_STATUSES = {
+VALID_UNIT_STATUSES_IAW = {
     "ENROUTE",
     "ARRIVED",
     "TRANSPORT",
-    "CLEARED"
+    "TRANSPORTING",
+    "AT_MEDICAL",
+    "CLEARED",
+    "AVAILABLE",
+    "OOS",
+    "ON_SCENE",
+    "OPERATING",
 }
 
 
