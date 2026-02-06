@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports Administration - FORD CAD</title>
+    <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+    <style>
+        :root {
+            --ford-blue: #1e40af;
+            --ford-blue-dark: #1e3a8a;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ca8a04;
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, var(--ford-blue), var(--ford-blue-dark));
+            color: white;
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .admin-header .back-link {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+        }
+
+        .admin-header .back-link:hover {
+            opacity: 1;
+        }
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Status Cards */
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .status-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .status-card h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .status-indicator .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-indicator.running .dot {
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.stopped .dot {
+            background: var(--danger);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .next-report {
+            font-size: 16px;
+        }
+
+        .next-report .time {
+            font-weight: 700;
+            color: var(--ford-blue);
+        }
+
+        .next-report .type {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: block;
+            margin-top: 4px;
+        }
+
+        /* Sections */
+        .admin-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        /* Master Toggle */
+        .master-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .toggle-info h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .toggle-info p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .big-toggle {
+            position: relative;
+            width: 100px;
+            height: 50px;
+            cursor: pointer;
+        }
+
+        .big-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-track {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--danger);
+            border-radius: 25px;
+            transition: 0.3s;
+        }
+
+        .toggle-thumb {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .big-toggle input:checked + .toggle-track {
+            background: var(--success);
+        }
+
+        .big-toggle input:checked + .toggle-track .toggle-thumb {
+            transform: translateX(50px);
+        }
+
+        .toggle-label {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .toggle-label.on {
+            left: 14px;
+            opacity: 0;
+        }
+
+        .toggle-label.off {
+            right: 14px;
+        }
+
+        .big-toggle input:checked + .toggle-track .toggle-label.on {
+            opacity: 1;
+        }
+
+        .big-toggle input:checked + .toggle-track .toggle-label.off {
+            opacity: 0;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            background: #f8fafc;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        /* BC Cards */
+        .bc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .bc-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .bc-card .shift-badge {
+            width: 48px;
+            height: 48px;
+            background: var(--ford-blue);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+
+        .bc-card .name {
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .bc-card input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .bc-card input:focus {
+            outline: none;
+            border-color: var(--ford-blue);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--ford-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--ford-blue-dark);
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--ford-blue);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Status badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.15s;
+        }
+
+        .tab:hover {
+            color: var(--ford-blue);
+        }
+
+        .tab.active {
+            color: var(--ford-blue);
+            border-bottom-color: var(--ford-blue);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* History table */
+        .history-table .status-sent {
+            color: var(--success);
+        }
+
+        .history-table .status-failed {
+            color: var(--danger);
+        }
+
+        .history-table .status-partial {
+            color: var(--warning);
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+        }
+
+        .toast {
+            background: var(--text-primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .status-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .bc-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .status-cards, .bc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="admin-header">
+        <div>
+            <h1>Reports Administration</h1>
+        </div>
+        <a href="/" class="back-link">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to CAD
+        </a>
+    </header>
+
+    <div class="admin-container">
+        <!-- Status Cards -->
+        <div class="status-cards">
+            <div class="status-card">
+                <h3>Scheduler Status</h3>
+                <div class="status-indicator" id="scheduler-status">
+                    <span class="dot"></span>
+                    <span class="text">Loading...</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Next Scheduled Report</h3>
+                <div class="next-report" id="next-report">
+                    <span class="time">--</span>
+                    <span class="type">--</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Current Time</h3>
+                <div id="current-time" style="font-size:16px;font-weight:600;">--</div>
+                <div id="current-timezone" style="font-size:13px;color:var(--text-secondary);">--</div>
+            </div>
+            <div class="status-card">
+                <h3>Last 24 Hours</h3>
+                <div id="stats-24h" style="font-size:14px;">
+                    <div>Reports sent: <strong>--</strong></div>
+                    <div>Failures: <strong>--</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Toggle -->
+        <div class="master-toggle">
+            <div class="toggle-info">
+                <h3>Automatic Reports</h3>
+                <p>When enabled, reports are sent automatically at scheduled times</p>
+            </div>
+            <label class="big-toggle">
+                <input type="checkbox" id="master-toggle" onchange="toggleScheduler(this.checked)">
+                <div class="toggle-track">
+                    <span class="toggle-label on">ON</span>
+                    <span class="toggle-label off">OFF</span>
+                    <div class="toggle-thumb"></div>
+                </div>
+            </label>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="schedules">Schedules</button>
+            <button class="tab" data-tab="recipients">Recipients</button>
+            <button class="tab" data-tab="email">Email Settings</button>
+            <button class="tab" data-tab="history">History</button>
+        </div>
+
+        <!-- Schedules Tab -->
+        <div class="tab-content active" id="tab-schedules">
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Report Schedules</h2>
+                    <button class="btn btn-primary" onclick="sendReportNow()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                        Send Report Now
+                    </button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Enabled</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Schedule</th>
+                            <th>Last Run</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules-table">
+                        <tr>
+                            <td colspan="6" style="text-align:center;color:var(--text-secondary);">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Report Times</h2>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Day Shift Report Time (A/C)</label>
+                        <input type="time" class="form-control" id="day-time" value="17:30">
+                    </div>
+                    <div class="form-group">
+                        <label>Night Shift Report Time (B/D)</label>
+                        <input type="time" class="form-control" id="night-time" value="05:30">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Timezone</label>
+                    <select class="form-control" id="timezone-select">
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                        <option value="UTC">UTC</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveReportTimes()">Save Report Times</button>
+            </div>
+        </div>
+
+        <!-- Recipients Tab -->
+        <div class="tab-content" id="tab-recipients">
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Battalion Chiefs</h2>
+                </div>
+
+                <div class="bc-grid" id="bc-grid">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="saveBattalionChiefs()">Save All BC Contacts</button>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Additional Recipients</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="addRecipient()">+ Add Recipient</button>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Type</th>
+                            <th>Shift</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recipients-table">
+                        <tr>
+                            <td colspan="5" style="text-align:center;color:var(--text-secondary);">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Email Settings Tab -->
+        <div class="tab-content" id="tab-email">
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Email Provider</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select class="form-control" id="email-provider">
+                        <option value="sendgrid">SendGrid (Recommended)</option>
+                        <option value="smtp">SMTP (Gmail/Custom)</option>
+                    </select>
+                </div>
+
+                <div id="sendgrid-config">
+                    <div class="form-group">
+                        <label>SendGrid API Key</label>
+                        <input type="password" class="form-control" id="sendgrid-key" placeholder="SG.xxxxxxxxxx">
+                    </div>
+                </div>
+
+                <div id="smtp-config" style="display:none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>SMTP Host</label>
+                            <input type="text" class="form-control" id="smtp-host" value="smtp.gmail.com">
+                        </div>
+                        <div class="form-group">
+                            <label>SMTP Port</label>
+                            <input type="number" class="form-control" id="smtp-port" value="587">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" class="form-control" id="smtp-user">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" class="form-control" id="smtp-pass">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>From Name</label>
+                        <input type="text" class="form-control" id="from-name" value="FORD CAD System">
+                    </div>
+                    <div class="form-group">
+                        <label>From Email</label>
+                        <input type="email" class="form-control" id="from-email" placeholder="cad@blueovalsk.com">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Settings</button>
+                    <button class="btn btn-secondary" onclick="testEmailConfig()">Test Connection</button>
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Send Test Email</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>Test Email Address</label>
+                    <div style="display:flex;gap:12px;">
+                        <input type="email" class="form-control" id="test-email" placeholder="your@email.com" style="flex:1;">
+                        <button class="btn btn-secondary" onclick="sendTestEmail()">Send Test</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div class="tab-content" id="tab-history">
+            <div class="admin-section">
+                <div class="section-header">
+                    <h2>Report History</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadHistory()">Refresh</button>
+                </div>
+
+                <table class="data-table history-table">
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Type</th>
+                            <th>Shift</th>
+                            <th>Status</th>
+                            <th>Recipients</th>
+                            <th>Triggered By</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table">
+                        <tr>
+                            <td colspan="7" style="text-align:center;color:var(--text-secondary);">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Email provider toggle
+        document.getElementById('email-provider').addEventListener('change', function() {
+            document.getElementById('sendgrid-config').style.display = this.value === 'sendgrid' ? 'block' : 'none';
+            document.getElementById('smtp-config').style.display = this.value === 'smtp' ? 'block' : 'none';
+        });
+
+        // Load initial data
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/v2/reports/scheduler/status');
+                const data = await res.json();
+
+                // Update scheduler status
+                const statusEl = document.getElementById('scheduler-status');
+                if (data.running) {
+                    statusEl.className = 'status-indicator running';
+                    statusEl.innerHTML = '<span class="dot"></span><span class="text">RUNNING</span>';
+                } else {
+                    statusEl.className = 'status-indicator stopped';
+                    statusEl.innerHTML = '<span class="dot"></span><span class="text">STOPPED</span>';
+                }
+
+                // Update master toggle
+                document.getElementById('master-toggle').checked = data.enabled;
+
+                // Update next report
+                const nextEl = document.getElementById('next-report');
+                if (data.next_report) {
+                    nextEl.innerHTML = `<span class="time">${data.next_report}</span><span class="type">${data.current_shift} Shift End Report</span>`;
+                } else {
+                    nextEl.innerHTML = '<span class="time">Not scheduled</span>';
+                }
+
+                // Update current time
+                document.getElementById('current-time').textContent = data.current_time;
+                document.getElementById('current-timezone').textContent = data.timezone;
+
+            } catch (e) {
+                console.error('Failed to load status:', e);
+            }
+        }
+
+        async function toggleScheduler(enabled) {
+            try {
+                const endpoint = enabled ? '/api/v2/reports/scheduler/enable' : '/api/v2/reports/scheduler/disable';
+                const res = await fetch(endpoint, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.ok) {
+                    showToast(enabled ? 'Scheduler enabled' : 'Scheduler disabled', 'success');
+                    loadStatus();
+                } else {
+                    showToast(data.error || 'Failed', 'error');
+                    document.getElementById('master-toggle').checked = !enabled;
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+                document.getElementById('master-toggle').checked = !enabled;
+            }
+        }
+
+        async function loadSchedules() {
+            try {
+                const res = await fetch('/api/v2/reports/schedules');
+                const data = await res.json();
+
+                const tbody = document.getElementById('schedules-table');
+                if (!data.schedules || data.schedules.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No schedules configured</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.schedules.map(s => `
+                    <tr>
+                        <td>
+                            <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSchedule(${s.id}, this.checked)">
+                        </td>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.report_type}</td>
+                        <td>${s.schedule_type === 'shift_based' ? `${s.day_time} / ${s.night_time}` : s.cron_expression}</td>
+                        <td>${s.last_run || 'Never'}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm" onclick="runScheduleNow(${s.id})">Run Now</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load schedules:', e);
+            }
+        }
+
+        async function toggleSchedule(id, enabled) {
+            const endpoint = enabled ? `/api/v2/reports/schedules/${id}/enable` : `/api/v2/reports/schedules/${id}/disable`;
+            await fetch(endpoint, { method: 'POST' });
+            showToast(enabled ? 'Schedule enabled' : 'Schedule disabled', 'success');
+        }
+
+        async function runScheduleNow(id) {
+            if (!confirm('Send report now?')) return;
+            await fetch(`/api/v2/reports/schedules/${id}/run`, { method: 'POST' });
+            showToast('Report generation started', 'success');
+        }
+
+        async function sendReportNow() {
+            if (!confirm('Send the current shift report to all recipients?')) return;
+            await fetch('/api/v2/reports/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            showToast('Report generation started', 'success');
+        }
+
+        async function loadBattalionChiefs() {
+            try {
+                const res = await fetch('/api/v2/reports/recipients/battalion');
+                const data = await res.json();
+
+                const grid = document.getElementById('bc-grid');
+                grid.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => `
+                    <div class="bc-card" data-shift="${shift}">
+                        <div class="shift-badge">${shift}</div>
+                        <div class="name">${bc.name || `Shift ${shift} BC`}</div>
+                        <input type="text" id="bc-name-${shift}" placeholder="Name" value="${bc.name || ''}">
+                        <input type="email" id="bc-email-${shift}" placeholder="Email" value="${bc.email || bc.destination || ''}">
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load BCs:', e);
+            }
+        }
+
+        async function saveBattalionChiefs() {
+            for (const shift of ['A', 'B', 'C', 'D']) {
+                const name = document.getElementById(`bc-name-${shift}`).value;
+                const email = document.getElementById(`bc-email-${shift}`).value;
+
+                if (email) {
+                    await fetch(`/api/v2/reports/recipients/battalion/${shift}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email })
+                    });
+                }
+            }
+            showToast('Battalion Chief contacts saved', 'success');
+        }
+
+        async function loadRecipients() {
+            try {
+                const res = await fetch('/api/v2/reports/recipients');
+                const data = await res.json();
+
+                const tbody = document.getElementById('recipients-table');
+                const customRecipients = data.recipients.filter(r => r.role !== 'battalion_chief');
+
+                if (customRecipients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);">No additional recipients</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = customRecipients.map(r => `
+                    <tr>
+                        <td>${r.name || '-'}</td>
+                        <td>${r.destination}</td>
+                        <td>${r.recipient_type}</td>
+                        <td>${r.shift || 'All'}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-sm" onclick="testRecipient(${r.id})">Test</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteRecipient(${r.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load recipients:', e);
+            }
+        }
+
+        async function testRecipient(id) {
+            await fetch(`/api/v2/reports/recipients/${id}/test`, { method: 'POST' });
+            showToast('Test email sent', 'success');
+        }
+
+        async function deleteRecipient(id) {
+            if (!confirm('Delete this recipient?')) return;
+            await fetch(`/api/v2/reports/recipients/${id}`, { method: 'DELETE' });
+            showToast('Recipient deleted', 'success');
+            loadRecipients();
+        }
+
+        async function addRecipient() {
+            const email = prompt('Enter email address:');
+            if (!email) return;
+
+            const name = prompt('Enter name (optional):');
+
+            await fetch('/api/v2/reports/recipients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipient_type: 'email',
+                    destination: email,
+                    name: name || '',
+                    role: 'custom'
+                })
+            });
+            showToast('Recipient added', 'success');
+            loadRecipients();
+        }
+
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/v2/reports/config');
+                const config = await res.json();
+
+                document.getElementById('timezone-select').value = config.timezone || 'America/New_York';
+                document.getElementById('day-time').value = config.day_shift_report_time || '17:30';
+                document.getElementById('night-time').value = config.night_shift_report_time || '05:30';
+                document.getElementById('email-provider').value = config.email_provider || 'sendgrid';
+                document.getElementById('from-name').value = config.from_name || '';
+                document.getElementById('from-email').value = config.from_email || '';
+
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+        }
+
+        async function saveReportTimes() {
+            const data = {
+                timezone: document.getElementById('timezone-select').value,
+                day_shift_report_time: document.getElementById('day-time').value,
+                night_shift_report_time: document.getElementById('night-time').value
+            };
+
+            await fetch('/api/v2/reports/config', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            showToast('Report times saved', 'success');
+            loadStatus();
+        }
+
+        async function saveEmailConfig() {
+            const provider = document.getElementById('email-provider').value;
+            const data = {
+                provider,
+                from_name: document.getElementById('from-name').value,
+                from_email: document.getElementById('from-email').value
+            };
+
+            if (provider === 'sendgrid') {
+                const key = document.getElementById('sendgrid-key').value;
+                if (key && !key.includes('***')) {
+                    data.sendgrid_api_key = key;
+                }
+            } else {
+                data.smtp_host = document.getElementById('smtp-host').value;
+                data.smtp_port = document.getElementById('smtp-port').value;
+                data.smtp_user = document.getElementById('smtp-user').value;
+                const pass = document.getElementById('smtp-pass').value;
+                if (pass) data.smtp_pass = pass;
+            }
+
+            await fetch('/api/v2/reports/config/email', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            showToast('Email configuration saved', 'success');
+        }
+
+        async function testEmailConfig() {
+            const res = await fetch('/api/v2/reports/config/email/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: document.getElementById('test-email').value || 'test@test.com' })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Connection successful!', 'success');
+            } else {
+                showToast(data.error || 'Connection failed', 'error');
+            }
+        }
+
+        async function sendTestEmail() {
+            const email = document.getElementById('test-email').value;
+            if (!email) {
+                showToast('Enter an email address', 'error');
+                return;
+            }
+
+            const res = await fetch('/api/v2/reports/config/email/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                showToast('Test email sent!', 'success');
+            } else {
+                showToast(data.error || 'Failed to send', 'error');
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/v2/reports/history');
+                const data = await res.json();
+
+                const tbody = document.getElementById('history-table');
+                if (!data.history || data.history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No report history</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.history.map(h => `
+                    <tr>
+                        <td>${h.started_at || '-'}</td>
+                        <td>${h.report_type}</td>
+                        <td>${h.shift || '-'}</td>
+                        <td><span class="badge badge-${h.status === 'sent' ? 'success' : h.status === 'failed' ? 'danger' : 'warning'}">${h.status}</span></td>
+                        <td>${h.successful_count}/${h.recipients_count}</td>
+                        <td>${h.triggered_by}</td>
+                        <td><button class="btn btn-secondary btn-sm" onclick="viewHistoryDetail(${h.id})">View</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load history:', e);
+            }
+        }
+
+        async function viewHistoryDetail(id) {
+            const res = await fetch(`/api/v2/reports/history/${id}`);
+            const data = await res.json();
+            alert(JSON.stringify(data, null, 2));
+        }
+
+        // Initialize
+        loadStatus();
+        loadSchedules();
+        loadBattalionChiefs();
+        loadRecipients();
+        loadConfig();
+        loadHistory();
+
+        // Refresh status every 30 seconds
+        setInterval(loadStatus, 30000);
+    </script>
+</body>
+</html>

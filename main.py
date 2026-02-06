@@ -70,6 +70,18 @@ try:
 except ImportError as e:
     print(f"[MAIN] Reports module not available: {e}")
 
+# ================================================================
+# REPORTS V2 MODULE (State-of-the-Art Reporting System)
+# ================================================================
+try:
+    from app.reporting import register_reporting_routes
+    register_reporting_routes(app)
+    print("[MAIN] Reports v2 module loaded")
+except ImportError as e:
+    print(f"[MAIN] Reports v2 module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Reports v2 module error: {e}")
+
 # ------------------------------------------------
 # Middleware: guarantee every mutation is written to MasterLog
 # ------------------------------------------------
@@ -9181,6 +9193,15 @@ async def reports_admin_modal(request: Request):
     """Reports Administration modal - comprehensive report configuration."""
     return templates.TemplateResponse(
         "modals/reports_admin_modal.html",
+        {"request": request},
+    )
+
+
+@app.get("/admin/reports", response_class=HTMLResponse)
+async def admin_reports_page(request: Request):
+    """Reports Administration full page - state-of-the-art v2 reporting system."""
+    return templates.TemplateResponse(
+        "admin/reports.html",
         {"request": request},
     )
 
