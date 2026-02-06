@@ -15,10 +15,12 @@ import { CAD_UTIL } from "./utils.js";
 
 export const CAD_MODAL = (() => {
   // -------------------------------------------------------------------------
-  // SINGLETON GUARD
+  // SINGLETON GUARD (version-aware: bump _MODAL_VER to force re-create)
   // -------------------------------------------------------------------------
+  const _MODAL_VER = 2;
   try {
-    if (window?.CAD_MODAL && window.CAD_MODAL.__FORDCAD_MODAL_SINGLETON__ === true) {
+    if (window?.CAD_MODAL && window.CAD_MODAL.__FORDCAD_MODAL_SINGLETON__ === true
+        && window.CAD_MODAL.__FORDCAD_MODAL_VER__ >= _MODAL_VER) {
       return window.CAD_MODAL;
     }
   } catch (_) {}
@@ -249,6 +251,7 @@ export const CAD_MODAL = (() => {
   // -------------------------------------------------------------------------
   const api = {
     __FORDCAD_MODAL_SINGLETON__: true,
+    __FORDCAD_MODAL_VER__: _MODAL_VER,
 
     get container() {
       return _container;
@@ -292,9 +295,11 @@ export const CAD_MODAL = (() => {
         // Lock scroll immediately (prevents “snap after click”)
         _lockScrollStable(true);
 
-        // Fetch + inject HTML
+        // Fetch + inject HTML (use createContextualFragment to execute inline scripts)
         const html = await CAD_UTIL.safeFetch(url);
-        _container.innerHTML = html;
+        _container.innerHTML = "";
+        const frag = document.createRange().createContextualFragment(html);
+        _container.appendChild(frag);
 
         const modal = _container.querySelector(".cad-modal");
         const overlay = _container.querySelector(".cad-modal-overlay");

@@ -333,78 +333,47 @@ async def run_report(request: Request, background_tasks: BackgroundTasks):
     formats = data.get("formats", ["html"])
 
     # Validate template exists
+    builtin_keys = {bt["template_key"] for bt in BUILTIN_TEMPLATES}
     template = TemplateRepository.get_by_key(template_key)
-    if not template:
-        # Check built-in keys
-        if template_key not in {bt["template_key"] for bt in BUILTIN_TEMPLATES}:
-            raise HTTPException(status_code=404, detail=f"Unknown template_key: {template_key}")
+    if not template and template_key not in builtin_keys:
+        raise HTTPException(status_code=404, detail=f"Unknown template_key: {template_key}")
 
-    # Create report run record
-    run = ReportRun(
-        template_key=template_key,
-        title=title or f"Report: {template_key}",
-        filters_json=json.dumps(filters),
-        format_json=json.dumps(formats),
-        created_by=user,
-        status="running",
-    )
-    run_id = RunRepository.create(run)
+    # Normalize filter keys: the modal sends date_from/date_to,
+    # but the engine extractors expect date_start/date_end.
+    if "date_from" in filters and "date_start" not in filters:
+        filters["date_start"] = filters.pop("date_from")
+    if "date_to" in filters and "date_end" not in filters:
+        filters["date_end"] = filters.pop("date_to")
 
-    # Generate the report synchronously for now (fast templates); heavy ones
-    # could be moved to background_tasks if needed.
+    # Use the new template-driven engine.run_report()
     try:
         engine = get_engine()
-        shift = filters.get("shift")
-        report_data = engine.generate_report(
-            report_type=template_key if template_key in ("shift_end", "daily_summary", "weekly", "custom") else "shift_end",
-            shift=shift,
+        result = engine.run_report(
+            template_key=template_key,
+            filters=filters,
+            formats=formats,
+            created_by=user,
+            title=title,
         )
 
-        # Save artifacts
-        artifact_dir = ensure_artifact_dir(run_id)
+        run_id = result["run_id"]
+
+        # Build download links from tokens
         links: Dict[str, str] = {}
+        for fmt, token in result.get("download_tokens", {}).items():
+            links[fmt] = f"/api/reporting/download/{token}"
 
-        if "html" in formats:
-            html_content = engine.format_report_html(report_data)
-            html_path = artifact_dir / "report.html"
-            html_path.write_text(html_content, encoding="utf-8")
-            token = make_download_token(run_id, "html")
-            links["html"] = f"/api/reporting/download/{token}"
-
-        if "text" in formats:
-            text_content = engine.format_report_text(report_data)
-            text_path = artifact_dir / "report.txt"
-            text_path.write_text(text_content, encoding="utf-8")
-            token = make_download_token(run_id, "text")
-            links["text"] = f"/api/reporting/download/{token}"
-
-        # Store summary
-        summary = report_data.get("stats", {})
-        summary_text = json.dumps(summary)
-        RunRepository.save_summary(run_id, summary_text)
-
-        # Store artifact paths
-        artifact_paths = {fmt: str(artifact_dir / f"report.{fmt}") for fmt in formats}
-        RunRepository.save_artifacts(run_id, artifact_paths)
-
-        RunRepository.update_status(run_id, "completed")
-
-        AuditRepository.log(
-            action="report_run",
-            category="reports",
-            user_name=user,
-            new_value=str(run_id),
-            details=f"Ran report {template_key} (run_id={run_id})",
-        )
+        # Parse summary for response
+        summary = result.get("data", {}).get("stats", {})
 
         logger.info("Report run completed: run_id=%d, template=%s, user=%s", run_id, template_key, user)
 
         return {
-            "ok": True,
+            "ok": result.get("ok", True),
             "run_id": run_id,
             "links": links,
             "summary": summary,
-            "status": "completed",
+            "status": result.get("status", "completed"),
         }
 
     except Exception as exc:
@@ -429,6 +398,12 @@ async def preview_report(
     shift: Optional[str] = Query(None, description="Shift filter (A/B/C/D)"),
     date_from: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
     date_to: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    time_from: Optional[str] = Query(None, description="Start time HHMM"),
+    time_to: Optional[str] = Query(None, description="End time HHMM"),
+    units: Optional[str] = Query(None, description="Comma-separated unit IDs"),
+    event_type: Optional[str] = Query(None, description="Event type filter"),
+    calltaker: Optional[str] = Query(None, description="Calltaker filter"),
+    status: Optional[str] = Query(None, description="Status filter"),
 ):
     """Return preview HTML for the current filters/template.
 
@@ -436,12 +411,39 @@ async def preview_report(
     without persisting a run record.
     """
     try:
-        engine = get_engine()
-        report_data = engine.generate_report(
-            report_type="shift_end",
-            shift=shift,
-        )
-        html = engine.format_report_html(report_data)
+        from .engine import get_extractor
+        filters: Dict[str, Any] = {}
+        if date_from:
+            filters["date_start"] = date_from
+        if date_to:
+            filters["date_end"] = date_to
+        if shift:
+            filters["shift"] = shift
+        if time_from:
+            filters["time_from"] = time_from
+        if time_to:
+            filters["time_to"] = time_to
+        if units:
+            filters["units"] = [u.strip() for u in units.split(",")]
+        if event_type:
+            filters["event_type"] = event_type
+        if calltaker:
+            filters["calltaker"] = calltaker
+        if status:
+            filters["status"] = status
+
+        extractor = get_extractor(template_key)
+        data = extractor(filters)
+
+        # Use the renderer for proper template-aware HTML
+        try:
+            from .renderer import ReportRenderer
+            renderer = ReportRenderer()
+            html = renderer.render_html(template_key, data.get("metadata", {}).get("title", template_key), data, filters)
+        except Exception:
+            # Fallback to engine's built-in HTML
+            engine = get_engine()
+            html = engine._render_html(data)
         return HTMLResponse(content=html)
     except Exception as exc:
         logger.error("Preview failed: %s", exc, exc_info=True)

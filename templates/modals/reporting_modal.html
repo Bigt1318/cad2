@@ -1,4 +1,4 @@
-<!-- Reporting Modal — 4-Tab Production UI for FORD-CAD -->
+<!-- Reporting Modal — 4-Tab Production UI for FORD-CAD (v4) -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal reporting-modal" role="dialog" aria-modal="true" aria-label="Reporting">
     <div class="cad-modal-header">
@@ -31,7 +31,7 @@
                 <!-- Template Picker -->
                 <div class="rpt-section">
                     <div class="rpt-section-title">Template</div>
-                    <select id="rpt-template-select" class="rpt-select" aria-label="Select report template">
+                    <select id="rpt-template-select" class="rpt-select" onchange="REPORTING.onTemplateChange()" aria-label="Select report template">
                         <option value="">-- Loading templates --</option>
                     </select>
                     <div id="rpt-template-desc" class="rpt-hint"></div>
@@ -41,14 +41,37 @@
                 <div class="rpt-section">
                     <div class="rpt-section-title">Filters</div>
                     <div class="rpt-filters-grid">
+                        <!-- Date range preset -->
                         <div class="rpt-field">
+                            <label for="rpt-date-preset">Date Range</label>
+                            <select id="rpt-date-preset" class="rpt-select" onchange="REPORTING.onDatePresetChange()">
+                                <option value="today">Today</option>
+                                <option value="yesterday_today" selected>Yesterday to Today</option>
+                                <option value="last_7">Last 7 Days</option>
+                                <option value="last_30">Last 30 Days</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <!-- Start Date (shown always but auto-set by preset) -->
+                        <div class="rpt-field" id="rpt-date-start-wrap">
                             <label for="rpt-date-start">Start Date</label>
                             <input type="date" id="rpt-date-start" class="rpt-input">
                         </div>
-                        <div class="rpt-field">
+                        <!-- End Date -->
+                        <div class="rpt-field" id="rpt-date-end-wrap">
                             <label for="rpt-date-end">End Date</label>
                             <input type="date" id="rpt-date-end" class="rpt-input">
                         </div>
+                        <!-- Time range -->
+                        <div class="rpt-field">
+                            <label for="rpt-time-from">From Time (24hr)</label>
+                            <input type="text" id="rpt-time-from" class="rpt-input" placeholder="e.g. 0600" maxlength="4">
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-time-to">To Time (24hr)</label>
+                            <input type="text" id="rpt-time-to" class="rpt-input" placeholder="e.g. 1800" maxlength="4">
+                        </div>
+                        <!-- Shift -->
                         <div class="rpt-field">
                             <label for="rpt-shift-select">Shift</label>
                             <select id="rpt-shift-select" class="rpt-select">
@@ -59,46 +82,57 @@
                                 <option value="D">D Shift</option>
                             </select>
                         </div>
+                        <!-- Event Type -->
                         <div class="rpt-field">
                             <label for="rpt-event-type">Event Type</label>
                             <input type="text" id="rpt-event-type" class="rpt-input" placeholder="e.g. FIRE, EMS">
                         </div>
+                        <!-- Calltaker -->
                         <div class="rpt-field">
                             <label for="rpt-calltaker">Calltaker</label>
                             <input type="text" id="rpt-calltaker" class="rpt-input" placeholder="Name or ID">
                         </div>
+                        <!-- Status -->
                         <div class="rpt-field">
                             <label for="rpt-status-filter">Status</label>
                             <select id="rpt-status-filter" class="rpt-select">
                                 <option value="">All</option>
                                 <option value="open">Open</option>
                                 <option value="closed">Closed</option>
-                                <option value="pending">Pending</option>
+                                <option value="held">Held</option>
                             </select>
                         </div>
                     </div>
-                    <!-- Unit Multi-Select -->
-                    <div class="rpt-field" style="margin-top:var(--space-2);">
-                        <label>Units</label>
-                        <div class="rpt-unit-checks" id="rpt-unit-checks">
-                            <label class="rpt-check-label"><input type="checkbox" value="E1"> E1</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="E2"> E2</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="E3"> E3</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="L1"> L1</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="L2"> L2</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="M1"> M1</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="M2"> M2</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="BC1"> BC1</label>
-                            <label class="rpt-check-label"><input type="checkbox" value="R1"> R1</label>
-                        </div>
+                </div>
+
+                <!-- Apparatus Checkboxes -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">
+                        Apparatus
+                        <span class="rpt-section-actions">
+                            <button class="rpt-link-btn" onclick="REPORTING.selectAllApparatus()">Select All</button>
+                            <span class="rpt-separator">|</span>
+                            <button class="rpt-link-btn" onclick="REPORTING.clearAllApparatus()">Clear All</button>
+                        </span>
                     </div>
-                    <!-- Mode toggle for blotter -->
-                    <div class="rpt-field rpt-mode-toggle" id="rpt-mode-toggle" style="margin-top:var(--space-2);">
-                        <label>Mode</label>
-                        <div class="rpt-toggle-group">
-                            <button class="rpt-toggle-btn active" data-mode="condensed">Condensed</button>
-                            <button class="rpt-toggle-btn" data-mode="detailed">Detailed</button>
-                        </div>
+                    <div class="rpt-apparatus-checks" id="rpt-apparatus-checks">
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Engine1" checked> E1 - Engine 1</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Engine2" checked> E2 - Engine 2</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Medic1" checked> M1 - Medic 1</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Medic2" checked> M2 - Medic 2</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Tower1" checked> T1 - Tower 1</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="SQ1" checked> SQ1 - Squirt 1</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="UTV1" checked> UTV1 - UTV 1</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="UTV2" checked> UTV2 - UTV 2</label>
+                    </div>
+                </div>
+
+                <!-- Mode Toggle -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Mode</div>
+                    <div class="rpt-toggle-group" id="rpt-mode-toggle">
+                        <button class="rpt-toggle-btn active" data-mode="condensed" onclick="REPORTING.setMode(this)">Condensed</button>
+                        <button class="rpt-toggle-btn" data-mode="detailed" onclick="REPORTING.setMode(this)">Detailed</button>
                     </div>
                 </div>
 
@@ -114,49 +148,11 @@
                     </div>
                 </div>
 
-                <!-- Delivery Options -->
-                <div class="rpt-section">
-                    <div class="rpt-section-title">Delivery</div>
-                    <div class="rpt-delivery-options">
-                        <div class="rpt-delivery-row">
-                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-email"> Email</label>
-                            <input type="email" id="rpt-del-email-addr" class="rpt-input rpt-delivery-input" placeholder="recipient@example.com" disabled>
-                        </div>
-                        <div class="rpt-delivery-row">
-                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-sms"> SMS</label>
-                            <input type="tel" id="rpt-del-sms-phone" class="rpt-input rpt-delivery-input" placeholder="+1 555-123-4567" disabled>
-                        </div>
-                        <div class="rpt-delivery-row">
-                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-signal"> Signal webhook</label>
-                        </div>
-                        <div class="rpt-delivery-row">
-                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-webex"> Webex webhook</label>
-                        </div>
-                        <div class="rpt-delivery-row">
-                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-webhook"> Generic webhook</label>
-                            <input type="url" id="rpt-del-webhook-url" class="rpt-input rpt-delivery-input" placeholder="https://hooks.example.com/..." disabled>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Preview Section -->
-                <div id="rpt-preview-box" class="rpt-preview-box" style="display:none;">
-                    <div class="rpt-preview-header">
-                        <span>Report Preview</span>
-                        <button onclick="document.getElementById('rpt-preview-box').style.display='none'" aria-label="Close preview">&times;</button>
-                    </div>
-                    <div class="rpt-preview-content" id="rpt-preview-content"></div>
-                </div>
-
                 <!-- Actions -->
                 <div class="rpt-actions">
                     <button class="rpt-btn-primary" onclick="REPORTING.runReport()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21 5,3"></polygon></svg>
                         Run Report
-                    </button>
-                    <button class="rpt-btn-secondary" onclick="REPORTING.runReport(true)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        Export Only
                     </button>
                     <button class="rpt-btn-secondary" onclick="REPORTING.previewReport()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -173,19 +169,19 @@
                 <div class="rpt-section">
                     <div class="rpt-section-title">Base Dataset</div>
                     <div class="rpt-dataset-cards">
-                        <button class="rpt-dataset-card active" data-dataset="dailylog">
+                        <button class="rpt-dataset-card active" data-dataset="dailylog" onclick="REPORTING.selectDataset(this)">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline></svg>
                             Daily Log
                         </button>
-                        <button class="rpt-dataset-card" data-dataset="incidents">
+                        <button class="rpt-dataset-card" data-dataset="incidents" onclick="REPORTING.selectDataset(this)">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                             Incidents
                         </button>
-                        <button class="rpt-dataset-card" data-dataset="units">
+                        <button class="rpt-dataset-card" data-dataset="units" onclick="REPORTING.selectDataset(this)">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                             Units
                         </button>
-                        <button class="rpt-dataset-card" data-dataset="calltaker">
+                        <button class="rpt-dataset-card" data-dataset="calltaker" onclick="REPORTING.selectDataset(this)">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                             Calltaker
                         </button>
@@ -220,9 +216,9 @@
                         <select id="rpt-sort-field" class="rpt-select" style="flex:1;">
                             <option value="">-- None --</option>
                         </select>
-                        <div class="rpt-toggle-group">
-                            <button class="rpt-toggle-btn active" data-sort="asc">ASC</button>
-                            <button class="rpt-toggle-btn" data-sort="desc">DESC</button>
+                        <div class="rpt-toggle-group" id="rpt-sort-toggle">
+                            <button class="rpt-toggle-btn active" data-sort="asc" onclick="REPORTING.setSortDir(this)">ASC</button>
+                            <button class="rpt-toggle-btn" data-sort="desc" onclick="REPORTING.setSortDir(this)">DESC</button>
                         </div>
                     </div>
                 </div>
@@ -277,7 +273,7 @@
 
                 <!-- Create Schedule -->
                 <div class="rpt-section">
-                    <button class="rpt-btn-secondary rpt-expand-btn" id="rpt-sched-create-toggle" onclick="REPORTING.toggleScheduleForm()">
+                    <button class="rpt-btn-secondary rpt-expand-btn" onclick="REPORTING.toggleScheduleForm()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         Create Schedule
                     </button>
@@ -297,14 +293,6 @@
                         <!-- Schedule-specific filters -->
                         <div class="rpt-filters-grid" style="margin-top:var(--space-2);">
                             <div class="rpt-field">
-                                <label for="rpt-sched-date-start">Start Date</label>
-                                <input type="date" id="rpt-sched-date-start" class="rpt-input">
-                            </div>
-                            <div class="rpt-field">
-                                <label for="rpt-sched-date-end">End Date</label>
-                                <input type="date" id="rpt-sched-date-end" class="rpt-input">
-                            </div>
-                            <div class="rpt-field">
                                 <label for="rpt-sched-shift">Shift</label>
                                 <select id="rpt-sched-shift" class="rpt-select">
                                     <option value="">All</option>
@@ -314,17 +302,16 @@
                                     <option value="D">D</option>
                                 </select>
                             </div>
-                        </div>
-                        <!-- Frequency -->
-                        <div class="rpt-field" style="margin-top:var(--space-2);">
-                            <label for="rpt-sched-freq">Frequency</label>
-                            <select id="rpt-sched-freq" class="rpt-select" onchange="REPORTING.onScheduleFreqChange()">
-                                <option value="once">One-time</option>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
-                                <option value="shift_change" selected>Shift Change</option>
-                            </select>
+                            <div class="rpt-field">
+                                <label for="rpt-sched-freq">Frequency</label>
+                                <select id="rpt-sched-freq" class="rpt-select" onchange="REPORTING.onScheduleFreqChange()">
+                                    <option value="once">One-time</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="shift_change" selected>Shift Change</option>
+                                </select>
+                            </div>
                         </div>
                         <!-- One-time datetime picker -->
                         <div class="rpt-field rpt-freq-once" style="display:none; margin-top:var(--space-2);">
@@ -354,15 +341,15 @@
                             <label>Delivery Channels</label>
                             <div class="rpt-delivery-options">
                                 <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-email" checked> Email</label>
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-email" checked onchange="REPORTING.toggleSchedInput('rpt-sched-del-email','rpt-sched-del-email-addr')"> Email</label>
                                     <input type="email" id="rpt-sched-del-email-addr" class="rpt-input rpt-delivery-input" placeholder="recipient@example.com">
                                 </div>
                                 <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-sms"> SMS</label>
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-sms" onchange="REPORTING.toggleSchedInput('rpt-sched-del-sms','rpt-sched-del-sms-phone')"> SMS</label>
                                     <input type="tel" id="rpt-sched-del-sms-phone" class="rpt-input rpt-delivery-input" placeholder="+1 555-123-4567" disabled>
                                 </div>
                                 <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-webhook"> Webhook</label>
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-webhook" onchange="REPORTING.toggleSchedInput('rpt-sched-del-webhook','rpt-sched-del-webhook-url')"> Webhook</label>
                                     <input type="url" id="rpt-sched-del-webhook-url" class="rpt-input rpt-delivery-input" placeholder="https://..." disabled>
                                 </div>
                             </div>
@@ -382,20 +369,18 @@
                 <!-- Filters -->
                 <div class="rpt-section">
                     <div class="rpt-history-filters">
-                        <input type="text" id="rpt-hist-search" class="rpt-input" placeholder="Search reports..." style="flex:2;">
-                        <input type="date" id="rpt-hist-date-start" class="rpt-input" style="flex:1;">
-                        <input type="date" id="rpt-hist-date-end" class="rpt-input" style="flex:1;">
-                        <select id="rpt-hist-template-filter" class="rpt-select" style="flex:1;">
+                        <input type="text" id="rpt-hist-search" class="rpt-input" placeholder="Search reports..." style="flex:2;" oninput="REPORTING.filterHistory()">
+                        <select id="rpt-hist-template-filter" class="rpt-select" style="flex:1;" onchange="REPORTING.loadHistory()">
                             <option value="">All Templates</option>
                         </select>
-                        <select id="rpt-hist-status-filter" class="rpt-select" style="flex:1;">
+                        <select id="rpt-hist-status-filter" class="rpt-select" style="flex:1;" onchange="REPORTING.loadHistory()">
                             <option value="">All Statuses</option>
-                            <option value="success">Success</option>
+                            <option value="completed">Completed</option>
                             <option value="failed">Failed</option>
                             <option value="partial">Partial</option>
-                            <option value="pending">Pending</option>
+                            <option value="running">Running</option>
                         </select>
-                        <button class="rpt-btn-secondary" onclick="REPORTING.loadHistory()" aria-label="Refresh history">
+                        <button class="rpt-btn-secondary" onclick="REPORTING.loadHistory()" aria-label="Refresh history" style="padding:8px 12px;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"></polyline><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path></svg>
                         </button>
                     </div>
@@ -424,6 +409,48 @@
                 </div>
             </div>
         </div>
+
+        <!-- ============================================================ -->
+        <!-- REPORT VIEWER OVERLAY                                        -->
+        <!-- ============================================================ -->
+        <div class="rpt-viewer-overlay" id="rpt-viewer-overlay" style="display:none;">
+            <div class="rpt-viewer-panel">
+                <div class="rpt-viewer-header">
+                    <span class="rpt-viewer-title" id="rpt-viewer-title">Report Viewer</span>
+                    <button class="rpt-viewer-close" onclick="REPORTING.closeViewer()" aria-label="Close viewer">&times;</button>
+                </div>
+                <div class="rpt-viewer-content" id="rpt-viewer-content">
+                    <!-- Report HTML rendered here -->
+                </div>
+                <div class="rpt-viewer-footer">
+                    <div class="rpt-viewer-actions-left">
+                        <button class="rpt-btn-primary rpt-btn-sm" onclick="REPORTING.viewerDownload('pdf')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            PDF
+                        </button>
+                        <button class="rpt-btn-primary rpt-btn-sm" onclick="REPORTING.viewerDownload('csv')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            CSV
+                        </button>
+                        <button class="rpt-btn-primary rpt-btn-sm" onclick="REPORTING.viewerDownload('xlsx')">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            XLSX
+                        </button>
+                    </div>
+                    <div class="rpt-viewer-actions-right">
+                        <div class="rpt-viewer-send-group">
+                            <input type="email" id="rpt-viewer-email" class="rpt-input rpt-viewer-input" placeholder="Email address">
+                            <button class="rpt-btn-secondary rpt-btn-sm" onclick="REPORTING.viewerSendEmail()">Send Email</button>
+                        </div>
+                        <div class="rpt-viewer-send-group">
+                            <input type="tel" id="rpt-viewer-sms" class="rpt-input rpt-viewer-input" placeholder="Phone number">
+                            <button class="rpt-btn-secondary rpt-btn-sm" onclick="REPORTING.viewerSendSMS()">Send SMS</button>
+                        </div>
+                        <button class="rpt-btn-secondary rpt-btn-sm" onclick="REPORTING.closeViewer()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="cad-modal-footer">
         <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
@@ -436,9 +463,9 @@
 <style>
 /* ---- Modal size ---- */
 .reporting-modal {
-    min-width: 700px;
-    max-width: 900px;
-    max-height: 88vh;
+    min-width: 720px;
+    max-width: 940px;
+    max-height: 90vh;
     display: flex;
     flex-direction: column;
 }
@@ -446,6 +473,7 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
+    position: relative;
 }
 
 /* ---- Container ---- */
@@ -474,7 +502,7 @@
 }
 .reporting-modal .rpt-tab:hover {
     color: var(--ford-blue);
-    background: var(--bg-hover);
+    background: var(--bg-active);
 }
 .reporting-modal .rpt-tab:focus-visible {
     outline: 2px solid var(--ford-blue);
@@ -505,6 +533,31 @@
     margin-bottom: var(--space-2);
     padding-bottom: var(--space-1);
     border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.reporting-modal .rpt-section-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.reporting-modal .rpt-link-btn {
+    background: none;
+    border: none;
+    color: var(--ford-blue);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+.reporting-modal .rpt-link-btn:hover {
+    opacity: 0.8;
+}
+.reporting-modal .rpt-separator {
+    color: var(--border-default);
+    font-size: 11px;
 }
 
 /* ---- Inputs ---- */
@@ -524,6 +577,10 @@
     outline: none;
     border-color: var(--ford-blue);
     box-shadow: 0 0 0 2px rgba(0, 52, 120, 0.12);
+}
+.reporting-modal .rpt-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ---- Filter grid ---- */
@@ -566,11 +623,11 @@
     cursor: pointer;
 }
 
-/* ---- Unit checkboxes ---- */
-.reporting-modal .rpt-unit-checks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-3);
+/* ---- Apparatus checkboxes ---- */
+.reporting-modal .rpt-apparatus-checks {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-1) var(--space-2);
 }
 
 /* ---- Format checkboxes ---- */
@@ -625,57 +682,6 @@
     max-width: 320px;
 }
 
-/* ---- Preview ---- */
-.reporting-modal .rpt-preview-box {
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background: var(--bg-elevated);
-    max-height: 360px;
-    overflow: auto;
-    margin-top: var(--space-3);
-}
-.reporting-modal .rpt-preview-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    background: var(--ford-blue);
-    color: white;
-    font-weight: 600;
-    font-size: 13px;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-.reporting-modal .rpt-preview-header button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0 4px;
-}
-.reporting-modal .rpt-preview-content {
-    padding: 12px;
-    font-size: 12px;
-    line-height: 1.6;
-}
-.reporting-modal .rpt-preview-content table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.reporting-modal .rpt-preview-content th,
-.reporting-modal .rpt-preview-content td {
-    padding: 6px 8px;
-    border: 1px solid var(--border-default);
-    text-align: left;
-}
-.reporting-modal .rpt-preview-content th {
-    background: var(--bg-active);
-    font-weight: 600;
-}
-
 /* ---- Action buttons ---- */
 .reporting-modal .rpt-actions {
     display: flex;
@@ -697,6 +703,10 @@
     transition: background 0.15s;
 }
 .reporting-modal .rpt-btn-primary:hover { background: #1e40af; }
+.reporting-modal .rpt-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 .reporting-modal .rpt-btn-primary:focus-visible {
     outline: 2px solid var(--ford-blue);
     outline-offset: 2px;
@@ -722,6 +732,10 @@
 .reporting-modal .rpt-btn-secondary:focus-visible {
     outline: 2px solid var(--ford-blue);
     outline-offset: 2px;
+}
+.reporting-modal .rpt-btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
 }
 
 /* ---- Danger (delete) ---- */
@@ -964,7 +978,7 @@
     border-color: var(--ford-blue);
 }
 
-/* ---- Delivery log expansion ---- */
+/* ---- Delivery detail expansion ---- */
 .reporting-modal .rpt-delivery-detail {
     padding: var(--space-2) var(--space-3);
     background: var(--bg-elevated);
@@ -1003,6 +1017,115 @@
 @keyframes rpt-spin {
     to { transform: rotate(360deg); }
 }
+
+/* ============================================================ */
+/* REPORT VIEWER OVERLAY                                        */
+/* ============================================================ */
+.reporting-modal .rpt-viewer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-surface);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+}
+.reporting-modal .rpt-viewer-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.reporting-modal .rpt-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--ford-blue);
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.reporting-modal .rpt-viewer-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+.reporting-modal .rpt-viewer-close:hover {
+    opacity: 1;
+}
+.reporting-modal .rpt-viewer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    background: #fff;
+    color: #1a1a1a;
+}
+.reporting-modal .rpt-viewer-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.reporting-modal .rpt-viewer-content th,
+.reporting-modal .rpt-viewer-content td {
+    padding: 6px 8px;
+    border: 1px solid #d1d5db;
+    text-align: left;
+    font-size: 12px;
+}
+.reporting-modal .rpt-viewer-content th {
+    background: #f3f4f6;
+    font-weight: 600;
+}
+.reporting-modal .rpt-viewer-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-default);
+    background: var(--bg-elevated);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.reporting-modal .rpt-viewer-actions-left {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.reporting-modal .rpt-viewer-actions-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.reporting-modal .rpt-viewer-send-group {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.reporting-modal .rpt-viewer-input {
+    width: 170px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+.reporting-modal .rpt-viewer-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
 </style>
 
 <!-- ===================================================================== -->
@@ -1013,11 +1136,14 @@ window.REPORTING = {
 
     // ------------------------------------------------------------------ state
     _templates: [],
+    _historyCache: [],
     _historyLoaded: false,
     _schedulesLoaded: false,
     _activeDataset: 'dailylog',
     _sortDir: 'asc',
     _blotterMode: 'condensed',
+    _currentRunId: null,
+    _currentRunLinks: {},
 
     // Canonical field lists per dataset
     _datasetFields: {
@@ -1047,11 +1173,6 @@ window.REPORTING = {
     // ------------------------------------------------------------------ init
     init() {
         this._initTabs();
-        this._initDeliveryToggles();
-        this._initModeToggle();
-        this._initDatasetCards();
-        this._initSortToggle();
-        this._initScheduleDeliveryToggles();
         this._setDefaultDates();
         this.loadTemplates();
     },
@@ -1059,6 +1180,7 @@ window.REPORTING = {
     // ------------------------------------------------------------------ tabs
     _initTabs() {
         const modal = document.querySelector('.reporting-modal');
+        if (!modal) return;
         modal.querySelectorAll('.rpt-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 modal.querySelectorAll('.rpt-tab').forEach(t => {
@@ -1095,82 +1217,125 @@ window.REPORTING = {
         });
     },
 
-    // Delivery checkbox toggles (Run tab)
-    _initDeliveryToggles() {
-        const pairs = [
-            ['rpt-del-email', 'rpt-del-email-addr'],
-            ['rpt-del-sms', 'rpt-del-sms-phone'],
-            ['rpt-del-webhook', 'rpt-del-webhook-url'],
-        ];
-        pairs.forEach(([cbId, inputId]) => {
-            const cb = document.getElementById(cbId);
-            const input = document.getElementById(inputId);
-            if (cb && input) {
-                cb.addEventListener('change', () => { input.disabled = !cb.checked; });
-            }
-        });
+    // ------------------------------------------------------------------ date presets
+    _setDefaultDates() {
+        // Apply "Yesterday to Today" preset by default
+        this.onDatePresetChange();
     },
 
-    // Delivery toggles for Schedule form
-    _initScheduleDeliveryToggles() {
-        const pairs = [
-            ['rpt-sched-del-sms', 'rpt-sched-del-sms-phone'],
-            ['rpt-sched-del-webhook', 'rpt-sched-del-webhook-url'],
-        ];
-        pairs.forEach(([cbId, inputId]) => {
-            const cb = document.getElementById(cbId);
-            const input = document.getElementById(inputId);
-            if (cb && input) {
-                cb.addEventListener('change', () => { input.disabled = !cb.checked; });
-            }
-        });
+    _dateStr(d) {
+        return d.toISOString().slice(0, 10);
     },
 
-    // Mode toggle (condensed / detailed)
-    _initModeToggle() {
+    onDatePresetChange() {
+        const preset = document.getElementById('rpt-date-preset');
+        const startEl = document.getElementById('rpt-date-start');
+        const endEl = document.getElementById('rpt-date-end');
+        if (!preset || !startEl || !endEl) return;
+
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const val = preset.value;
+        let startDate, endDate;
+
+        switch (val) {
+            case 'today':
+                startDate = today;
+                endDate = today;
+                break;
+            case 'yesterday_today':
+                startDate = yesterday;
+                endDate = today;
+                break;
+            case 'last_7':
+                startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 6);
+                endDate = today;
+                break;
+            case 'last_30':
+                startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 29);
+                endDate = today;
+                break;
+            case 'custom':
+                // Don't auto-set -- let the user pick
+                return;
+        }
+
+        startEl.value = this._dateStr(startDate);
+        endEl.value = this._dateStr(endDate);
+    },
+
+    // ------------------------------------------------------------------ template change
+    onTemplateChange() {
+        const sel = document.getElementById('rpt-template-select');
+        const desc = document.getElementById('rpt-template-desc');
+        if (!sel) return;
+        const tpl = this._templates.find(t => t.template_key === sel.value);
+        if (desc) desc.textContent = tpl ? tpl.description : '';
+    },
+
+    // ------------------------------------------------------------------ mode toggle
+    setMode(btn) {
         const container = document.getElementById('rpt-mode-toggle');
         if (!container) return;
-        container.querySelectorAll('.rpt-toggle-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                container.querySelectorAll('.rpt-toggle-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this._blotterMode = btn.dataset.mode;
-            });
-        });
+        container.querySelectorAll('.rpt-toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this._blotterMode = btn.dataset.mode;
     },
 
-    // Dataset cards (Builder)
-    _initDatasetCards() {
-        document.querySelectorAll('.rpt-dataset-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.rpt-dataset-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-                this._activeDataset = card.dataset.dataset;
-                this._populateFieldGrid();
-            });
-        });
+    // ------------------------------------------------------------------ sort toggle
+    setSortDir(btn) {
+        const container = document.getElementById('rpt-sort-toggle');
+        if (!container) return;
+        container.querySelectorAll('.rpt-toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this._sortDir = btn.dataset.sort;
     },
 
-    // Sort toggle (ASC / DESC)
-    _initSortToggle() {
-        const btns = document.querySelectorAll('.rpt-sort-row .rpt-toggle-btn');
-        btns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                btns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this._sortDir = btn.dataset.sort;
-            });
-        });
+    // ------------------------------------------------------------------ dataset selection (builder)
+    selectDataset(card) {
+        document.querySelectorAll('.rpt-dataset-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        this._activeDataset = card.dataset.dataset;
+        this._populateFieldGrid();
     },
 
-    // Set default dates to today
-    _setDefaultDates() {
-        const today = new Date().toISOString().slice(0, 10);
-        const els = ['rpt-date-start', 'rpt-date-end', 'rpt-hist-date-start', 'rpt-hist-date-end'];
-        els.forEach(id => {
-            const el = document.getElementById(id);
-            if (el && !el.value) el.value = today;
+    // ------------------------------------------------------------------ apparatus helpers
+    selectAllApparatus() {
+        document.querySelectorAll('#rpt-apparatus-checks input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+    },
+
+    clearAllApparatus() {
+        document.querySelectorAll('#rpt-apparatus-checks input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    },
+
+    // ------------------------------------------------------------------ schedule form helpers
+    toggleScheduleForm() {
+        const form = document.getElementById('rpt-sched-form');
+        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    },
+
+    toggleSchedInput(cbId, inputId) {
+        const cb = document.getElementById(cbId);
+        const inp = document.getElementById(inputId);
+        if (cb && inp) inp.disabled = !cb.checked;
+    },
+
+    onScheduleFreqChange() {
+        const freq = document.getElementById('rpt-sched-freq')?.value || '';
+        document.querySelectorAll('.rpt-freq-once, .rpt-freq-weekly, .rpt-freq-monthly').forEach(el => {
+            el.style.display = 'none';
         });
+        if (freq === 'once') {
+            document.querySelector('.rpt-freq-once').style.display = 'block';
+        } else if (freq === 'weekly') {
+            document.querySelector('.rpt-freq-weekly').style.display = 'block';
+        } else if (freq === 'monthly') {
+            document.querySelector('.rpt-freq-monthly').style.display = 'block';
+        }
     },
 
     // ---- populate builder field grid ----
@@ -1179,12 +1344,12 @@ window.REPORTING = {
         if (!grid) return;
         const fields = this._datasetFields[this._activeDataset] || [];
         grid.innerHTML = fields.map(f =>
-            `<label class="rpt-check-label"><input type="checkbox" name="rpt-builder-field" value="${f}" checked> ${f}</label>`
+            '<label class="rpt-check-label"><input type="checkbox" name="rpt-builder-field" value="' + f + '" checked> ' + f + '</label>'
         ).join('');
 
         // Also update group-by / sort dropdowns
         const opts = '<option value="">-- None --</option>' +
-            fields.map(f => `<option value="${f}">${f}</option>`).join('');
+            fields.map(f => '<option value="' + f + '">' + f + '</option>').join('');
         ['rpt-group-by-1','rpt-group-by-2','rpt-sort-field'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = opts;
@@ -1198,39 +1363,21 @@ window.REPORTING = {
     },
 
     _getRunFilters() {
-        const units = Array.from(
-            document.querySelectorAll('#rpt-unit-checks input:checked')
+        const apparatus = Array.from(
+            document.querySelectorAll('#rpt-apparatus-checks input:checked')
         ).map(cb => cb.value);
         return {
-            start_date: document.getElementById('rpt-date-start')?.value || '',
-            end_date: document.getElementById('rpt-date-end')?.value || '',
+            date_from: document.getElementById('rpt-date-start')?.value || '',
+            date_to: document.getElementById('rpt-date-end')?.value || '',
+            time_from: document.getElementById('rpt-time-from')?.value || '',
+            time_to: document.getElementById('rpt-time-to')?.value || '',
             shift: document.getElementById('rpt-shift-select')?.value || '',
             event_type: document.getElementById('rpt-event-type')?.value || '',
             calltaker: document.getElementById('rpt-calltaker')?.value || '',
             status: document.getElementById('rpt-status-filter')?.value || '',
-            units: units,
+            units: apparatus,
             mode: this._blotterMode,
         };
-    },
-
-    _getDeliveryChannels() {
-        const channels = [];
-        if (document.getElementById('rpt-del-email')?.checked) {
-            channels.push({ channel: 'email', destination: document.getElementById('rpt-del-email-addr')?.value || '' });
-        }
-        if (document.getElementById('rpt-del-sms')?.checked) {
-            channels.push({ channel: 'sms', destination: document.getElementById('rpt-del-sms-phone')?.value || '' });
-        }
-        if (document.getElementById('rpt-del-signal')?.checked) {
-            channels.push({ channel: 'signal', destination: 'default' });
-        }
-        if (document.getElementById('rpt-del-webex')?.checked) {
-            channels.push({ channel: 'webex', destination: 'default' });
-        }
-        if (document.getElementById('rpt-del-webhook')?.checked) {
-            channels.push({ channel: 'webhook', destination: document.getElementById('rpt-del-webhook-url')?.value || '' });
-        }
-        return channels;
     },
 
     _statusBadge(status) {
@@ -1240,7 +1387,7 @@ window.REPORTING = {
             partial: 'rpt-badge-partial',
             pending: 'rpt-badge-pending', running: 'rpt-badge-pending',
         }[status] || 'rpt-badge-pending';
-        return `<span class="rpt-badge ${cls}">${status}</span>`;
+        return '<span class="rpt-badge ' + cls + '">' + this._escHtml(status || 'unknown') + '</span>';
     },
 
     _escHtml(str) {
@@ -1250,21 +1397,44 @@ window.REPORTING = {
         return d.innerHTML;
     },
 
+    _fmtDate(isoStr) {
+        if (!isoStr) return '--';
+        try {
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return isoStr;
+            return d.toLocaleString(undefined, {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch (_) {
+            return isoStr;
+        }
+    },
+
     // ------------------------------------------------------------------ API: templates
     async loadTemplates() {
         try {
-            const res = await fetch('/api/v2/reports/config');
-            // Also try the new template table
             let templates = [];
             try {
-                const tRes = await fetch('/api/v2/reports/templates');
-                if (tRes.ok) {
-                    const tData = await tRes.json();
-                    templates = tData.templates || tData || [];
+                const res = await fetch('/api/reporting/templates');
+                if (res.ok) {
+                    const data = await res.json();
+                    templates = data.templates || [];
                 }
             } catch (_) {}
 
-            // Fallback: built-in templates if API doesn't exist yet
+            // Fallback: try legacy endpoint
+            if (!templates.length) {
+                try {
+                    const res2 = await fetch('/api/v2/reports/templates');
+                    if (res2.ok) {
+                        const data2 = await res2.json();
+                        templates = data2.templates || data2 || [];
+                    }
+                } catch (_) {}
+            }
+
+            // Fallback: built-in defaults
             if (!templates.length) {
                 templates = [
                     { template_key: 'blotter', name: 'Blotter / Daily Log', description: 'Chronological list of events for a shift or date range.' },
@@ -1280,31 +1450,19 @@ window.REPORTING = {
             this._renderTemplateSelects(templates);
         } catch (e) {
             console.error('[REPORTING] loadTemplates error:', e);
-            TOAST?.error?.('Failed to load report templates');
+            window.TOAST?.error?.('Failed to load report templates');
         }
     },
 
     _renderTemplateSelects(templates) {
         const options = '<option value="">-- Select template --</option>' +
             templates.map(t =>
-                `<option value="${this._escHtml(t.template_key)}">${this._escHtml(t.name)}</option>`
+                '<option value="' + this._escHtml(t.template_key) + '">' + this._escHtml(t.name) + '</option>'
             ).join('');
 
         // Run-tab template select
         const runSel = document.getElementById('rpt-template-select');
-        if (runSel) {
-            runSel.innerHTML = options;
-            runSel.addEventListener('change', () => {
-                const key = runSel.value;
-                const tpl = templates.find(t => t.template_key === key);
-                const descEl = document.getElementById('rpt-template-desc');
-                if (descEl) descEl.textContent = tpl ? tpl.description : '';
-
-                // Show/hide blotter mode toggle
-                const modeEl = document.getElementById('rpt-mode-toggle');
-                if (modeEl) modeEl.style.display = (key === 'blotter') ? 'block' : 'none';
-            });
-        }
+        if (runSel) runSel.innerHTML = options;
 
         // Schedule-tab template select
         const schedSel = document.getElementById('rpt-sched-template');
@@ -1315,41 +1473,39 @@ window.REPORTING = {
         if (histSel) {
             histSel.innerHTML = '<option value="">All Templates</option>' +
                 templates.map(t =>
-                    `<option value="${this._escHtml(t.template_key)}">${this._escHtml(t.name)}</option>`
+                    '<option value="' + this._escHtml(t.template_key) + '">' + this._escHtml(t.name) + '</option>'
                 ).join('');
         }
     },
 
     // ------------------------------------------------------------------ API: run report
-    async runReport(exportOnly) {
+    async runReport() {
         const templateKey = document.getElementById('rpt-template-select')?.value;
         if (!templateKey) {
-            TOAST?.error?.('Select a report template');
+            window.TOAST?.error?.('Select a report template');
             return;
         }
 
         const formats = this._getSelectedFormats();
         if (!formats.length) {
-            TOAST?.error?.('Select at least one output format');
+            window.TOAST?.error?.('Select at least one output format');
             return;
         }
 
         const filters = this._getRunFilters();
-        const delivery = exportOnly ? [] : this._getDeliveryChannels();
 
         const payload = {
             template_key: templateKey,
             title: (this._templates.find(t => t.template_key === templateKey)?.name || templateKey) +
-                   ' - ' + (filters.start_date || 'today'),
+                   ' - ' + (filters.date_from || 'today'),
             filters: filters,
             formats: formats,
-            delivery: delivery,
         };
 
-        TOAST?.info?.('Running report...');
+        window.TOAST?.info?.('Running report...');
 
         try {
-            const res = await fetch('/api/v2/reports/send', {
+            const res = await fetch('/api/reporting/run', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -1357,15 +1513,19 @@ window.REPORTING = {
             const data = await res.json();
 
             if (data.ok) {
-                TOAST?.success?.(data.message || 'Report run started');
-                // Refresh history
+                window.TOAST?.success?.(data.message || 'Report completed');
+                this._currentRunId = data.run_id;
+                this._currentRunLinks = data.links || {};
                 this._historyLoaded = false;
+
+                // Open the viewer with the HTML content
+                this._openViewerForRun(data.run_id, data.links);
             } else {
-                TOAST?.error?.(data.error || 'Report failed');
+                window.TOAST?.error?.(data.error || 'Report failed');
             }
         } catch (e) {
             console.error('[REPORTING] runReport error:', e);
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
         }
     },
 
@@ -1373,7 +1533,7 @@ window.REPORTING = {
     async previewReport() {
         const templateKey = document.getElementById('rpt-template-select')?.value;
         if (!templateKey) {
-            TOAST?.error?.('Select a report template');
+            window.TOAST?.error?.('Select a report template');
             return;
         }
 
@@ -1381,41 +1541,171 @@ window.REPORTING = {
         const params = new URLSearchParams({
             template_key: templateKey,
             shift: filters.shift || '',
+            date_from: filters.date_from || '',
+            date_to: filters.date_to || '',
         });
 
-        const box = document.getElementById('rpt-preview-box');
-        const content = document.getElementById('rpt-preview-content');
-        if (!box || !content) return;
-
-        content.innerHTML = '<div style="text-align:center;padding:24px;"><span class="rpt-spinner"></span> Loading preview...</div>';
-        box.style.display = 'block';
+        // Show viewer overlay in loading state
+        this._currentRunId = null;
+        this._currentRunLinks = {};
+        this._showViewer('Preview: ' + (this._templates.find(t => t.template_key === templateKey)?.name || templateKey));
+        const content = document.getElementById('rpt-viewer-content');
+        if (content) content.innerHTML = '<div class="rpt-viewer-loading"><span class="rpt-spinner"></span> Loading preview...</div>';
 
         try {
-            const res = await fetch('/api/v2/reports/preview?' + params.toString());
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await fetch('/api/reporting/preview?' + params.toString());
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const html = await res.text();
-            content.innerHTML = html;
+            if (content) content.innerHTML = html;
         } catch (e) {
-            content.innerHTML = `<div style="color:var(--danger);padding:20px;">Failed to load preview: ${this._escHtml(e.message)}</div>`;
+            if (content) content.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load preview: ' + this._escHtml(e.message) + '</div>';
         }
     },
 
-    // ------------------------------------------------------------------ API: deliver
-    async deliverReport(runId) {
+    // ------------------------------------------------------------------ Report Viewer
+    _showViewer(title) {
+        const overlay = document.getElementById('rpt-viewer-overlay');
+        const titleEl = document.getElementById('rpt-viewer-title');
+        if (overlay) overlay.style.display = 'flex';
+        if (titleEl) titleEl.textContent = title || 'Report Viewer';
+    },
+
+    closeViewer() {
+        const overlay = document.getElementById('rpt-viewer-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const content = document.getElementById('rpt-viewer-content');
+        if (content) content.innerHTML = '';
+        this._currentRunId = null;
+        this._currentRunLinks = {};
+    },
+
+    async _openViewerForRun(runId, links) {
+        const tpl = document.getElementById('rpt-template-select');
+        const tplName = tpl ? (tpl.options[tpl.selectedIndex]?.text || '') : '';
+        this._showViewer(tplName || 'Report #' + runId);
+
+        const content = document.getElementById('rpt-viewer-content');
+        if (!content) return;
+        content.innerHTML = '<div class="rpt-viewer-loading"><span class="rpt-spinner"></span> Loading report...</div>';
+
+        // Try to load the HTML version of the report
+        if (links && links.html) {
+            try {
+                const res = await fetch(links.html);
+                if (res.ok) {
+                    content.innerHTML = await res.text();
+                    return;
+                }
+            } catch (_) {}
+        }
+
+        // Fallback: fetch run detail and use links from there
         try {
-            const res = await fetch('/api/v2/reports/send', {
+            const res = await fetch('/api/reporting/run/' + runId);
+            if (res.ok) {
+                const data = await res.json();
+                this._currentRunLinks = data.download_links || {};
+                if (data.download_links && data.download_links.html) {
+                    try {
+                        const htmlRes = await fetch(data.download_links.html);
+                        if (htmlRes.ok) {
+                            content.innerHTML = await htmlRes.text();
+                            return;
+                        }
+                    } catch (_) {}
+                }
+                // Show summary if no HTML
+                const run = data.run || {};
+                content.innerHTML = '<div style="padding:20px;"><h3>Report #' + runId + ' - ' + this._escHtml(run.title || '') + '</h3>' +
+                    '<p>Status: ' + this._statusBadge(run.status) + '</p>' +
+                    '<p>Generated at: ' + this._escHtml(run.created_at || '') + '</p>' +
+                    (run.summary_text ? '<pre style="white-space:pre-wrap;font-size:12px;">' + this._escHtml(run.summary_text) + '</pre>' : '') +
+                    '</div>';
+            } else {
+                content.innerHTML = '<div style="padding:20px;color:var(--danger);">Could not load report details.</div>';
+            }
+        } catch (e) {
+            content.innerHTML = '<div style="padding:20px;color:var(--danger);">Error loading report: ' + this._escHtml(e.message) + '</div>';
+        }
+    },
+
+    viewerDownload(format) {
+        if (!this._currentRunId) {
+            window.TOAST?.error?.('No report run available for download');
+            return;
+        }
+        // If we have a direct link, use it
+        if (this._currentRunLinks && this._currentRunLinks[format]) {
+            window.open(this._currentRunLinks[format], '_blank');
+            return;
+        }
+        // Fallback: try the legacy download endpoint
+        window.open('/api/reporting/run/' + this._currentRunId + '?format=' + encodeURIComponent(format), '_blank');
+    },
+
+    async viewerSendEmail() {
+        const email = document.getElementById('rpt-viewer-email')?.value?.trim();
+        if (!email) {
+            window.TOAST?.error?.('Enter an email address');
+            return;
+        }
+        if (!this._currentRunId) {
+            window.TOAST?.error?.('No report run available to deliver');
+            return;
+        }
+
+        window.TOAST?.info?.('Sending email...');
+        try {
+            const res = await fetch('/api/reporting/deliver', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ run_id: runId }),
+                body: JSON.stringify({
+                    report_run_id: this._currentRunId,
+                    channels: [{ channel: 'email', destination: email }]
+                }),
             });
             const data = await res.json();
             if (data.ok) {
-                TOAST?.success?.('Report re-delivered');
+                window.TOAST?.success?.('Email sent to ' + email);
+                document.getElementById('rpt-viewer-email').value = '';
             } else {
-                TOAST?.error?.(data.error || 'Delivery failed');
+                window.TOAST?.error?.(data.error || 'Email delivery failed');
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async viewerSendSMS() {
+        const phone = document.getElementById('rpt-viewer-sms')?.value?.trim();
+        if (!phone) {
+            window.TOAST?.error?.('Enter a phone number');
+            return;
+        }
+        if (!this._currentRunId) {
+            window.TOAST?.error?.('No report run available to deliver');
+            return;
+        }
+
+        window.TOAST?.info?.('Sending SMS...');
+        try {
+            const res = await fetch('/api/reporting/deliver', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    report_run_id: this._currentRunId,
+                    channels: [{ channel: 'sms', destination: phone }]
+                }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                window.TOAST?.success?.('SMS sent to ' + phone);
+                document.getElementById('rpt-viewer-sms').value = '';
+            } else {
+                window.TOAST?.error?.(data.error || 'SMS delivery failed');
+            }
+        } catch (e) {
+            window.TOAST?.error?.('Error: ' + e.message);
         }
     },
 
@@ -1425,90 +1715,152 @@ window.REPORTING = {
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty"><span class="rpt-spinner"></span> Loading...</td></tr>';
 
+        const templateFilter = document.getElementById('rpt-hist-template-filter')?.value || '';
+        const statusFilter = document.getElementById('rpt-hist-status-filter')?.value || '';
+
+        const params = new URLSearchParams({ limit: '50' });
+        if (templateFilter) params.set('template_key', templateFilter);
+        if (statusFilter) params.set('status', statusFilter);
+
         try {
-            const res = await fetch('/api/v2/reports/history?limit=50');
+            const res = await fetch('/api/reporting/history?' + params.toString());
             const data = await res.json();
             const runs = data.history || [];
+            this._historyCache = runs;
 
-            if (!runs.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No report history found.</td></tr>';
-                this._historyLoaded = true;
-                return;
-            }
-
-            tbody.innerHTML = runs.map(r => {
-                const filters = r.filters || r.report_data || {};
-                const dateRange = (filters.start_date || '') + (filters.end_date ? ' .. ' + filters.end_date : '');
-                const formats = (r.format || r.formats || []);
-                const fmtStr = Array.isArray(formats) ? formats.join(', ') : String(formats);
-                const status = r.status || 'pending';
-                const created = r.created_at || r.started_at || '';
-
-                return `<tr data-run-id="${r.id}" onclick="REPORTING._toggleHistoryDetail(this, ${r.id})">
-                    <td>${this._escHtml(r.title || r.report_type || '--')}</td>
-                    <td>${this._escHtml(r.template_key || r.report_type || '--')}</td>
-                    <td>${this._escHtml(dateRange || '--')}</td>
-                    <td>${this._escHtml(fmtStr || 'html')}</td>
-                    <td>${this._statusBadge(status)}</td>
-                    <td>${this._escHtml(created)}</td>
-                    <td class="rpt-row-actions" onclick="event.stopPropagation();">
-                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'pdf')" title="Download PDF">PDF</button>
-                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'csv')" title="Download CSV">CSV</button>
-                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'html')" title="Open HTML">HTML</button>
-                        <button class="rpt-row-btn" onclick="REPORTING.deliverReport(${r.id})" title="Re-send">Re-send</button>
-                    </td>
-                </tr>`;
-            }).join('');
-
+            this._renderHistoryTable(runs);
             this._historyLoaded = true;
         } catch (e) {
             console.error('[REPORTING] loadHistory error:', e);
-            tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed to load history: ${this._escHtml(e.message)}</td></tr>`;
+            // Try legacy endpoint
+            try {
+                const res2 = await fetch('/api/v2/reports/history?limit=50');
+                const data2 = await res2.json();
+                const runs2 = data2.history || [];
+                this._historyCache = runs2;
+                this._renderHistoryTable(runs2);
+                this._historyLoaded = true;
+            } catch (e2) {
+                tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed to load history: ' + this._escHtml(e.message) + '</td></tr>';
+            }
         }
     },
 
-    async _toggleHistoryDetail(row, runId) {
-        // If next sibling is a detail row, remove it (toggle off)
-        const next = row.nextElementSibling;
-        if (next && next.classList.contains('rpt-detail-row')) {
-            next.remove();
+    _renderHistoryTable(runs) {
+        const tbody = document.getElementById('rpt-history-tbody');
+        if (!tbody) return;
+
+        if (!runs.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No report history found.</td></tr>';
             return;
         }
 
-        // Insert detail row
-        const detailRow = document.createElement('tr');
-        detailRow.className = 'rpt-detail-row';
-        detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail"><span class="rpt-spinner"></span> Loading delivery log...</td>`;
-        row.after(detailRow);
+        tbody.innerHTML = runs.map(r => {
+            const filters = r.filters || {};
+            const filtersObj = typeof filters === 'string' ? this._jsonParse(filters) : filters;
+            const dateFrom = filtersObj.date_from || filtersObj.start_date || '';
+            const dateTo = filtersObj.date_to || filtersObj.end_date || '';
+            const dateRange = dateFrom + (dateTo ? ' .. ' + dateTo : '');
+            const formats = r.formats || r.format || [];
+            const fmtStr = Array.isArray(formats) ? formats.join(', ') : String(formats);
+            const status = r.status || 'pending';
+            const created = r.created_at || r.started_at || '';
+            const id = r.id || r.run_id || 0;
+
+            return '<tr data-run-id="' + id + '">' +
+                '<td>' + this._escHtml(r.title || r.report_type || '--') + '</td>' +
+                '<td>' + this._escHtml(r.template_key || r.report_type || '--') + '</td>' +
+                '<td>' + this._escHtml(dateRange || '--') + '</td>' +
+                '<td>' + this._escHtml(fmtStr || 'html') + '</td>' +
+                '<td>' + this._statusBadge(status) + '</td>' +
+                '<td>' + this._escHtml(this._fmtDate(created)) + '</td>' +
+                '<td class="rpt-row-actions">' +
+                    '<button class="rpt-row-btn" onclick="REPORTING.viewHistoryRun(' + id + ')" title="View">View</button>' +
+                    '<button class="rpt-row-btn" onclick="REPORTING.downloadHistoryArtifact(' + id + ',\'pdf\')" title="Download PDF">PDF</button>' +
+                    '<button class="rpt-row-btn" onclick="REPORTING.downloadHistoryArtifact(' + id + ',\'csv\')" title="Download CSV">CSV</button>' +
+                    '<button class="rpt-row-btn" onclick="REPORTING.resendHistoryRun(' + id + ')" title="Re-send">Re-send</button>' +
+                '</td>' +
+                '</tr>';
+        }).join('');
+    },
+
+    filterHistory() {
+        const search = (document.getElementById('rpt-hist-search')?.value || '').toLowerCase().trim();
+        if (!search) {
+            this._renderHistoryTable(this._historyCache);
+            return;
+        }
+        const filtered = this._historyCache.filter(r => {
+            const title = (r.title || r.report_type || '').toLowerCase();
+            const tpl = (r.template_key || '').toLowerCase();
+            return title.includes(search) || tpl.includes(search);
+        });
+        this._renderHistoryTable(filtered);
+    },
+
+    async viewHistoryRun(runId) {
+        this._currentRunId = runId;
+        this._currentRunLinks = {};
+        this._showViewer('Report #' + runId);
+        const content = document.getElementById('rpt-viewer-content');
+        if (content) content.innerHTML = '<div class="rpt-viewer-loading"><span class="rpt-spinner"></span> Loading report...</div>';
 
         try {
-            const res = await fetch(`/api/v2/reports/history/${runId}`);
+            const res = await fetch('/api/reporting/run/' + runId);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
-            const logs = data.delivery_logs || [];
+            this._currentRunLinks = data.download_links || {};
 
-            if (!logs.length) {
-                detailRow.innerHTML = '<td colspan="7" class="rpt-delivery-detail"><em>No delivery records.</em></td>';
-                return;
+            // Try to load HTML report
+            if (data.download_links && data.download_links.html) {
+                try {
+                    const htmlRes = await fetch(data.download_links.html);
+                    if (htmlRes.ok) {
+                        if (content) content.innerHTML = await htmlRes.text();
+                        return;
+                    }
+                } catch (_) {}
             }
 
-            detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail">
-                <strong>Delivery Log</strong>
-                <table>
-                    <thead><tr><th>Channel</th><th>Recipient</th><th>Status</th><th>Sent</th><th>Error</th></tr></thead>
-                    <tbody>
-                        ${logs.map(l => `<tr>
-                            <td>${this._escHtml(l.channel)}</td>
-                            <td>${this._escHtml(l.recipient || l.destination)}</td>
-                            <td>${this._statusBadge(l.status)}</td>
-                            <td>${this._escHtml(l.sent_at || l.created_at || '--')}</td>
-                            <td>${this._escHtml(l.error_message || l.error_text || '')}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
-            </td>`;
+            // Fallback: show summary
+            const run = data.run || {};
+            if (content) {
+                content.innerHTML = '<div style="padding:20px;">' +
+                    '<h3>' + this._escHtml(run.title || 'Report #' + runId) + '</h3>' +
+                    '<p>Status: ' + this._statusBadge(run.status) + '</p>' +
+                    '<p>Created: ' + this._escHtml(this._fmtDate(run.created_at)) + '</p>' +
+                    (run.summary_text ? '<pre style="white-space:pre-wrap;font-size:12px;margin-top:12px;">' + this._escHtml(run.summary_text) + '</pre>' : '<p>No HTML artifact available for this run.</p>') +
+                    '</div>';
+            }
         } catch (e) {
-            detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail" style="color:var(--danger);">Failed to load: ${this._escHtml(e.message)}</td>`;
+            if (content) content.innerHTML = '<div style="padding:20px;color:var(--danger);">Failed to load report: ' + this._escHtml(e.message) + '</div>';
         }
+    },
+
+    async downloadHistoryArtifact(runId, format) {
+        try {
+            const res = await fetch('/api/reporting/run/' + runId);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.download_links && data.download_links[format]) {
+                    window.open(data.download_links[format], '_blank');
+                    return;
+                }
+            }
+        } catch (_) {}
+        // Fallback: try legacy
+        window.open('/api/v2/reports/history/' + runId + '/download?format=' + encodeURIComponent(format), '_blank');
+    },
+
+    async resendHistoryRun(runId) {
+        // Open viewer with delivery options
+        this._currentRunId = runId;
+        await this.viewHistoryRun(runId);
+        window.TOAST?.info?.('Use the email/SMS fields below the report to deliver');
+    },
+
+    _jsonParse(str) {
+        try { return JSON.parse(str); } catch (_) { return {}; }
     },
 
     // ------------------------------------------------------------------ API: schedules
@@ -1518,15 +1870,25 @@ window.REPORTING = {
         tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty"><span class="rpt-spinner"></span> Loading...</td></tr>';
 
         try {
-            // Try new-style table first, fall back to legacy
             let schedules = [];
             try {
-                const res2 = await fetch('/api/v2/reports/schedules');
-                if (res2.ok) {
-                    const d2 = await res2.json();
-                    schedules = d2.schedules || [];
+                const res = await fetch('/api/reporting/schedules');
+                if (res.ok) {
+                    const data = await res.json();
+                    schedules = data.schedules || [];
                 }
             } catch (_) {}
+
+            // Fallback to legacy
+            if (!schedules.length) {
+                try {
+                    const res2 = await fetch('/api/v2/reports/schedules');
+                    if (res2.ok) {
+                        const d2 = await res2.json();
+                        schedules = d2.schedules || [];
+                    }
+                } catch (_) {}
+            }
 
             if (!schedules.length) {
                 tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No schedules configured.</td></tr>';
@@ -1538,57 +1900,58 @@ window.REPORTING = {
                 const enabled = s.enabled ? true : false;
                 const freq = s.schedule_type || s.rrule_or_cron || '--';
                 const tplName = this._templates.find(t => t.template_key === s.template_key)?.name || s.template_key || s.report_type || '--';
+                const id = s.id || 0;
 
-                return `<tr>
-                    <td>${this._escHtml(s.name)}</td>
-                    <td>${this._escHtml(tplName)}</td>
-                    <td>${this._escHtml(freq)}</td>
-                    <td>
-                        <label class="rpt-toggle-switch">
-                            <input type="checkbox" ${enabled ? 'checked' : ''} onchange="REPORTING.toggleSchedule(${s.id}, this.checked)">
-                            <span class="rpt-toggle-slider"></span>
-                        </label>
-                    </td>
-                    <td>${this._escHtml(s.next_run_at || s.next_run || '--')}</td>
-                    <td>${this._escHtml(s.last_run_at || s.last_run || '--')}</td>
-                    <td class="rpt-row-actions">
-                        <button class="rpt-row-btn" onclick="REPORTING._runScheduleNow(${s.id})" title="Run now">Run</button>
-                        <button class="rpt-btn-danger" onclick="REPORTING.deleteSchedule(${s.id})" title="Delete">Del</button>
-                    </td>
-                </tr>`;
+                return '<tr>' +
+                    '<td>' + this._escHtml(s.name) + '</td>' +
+                    '<td>' + this._escHtml(tplName) + '</td>' +
+                    '<td>' + this._escHtml(freq) + '</td>' +
+                    '<td>' +
+                        '<label class="rpt-toggle-switch">' +
+                            '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="REPORTING.toggleSchedule(' + id + ', this.checked)">' +
+                            '<span class="rpt-toggle-slider"></span>' +
+                        '</label>' +
+                    '</td>' +
+                    '<td>' + this._escHtml(this._fmtDate(s.next_run_at || s.next_run || '')) + '</td>' +
+                    '<td>' + this._escHtml(this._fmtDate(s.last_run_at || s.last_run || '')) + '</td>' +
+                    '<td class="rpt-row-actions">' +
+                        '<button class="rpt-row-btn" onclick="REPORTING.runScheduleNow(' + id + ')" title="Run now">Run</button>' +
+                        '<button class="rpt-btn-danger" onclick="REPORTING.deleteSchedule(' + id + ')" title="Delete">Del</button>' +
+                    '</td>' +
+                '</tr>';
             }).join('');
 
             this._schedulesLoaded = true;
         } catch (e) {
             console.error('[REPORTING] loadSchedules error:', e);
-            tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed: ${this._escHtml(e.message)}</td></tr>`;
+            tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed: ' + this._escHtml(e.message) + '</td></tr>';
         }
     },
 
-    async _runScheduleNow(scheduleId) {
+    async runScheduleNow(scheduleId) {
+        window.TOAST?.info?.('Triggering schedule...');
         try {
-            const res = await fetch(`/api/v2/reports/schedules/${scheduleId}/run`, {
+            const res = await fetch('/api/reporting/schedule/' + scheduleId + '/run_now', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: '{}',
             });
             const data = await res.json();
             if (data.ok) {
-                TOAST?.success?.(data.message || 'Schedule triggered');
+                window.TOAST?.success?.(data.message || 'Schedule triggered');
             } else {
-                TOAST?.error?.(data.error || 'Failed');
+                window.TOAST?.error?.(data.error || 'Failed to trigger schedule');
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
         }
     },
 
-    // ---- create schedule ----
     async createSchedule() {
         const name = document.getElementById('rpt-sched-name')?.value?.trim();
         const templateKey = document.getElementById('rpt-sched-template')?.value;
-        if (!name) { TOAST?.error?.('Enter a schedule name'); return; }
-        if (!templateKey) { TOAST?.error?.('Select a template'); return; }
+        if (!name) { window.TOAST?.error?.('Enter a schedule name'); return; }
+        if (!templateKey) { window.TOAST?.error?.('Select a template'); return; }
 
         const freq = document.getElementById('rpt-sched-freq')?.value || 'shift_change';
         let rrule = '';
@@ -1608,8 +1971,6 @@ window.REPORTING = {
         }
 
         const filters = {
-            start_date: document.getElementById('rpt-sched-date-start')?.value || '',
-            end_date: document.getElementById('rpt-sched-date-end')?.value || '',
             shift: document.getElementById('rpt-sched-shift')?.value || '',
         };
 
@@ -1627,99 +1988,77 @@ window.REPORTING = {
         const payload = {
             name: name,
             template_key: templateKey,
-            filters_json: JSON.stringify(filters),
-            formats_json: JSON.stringify(['pdf', 'html']),
-            delivery_json: JSON.stringify(delivery),
+            filters: filters,
+            formats: ['pdf', 'html'],
+            delivery: delivery,
             rrule_or_cron: rrule,
             schedule_type: freq,
             enabled: true,
         };
 
         try {
-            const res = await fetch('/api/v2/reports/schedules', {
+            const res = await fetch('/api/reporting/schedule', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (data.ok) {
-                TOAST?.success?.('Schedule created');
+                window.TOAST?.success?.('Schedule created');
                 this.toggleScheduleForm();
+                this._schedulesLoaded = false;
                 this.loadSchedules();
             } else {
-                TOAST?.error?.(data.error || 'Failed to create schedule');
+                window.TOAST?.error?.(data.error || data.detail || 'Failed to create schedule');
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
         }
     },
 
-    // ---- toggle schedule ----
     async toggleSchedule(id, enabled) {
-        const action = enabled ? 'enable' : 'disable';
         try {
-            const res = await fetch(`/api/v2/reports/schedules/${id}/${action}`, {
+            const res = await fetch('/api/reporting/schedule/' + id + '/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: '{}',
+                body: JSON.stringify({ enabled: enabled }),
             });
             const data = await res.json();
             if (data.ok) {
-                TOAST?.success?.(`Schedule ${action}d`);
+                window.TOAST?.success?.('Schedule ' + (enabled ? 'enabled' : 'disabled'));
             } else {
-                TOAST?.error?.(data.error || 'Failed');
-                this.loadSchedules(); // revert
+                window.TOAST?.error?.(data.error || 'Failed');
+                this.loadSchedules();
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
             this.loadSchedules();
         }
     },
 
-    // ---- delete schedule ----
     async deleteSchedule(id) {
         if (!confirm('Delete this schedule? This cannot be undone.')) return;
         try {
-            const res = await fetch(`/api/v2/reports/schedules/${id}`, {
+            const res = await fetch('/api/reporting/schedule/' + id, {
                 method: 'DELETE',
             });
             const data = await res.json();
             if (data.ok) {
-                TOAST?.success?.('Schedule deleted');
+                window.TOAST?.success?.('Schedule deleted');
+                this._schedulesLoaded = false;
                 this.loadSchedules();
             } else {
-                TOAST?.error?.(data.error || 'Failed');
+                window.TOAST?.error?.(data.error || 'Failed to delete');
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
         }
     },
 
-    // ---- Toggle schedule form visibility ----
-    toggleScheduleForm() {
-        const form = document.getElementById('rpt-sched-form');
-        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-    },
-
-    // ---- Frequency change handler ----
-    onScheduleFreqChange() {
-        const freq = document.getElementById('rpt-sched-freq')?.value || '';
-        document.querySelectorAll('.rpt-freq-once, .rpt-freq-weekly, .rpt-freq-monthly').forEach(el => {
-            el.style.display = 'none';
-        });
-        if (freq === 'once') {
-            document.querySelector('.rpt-freq-once').style.display = 'block';
-        } else if (freq === 'weekly') {
-            document.querySelector('.rpt-freq-weekly').style.display = 'block';
-        } else if (freq === 'monthly') {
-            document.querySelector('.rpt-freq-monthly').style.display = 'block';
-        }
-    },
-
-    // ------------------------------------------------------------------ API: save custom template
+    // ------------------------------------------------------------------ API: save custom template (builder)
     async saveCustomTemplate() {
         const name = document.getElementById('rpt-new-template-name')?.value?.trim();
-        if (!name) { TOAST?.error?.('Enter a template name'); return; }
+        if (!name) { window.TOAST?.error?.('Enter a template name'); return; }
 
         const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
 
@@ -1749,39 +2088,33 @@ window.REPORTING = {
         const payload = {
             name: name,
             template_key: key,
-            description: `Custom report on ${this._activeDataset} dataset.`,
-            default_config_json: JSON.stringify(config),
+            description: 'Custom report on ' + this._activeDataset + ' dataset.',
+            default_config: config,
         };
 
         try {
-            const res = await fetch('/api/v2/reports/templates', {
+            const res = await fetch('/api/reporting/templates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            // Try parsing response — might be 404 if route doesn't exist yet
             if (res.ok) {
                 const data = await res.json();
-                TOAST?.success?.('Template saved: ' + name);
+                window.TOAST?.success?.('Template saved: ' + name);
                 document.getElementById('rpt-new-template-name').value = '';
                 this.loadTemplates();
             } else {
-                const err = await res.json().catch(() => ({}));
-                TOAST?.error?.(err.detail || err.error || 'Failed to save template');
+                const err = await res.json().catch(function() { return {}; });
+                window.TOAST?.error?.(err.detail || err.error || 'Failed to save template');
             }
         } catch (e) {
-            TOAST?.error?.('Error: ' + e.message);
+            window.TOAST?.error?.('Error: ' + e.message);
         }
-    },
-
-    // ------------------------------------------------------------------ API: download artifact
-    downloadArtifact(runId, format) {
-        window.open(`/api/v2/reports/history/${runId}/download?format=${encodeURIComponent(format)}`, '_blank');
     },
 
 };
 
 // Initialize when modal opens
-setTimeout(() => REPORTING.init(), 100);
+setTimeout(function() { REPORTING.init(); }, 50);
 </script>
