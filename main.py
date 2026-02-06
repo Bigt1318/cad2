@@ -55,6 +55,7 @@ MASTERLOG_WRITTEN: ContextVar[bool] = ContextVar('MASTERLOG_WRITTEN', default=Fa
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+app.state.templates = templates  # expose for sub-routers
 
 # ================================================================
 # REPORTS & MESSAGING MODULE
@@ -9181,9 +9182,9 @@ async def calendar_modal(request: Request):
 
 @app.get("/modals/reports", response_class=HTMLResponse)
 async def reports_modal(request: Request):
-    """Reports modal for generating dispatch reports."""
+    """Reports modal - 4-tab reporting system (Run, Builder, Scheduled, History)."""
     return templates.TemplateResponse(
-        "modals/reports_modal.html",
+        "modals/reporting_modal.html",
         {"request": request},
     )
 

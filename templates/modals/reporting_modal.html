@@ -1,0 +1,1787 @@
+<!-- Reporting Modal — 4-Tab Production UI for FORD-CAD -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal reporting-modal" role="dialog" aria-modal="true" aria-label="Reporting">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+            Reporting
+        </div>
+        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+    <div class="cad-modal-body">
+        <div class="rpt-container">
+            <!-- Tab Navigation -->
+            <div class="rpt-tabs" role="tablist">
+                <button class="rpt-tab active" data-tab="run" role="tab" aria-selected="true" aria-controls="rpt-panel-run">Run</button>
+                <button class="rpt-tab" data-tab="builder" role="tab" aria-selected="false" aria-controls="rpt-panel-builder">Builder</button>
+                <button class="rpt-tab" data-tab="scheduled" role="tab" aria-selected="false" aria-controls="rpt-panel-scheduled">Scheduled</button>
+                <button class="rpt-tab" data-tab="history" role="tab" aria-selected="false" aria-controls="rpt-panel-history">History</button>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- TAB 1: RUN                                                   -->
+            <!-- ============================================================ -->
+            <div class="rpt-panel active" id="rpt-panel-run" role="tabpanel">
+                <!-- Template Picker -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Template</div>
+                    <select id="rpt-template-select" class="rpt-select" aria-label="Select report template">
+                        <option value="">-- Loading templates --</option>
+                    </select>
+                    <div id="rpt-template-desc" class="rpt-hint"></div>
+                </div>
+
+                <!-- Filters Panel -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Filters</div>
+                    <div class="rpt-filters-grid">
+                        <div class="rpt-field">
+                            <label for="rpt-date-start">Start Date</label>
+                            <input type="date" id="rpt-date-start" class="rpt-input">
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-date-end">End Date</label>
+                            <input type="date" id="rpt-date-end" class="rpt-input">
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-shift-select">Shift</label>
+                            <select id="rpt-shift-select" class="rpt-select">
+                                <option value="">All Shifts</option>
+                                <option value="A">A Shift</option>
+                                <option value="B">B Shift</option>
+                                <option value="C">C Shift</option>
+                                <option value="D">D Shift</option>
+                            </select>
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-event-type">Event Type</label>
+                            <input type="text" id="rpt-event-type" class="rpt-input" placeholder="e.g. FIRE, EMS">
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-calltaker">Calltaker</label>
+                            <input type="text" id="rpt-calltaker" class="rpt-input" placeholder="Name or ID">
+                        </div>
+                        <div class="rpt-field">
+                            <label for="rpt-status-filter">Status</label>
+                            <select id="rpt-status-filter" class="rpt-select">
+                                <option value="">All</option>
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Unit Multi-Select -->
+                    <div class="rpt-field" style="margin-top:var(--space-2);">
+                        <label>Units</label>
+                        <div class="rpt-unit-checks" id="rpt-unit-checks">
+                            <label class="rpt-check-label"><input type="checkbox" value="E1"> E1</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="E2"> E2</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="E3"> E3</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="L1"> L1</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="L2"> L2</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="M1"> M1</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="M2"> M2</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="BC1"> BC1</label>
+                            <label class="rpt-check-label"><input type="checkbox" value="R1"> R1</label>
+                        </div>
+                    </div>
+                    <!-- Mode toggle for blotter -->
+                    <div class="rpt-field rpt-mode-toggle" id="rpt-mode-toggle" style="margin-top:var(--space-2);">
+                        <label>Mode</label>
+                        <div class="rpt-toggle-group">
+                            <button class="rpt-toggle-btn active" data-mode="condensed">Condensed</button>
+                            <button class="rpt-toggle-btn" data-mode="detailed">Detailed</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Output Formats -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Output Format</div>
+                    <div class="rpt-format-checks">
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-format" value="pdf" checked> PDF</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-format" value="csv"> CSV</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-format" value="xlsx"> XLSX</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-format" value="html"> HTML</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-format" value="txt"> TXT</label>
+                    </div>
+                </div>
+
+                <!-- Delivery Options -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Delivery</div>
+                    <div class="rpt-delivery-options">
+                        <div class="rpt-delivery-row">
+                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-email"> Email</label>
+                            <input type="email" id="rpt-del-email-addr" class="rpt-input rpt-delivery-input" placeholder="recipient@example.com" disabled>
+                        </div>
+                        <div class="rpt-delivery-row">
+                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-sms"> SMS</label>
+                            <input type="tel" id="rpt-del-sms-phone" class="rpt-input rpt-delivery-input" placeholder="+1 555-123-4567" disabled>
+                        </div>
+                        <div class="rpt-delivery-row">
+                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-signal"> Signal webhook</label>
+                        </div>
+                        <div class="rpt-delivery-row">
+                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-webex"> Webex webhook</label>
+                        </div>
+                        <div class="rpt-delivery-row">
+                            <label class="rpt-check-label"><input type="checkbox" id="rpt-del-webhook"> Generic webhook</label>
+                            <input type="url" id="rpt-del-webhook-url" class="rpt-input rpt-delivery-input" placeholder="https://hooks.example.com/..." disabled>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div id="rpt-preview-box" class="rpt-preview-box" style="display:none;">
+                    <div class="rpt-preview-header">
+                        <span>Report Preview</span>
+                        <button onclick="document.getElementById('rpt-preview-box').style.display='none'" aria-label="Close preview">&times;</button>
+                    </div>
+                    <div class="rpt-preview-content" id="rpt-preview-content"></div>
+                </div>
+
+                <!-- Actions -->
+                <div class="rpt-actions">
+                    <button class="rpt-btn-primary" onclick="REPORTING.runReport()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21 5,3"></polygon></svg>
+                        Run Report
+                    </button>
+                    <button class="rpt-btn-secondary" onclick="REPORTING.runReport(true)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Export Only
+                    </button>
+                    <button class="rpt-btn-secondary" onclick="REPORTING.previewReport()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        Preview
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- TAB 2: BUILDER                                               -->
+            <!-- ============================================================ -->
+            <div class="rpt-panel" id="rpt-panel-builder" role="tabpanel">
+                <!-- Base Dataset -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Base Dataset</div>
+                    <div class="rpt-dataset-cards">
+                        <button class="rpt-dataset-card active" data-dataset="dailylog">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline></svg>
+                            Daily Log
+                        </button>
+                        <button class="rpt-dataset-card" data-dataset="incidents">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            Incidents
+                        </button>
+                        <button class="rpt-dataset-card" data-dataset="units">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                            Units
+                        </button>
+                        <button class="rpt-dataset-card" data-dataset="calltaker">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            Calltaker
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Field Selection -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Fields</div>
+                    <div class="rpt-field-grid" id="rpt-field-grid">
+                        <!-- Populated dynamically based on dataset -->
+                    </div>
+                </div>
+
+                <!-- Group By -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Group By (0-2)</div>
+                    <div class="rpt-group-by-row">
+                        <select id="rpt-group-by-1" class="rpt-select">
+                            <option value="">-- None --</option>
+                        </select>
+                        <select id="rpt-group-by-2" class="rpt-select">
+                            <option value="">-- None --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Sort By</div>
+                    <div class="rpt-sort-row">
+                        <select id="rpt-sort-field" class="rpt-select" style="flex:1;">
+                            <option value="">-- None --</option>
+                        </select>
+                        <div class="rpt-toggle-group">
+                            <button class="rpt-toggle-btn active" data-sort="asc">ASC</button>
+                            <button class="rpt-toggle-btn" data-sort="desc">DESC</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aggregations -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Aggregations</div>
+                    <div class="rpt-agg-checks">
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-agg" value="count" checked> Count</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-agg" value="avg"> Average</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-agg" value="min"> Min</label>
+                        <label class="rpt-check-label"><input type="checkbox" name="rpt-agg" value="max"> Max</label>
+                    </div>
+                </div>
+
+                <!-- Save Template -->
+                <div class="rpt-section rpt-save-section">
+                    <div class="rpt-section-title">Save as Template</div>
+                    <div class="rpt-save-row">
+                        <input type="text" id="rpt-new-template-name" class="rpt-input" placeholder="My Custom Report" style="flex:1;">
+                        <button class="rpt-btn-primary" onclick="REPORTING.saveCustomTemplate()">Save as Template</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- TAB 3: SCHEDULED                                             -->
+            <!-- ============================================================ -->
+            <div class="rpt-panel" id="rpt-panel-scheduled" role="tabpanel">
+                <!-- Existing schedules table -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Active Schedules</div>
+                    <div class="rpt-table-wrap">
+                        <table class="rpt-table" id="rpt-schedule-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Template</th>
+                                    <th>Frequency</th>
+                                    <th>Enabled</th>
+                                    <th>Next Run</th>
+                                    <th>Last Run</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rpt-schedule-tbody">
+                                <tr><td colspan="7" class="rpt-empty">Loading schedules...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Create Schedule -->
+                <div class="rpt-section">
+                    <button class="rpt-btn-secondary rpt-expand-btn" id="rpt-sched-create-toggle" onclick="REPORTING.toggleScheduleForm()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        Create Schedule
+                    </button>
+                    <div id="rpt-sched-form" class="rpt-sched-form" style="display:none;">
+                        <div class="rpt-filters-grid">
+                            <div class="rpt-field">
+                                <label for="rpt-sched-name">Name</label>
+                                <input type="text" id="rpt-sched-name" class="rpt-input" placeholder="End-of-Shift Blotter">
+                            </div>
+                            <div class="rpt-field">
+                                <label for="rpt-sched-template">Template</label>
+                                <select id="rpt-sched-template" class="rpt-select">
+                                    <option value="">-- Select --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Schedule-specific filters -->
+                        <div class="rpt-filters-grid" style="margin-top:var(--space-2);">
+                            <div class="rpt-field">
+                                <label for="rpt-sched-date-start">Start Date</label>
+                                <input type="date" id="rpt-sched-date-start" class="rpt-input">
+                            </div>
+                            <div class="rpt-field">
+                                <label for="rpt-sched-date-end">End Date</label>
+                                <input type="date" id="rpt-sched-date-end" class="rpt-input">
+                            </div>
+                            <div class="rpt-field">
+                                <label for="rpt-sched-shift">Shift</label>
+                                <select id="rpt-sched-shift" class="rpt-select">
+                                    <option value="">All</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Frequency -->
+                        <div class="rpt-field" style="margin-top:var(--space-2);">
+                            <label for="rpt-sched-freq">Frequency</label>
+                            <select id="rpt-sched-freq" class="rpt-select" onchange="REPORTING.onScheduleFreqChange()">
+                                <option value="once">One-time</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="shift_change" selected>Shift Change</option>
+                            </select>
+                        </div>
+                        <!-- One-time datetime picker -->
+                        <div class="rpt-field rpt-freq-once" style="display:none; margin-top:var(--space-2);">
+                            <label for="rpt-sched-once-dt">Run At</label>
+                            <input type="datetime-local" id="rpt-sched-once-dt" class="rpt-input">
+                        </div>
+                        <!-- Weekly day picker -->
+                        <div class="rpt-field rpt-freq-weekly" style="display:none; margin-top:var(--space-2);">
+                            <label>Days</label>
+                            <div class="rpt-day-picker">
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="mon"> Mon</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="tue"> Tue</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="wed"> Wed</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="thu"> Thu</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="fri"> Fri</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="sat"> Sat</label>
+                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="sun"> Sun</label>
+                            </div>
+                        </div>
+                        <!-- Monthly day-of-month -->
+                        <div class="rpt-field rpt-freq-monthly" style="display:none; margin-top:var(--space-2);">
+                            <label for="rpt-sched-dom">Day of Month</label>
+                            <input type="number" id="rpt-sched-dom" class="rpt-input" min="1" max="28" value="1" style="width:80px;">
+                        </div>
+                        <!-- Delivery channels for schedule -->
+                        <div class="rpt-field" style="margin-top:var(--space-3);">
+                            <label>Delivery Channels</label>
+                            <div class="rpt-delivery-options">
+                                <div class="rpt-delivery-row">
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-email" checked> Email</label>
+                                    <input type="email" id="rpt-sched-del-email-addr" class="rpt-input rpt-delivery-input" placeholder="recipient@example.com">
+                                </div>
+                                <div class="rpt-delivery-row">
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-sms"> SMS</label>
+                                    <input type="tel" id="rpt-sched-del-sms-phone" class="rpt-input rpt-delivery-input" placeholder="+1 555-123-4567" disabled>
+                                </div>
+                                <div class="rpt-delivery-row">
+                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-webhook"> Webhook</label>
+                                    <input type="url" id="rpt-sched-del-webhook-url" class="rpt-input rpt-delivery-input" placeholder="https://..." disabled>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rpt-actions" style="margin-top:var(--space-3);">
+                            <button class="rpt-btn-primary" onclick="REPORTING.createSchedule()">Create Schedule</button>
+                            <button class="rpt-btn-secondary" onclick="REPORTING.toggleScheduleForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- TAB 4: HISTORY                                               -->
+            <!-- ============================================================ -->
+            <div class="rpt-panel" id="rpt-panel-history" role="tabpanel">
+                <!-- Filters -->
+                <div class="rpt-section">
+                    <div class="rpt-history-filters">
+                        <input type="text" id="rpt-hist-search" class="rpt-input" placeholder="Search reports..." style="flex:2;">
+                        <input type="date" id="rpt-hist-date-start" class="rpt-input" style="flex:1;">
+                        <input type="date" id="rpt-hist-date-end" class="rpt-input" style="flex:1;">
+                        <select id="rpt-hist-template-filter" class="rpt-select" style="flex:1;">
+                            <option value="">All Templates</option>
+                        </select>
+                        <select id="rpt-hist-status-filter" class="rpt-select" style="flex:1;">
+                            <option value="">All Statuses</option>
+                            <option value="success">Success</option>
+                            <option value="failed">Failed</option>
+                            <option value="partial">Partial</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                        <button class="rpt-btn-secondary" onclick="REPORTING.loadHistory()" aria-label="Refresh history">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"></polyline><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History table -->
+                <div class="rpt-section">
+                    <div class="rpt-table-wrap">
+                        <table class="rpt-table" id="rpt-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Template</th>
+                                    <th>Date Range</th>
+                                    <th>Formats</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rpt-history-tbody">
+                                <tr><td colspan="7" class="rpt-empty">No history loaded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="cad-modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
+    </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- SCOPED STYLES                                                         -->
+<!-- ===================================================================== -->
+<style>
+/* ---- Modal size ---- */
+.reporting-modal {
+    min-width: 700px;
+    max-width: 900px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+.reporting-modal .cad-modal-body {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+/* ---- Container ---- */
+.reporting-modal .rpt-container {
+    padding: var(--space-2);
+}
+
+/* ---- Tabs ---- */
+.reporting-modal .rpt-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border-default);
+    margin-bottom: var(--space-3);
+}
+.reporting-modal .rpt-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+}
+.reporting-modal .rpt-tab:hover {
+    color: var(--ford-blue);
+    background: var(--bg-hover);
+}
+.reporting-modal .rpt-tab:focus-visible {
+    outline: 2px solid var(--ford-blue);
+    outline-offset: -2px;
+}
+.reporting-modal .rpt-tab.active {
+    color: var(--ford-blue);
+    border-bottom-color: var(--ford-blue);
+}
+
+/* ---- Panels ---- */
+.reporting-modal .rpt-panel {
+    display: none;
+}
+.reporting-modal .rpt-panel.active {
+    display: block;
+}
+
+/* ---- Sections ---- */
+.reporting-modal .rpt-section {
+    margin-bottom: var(--space-4);
+}
+.reporting-modal .rpt-section-title {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-light);
+}
+
+/* ---- Inputs ---- */
+.reporting-modal .rpt-input,
+.reporting-modal .rpt-select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    width: 100%;
+    box-sizing: border-box;
+}
+.reporting-modal .rpt-input:focus,
+.reporting-modal .rpt-select:focus {
+    outline: none;
+    border-color: var(--ford-blue);
+    box-shadow: 0 0 0 2px rgba(0, 52, 120, 0.12);
+}
+
+/* ---- Filter grid ---- */
+.reporting-modal .rpt-filters-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-2);
+}
+.reporting-modal .rpt-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+/* ---- Hint ---- */
+.reporting-modal .rpt-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    min-height: 16px;
+}
+
+/* ---- Checkboxes ---- */
+.reporting-modal .rpt-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.reporting-modal .rpt-check-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ford-blue);
+    cursor: pointer;
+}
+
+/* ---- Unit checkboxes ---- */
+.reporting-modal .rpt-unit-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+}
+
+/* ---- Format checkboxes ---- */
+.reporting-modal .rpt-format-checks {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+/* ---- Toggle group ---- */
+.reporting-modal .rpt-toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.reporting-modal .rpt-toggle-btn {
+    padding: 6px 14px;
+    border: none;
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.reporting-modal .rpt-toggle-btn + .rpt-toggle-btn {
+    border-left: 1px solid var(--border-default);
+}
+.reporting-modal .rpt-toggle-btn.active {
+    background: var(--ford-blue);
+    color: #fff;
+}
+.reporting-modal .rpt-toggle-btn:focus-visible {
+    outline: 2px solid var(--ford-blue);
+    outline-offset: -2px;
+}
+
+/* ---- Delivery rows ---- */
+.reporting-modal .rpt-delivery-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.reporting-modal .rpt-delivery-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.reporting-modal .rpt-delivery-input {
+    flex: 1;
+    max-width: 320px;
+}
+
+/* ---- Preview ---- */
+.reporting-modal .rpt-preview-box {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    max-height: 360px;
+    overflow: auto;
+    margin-top: var(--space-3);
+}
+.reporting-modal .rpt-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--ford-blue);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.reporting-modal .rpt-preview-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+.reporting-modal .rpt-preview-content {
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.reporting-modal .rpt-preview-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.reporting-modal .rpt-preview-content th,
+.reporting-modal .rpt-preview-content td {
+    padding: 6px 8px;
+    border: 1px solid var(--border-default);
+    text-align: left;
+}
+.reporting-modal .rpt-preview-content th {
+    background: var(--bg-active);
+    font-weight: 600;
+}
+
+/* ---- Action buttons ---- */
+.reporting-modal .rpt-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+.reporting-modal .rpt-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--ford-blue);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.reporting-modal .rpt-btn-primary:hover { background: #1e40af; }
+.reporting-modal .rpt-btn-primary:focus-visible {
+    outline: 2px solid var(--ford-blue);
+    outline-offset: 2px;
+}
+.reporting-modal .rpt-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.reporting-modal .rpt-btn-secondary:hover {
+    background: var(--bg-active);
+    border-color: var(--ford-blue);
+}
+.reporting-modal .rpt-btn-secondary:focus-visible {
+    outline: 2px solid var(--ford-blue);
+    outline-offset: 2px;
+}
+
+/* ---- Danger (delete) ---- */
+.reporting-modal .rpt-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: none;
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--danger);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.reporting-modal .rpt-btn-danger:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* ---- Tables ---- */
+.reporting-modal .rpt-table-wrap {
+    overflow-x: auto;
+    max-height: 340px;
+    overflow-y: auto;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+}
+.reporting-modal .rpt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.reporting-modal .rpt-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.reporting-modal .rpt-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border-bottom: 2px solid var(--border-default);
+    white-space: nowrap;
+}
+.reporting-modal .rpt-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+.reporting-modal .rpt-table tbody tr:nth-child(even) {
+    background: var(--bg-elevated);
+}
+.reporting-modal .rpt-table tbody tr:hover {
+    background: var(--bg-active);
+}
+.reporting-modal .rpt-table .rpt-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 24px 10px;
+    font-style: italic;
+}
+
+/* ---- Status badges ---- */
+.reporting-modal .rpt-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+.reporting-modal .rpt-badge-success { background: #dcfce7; color: #166534; }
+.reporting-modal .rpt-badge-failed  { background: #fee2e2; color: #991b1b; }
+.reporting-modal .rpt-badge-partial { background: #fef9c3; color: #854d0e; }
+.reporting-modal .rpt-badge-pending { background: #f1f5f9; color: #475569; }
+
+/* ---- Toggle switch (enable/disable) ---- */
+.reporting-modal .rpt-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+}
+.reporting-modal .rpt-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.reporting-modal .rpt-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #9ca3af;
+    border-radius: 20px;
+    transition: 0.2s;
+}
+.reporting-modal .rpt-toggle-slider:before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+.reporting-modal .rpt-toggle-switch input:checked + .rpt-toggle-slider {
+    background: #16a34a;
+}
+.reporting-modal .rpt-toggle-switch input:checked + .rpt-toggle-slider:before {
+    transform: translateX(18px);
+}
+
+/* ---- Dataset cards (Builder tab) ---- */
+.reporting-modal .rpt-dataset-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2);
+}
+.reporting-modal .rpt-dataset-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: var(--space-3);
+    background: var(--bg-elevated);
+    border: 2px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: all 0.15s;
+}
+.reporting-modal .rpt-dataset-card:hover {
+    border-color: var(--ford-blue);
+    background: var(--bg-active);
+}
+.reporting-modal .rpt-dataset-card.active {
+    border-color: var(--ford-blue);
+    background: var(--bg-active);
+    color: var(--ford-blue);
+}
+
+/* ---- Field grid (Builder) ---- */
+.reporting-modal .rpt-field-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px var(--space-3);
+    max-height: 180px;
+    overflow-y: auto;
+    padding: var(--space-2);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+}
+
+/* ---- Group-by / Sort row ---- */
+.reporting-modal .rpt-group-by-row,
+.reporting-modal .rpt-sort-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+.reporting-modal .rpt-group-by-row .rpt-select {
+    flex: 1;
+}
+
+/* ---- Agg checks ---- */
+.reporting-modal .rpt-agg-checks {
+    display: flex;
+    gap: var(--space-3);
+}
+
+/* ---- Save section ---- */
+.reporting-modal .rpt-save-row {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+/* ---- Expand button ---- */
+.reporting-modal .rpt-expand-btn {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ---- Schedule form ---- */
+.reporting-modal .rpt-sched-form {
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+}
+
+/* ---- Day picker ---- */
+.reporting-modal .rpt-day-picker {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+/* ---- History filters ---- */
+.reporting-modal .rpt-history-filters {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ---- History row actions ---- */
+.reporting-modal .rpt-row-actions {
+    display: flex;
+    gap: 4px;
+}
+.reporting-modal .rpt-row-btn {
+    padding: 4px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+.reporting-modal .rpt-row-btn:hover {
+    background: var(--bg-active);
+    border-color: var(--ford-blue);
+}
+
+/* ---- Delivery log expansion ---- */
+.reporting-modal .rpt-delivery-detail {
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-elevated);
+    border-top: 1px dashed var(--border-default);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.reporting-modal .rpt-delivery-detail table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+}
+.reporting-modal .rpt-delivery-detail th,
+.reporting-modal .rpt-delivery-detail td {
+    padding: 4px 8px;
+    border: 1px solid var(--border-light);
+    text-align: left;
+    font-size: 11px;
+}
+.reporting-modal .rpt-delivery-detail th {
+    background: var(--bg-active);
+}
+
+/* ---- Spinner (inline loading) ---- */
+.reporting-modal .rpt-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border-default);
+    border-top-color: var(--ford-blue);
+    border-radius: 50%;
+    animation: rpt-spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+@keyframes rpt-spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<!-- ===================================================================== -->
+<!-- JAVASCRIPT                                                            -->
+<!-- ===================================================================== -->
+<script>
+window.REPORTING = {
+
+    // ------------------------------------------------------------------ state
+    _templates: [],
+    _historyLoaded: false,
+    _schedulesLoaded: false,
+    _activeDataset: 'dailylog',
+    _sortDir: 'asc',
+    _blotterMode: 'condensed',
+
+    // Canonical field lists per dataset
+    _datasetFields: {
+        dailylog: [
+            'id','timestamp','shift','calltaker','event_type','event_subtype',
+            'description','location','unit','status','priority','disposition',
+            'narrative','remarks','created_at','updated_at'
+        ],
+        incidents: [
+            'incident_id','incident_number','type','subtype','priority','location',
+            'address','cross_street','latitude','longitude','caller_name',
+            'caller_phone','calltaker','dispatcher','disposition','narrative',
+            'created_at','dispatched_at','enroute_at','arrived_at','cleared_at',
+            'units_assigned','status'
+        ],
+        units: [
+            'unit_id','name','station','shift','status','type','personnel_count',
+            'response_count','avg_response_time','total_on_scene_time',
+            'last_dispatched','utilization_pct'
+        ],
+        calltaker: [
+            'calltaker_id','name','shift','call_count','avg_dispatch_time',
+            'disposition_breakdown','remark_count','active_since'
+        ]
+    },
+
+    // ------------------------------------------------------------------ init
+    init() {
+        this._initTabs();
+        this._initDeliveryToggles();
+        this._initModeToggle();
+        this._initDatasetCards();
+        this._initSortToggle();
+        this._initScheduleDeliveryToggles();
+        this._setDefaultDates();
+        this.loadTemplates();
+    },
+
+    // ------------------------------------------------------------------ tabs
+    _initTabs() {
+        const modal = document.querySelector('.reporting-modal');
+        modal.querySelectorAll('.rpt-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                modal.querySelectorAll('.rpt-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.setAttribute('aria-selected', 'false');
+                });
+                modal.querySelectorAll('.rpt-panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+                const panel = document.getElementById('rpt-panel-' + tab.dataset.tab);
+                if (panel) panel.classList.add('active');
+
+                // Lazy-load data
+                if (tab.dataset.tab === 'history' && !this._historyLoaded) {
+                    this.loadHistory();
+                }
+                if (tab.dataset.tab === 'scheduled' && !this._schedulesLoaded) {
+                    this.loadSchedules();
+                }
+                if (tab.dataset.tab === 'builder') {
+                    this._populateFieldGrid();
+                }
+            });
+
+            // Keyboard: arrow keys for tab navigation
+            tab.addEventListener('keydown', (e) => {
+                const tabs = Array.from(modal.querySelectorAll('.rpt-tab'));
+                const idx = tabs.indexOf(tab);
+                let target = null;
+                if (e.key === 'ArrowRight') target = tabs[(idx + 1) % tabs.length];
+                if (e.key === 'ArrowLeft') target = tabs[(idx - 1 + tabs.length) % tabs.length];
+                if (target) { e.preventDefault(); target.focus(); target.click(); }
+            });
+        });
+    },
+
+    // Delivery checkbox toggles (Run tab)
+    _initDeliveryToggles() {
+        const pairs = [
+            ['rpt-del-email', 'rpt-del-email-addr'],
+            ['rpt-del-sms', 'rpt-del-sms-phone'],
+            ['rpt-del-webhook', 'rpt-del-webhook-url'],
+        ];
+        pairs.forEach(([cbId, inputId]) => {
+            const cb = document.getElementById(cbId);
+            const input = document.getElementById(inputId);
+            if (cb && input) {
+                cb.addEventListener('change', () => { input.disabled = !cb.checked; });
+            }
+        });
+    },
+
+    // Delivery toggles for Schedule form
+    _initScheduleDeliveryToggles() {
+        const pairs = [
+            ['rpt-sched-del-sms', 'rpt-sched-del-sms-phone'],
+            ['rpt-sched-del-webhook', 'rpt-sched-del-webhook-url'],
+        ];
+        pairs.forEach(([cbId, inputId]) => {
+            const cb = document.getElementById(cbId);
+            const input = document.getElementById(inputId);
+            if (cb && input) {
+                cb.addEventListener('change', () => { input.disabled = !cb.checked; });
+            }
+        });
+    },
+
+    // Mode toggle (condensed / detailed)
+    _initModeToggle() {
+        const container = document.getElementById('rpt-mode-toggle');
+        if (!container) return;
+        container.querySelectorAll('.rpt-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                container.querySelectorAll('.rpt-toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._blotterMode = btn.dataset.mode;
+            });
+        });
+    },
+
+    // Dataset cards (Builder)
+    _initDatasetCards() {
+        document.querySelectorAll('.rpt-dataset-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.rpt-dataset-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                this._activeDataset = card.dataset.dataset;
+                this._populateFieldGrid();
+            });
+        });
+    },
+
+    // Sort toggle (ASC / DESC)
+    _initSortToggle() {
+        const btns = document.querySelectorAll('.rpt-sort-row .rpt-toggle-btn');
+        btns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this._sortDir = btn.dataset.sort;
+            });
+        });
+    },
+
+    // Set default dates to today
+    _setDefaultDates() {
+        const today = new Date().toISOString().slice(0, 10);
+        const els = ['rpt-date-start', 'rpt-date-end', 'rpt-hist-date-start', 'rpt-hist-date-end'];
+        els.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && !el.value) el.value = today;
+        });
+    },
+
+    // ---- populate builder field grid ----
+    _populateFieldGrid() {
+        const grid = document.getElementById('rpt-field-grid');
+        if (!grid) return;
+        const fields = this._datasetFields[this._activeDataset] || [];
+        grid.innerHTML = fields.map(f =>
+            `<label class="rpt-check-label"><input type="checkbox" name="rpt-builder-field" value="${f}" checked> ${f}</label>`
+        ).join('');
+
+        // Also update group-by / sort dropdowns
+        const opts = '<option value="">-- None --</option>' +
+            fields.map(f => `<option value="${f}">${f}</option>`).join('');
+        ['rpt-group-by-1','rpt-group-by-2','rpt-sort-field'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = opts;
+        });
+    },
+
+    // ------------------------------------------------------------------ helpers
+    _getSelectedFormats() {
+        return Array.from(document.querySelectorAll('input[name="rpt-format"]:checked'))
+            .map(cb => cb.value);
+    },
+
+    _getRunFilters() {
+        const units = Array.from(
+            document.querySelectorAll('#rpt-unit-checks input:checked')
+        ).map(cb => cb.value);
+        return {
+            start_date: document.getElementById('rpt-date-start')?.value || '',
+            end_date: document.getElementById('rpt-date-end')?.value || '',
+            shift: document.getElementById('rpt-shift-select')?.value || '',
+            event_type: document.getElementById('rpt-event-type')?.value || '',
+            calltaker: document.getElementById('rpt-calltaker')?.value || '',
+            status: document.getElementById('rpt-status-filter')?.value || '',
+            units: units,
+            mode: this._blotterMode,
+        };
+    },
+
+    _getDeliveryChannels() {
+        const channels = [];
+        if (document.getElementById('rpt-del-email')?.checked) {
+            channels.push({ channel: 'email', destination: document.getElementById('rpt-del-email-addr')?.value || '' });
+        }
+        if (document.getElementById('rpt-del-sms')?.checked) {
+            channels.push({ channel: 'sms', destination: document.getElementById('rpt-del-sms-phone')?.value || '' });
+        }
+        if (document.getElementById('rpt-del-signal')?.checked) {
+            channels.push({ channel: 'signal', destination: 'default' });
+        }
+        if (document.getElementById('rpt-del-webex')?.checked) {
+            channels.push({ channel: 'webex', destination: 'default' });
+        }
+        if (document.getElementById('rpt-del-webhook')?.checked) {
+            channels.push({ channel: 'webhook', destination: document.getElementById('rpt-del-webhook-url')?.value || '' });
+        }
+        return channels;
+    },
+
+    _statusBadge(status) {
+        const cls = {
+            success: 'rpt-badge-success', completed: 'rpt-badge-success',
+            failed: 'rpt-badge-failed', error: 'rpt-badge-failed',
+            partial: 'rpt-badge-partial',
+            pending: 'rpt-badge-pending', running: 'rpt-badge-pending',
+        }[status] || 'rpt-badge-pending';
+        return `<span class="rpt-badge ${cls}">${status}</span>`;
+    },
+
+    _escHtml(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    },
+
+    // ------------------------------------------------------------------ API: templates
+    async loadTemplates() {
+        try {
+            const res = await fetch('/api/v2/reports/config');
+            // Also try the new template table
+            let templates = [];
+            try {
+                const tRes = await fetch('/api/v2/reports/templates');
+                if (tRes.ok) {
+                    const tData = await tRes.json();
+                    templates = tData.templates || tData || [];
+                }
+            } catch (_) {}
+
+            // Fallback: built-in templates if API doesn't exist yet
+            if (!templates.length) {
+                templates = [
+                    { template_key: 'blotter', name: 'Blotter / Daily Log', description: 'Chronological list of events for a shift or date range.' },
+                    { template_key: 'incident_summary', name: 'Incident Summary', description: 'Full incident details: type, location, timestamps, units.' },
+                    { template_key: 'unit_response_stats', name: 'Unit Response Stats', description: 'Response time metrics per unit.' },
+                    { template_key: 'calltaker_stats', name: 'Calltaker Stats', description: 'Call counts and performance per calltaker.' },
+                    { template_key: 'shift_workload', name: 'Shift Workload Summary', description: 'Workload distribution across shifts.' },
+                    { template_key: 'response_compliance', name: 'Response-Time Compliance', description: 'Pass/fail against response time thresholds.' },
+                ];
+            }
+
+            this._templates = templates;
+            this._renderTemplateSelects(templates);
+        } catch (e) {
+            console.error('[REPORTING] loadTemplates error:', e);
+            TOAST?.error?.('Failed to load report templates');
+        }
+    },
+
+    _renderTemplateSelects(templates) {
+        const options = '<option value="">-- Select template --</option>' +
+            templates.map(t =>
+                `<option value="${this._escHtml(t.template_key)}">${this._escHtml(t.name)}</option>`
+            ).join('');
+
+        // Run-tab template select
+        const runSel = document.getElementById('rpt-template-select');
+        if (runSel) {
+            runSel.innerHTML = options;
+            runSel.addEventListener('change', () => {
+                const key = runSel.value;
+                const tpl = templates.find(t => t.template_key === key);
+                const descEl = document.getElementById('rpt-template-desc');
+                if (descEl) descEl.textContent = tpl ? tpl.description : '';
+
+                // Show/hide blotter mode toggle
+                const modeEl = document.getElementById('rpt-mode-toggle');
+                if (modeEl) modeEl.style.display = (key === 'blotter') ? 'block' : 'none';
+            });
+        }
+
+        // Schedule-tab template select
+        const schedSel = document.getElementById('rpt-sched-template');
+        if (schedSel) schedSel.innerHTML = options;
+
+        // History-tab template filter
+        const histSel = document.getElementById('rpt-hist-template-filter');
+        if (histSel) {
+            histSel.innerHTML = '<option value="">All Templates</option>' +
+                templates.map(t =>
+                    `<option value="${this._escHtml(t.template_key)}">${this._escHtml(t.name)}</option>`
+                ).join('');
+        }
+    },
+
+    // ------------------------------------------------------------------ API: run report
+    async runReport(exportOnly) {
+        const templateKey = document.getElementById('rpt-template-select')?.value;
+        if (!templateKey) {
+            TOAST?.error?.('Select a report template');
+            return;
+        }
+
+        const formats = this._getSelectedFormats();
+        if (!formats.length) {
+            TOAST?.error?.('Select at least one output format');
+            return;
+        }
+
+        const filters = this._getRunFilters();
+        const delivery = exportOnly ? [] : this._getDeliveryChannels();
+
+        const payload = {
+            template_key: templateKey,
+            title: (this._templates.find(t => t.template_key === templateKey)?.name || templateKey) +
+                   ' - ' + (filters.start_date || 'today'),
+            filters: filters,
+            formats: formats,
+            delivery: delivery,
+        };
+
+        TOAST?.info?.('Running report...');
+
+        try {
+            const res = await fetch('/api/v2/reports/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message || 'Report run started');
+                // Refresh history
+                this._historyLoaded = false;
+            } else {
+                TOAST?.error?.(data.error || 'Report failed');
+            }
+        } catch (e) {
+            console.error('[REPORTING] runReport error:', e);
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ------------------------------------------------------------------ API: preview
+    async previewReport() {
+        const templateKey = document.getElementById('rpt-template-select')?.value;
+        if (!templateKey) {
+            TOAST?.error?.('Select a report template');
+            return;
+        }
+
+        const filters = this._getRunFilters();
+        const params = new URLSearchParams({
+            template_key: templateKey,
+            shift: filters.shift || '',
+        });
+
+        const box = document.getElementById('rpt-preview-box');
+        const content = document.getElementById('rpt-preview-content');
+        if (!box || !content) return;
+
+        content.innerHTML = '<div style="text-align:center;padding:24px;"><span class="rpt-spinner"></span> Loading preview...</div>';
+        box.style.display = 'block';
+
+        try {
+            const res = await fetch('/api/v2/reports/preview?' + params.toString());
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            content.innerHTML = html;
+        } catch (e) {
+            content.innerHTML = `<div style="color:var(--danger);padding:20px;">Failed to load preview: ${this._escHtml(e.message)}</div>`;
+        }
+    },
+
+    // ------------------------------------------------------------------ API: deliver
+    async deliverReport(runId) {
+        try {
+            const res = await fetch('/api/v2/reports/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ run_id: runId }),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.('Report re-delivered');
+            } else {
+                TOAST?.error?.(data.error || 'Delivery failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ------------------------------------------------------------------ API: history
+    async loadHistory() {
+        const tbody = document.getElementById('rpt-history-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty"><span class="rpt-spinner"></span> Loading...</td></tr>';
+
+        try {
+            const res = await fetch('/api/v2/reports/history?limit=50');
+            const data = await res.json();
+            const runs = data.history || [];
+
+            if (!runs.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No report history found.</td></tr>';
+                this._historyLoaded = true;
+                return;
+            }
+
+            tbody.innerHTML = runs.map(r => {
+                const filters = r.filters || r.report_data || {};
+                const dateRange = (filters.start_date || '') + (filters.end_date ? ' .. ' + filters.end_date : '');
+                const formats = (r.format || r.formats || []);
+                const fmtStr = Array.isArray(formats) ? formats.join(', ') : String(formats);
+                const status = r.status || 'pending';
+                const created = r.created_at || r.started_at || '';
+
+                return `<tr data-run-id="${r.id}" onclick="REPORTING._toggleHistoryDetail(this, ${r.id})">
+                    <td>${this._escHtml(r.title || r.report_type || '--')}</td>
+                    <td>${this._escHtml(r.template_key || r.report_type || '--')}</td>
+                    <td>${this._escHtml(dateRange || '--')}</td>
+                    <td>${this._escHtml(fmtStr || 'html')}</td>
+                    <td>${this._statusBadge(status)}</td>
+                    <td>${this._escHtml(created)}</td>
+                    <td class="rpt-row-actions" onclick="event.stopPropagation();">
+                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'pdf')" title="Download PDF">PDF</button>
+                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'csv')" title="Download CSV">CSV</button>
+                        <button class="rpt-row-btn" onclick="REPORTING.downloadArtifact(${r.id},'html')" title="Open HTML">HTML</button>
+                        <button class="rpt-row-btn" onclick="REPORTING.deliverReport(${r.id})" title="Re-send">Re-send</button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            this._historyLoaded = true;
+        } catch (e) {
+            console.error('[REPORTING] loadHistory error:', e);
+            tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed to load history: ${this._escHtml(e.message)}</td></tr>`;
+        }
+    },
+
+    async _toggleHistoryDetail(row, runId) {
+        // If next sibling is a detail row, remove it (toggle off)
+        const next = row.nextElementSibling;
+        if (next && next.classList.contains('rpt-detail-row')) {
+            next.remove();
+            return;
+        }
+
+        // Insert detail row
+        const detailRow = document.createElement('tr');
+        detailRow.className = 'rpt-detail-row';
+        detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail"><span class="rpt-spinner"></span> Loading delivery log...</td>`;
+        row.after(detailRow);
+
+        try {
+            const res = await fetch(`/api/v2/reports/history/${runId}`);
+            const data = await res.json();
+            const logs = data.delivery_logs || [];
+
+            if (!logs.length) {
+                detailRow.innerHTML = '<td colspan="7" class="rpt-delivery-detail"><em>No delivery records.</em></td>';
+                return;
+            }
+
+            detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail">
+                <strong>Delivery Log</strong>
+                <table>
+                    <thead><tr><th>Channel</th><th>Recipient</th><th>Status</th><th>Sent</th><th>Error</th></tr></thead>
+                    <tbody>
+                        ${logs.map(l => `<tr>
+                            <td>${this._escHtml(l.channel)}</td>
+                            <td>${this._escHtml(l.recipient || l.destination)}</td>
+                            <td>${this._statusBadge(l.status)}</td>
+                            <td>${this._escHtml(l.sent_at || l.created_at || '--')}</td>
+                            <td>${this._escHtml(l.error_message || l.error_text || '')}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </td>`;
+        } catch (e) {
+            detailRow.innerHTML = `<td colspan="7" class="rpt-delivery-detail" style="color:var(--danger);">Failed to load: ${this._escHtml(e.message)}</td>`;
+        }
+    },
+
+    // ------------------------------------------------------------------ API: schedules
+    async loadSchedules() {
+        const tbody = document.getElementById('rpt-schedule-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty"><span class="rpt-spinner"></span> Loading...</td></tr>';
+
+        try {
+            // Try new-style table first, fall back to legacy
+            let schedules = [];
+            try {
+                const res2 = await fetch('/api/v2/reports/schedules');
+                if (res2.ok) {
+                    const d2 = await res2.json();
+                    schedules = d2.schedules || [];
+                }
+            } catch (_) {}
+
+            if (!schedules.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No schedules configured.</td></tr>';
+                this._schedulesLoaded = true;
+                return;
+            }
+
+            tbody.innerHTML = schedules.map(s => {
+                const enabled = s.enabled ? true : false;
+                const freq = s.schedule_type || s.rrule_or_cron || '--';
+                const tplName = this._templates.find(t => t.template_key === s.template_key)?.name || s.template_key || s.report_type || '--';
+
+                return `<tr>
+                    <td>${this._escHtml(s.name)}</td>
+                    <td>${this._escHtml(tplName)}</td>
+                    <td>${this._escHtml(freq)}</td>
+                    <td>
+                        <label class="rpt-toggle-switch">
+                            <input type="checkbox" ${enabled ? 'checked' : ''} onchange="REPORTING.toggleSchedule(${s.id}, this.checked)">
+                            <span class="rpt-toggle-slider"></span>
+                        </label>
+                    </td>
+                    <td>${this._escHtml(s.next_run_at || s.next_run || '--')}</td>
+                    <td>${this._escHtml(s.last_run_at || s.last_run || '--')}</td>
+                    <td class="rpt-row-actions">
+                        <button class="rpt-row-btn" onclick="REPORTING._runScheduleNow(${s.id})" title="Run now">Run</button>
+                        <button class="rpt-btn-danger" onclick="REPORTING.deleteSchedule(${s.id})" title="Delete">Del</button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            this._schedulesLoaded = true;
+        } catch (e) {
+            console.error('[REPORTING] loadSchedules error:', e);
+            tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed: ${this._escHtml(e.message)}</td></tr>`;
+        }
+    },
+
+    async _runScheduleNow(scheduleId) {
+        try {
+            const res = await fetch(`/api/v2/reports/schedules/${scheduleId}/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+            });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.(data.message || 'Schedule triggered');
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ---- create schedule ----
+    async createSchedule() {
+        const name = document.getElementById('rpt-sched-name')?.value?.trim();
+        const templateKey = document.getElementById('rpt-sched-template')?.value;
+        if (!name) { TOAST?.error?.('Enter a schedule name'); return; }
+        if (!templateKey) { TOAST?.error?.('Select a template'); return; }
+
+        const freq = document.getElementById('rpt-sched-freq')?.value || 'shift_change';
+        let rrule = '';
+
+        if (freq === 'once') {
+            rrule = 'once:' + (document.getElementById('rpt-sched-once-dt')?.value || '');
+        } else if (freq === 'daily') {
+            rrule = 'daily';
+        } else if (freq === 'weekly') {
+            const days = Array.from(document.querySelectorAll('input[name="rpt-sched-day"]:checked'))
+                .map(cb => cb.value);
+            rrule = 'weekly:' + days.join(',');
+        } else if (freq === 'monthly') {
+            rrule = 'monthly:' + (document.getElementById('rpt-sched-dom')?.value || '1');
+        } else {
+            rrule = 'shift_change';
+        }
+
+        const filters = {
+            start_date: document.getElementById('rpt-sched-date-start')?.value || '',
+            end_date: document.getElementById('rpt-sched-date-end')?.value || '',
+            shift: document.getElementById('rpt-sched-shift')?.value || '',
+        };
+
+        const delivery = [];
+        if (document.getElementById('rpt-sched-del-email')?.checked) {
+            delivery.push({ channel: 'email', destination: document.getElementById('rpt-sched-del-email-addr')?.value || '' });
+        }
+        if (document.getElementById('rpt-sched-del-sms')?.checked) {
+            delivery.push({ channel: 'sms', destination: document.getElementById('rpt-sched-del-sms-phone')?.value || '' });
+        }
+        if (document.getElementById('rpt-sched-del-webhook')?.checked) {
+            delivery.push({ channel: 'webhook', destination: document.getElementById('rpt-sched-del-webhook-url')?.value || '' });
+        }
+
+        const payload = {
+            name: name,
+            template_key: templateKey,
+            filters_json: JSON.stringify(filters),
+            formats_json: JSON.stringify(['pdf', 'html']),
+            delivery_json: JSON.stringify(delivery),
+            rrule_or_cron: rrule,
+            schedule_type: freq,
+            enabled: true,
+        };
+
+        try {
+            const res = await fetch('/api/v2/reports/schedules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.('Schedule created');
+                this.toggleScheduleForm();
+                this.loadSchedules();
+            } else {
+                TOAST?.error?.(data.error || 'Failed to create schedule');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ---- toggle schedule ----
+    async toggleSchedule(id, enabled) {
+        const action = enabled ? 'enable' : 'disable';
+        try {
+            const res = await fetch(`/api/v2/reports/schedules/${id}/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+            });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.(`Schedule ${action}d`);
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+                this.loadSchedules(); // revert
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+            this.loadSchedules();
+        }
+    },
+
+    // ---- delete schedule ----
+    async deleteSchedule(id) {
+        if (!confirm('Delete this schedule? This cannot be undone.')) return;
+        try {
+            const res = await fetch(`/api/v2/reports/schedules/${id}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.('Schedule deleted');
+                this.loadSchedules();
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ---- Toggle schedule form visibility ----
+    toggleScheduleForm() {
+        const form = document.getElementById('rpt-sched-form');
+        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    },
+
+    // ---- Frequency change handler ----
+    onScheduleFreqChange() {
+        const freq = document.getElementById('rpt-sched-freq')?.value || '';
+        document.querySelectorAll('.rpt-freq-once, .rpt-freq-weekly, .rpt-freq-monthly').forEach(el => {
+            el.style.display = 'none';
+        });
+        if (freq === 'once') {
+            document.querySelector('.rpt-freq-once').style.display = 'block';
+        } else if (freq === 'weekly') {
+            document.querySelector('.rpt-freq-weekly').style.display = 'block';
+        } else if (freq === 'monthly') {
+            document.querySelector('.rpt-freq-monthly').style.display = 'block';
+        }
+    },
+
+    // ------------------------------------------------------------------ API: save custom template
+    async saveCustomTemplate() {
+        const name = document.getElementById('rpt-new-template-name')?.value?.trim();
+        if (!name) { TOAST?.error?.('Enter a template name'); return; }
+
+        const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_|_$)/g, '');
+
+        const selectedFields = Array.from(
+            document.querySelectorAll('input[name="rpt-builder-field"]:checked')
+        ).map(cb => cb.value);
+
+        const groupBy = [
+            document.getElementById('rpt-group-by-1')?.value,
+            document.getElementById('rpt-group-by-2')?.value,
+        ].filter(Boolean);
+
+        const sortField = document.getElementById('rpt-sort-field')?.value || '';
+        const aggregations = Array.from(
+            document.querySelectorAll('input[name="rpt-agg"]:checked')
+        ).map(cb => cb.value);
+
+        const config = {
+            dataset: this._activeDataset,
+            fields: selectedFields,
+            group_by: groupBy,
+            sort_by: sortField,
+            sort_dir: this._sortDir,
+            aggregations: aggregations,
+        };
+
+        const payload = {
+            name: name,
+            template_key: key,
+            description: `Custom report on ${this._activeDataset} dataset.`,
+            default_config_json: JSON.stringify(config),
+        };
+
+        try {
+            const res = await fetch('/api/v2/reports/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            // Try parsing response — might be 404 if route doesn't exist yet
+            if (res.ok) {
+                const data = await res.json();
+                TOAST?.success?.('Template saved: ' + name);
+                document.getElementById('rpt-new-template-name').value = '';
+                this.loadTemplates();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                TOAST?.error?.(err.detail || err.error || 'Failed to save template');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ------------------------------------------------------------------ API: download artifact
+    downloadArtifact(runId, format) {
+        window.open(`/api/v2/reports/history/${runId}/download?format=${encodeURIComponent(format)}`, '_blank');
+    },
+
+};
+
+// Initialize when modal opens
+setTimeout(() => REPORTING.init(), 100);
+</script>
