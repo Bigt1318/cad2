@@ -1,0 +1,1034 @@
+<!-- Reports Admin Modal - Comprehensive Report Configuration -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal reports-admin-modal" role="dialog" aria-modal="true" aria-label="Reports Admin">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+            Reports Administration
+        </div>
+        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+    <div class="cad-modal-body">
+        <div class="reports-admin-container">
+            <!-- Tab Navigation -->
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-tab="schedule">Schedule</button>
+                <button class="admin-tab" data-tab="times">Report Times</button>
+                <button class="admin-tab" data-tab="recipients">Recipients</button>
+                <button class="admin-tab" data-tab="email">Email Settings</button>
+            </div>
+
+            <!-- TAB 1: REPORT SCHEDULE -->
+            <div class="admin-tab-content active" id="admin-tab-schedule">
+                <!-- Big Toggle -->
+                <div class="toggle-section">
+                    <div class="toggle-header">
+                        <div class="toggle-title">Automatic Reports</div>
+                        <div class="toggle-subtitle">Send end-of-shift reports automatically</div>
+                    </div>
+                    <label class="big-toggle">
+                        <input type="checkbox" id="auto-report-toggle">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label-on">ON</span>
+                        <span class="toggle-label-off">OFF</span>
+                    </label>
+                </div>
+
+                <!-- Status Display -->
+                <div class="status-section">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Scheduler Status</div>
+                            <div class="status-value" id="scheduler-status">
+                                <span class="status-dot"></span>
+                                <span class="status-text">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Next Report</div>
+                            <div class="status-value" id="next-report-time">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Current Time</div>
+                            <div class="status-value" id="current-time-display">--</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Timezone</div>
+                            <div class="status-value" id="current-timezone">--</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Send Section -->
+                <div class="action-section">
+                    <div class="section-title">Manual Actions</div>
+                    <div class="action-buttons">
+                        <button class="btn-action primary" onclick="REPORTS_ADMIN.sendReportNow()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                            </svg>
+                            Send Report Now
+                        </button>
+                        <button class="btn-action" onclick="REPORTS_ADMIN.previewReport()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            Preview Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Startup Behavior -->
+                <div class="option-section">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="auto-start-on-startup">
+                        <span class="checkbox-label">
+                            <strong>Start scheduler on server startup</strong>
+                            <small>When enabled, reports will automatically start when the server restarts</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- TAB 2: REPORT TIMES -->
+            <div class="admin-tab-content" id="admin-tab-times">
+                <div class="form-section">
+                    <div class="section-title">Timezone Configuration</div>
+                    <p class="section-desc">All report times are based on this timezone. Server may run in UTC.</p>
+                    <div class="form-row">
+                        <label>Timezone</label>
+                        <select id="timezone-select" class="form-select">
+                            <option value="America/New_York">Eastern Time (America/New_York)</option>
+                            <option value="America/Chicago">Central Time (America/Chicago)</option>
+                            <option value="America/Denver">Mountain Time (America/Denver)</option>
+                            <option value="America/Los_Angeles">Pacific Time (America/Los_Angeles)</option>
+                            <option value="America/Anchorage">Alaska Time (America/Anchorage)</option>
+                            <option value="Pacific/Honolulu">Hawaii Time (Pacific/Honolulu)</option>
+                            <option value="UTC">UTC</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">Report Times</div>
+                    <p class="section-desc">When to send end-of-shift reports (30 min before shift ends)</p>
+                    <div class="form-row">
+                        <label>Day Shift Report</label>
+                        <input type="time" id="day-report-time" class="form-input" value="17:30">
+                        <span class="time-hint">Default: 17:30 (5:30 PM)</span>
+                    </div>
+                    <div class="form-row">
+                        <label>Night Shift Report</label>
+                        <input type="time" id="night-report-time" class="form-input" value="05:30">
+                        <span class="time-hint">Default: 05:30 (5:30 AM)</span>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-primary" onclick="REPORTS_ADMIN.saveTimes()">Save Report Times</button>
+                </div>
+            </div>
+
+            <!-- TAB 3: RECIPIENTS -->
+            <div class="admin-tab-content" id="admin-tab-recipients">
+                <div class="form-section">
+                    <div class="section-title">Battalion Chief Emails</div>
+                    <p class="section-desc">Reports are sent to the on-duty battalion chief</p>
+                    <div id="bc-email-list" class="bc-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">Additional Recipients</div>
+                    <p class="section-desc">These addresses receive ALL reports regardless of shift</p>
+                    <textarea id="additional-recipients" class="form-textarea"
+                        placeholder="email1@example.com&#10;email2@example.com"></textarea>
+                    <button class="btn-primary" onclick="REPORTS_ADMIN.saveRecipients()" style="margin-top:8px;">
+                        Save Recipients
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 4: EMAIL SETTINGS -->
+            <div class="admin-tab-content" id="admin-tab-email">
+                <div class="form-section">
+                    <div class="section-title">SendGrid Configuration</div>
+                    <p class="section-desc">SendGrid is recommended for reliable email delivery</p>
+                    <div class="form-row">
+                        <label>API Key</label>
+                        <input type="password" id="sendgrid-api-key" class="form-input"
+                            placeholder="SG.xxxxxxxxxx">
+                        <button class="btn-icon" onclick="REPORTS_ADMIN.togglePassword('sendgrid-api-key')" title="Show/Hide">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="form-row">
+                        <label>From Email</label>
+                        <input type="email" id="from-email" class="form-input"
+                            placeholder="noreply@yourdomain.com">
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn-primary" onclick="REPORTS_ADMIN.saveEmailConfig()">Save Email Config</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">Test Email</div>
+                    <p class="section-desc">Send a test email to verify configuration</p>
+                    <div class="form-row">
+                        <label>Test Address</label>
+                        <input type="email" id="test-email-address" class="form-input"
+                            placeholder="your@email.com">
+                        <button class="btn-action" onclick="REPORTS_ADMIN.sendTestEmail()">
+                            Send Test
+                        </button>
+                    </div>
+                </div>
+
+                <div class="config-status" id="email-config-status">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="cad-modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
+    </div>
+</div>
+
+<style>
+.reports-admin-modal {
+    min-width: 650px;
+    max-width: 750px;
+}
+
+.reports-admin-container {
+    padding: var(--space-2);
+}
+
+/* Tabs */
+.admin-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border-default);
+    margin-bottom: var(--space-3);
+}
+
+.admin-tab {
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+}
+
+.admin-tab:hover {
+    color: var(--ford-blue);
+    background: var(--bg-hover);
+}
+
+.admin-tab.active {
+    color: var(--ford-blue);
+    border-bottom-color: var(--ford-blue);
+}
+
+.admin-tab-content {
+    display: none;
+}
+
+.admin-tab-content.active {
+    display: block;
+}
+
+/* Big Toggle */
+.toggle-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+}
+
+.toggle-header {
+    flex: 1;
+}
+
+.toggle-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.toggle-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.big-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.big-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 80px;
+    height: 40px;
+    background: #dc2626;
+    border-radius: 20px;
+    transition: 0.3s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 32px;
+    width: 32px;
+    left: 4px;
+    bottom: 4px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.big-toggle input:checked + .toggle-slider {
+    background: #16a34a;
+}
+
+.big-toggle input:checked + .toggle-slider:before {
+    transform: translateX(40px);
+}
+
+.toggle-label-on, .toggle-label-off {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.toggle-label-on {
+    left: 12px;
+    opacity: 0;
+}
+
+.toggle-label-off {
+    right: 12px;
+}
+
+.big-toggle input:checked ~ .toggle-label-on {
+    opacity: 1;
+}
+
+.big-toggle input:checked ~ .toggle-label-off {
+    opacity: 0;
+}
+
+/* Status Section */
+.status-section {
+    margin-bottom: var(--space-4);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+}
+
+.status-item {
+    background: var(--bg-subtle);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.status-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.status-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9ca3af;
+}
+
+.status-dot.running {
+    background: #16a34a;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.stopped {
+    background: #dc2626;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Action Section */
+.action-section {
+    margin-bottom: var(--space-4);
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.section-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-3);
+}
+
+.action-buttons {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-action:hover {
+    background: var(--bg-active);
+    border-color: var(--ford-blue);
+}
+
+.btn-action.primary {
+    background: var(--ford-blue);
+    border-color: var(--ford-blue);
+    color: white;
+}
+
+.btn-action.primary:hover {
+    background: #1e40af;
+}
+
+/* Option Section */
+.option-section {
+    margin-bottom: var(--space-3);
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: var(--space-3);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.checkbox-option input[type="checkbox"] {
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--ford-blue);
+}
+
+.checkbox-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.checkbox-label strong {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.checkbox-label small {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* Form Section */
+.form-section {
+    margin-bottom: var(--space-4);
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.form-row label {
+    min-width: 120px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.form-input, .form-select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--ford-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.form-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    background: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.time-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.form-actions {
+    margin-top: var(--space-3);
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background: var(--ford-blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-primary:hover {
+    background: #1e40af;
+}
+
+.btn-icon {
+    padding: 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+/* BC List */
+.bc-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.bc-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+}
+
+.bc-shift {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ford-blue);
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: var(--radius-md);
+}
+
+.bc-info {
+    flex: 1;
+}
+
+.bc-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.bc-email-input {
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    background: var(--bg-surface);
+}
+
+.bc-test-btn {
+    padding: 6px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.bc-test-btn:hover {
+    background: var(--bg-active);
+}
+
+/* Config Status */
+.config-status {
+    padding: var(--space-3);
+    background: var(--bg-subtle);
+    border-radius: var(--radius-md);
+    margin-top: var(--space-3);
+}
+
+.config-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.config-status-item .check {
+    color: #16a34a;
+}
+
+.config-status-item .cross {
+    color: #dc2626;
+}
+</style>
+
+<script>
+window.REPORTS_ADMIN = {
+    config: null,
+
+    init() {
+        // Tab switching
+        document.querySelectorAll('.admin-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('admin-tab-' + tab.dataset.tab)?.classList.add('active');
+            });
+        });
+
+        // Toggle event
+        document.getElementById('auto-report-toggle')?.addEventListener('change', (e) => {
+            this.toggleAutoReport(e.target.checked);
+        });
+
+        // Startup checkbox event
+        document.getElementById('auto-start-on-startup')?.addEventListener('change', (e) => {
+            this.setStartupBehavior(e.target.checked);
+        });
+
+        // Load all data
+        this.loadStatus();
+        this.loadBCEmails();
+        this.loadRecipients();
+        this.loadEmailConfig();
+    },
+
+    async loadStatus() {
+        try {
+            const res = await fetch('/api/reports/scheduler/status');
+            const data = await res.json();
+            this.config = data;
+
+            // Update toggle
+            document.getElementById('auto-report-toggle').checked = data.enabled;
+
+            // Update status display
+            const statusEl = document.getElementById('scheduler-status');
+            const dot = statusEl.querySelector('.status-dot');
+            const text = statusEl.querySelector('.status-text');
+
+            if (data.running) {
+                dot.className = 'status-dot running';
+                text.textContent = 'Running';
+            } else {
+                dot.className = 'status-dot stopped';
+                text.textContent = 'Stopped';
+            }
+
+            // Update other status fields
+            document.getElementById('next-report-time').textContent = data.next_report_time || '--';
+            document.getElementById('current-time-display').textContent = data.current_time || '--';
+            document.getElementById('current-timezone').textContent = data.timezone || '--';
+
+            // Update startup checkbox
+            document.getElementById('auto-start-on-startup').checked = data.auto_report_on_startup;
+
+            // Update times tab
+            document.getElementById('timezone-select').value = data.timezone || 'America/New_York';
+            document.getElementById('day-report-time').value = data.day_report_time || '17:30';
+            document.getElementById('night-report-time').value = data.night_report_time || '05:30';
+
+        } catch (e) {
+            console.error('Failed to load status:', e);
+        }
+    },
+
+    async toggleAutoReport(enabled) {
+        try {
+            const res = await fetch('/api/reports/config/auto_report', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message);
+                this.loadStatus();
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+                // Revert toggle
+                document.getElementById('auto-report-toggle').checked = !enabled;
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+            document.getElementById('auto-report-toggle').checked = !enabled;
+        }
+    },
+
+    async setStartupBehavior(autoStart) {
+        try {
+            const res = await fetch('/api/reports/config/startup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({auto_report_on_startup: autoStart})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message);
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async saveTimes() {
+        const timezone = document.getElementById('timezone-select').value;
+        const dayTime = document.getElementById('day-report-time').value;
+        const nightTime = document.getElementById('night-report-time').value;
+
+        try {
+            // Save timezone
+            await fetch('/api/reports/config/timezone', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({timezone})
+            });
+
+            // Save times
+            const res = await fetch('/api/reports/config/times', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    day_report_time: dayTime,
+                    night_report_time: nightTime
+                })
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.('Report times saved');
+                this.loadStatus();
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async loadBCEmails() {
+        try {
+            const res = await fetch('/api/reports/battalion_chiefs');
+            const data = await res.json();
+
+            const container = document.getElementById('bc-email-list');
+            if (data.battalion_chiefs) {
+                container.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => `
+                    <div class="bc-item">
+                        <div class="bc-shift">${shift}</div>
+                        <div class="bc-info">
+                            <div class="bc-name">${bc.name}</div>
+                            <input type="email" class="bc-email-input"
+                                id="bc-email-${shift}"
+                                value="${bc.email || ''}"
+                                placeholder="Enter email...">
+                        </div>
+                        <button class="bc-test-btn" onclick="REPORTS_ADMIN.saveBCEmail('${shift}')">Save</button>
+                    </div>
+                `).join('');
+            }
+        } catch (e) {
+            console.error('Failed to load BC emails:', e);
+        }
+    },
+
+    async saveBCEmail(shift) {
+        const email = document.getElementById(`bc-email-${shift}`)?.value?.trim();
+
+        try {
+            const res = await fetch(`/api/reports/battalion_chiefs/${shift}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(`Shift ${shift} email saved`);
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async loadRecipients() {
+        try {
+            const res = await fetch('/api/reports/config/recipients');
+            const data = await res.json();
+
+            if (data.recipients?.length) {
+                document.getElementById('additional-recipients').value = data.recipients.join('\n');
+            }
+        } catch (e) {
+            console.error('Failed to load recipients:', e);
+        }
+    },
+
+    async saveRecipients() {
+        const text = document.getElementById('additional-recipients').value;
+        const recipients = text.split(/[\n,]/).map(e => e.trim()).filter(e => e);
+
+        try {
+            const res = await fetch('/api/reports/config/recipients', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({recipients})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message || 'Recipients saved');
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async loadEmailConfig() {
+        try {
+            const res = await fetch('/api/reports/config');
+            const data = await res.json();
+
+            // Update status display
+            const statusEl = document.getElementById('email-config-status');
+            statusEl.innerHTML = `
+                <div class="config-status-item">
+                    <span class="${data.sendgrid_configured ? 'check' : 'cross'}">
+                        ${data.sendgrid_configured ? '✓' : '✗'}
+                    </span>
+                    SendGrid API Key: ${data.sendgrid_configured ? 'Configured' : 'Not configured'}
+                </div>
+                <div class="config-status-item">
+                    <span class="${data.smtp_from ? 'check' : 'cross'}">
+                        ${data.smtp_from ? '✓' : '✗'}
+                    </span>
+                    From Email: ${data.smtp_from || 'Not set'}
+                </div>
+            `;
+
+            if (data.smtp_from) {
+                document.getElementById('from-email').value = data.smtp_from;
+            }
+        } catch (e) {
+            console.error('Failed to load email config:', e);
+        }
+    },
+
+    async saveEmailConfig() {
+        const apiKey = document.getElementById('sendgrid-api-key').value.trim();
+        const fromEmail = document.getElementById('from-email').value.trim();
+
+        if (!apiKey && !fromEmail) {
+            TOAST?.error?.('Enter at least one value');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/reports/config/sendgrid', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    api_key: apiKey || undefined,
+                    from_email: fromEmail || undefined
+                })
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message || 'Email config saved');
+                this.loadEmailConfig();
+                // Clear API key field after save
+                document.getElementById('sendgrid-api-key').value = '';
+            } else {
+                TOAST?.error?.(data.error || 'Failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async sendTestEmail() {
+        const email = document.getElementById('test-email-address').value.trim();
+        if (!email) {
+            TOAST?.error?.('Enter an email address');
+            return;
+        }
+
+        TOAST?.info?.('Sending test email...');
+
+        try {
+            const res = await fetch('/api/reports/test-email', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(data.message);
+            } else {
+                TOAST?.error?.(data.error || 'Failed to send');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async sendReportNow() {
+        if (!confirm('Send the daily report now to all configured recipients?')) return;
+
+        TOAST?.info?.('Sending report...');
+
+        try {
+            const res = await fetch('/api/reports/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({include_battalion_chiefs: true})
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                TOAST?.success?.(`Report sent to ${data.recipients?.length || 0} recipient(s)`);
+            } else {
+                TOAST?.error?.(data.error || 'Failed to send');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    previewReport() {
+        window.open('/api/reports/preview', '_blank');
+    },
+
+    togglePassword(id) {
+        const input = document.getElementById(id);
+        if (input) {
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    }
+};
+
+// Initialize when modal opens
+setTimeout(() => REPORTS_ADMIN.init(), 100);
+</script>

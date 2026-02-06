@@ -9176,6 +9176,15 @@ async def reports_modal(request: Request):
     )
 
 
+@app.get("/modals/reports_admin", response_class=HTMLResponse)
+async def reports_admin_modal(request: Request):
+    """Reports Administration modal - comprehensive report configuration."""
+    return templates.TemplateResponse(
+        "modals/reports_admin_modal.html",
+        {"request": request},
+    )
+
+
 @app.get("/modals/roster", response_class=HTMLResponse)
 async def roster_modal(request: Request):
     """Roster management modal."""

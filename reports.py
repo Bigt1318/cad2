@@ -2,11 +2,13 @@
 # FORD CAD — Daily Reporting & Messaging System
 # ============================================================================
 # Features:
-#   - Daily shift reports (every 30 min during shift, until end of shift)
-#   - Email (SMTP via Gmail)
+#   - Daily shift reports at end of each shift (17:30 day, 05:30 night)
+#   - Timezone-aware scheduling (configurable, default: America/New_York)
+#   - Email via SendGrid or SMTP
 #   - Signal messaging (via signal-cli)
 #   - SMS via carrier email-to-SMS gateways
 #   - Battalion Chief distribution list
+#   - Admin UI for full control
 # ============================================================================
 
 import sqlite3
@@ -17,12 +19,38 @@ import os
 import json
 import threading
 import time
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+
+# Timezone handling - prefer zoneinfo (Python 3.9+), fallback to pytz
+try:
+    from zoneinfo import ZoneInfo
+    def get_timezone(tz_name: str):
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:
+            return ZoneInfo("America/New_York")
+except ImportError:
+    try:
+        import pytz
+        def get_timezone(tz_name: str):
+            try:
+                return pytz.timezone(tz_name)
+            except Exception:
+                return pytz.timezone("America/New_York")
+    except ImportError:
+        # No timezone library available - use UTC offset approximation
+        def get_timezone(tz_name: str):
+            return None
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("reports")
 
 # ---------------------------------------------------------------------------
 # Configuration (override via environment or config file)
@@ -43,13 +71,17 @@ CONFIG = {
     # Database
     "db_path": os.getenv("CAD_DB_PATH", "cad.db"),
 
+    # TIMEZONE CONFIGURATION - Critical for correct report timing
+    # Server may run in UTC, but reports should be in local time
+    "timezone": os.getenv("CAD_TIMEZONE", "America/New_York"),
+
     # Shift Configuration - 4-shift rotation (A, B, C, D)
     # Day shifts: A and C (0600-1800, report at 1730)
     # Night shifts: B and D (1800-0600, report at 0530)
     "day_shift_start": 6,    # 0600
     "day_shift_end": 18,     # 1800
-    "day_report_time": (17, 30),   # 1730
-    "night_report_time": (5, 30),  # 0530
+    "day_report_time": "17:30",   # 1730 - End of day shift report
+    "night_report_time": "05:30",  # 0530 - End of night shift report
 
     # Shift rotation - 4 shifts cycle: A, B, C, D
     # Reference date when A shift started a day shift
@@ -61,8 +93,16 @@ CONFIG = {
     # Report interval (minutes) - for interim reports during shift
     "report_interval_minutes": 30,
 
-    # Enable automatic reporting
-    "auto_report_enabled": os.getenv("CAD_AUTO_REPORTS", "true").lower() == "true",
+    # Enable automatic reporting - DISABLED BY DEFAULT
+    # Set to true via admin UI or config file to enable
+    "auto_report_enabled": False,
+
+    # Auto-start scheduler on server startup - DISABLED BY DEFAULT
+    # When false, scheduler only starts when explicitly enabled via admin UI
+    "auto_report_on_startup": False,
+
+    # Additional report recipients (beyond battalion chiefs)
+    "additional_recipients": [],
 }
 
 # ---------------------------------------------------------------------------
@@ -139,12 +179,71 @@ SMS_GATEWAYS = {
 _sent_reports = set()
 _scheduler_running = False
 _scheduler_thread = None
+_scheduler_stop_event = threading.Event()  # For clean shutdown
 
 # Pending report confirmation state
 _pending_report = None  # Dict with report details when awaiting confirmation
 _pending_report_lock = threading.Lock()
 CONFIRMATION_TIMEOUT_SECONDS = 30
 
+
+# ---------------------------------------------------------------------------
+# Timezone Helper Functions
+# ---------------------------------------------------------------------------
+
+def get_local_now() -> datetime.datetime:
+    """
+    Get current datetime in the configured timezone.
+    This is the CRITICAL function that fixes the timezone issue.
+
+    Returns:
+        datetime: Current time in configured timezone (e.g., America/New_York)
+    """
+    tz = get_timezone(CONFIG.get("timezone", "America/New_York"))
+    if tz is not None:
+        # Get UTC now and convert to local timezone
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        local_now = utc_now.astimezone(tz)
+        return local_now
+    else:
+        # Fallback: assume server is in local time
+        return datetime.datetime.now()
+
+
+def get_local_date() -> datetime.date:
+    """Get current date in the configured timezone."""
+    return get_local_now().date()
+
+
+def format_time_local(dt: datetime.datetime = None) -> str:
+    """Format a datetime for display in local timezone."""
+    if dt is None:
+        dt = get_local_now()
+    tz_name = CONFIG.get("timezone", "America/New_York")
+    # Get short timezone abbreviation
+    try:
+        tz = get_timezone(tz_name)
+        if tz and hasattr(dt, 'tzinfo') and dt.tzinfo:
+            tz_abbr = dt.strftime('%Z') or tz_name.split('/')[-1]
+        else:
+            tz_abbr = tz_name.split('/')[-1]
+    except Exception:
+        tz_abbr = "ET"
+    return f"{dt.strftime('%Y-%m-%d %H:%M:%S')} {tz_abbr}"
+
+
+def parse_time_string(time_str: str) -> tuple:
+    """Parse a time string like '17:30' into (hour, minute) tuple."""
+    try:
+        parts = time_str.split(':')
+        return (int(parts[0]), int(parts[1]))
+    except Exception:
+        return (17, 30)  # Default to 5:30 PM
+
+
+# ---------------------------------------------------------------------------
+# Configuration Loading
+# ---------------------------------------------------------------------------
 
 def load_email_config():
     """Load email configuration from config file if exists."""
@@ -153,6 +252,8 @@ def load_email_config():
         try:
             with open(config_path) as f:
                 cfg = json.load(f)
+
+                # SMTP/Email settings
                 if cfg.get("smtp_pass"):
                     CONFIG["smtp_pass"] = cfg["smtp_pass"]
                 if cfg.get("smtp_user"):
@@ -161,9 +262,28 @@ def load_email_config():
                     CONFIG["sendgrid_api_key"] = cfg["sendgrid_api_key"]
                 if cfg.get("from_email"):
                     CONFIG["smtp_from"] = cfg["from_email"]
+
+                # TIMEZONE - Critical fix
+                if cfg.get("timezone"):
+                    CONFIG["timezone"] = cfg["timezone"]
+                    logger.info(f"Timezone configured: {CONFIG['timezone']}")
+
+                # Report timing settings
+                if cfg.get("day_report_time"):
+                    CONFIG["day_report_time"] = cfg["day_report_time"]
+                if cfg.get("night_report_time"):
+                    CONFIG["night_report_time"] = cfg["night_report_time"]
+
+                # Auto-report settings
                 if "auto_report_enabled" in cfg:
-                    CONFIG["auto_report_enabled"] = cfg["auto_report_enabled"]
-                
+                    CONFIG["auto_report_enabled"] = bool(cfg["auto_report_enabled"])
+                if "auto_report_on_startup" in cfg:
+                    CONFIG["auto_report_on_startup"] = bool(cfg["auto_report_on_startup"])
+
+                # Additional recipients
+                if cfg.get("additional_recipients"):
+                    CONFIG["additional_recipients"] = cfg["additional_recipients"]
+
                 # Load battalion chief contact info
                 if cfg.get("battalion_chiefs"):
                     for shift, info in cfg["battalion_chiefs"].items():
@@ -172,11 +292,11 @@ def load_email_config():
                                 BATTALION_CHIEFS_BY_SHIFT[shift]["email"] = info["email"]
                             if info.get("phone"):
                                 BATTALION_CHIEFS_BY_SHIFT[shift]["phone"] = info["phone"]
-                    print("[REPORTS] Battalion chief contacts loaded")
-                    
-                print("[REPORTS] Email config loaded from email_config.json")
+                    logger.info("Battalion chief contacts loaded")
+
+                logger.info(f"Config loaded from email_config.json (timezone={CONFIG.get('timezone')})")
         except Exception as e:
-            print(f"[REPORTS] Failed to load email config: {e}")
+            logger.error(f"Failed to load email config: {e}")
 
 
 def save_email_config(smtp_user: str = None, smtp_pass: str = None):
@@ -209,9 +329,9 @@ def save_email_config(smtp_user: str = None, smtp_pass: str = None):
 
 
 def _save_report_settings():
-    """Save report settings (auto_report_enabled, etc.) to config file."""
+    """Save all report settings to config file."""
     config_path = Path("email_config.json")
-    
+
     existing = {}
     if config_path.exists():
         try:
@@ -219,16 +339,22 @@ def _save_report_settings():
                 existing = json.load(f)
         except:
             pass
-    
+
+    # Save all report-related settings
     existing["auto_report_enabled"] = CONFIG.get("auto_report_enabled", False)
-    
+    existing["auto_report_on_startup"] = CONFIG.get("auto_report_on_startup", False)
+    existing["timezone"] = CONFIG.get("timezone", "America/New_York")
+    existing["day_report_time"] = CONFIG.get("day_report_time", "17:30")
+    existing["night_report_time"] = CONFIG.get("night_report_time", "05:30")
+    existing["additional_recipients"] = CONFIG.get("additional_recipients", [])
+
     try:
         with open(config_path, "w") as f:
             json.dump(existing, f, indent=2)
-        print(f"[REPORTS] Report settings saved (auto_report_enabled={existing['auto_report_enabled']})")
+        logger.info(f"Report settings saved (enabled={existing['auto_report_enabled']}, tz={existing['timezone']})")
         return True
     except Exception as e:
-        print(f"[REPORTS] Failed to save report settings: {e}")
+        logger.error(f"Failed to save report settings: {e}")
         return False
 
 
@@ -321,23 +447,27 @@ def get_db_connection():
 def get_current_shift(dt: datetime.datetime = None) -> str:
     """
     Determine current shift letter using 2-2-3-2-2-3 rotation.
+    Uses CONFIGURED TIMEZONE for accurate shift determination.
 
     Uses smart_get_current_shift from shift_logic.py if available,
     otherwise falls back to simple rotation.
-    
+
     The 2-2-3-2-2-3 pattern:
     - 14-day cycle
     - A and C alternate for day shifts
     - B and D alternate for night shifts
-    
+
     Reference: Feb 2, 2026 day shift = A shift (day 0 of cycle)
     """
     if USE_SMART_SHIFT:
+        # Pass timezone-aware time to smart_get_current_shift
+        if dt is None:
+            dt = get_local_now()
         return smart_get_current_shift(dt)
-    
+
     # Fallback to simple rotation if shift_logic not available
     if dt is None:
-        dt = datetime.datetime.now()
+        dt = get_local_now()  # Use timezone-aware time
 
     ref_date_str = CONFIG.get("shift_reference_date", "2026-02-02")
     ref_date = datetime.datetime.strptime(ref_date_str, "%Y-%m-%d").date()
@@ -404,12 +534,13 @@ def get_shift_date_range(shift: str, date: datetime.date = None) -> tuple:
 def is_during_shift() -> bool:
     """
     Check if we're currently during an active reporting period.
+    Uses CONFIGURED TIMEZONE for accurate time checking.
 
     Reports are sent every 30 min during shift:
     - Day shifts (A/C): 0600-1730 (last report at 17:30)
     - Night shifts (B/D): 1800-0530 (last report at 05:30)
     """
-    now = datetime.datetime.now()
+    now = get_local_now()  # Use timezone-aware time
     hour = now.hour
     minute = now.minute
 
@@ -1433,73 +1564,83 @@ def send_daily_report(
 # ---------------------------------------------------------------------------
 
 def get_next_report_time() -> Optional[datetime.datetime]:
-    """Get the next scheduled report time based on current time."""
-    now = datetime.datetime.now()
+    """
+    Get the next scheduled report time based on current time.
+    Uses CONFIGURED TIMEZONE for accurate scheduling.
+
+    Returns the next report time in the configured timezone.
+    """
+    now = get_local_now()  # Use timezone-aware time
     hour = now.hour
     minute = now.minute
 
-    # Determine which shift we're in
+    # Get configurable report times
+    day_time = parse_time_string(CONFIG.get("day_report_time", "17:30"))
+    night_time = parse_time_string(CONFIG.get("night_report_time", "05:30"))
+
+    # Determine which shift we're in and when the next report is
     if 6 <= hour < 18:
-        # A shift: reports every 30 min from 0600-1730
-        shift_end_hour = 17
-        shift_end_minute = 30
+        # Day shift: next report at day_report_time (default 17:30)
+        next_time = now.replace(hour=day_time[0], minute=day_time[1], second=0, microsecond=0)
+        if now >= next_time:
+            # Already past day report, next is night report
+            if hour < night_time[0]:
+                next_time = now.replace(hour=night_time[0], minute=night_time[1], second=0, microsecond=0)
+            else:
+                # Next night report is tomorrow morning
+                next_time = (now + datetime.timedelta(days=1)).replace(
+                    hour=night_time[0], minute=night_time[1], second=0, microsecond=0
+                )
     else:
-        # B shift: reports every 30 min from 1800-0530
+        # Night shift: next report at night_report_time (default 05:30)
         if hour >= 18:
-            # Evening portion
-            shift_end_hour = 5
-            shift_end_minute = 30
+            # Evening - next report is tomorrow morning
+            next_time = (now + datetime.timedelta(days=1)).replace(
+                hour=night_time[0], minute=night_time[1], second=0, microsecond=0
+            )
         else:
-            # Morning portion (0-6)
-            shift_end_hour = 5
-            shift_end_minute = 30
-
-    # Calculate next 30-minute mark
-    if minute < 30:
-        next_minute = 30
-        next_hour = hour
-    else:
-        next_minute = 0
-        next_hour = (hour + 1) % 24
-
-    next_time = now.replace(hour=next_hour, minute=next_minute, second=0, microsecond=0)
-
-    # Check if we've passed end of shift
-    current_shift = get_current_shift()
-    if current_shift == "A":
-        end_time = now.replace(hour=17, minute=30, second=0, microsecond=0)
-        if now > end_time:
-            return None  # Past end of A shift
-    else:
-        # B shift - ends at 05:30 next day
-        if 18 <= hour <= 23:
-            end_time = (now + datetime.timedelta(days=1)).replace(hour=5, minute=30, second=0, microsecond=0)
-        else:
-            end_time = now.replace(hour=5, minute=30, second=0, microsecond=0)
-        if now > end_time and hour < 18:
-            return None  # Past end of B shift
+            # Early morning (0-6)
+            next_time = now.replace(hour=night_time[0], minute=night_time[1], second=0, microsecond=0)
+            if now >= next_time:
+                # Already past night report, next is day report
+                next_time = now.replace(hour=day_time[0], minute=day_time[1], second=0, microsecond=0)
 
     return next_time
+
+
+def get_next_report_time_formatted() -> str:
+    """Get the next report time as a formatted string with timezone."""
+    next_time = get_next_report_time()
+    if next_time:
+        return format_time_local(next_time)
+    return "No scheduled report"
 
 
 def should_send_report_now() -> bool:
     """
     Check if it's time to send the end-of-shift report.
+    Uses CONFIGURED TIMEZONE and CONFIGURABLE report times.
 
     Only ONE report per shift:
-    - Day shifts (A/C): 1730 (30 min before end at 1800)
-    - Night shifts (B/D): 0530 (30 min before end at 0600)
+    - Day shifts (A/C): default 17:30 (30 min before end at 1800)
+    - Night shifts (B/D): default 05:30 (30 min before end at 0600)
     """
-    now = datetime.datetime.now()
+    now = get_local_now()  # Use timezone-aware time
     hour = now.hour
     minute = now.minute
 
-    # Day shift report time: 17:30
-    if hour == 17 and minute == 30:
+    # Get configurable report times
+    day_time = parse_time_string(CONFIG.get("day_report_time", "17:30"))
+    night_time = parse_time_string(CONFIG.get("night_report_time", "05:30"))
+
+    # Day shift report time (default 17:30)
+    if hour == day_time[0] and minute == day_time[1]:
+        logger.info(f"Day shift report time triggered at {hour:02d}:{minute:02d} {CONFIG.get('timezone', 'local')}")
         return True
 
-    # Night shift report time: 05:30
-    if hour == 5 and minute == 30:
+    # Night shift report time (default 05:30)
+    if hour == night_time[0] and minute == night_time[1]:
+        logger.info(f"Night shift report time triggered at {hour:02d}:{minute:02d} {CONFIG.get('timezone', 'local')}")
         return True
 
     return False
@@ -1656,26 +1797,42 @@ def process_expired_report():
 def run_scheduler():
     """
     Run report scheduler in a loop.
-    Creates pending reports every 30 minutes during shift hours.
-    Reports require confirmation (or auto-send after 30 second timeout).
+    Creates pending reports at configured times.
+    Reports require confirmation (or auto-send after timeout).
+
+    Uses CONFIGURED TIMEZONE for all time checks.
     """
     global _scheduler_running, _pending_report
     _scheduler_running = True
+    _scheduler_stop_event.clear()
 
-    print("[REPORTS] Scheduler started - end-of-shift reports only")
-    print("[REPORTS] Day shifts (A/C): 1730 | Night shifts (B/D): 0530")
-    print(f"[REPORTS] Battalion Chiefs: {', '.join(BATTALION_CHIEFS.keys())}")
-    print(f"[REPORTS] Confirmation timeout: {CONFIRMATION_TIMEOUT_SECONDS} seconds")
+    tz = CONFIG.get("timezone", "America/New_York")
+    day_time = CONFIG.get("day_report_time", "17:30")
+    night_time = CONFIG.get("night_report_time", "05:30")
+
+    logger.info("=" * 60)
+    logger.info("SCHEDULER STARTED")
+    logger.info(f"  Timezone: {tz}")
+    logger.info(f"  Day shift report: {day_time}")
+    logger.info(f"  Night shift report: {night_time}")
+    logger.info(f"  Next report: {get_next_report_time_formatted()}")
+    logger.info(f"  Confirmation timeout: {CONFIRMATION_TIMEOUT_SECONDS}s")
+    logger.info("=" * 60)
 
     last_pending_key = None
 
-    while _scheduler_running:
+    while _scheduler_running and not _scheduler_stop_event.is_set():
         try:
-            now = datetime.datetime.now()
-            current_key = f"{now.date()}_{now.hour}_{now.minute // 30}"
+            now = get_local_now()  # Use timezone-aware time
+            current_key = f"{now.date()}_{now.hour}_{now.minute}"
 
             # Check for expired pending reports and auto-send
             process_expired_report()
+
+            # Check if auto_report is still enabled
+            if not CONFIG.get("auto_report_enabled", False):
+                logger.info("Auto-report disabled, stopping scheduler")
+                break
 
             # Check if we need to create a new pending report
             if should_send_report_now() and current_key != last_pending_key:
@@ -1688,21 +1845,25 @@ def run_scheduler():
                     # Previous report handled, clear it and create new
                     clear_pending_report()
                     shift = get_current_shift()
-                    print(f"[REPORTS] Creating pending {shift} shift report at {now.strftime('%H:%M')}...")
+                    logger.info(f"Creating pending {shift} shift report at {format_time_local(now)}")
                     create_pending_report(shift)
                     last_pending_key = current_key
                 else:
                     # No pending report, create one
                     shift = get_current_shift()
-                    print(f"[REPORTS] Creating pending {shift} shift report at {now.strftime('%H:%M')}...")
+                    logger.info(f"Creating pending {shift} shift report at {format_time_local(now)}")
                     create_pending_report(shift)
                     last_pending_key = current_key
 
-            time.sleep(5)  # Check every 5 seconds for faster confirmation response
+            # Sleep with interruptible wait
+            _scheduler_stop_event.wait(timeout=5)
 
         except Exception as e:
-            print(f"[REPORTS] Scheduler error: {e}")
-            time.sleep(10)
+            logger.error(f"Scheduler error: {e}")
+            _scheduler_stop_event.wait(timeout=10)
+
+    _scheduler_running = False
+    logger.info("Scheduler loop exited")
 
 
 def start_scheduler():
@@ -1710,20 +1871,45 @@ def start_scheduler():
     global _scheduler_thread, _scheduler_running
 
     if _scheduler_thread and _scheduler_thread.is_alive():
-        print("[REPORTS] Scheduler already running")
-        return
+        logger.info("Scheduler already running")
+        return False
 
+    # Clear the stop event
+    _scheduler_stop_event.clear()
     _scheduler_running = True
-    _scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+
+    _scheduler_thread = threading.Thread(target=run_scheduler, daemon=True, name="ReportScheduler")
     _scheduler_thread.start()
-    print("[REPORTS] Scheduler thread started")
+    logger.info("Scheduler thread started")
+    return True
 
 
 def stop_scheduler():
-    """Stop the report scheduler."""
+    """Stop the report scheduler cleanly."""
     global _scheduler_running
+
+    if not _scheduler_running:
+        logger.info("Scheduler already stopped")
+        return True
+
+    logger.info("Stopping scheduler...")
     _scheduler_running = False
-    print("[REPORTS] Scheduler stopped")
+    _scheduler_stop_event.set()  # Signal the scheduler to wake up and exit
+
+    # Wait for thread to stop (with timeout)
+    if _scheduler_thread and _scheduler_thread.is_alive():
+        _scheduler_thread.join(timeout=10)
+        if _scheduler_thread.is_alive():
+            logger.warning("Scheduler thread did not stop cleanly")
+            return False
+
+    logger.info("Scheduler stopped successfully")
+    return True
+
+
+def is_scheduler_running() -> bool:
+    """Check if the scheduler is currently running."""
+    return _scheduler_running and _scheduler_thread is not None and _scheduler_thread.is_alive()
 
 
 # ---------------------------------------------------------------------------
@@ -1802,21 +1988,258 @@ def register_report_routes(app):
 
     @app.get("/api/reports/config")
     async def api_get_report_config():
-        """Get current report configuration."""
+        """Get current report configuration including timezone and times."""
         return {
             "smtp_configured": bool(CONFIG["smtp_user"] and CONFIG["smtp_pass"]),
+            "sendgrid_configured": bool(CONFIG.get("sendgrid_api_key")),
             "smtp_user": CONFIG["smtp_user"],
             "smtp_from": CONFIG["smtp_from"],
             "battalion_chiefs": BATTALION_CHIEFS,
-            "auto_report_enabled": CONFIG["auto_report_enabled"],
-            "report_interval_minutes": CONFIG["report_interval_minutes"],
-            "scheduler_running": _scheduler_running,
+            "auto_report_enabled": CONFIG.get("auto_report_enabled", False),
+            "auto_report_on_startup": CONFIG.get("auto_report_on_startup", False),
+            "scheduler_running": is_scheduler_running(),
+            "timezone": CONFIG.get("timezone", "America/New_York"),
+            "day_report_time": CONFIG.get("day_report_time", "17:30"),
+            "night_report_time": CONFIG.get("night_report_time", "05:30"),
+            "next_report_time": get_next_report_time_formatted(),
+            "current_time": format_time_local(),
+            "additional_recipients": CONFIG.get("additional_recipients", []),
         }
 
     @app.get("/api/shift")
     async def api_get_current_shift():
-        """Get current shift information for display."""
-        return get_shift_info()
+        """Get current shift information for display with timezone info."""
+        info = get_shift_info()
+        info["timezone"] = CONFIG.get("timezone", "America/New_York")
+        info["current_time_local"] = format_time_local()
+        return info
+
+    # -----------------------------------------------------------------------
+    # NEW API Endpoints for Report Configuration
+    # -----------------------------------------------------------------------
+
+    @app.get("/api/reports/scheduler/status")
+    async def api_get_scheduler_status():
+        """
+        Get comprehensive scheduler status.
+        Returns running state, next report time, timezone info.
+        """
+        return {
+            "enabled": CONFIG.get("auto_report_enabled", False),
+            "running": is_scheduler_running(),
+            "auto_report_on_startup": CONFIG.get("auto_report_on_startup", False),
+            "next_report_time": get_next_report_time_formatted(),
+            "timezone": CONFIG.get("timezone", "America/New_York"),
+            "day_report_time": CONFIG.get("day_report_time", "17:30"),
+            "night_report_time": CONFIG.get("night_report_time", "05:30"),
+            "current_time": format_time_local(),
+            "current_shift": get_current_shift(),
+        }
+
+    @app.post("/api/reports/config/timezone")
+    async def api_set_timezone(request: Request):
+        """
+        Set the timezone for report scheduling.
+        Body: {"timezone": "America/New_York"}
+        """
+        data = await request.json()
+        tz_name = data.get("timezone", "").strip()
+
+        if not tz_name:
+            return {"ok": False, "error": "Timezone is required"}
+
+        # Validate timezone
+        try:
+            tz = get_timezone(tz_name)
+            if tz is None:
+                return {"ok": False, "error": f"Invalid timezone: {tz_name}"}
+        except Exception as e:
+            return {"ok": False, "error": f"Invalid timezone: {tz_name} - {e}"}
+
+        CONFIG["timezone"] = tz_name
+        _save_report_settings()
+        logger.info(f"Timezone updated to: {tz_name}")
+
+        return {
+            "ok": True,
+            "timezone": tz_name,
+            "current_time": format_time_local(),
+            "next_report_time": get_next_report_time_formatted(),
+            "message": f"Timezone set to {tz_name}"
+        }
+
+    @app.post("/api/reports/config/times")
+    async def api_set_report_times(request: Request):
+        """
+        Set the report times for day and night shifts.
+        Body: {"day_report_time": "17:30", "night_report_time": "05:30"}
+        """
+        data = await request.json()
+
+        # Validate time format
+        import re
+        time_pattern = re.compile(r'^([01]?\d|2[0-3]):([0-5]\d)$')
+
+        if "day_report_time" in data:
+            day_time = data["day_report_time"].strip()
+            if not time_pattern.match(day_time):
+                return {"ok": False, "error": f"Invalid day_report_time format: {day_time}. Use HH:MM"}
+            CONFIG["day_report_time"] = day_time
+
+        if "night_report_time" in data:
+            night_time = data["night_report_time"].strip()
+            if not time_pattern.match(night_time):
+                return {"ok": False, "error": f"Invalid night_report_time format: {night_time}. Use HH:MM"}
+            CONFIG["night_report_time"] = night_time
+
+        _save_report_settings()
+        logger.info(f"Report times updated - Day: {CONFIG['day_report_time']}, Night: {CONFIG['night_report_time']}")
+
+        return {
+            "ok": True,
+            "day_report_time": CONFIG["day_report_time"],
+            "night_report_time": CONFIG["night_report_time"],
+            "next_report_time": get_next_report_time_formatted(),
+            "message": "Report times updated"
+        }
+
+    @app.post("/api/reports/scheduler/enable")
+    async def api_enable_scheduler():
+        """Enable and start the automatic report scheduler."""
+        CONFIG["auto_report_enabled"] = True
+        _save_report_settings()
+
+        if not is_scheduler_running():
+            start_scheduler()
+
+        logger.info("Scheduler enabled via API")
+        return {
+            "ok": True,
+            "enabled": True,
+            "running": is_scheduler_running(),
+            "next_report_time": get_next_report_time_formatted(),
+            "message": "Scheduler enabled and started"
+        }
+
+    @app.post("/api/reports/scheduler/disable")
+    async def api_disable_scheduler():
+        """Disable and stop the automatic report scheduler."""
+        CONFIG["auto_report_enabled"] = False
+        _save_report_settings()
+
+        if is_scheduler_running():
+            stop_scheduler()
+
+        logger.info("Scheduler disabled via API")
+        return {
+            "ok": True,
+            "enabled": False,
+            "running": is_scheduler_running(),
+            "message": "Scheduler disabled and stopped"
+        }
+
+    @app.post("/api/reports/config/startup")
+    async def api_set_startup_behavior(request: Request):
+        """
+        Set whether scheduler auto-starts on server startup.
+        Body: {"auto_report_on_startup": true/false}
+        """
+        data = await request.json()
+        auto_start = bool(data.get("auto_report_on_startup", False))
+
+        CONFIG["auto_report_on_startup"] = auto_start
+        _save_report_settings()
+        logger.info(f"Auto-report on startup set to: {auto_start}")
+
+        return {
+            "ok": True,
+            "auto_report_on_startup": auto_start,
+            "message": f"Server startup behavior updated"
+        }
+
+    @app.post("/api/reports/config/sendgrid")
+    async def api_set_sendgrid_config(request: Request):
+        """
+        Set SendGrid API key and from email.
+        Body: {"api_key": "SG.xxx", "from_email": "noreply@domain.com"}
+        """
+        data = await request.json()
+
+        api_key = data.get("api_key", "").strip()
+        from_email = data.get("from_email", "").strip()
+
+        if api_key:
+            CONFIG["sendgrid_api_key"] = api_key
+
+        if from_email:
+            CONFIG["smtp_from"] = from_email
+
+        # Save to config file
+        config_path = Path("email_config.json")
+        existing = {}
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    existing = json.load(f)
+            except:
+                pass
+
+        if api_key:
+            existing["sendgrid_api_key"] = api_key
+        if from_email:
+            existing["from_email"] = from_email
+
+        try:
+            with open(config_path, "w") as f:
+                json.dump(existing, f, indent=2)
+            logger.info("SendGrid config saved")
+        except Exception as e:
+            return {"ok": False, "error": f"Failed to save config: {e}"}
+
+        return {
+            "ok": True,
+            "sendgrid_configured": bool(CONFIG.get("sendgrid_api_key")),
+            "from_email": CONFIG.get("smtp_from"),
+            "message": "SendGrid configuration saved"
+        }
+
+    @app.post("/api/reports/test-email")
+    async def api_test_email(request: Request):
+        """
+        Send a test email to verify configuration.
+        Body: {"email": "test@example.com"}
+        """
+        data = await request.json()
+        email = data.get("email", "").strip()
+
+        if not email:
+            return {"ok": False, "error": "Email address required"}
+
+        # Send test email
+        success = send_email(
+            to=email,
+            subject="[FORD CAD] Test Email - Configuration Verified",
+            body_text=f"This is a test email from FORD CAD.\n\nConfiguration:\n- Timezone: {CONFIG.get('timezone')}\n- Day report time: {CONFIG.get('day_report_time')}\n- Night report time: {CONFIG.get('night_report_time')}\n\nIf you received this, email is configured correctly!",
+            body_html=f"""
+            <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #1e40af;">FORD CAD - Test Email</h2>
+                <p>This is a test email from FORD CAD. If you received this, email is configured correctly!</p>
+                <h3>Configuration:</h3>
+                <ul>
+                    <li><strong>Timezone:</strong> {CONFIG.get('timezone')}</li>
+                    <li><strong>Day report time:</strong> {CONFIG.get('day_report_time')}</li>
+                    <li><strong>Night report time:</strong> {CONFIG.get('night_report_time')}</li>
+                    <li><strong>Current time:</strong> {format_time_local()}</li>
+                </ul>
+            </div>
+            """
+        )
+
+        if success:
+            logger.info(f"Test email sent to {email}")
+            return {"ok": True, "message": f"Test email sent to {email}"}
+        else:
+            return {"ok": False, "error": "Failed to send test email. Check email configuration."}
 
     # -----------------------------------------------------------------------
     # Pending Report Confirmation Endpoints
@@ -1915,37 +2338,54 @@ def register_report_routes(app):
     @app.post("/api/reports/scheduler/start")
     async def api_start_scheduler():
         """Start the automatic report scheduler."""
-        start_scheduler()
         CONFIG["auto_report_enabled"] = True
         _save_report_settings()
-        return {"ok": True, "message": "Scheduler started"}
+        started = start_scheduler()
+        logger.info("Scheduler started via legacy API")
+        return {
+            "ok": True,
+            "running": is_scheduler_running(),
+            "next_report_time": get_next_report_time_formatted(),
+            "message": "Scheduler started"
+        }
 
     @app.post("/api/reports/scheduler/stop")
     async def api_stop_scheduler():
         """Stop the automatic report scheduler."""
-        stop_scheduler()
         CONFIG["auto_report_enabled"] = False
         _save_report_settings()
-        return {"ok": True, "message": "Scheduler stopped"}
+        stopped = stop_scheduler()
+        logger.info("Scheduler stopped via legacy API")
+        return {
+            "ok": True,
+            "running": is_scheduler_running(),
+            "message": "Scheduler stopped"
+        }
 
     @app.post("/api/reports/config/auto_report")
     async def api_toggle_auto_report(request: Request):
         """Toggle auto-reporting on/off (Admin only)."""
         data = await request.json()
-        enabled = data.get("enabled", False)
-        
-        CONFIG["auto_report_enabled"] = bool(enabled)
+        enabled = bool(data.get("enabled", False))
+
+        CONFIG["auto_report_enabled"] = enabled
         _save_report_settings()
-        
+
         if enabled:
-            start_scheduler()
+            if not is_scheduler_running():
+                start_scheduler()
+            logger.info("Auto-reporting enabled via toggle API")
         else:
-            stop_scheduler()
-        
+            if is_scheduler_running():
+                stop_scheduler()
+            logger.info("Auto-reporting disabled via toggle API")
+
         return {
             "ok": True,
             "auto_report_enabled": CONFIG["auto_report_enabled"],
-            "scheduler_running": _scheduler_running,
+            "scheduler_running": is_scheduler_running(),
+            "next_report_time": get_next_report_time_formatted() if enabled else None,
+            "timezone": CONFIG.get("timezone", "America/New_York"),
             "message": f"Auto-reporting {'enabled' if enabled else 'disabled'}"
         }
 
@@ -2097,18 +2537,37 @@ def register_report_routes(app):
 
 
 # ---------------------------------------------------------------------------
-# Auto-start scheduler if enabled
+# Initialization
 # ---------------------------------------------------------------------------
 
 def init_reports():
-    """Initialize reports module - call from main.py startup."""
+    """
+    Initialize reports module - call from main.py startup.
+
+    IMPORTANT: Scheduler only starts if BOTH conditions are met:
+    1. auto_report_on_startup is True (explicit opt-in for startup)
+    2. auto_report_enabled is True (scheduler is enabled)
+
+    This prevents reports from sending unexpectedly after server restart.
+    Users must explicitly enable auto-reports via the Admin UI.
+    """
     load_email_config()
-    # Auto-scheduler disabled - use manual "Send Report" button or REPORT command
-    # To enable: set auto_report_enabled to true in config or call start_scheduler()
-    if CONFIG.get("auto_report_enabled") and CONFIG.get("auto_report_enabled") != "false":
+
+    tz = CONFIG.get("timezone", "America/New_York")
+    logger.info(f"Reports module initialized (timezone={tz})")
+
+    # Check startup conditions
+    auto_enabled = CONFIG.get("auto_report_enabled", False)
+    auto_on_startup = CONFIG.get("auto_report_on_startup", False)
+
+    if auto_enabled and auto_on_startup:
+        logger.info("Auto-report enabled AND auto_report_on_startup=True, starting scheduler")
         start_scheduler()
+    elif auto_enabled:
+        logger.info("Auto-report enabled but auto_report_on_startup=False - scheduler NOT started")
+        logger.info("Use Admin UI to manually start the scheduler")
     else:
-        print("[REPORTS] Auto-scheduler disabled - use manual Send Report")
+        logger.info("Auto-scheduler disabled - use Admin UI or 'REPORT' command to send reports")
 
 
 if __name__ == "__main__":

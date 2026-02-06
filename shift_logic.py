@@ -1,9 +1,9 @@
 # ============================================================================
 # FORD CAD — Smart Shift Logic (2-2-3-2-2-3 Rotation)
 # ============================================================================
-# 
+#
 # Corrected pattern based on actual BlueOval SK schedule:
-# 
+#
 # A/B crews and C/D crews alternate:
 #   - 2 days on, 2 days off, 3 days on, 2 days off, 2 days on, 3 days off
 #
@@ -15,6 +15,10 @@
 #   Feb 11-12 (Tue-Wed): A/B - 2 days
 #   Feb 13-15 (Thu-Sat): C/D - 3 days
 #   Then repeats...
+#
+# NOTE: This module accepts timezone-aware datetime objects from reports.py
+# When dt is None, it uses naive datetime.now() for backward compatibility
+# For proper timezone handling, pass a timezone-aware datetime from reports.py
 #
 # ============================================================================
 

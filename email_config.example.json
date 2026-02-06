@@ -1,0 +1,38 @@
+{
+  "_comment": "FORD CAD Report Configuration - Copy to email_config.json and fill in values",
+
+  "sendgrid_api_key": "",
+  "from_email": "noreply@yourdomain.com",
+
+  "timezone": "America/New_York",
+  "day_report_time": "17:30",
+  "night_report_time": "05:30",
+
+  "auto_report_enabled": false,
+  "auto_report_on_startup": false,
+
+  "battalion_chiefs": {
+    "A": {
+      "name": "Bill Mullins",
+      "email": "",
+      "phone": ""
+    },
+    "B": {
+      "name": "Daniel Highbaugh",
+      "email": "",
+      "phone": ""
+    },
+    "C": {
+      "name": "Kevin Jevning",
+      "email": "",
+      "phone": ""
+    },
+    "D": {
+      "name": "Shane Carpenter",
+      "email": "",
+      "phone": ""
+    }
+  },
+
+  "additional_recipients": []
+}
