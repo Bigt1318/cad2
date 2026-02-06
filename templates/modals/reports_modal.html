@@ -33,10 +33,18 @@
                         </button>
                         <button class="report-btn" onclick="REPORTS.preview()">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
-                                <polyline points="14,2 14,8 20,8"></polyline>
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
                             </svg>
                             <span>Preview Report</span>
+                        </button>
+                        <button class="report-btn" onclick="REPORTS.openReportNewTab()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path>
+                                <polyline points="15,3 21,3 21,9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                            <span>Open in New Tab</span>
                         </button>
                     </div>
                 </div>
@@ -56,6 +64,9 @@
                     <div class="report-section-title">Shift Status</div>
                     <div id="shift-status" class="shift-status-box">Loading...</div>
                 </div>
+
+                <!-- Report Preview Container -->
+                <div id="report-preview-container" class="report-preview-container" style="display:none;"></div>
             </div>
 
             <!-- SETTINGS TAB -->
@@ -219,6 +230,46 @@
 .btn-admin-link:hover {
     background: #1e40af;
 }
+.report-preview-container {
+    margin-top: var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    max-height: 400px;
+    overflow: auto;
+}
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--ford-blue);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    position: sticky;
+    top: 0;
+}
+.preview-header button {
+    color: white;
+}
+.preview-content {
+    padding: 12px;
+    font-size: 12px;
+}
+.preview-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.preview-content th, .preview-content td {
+    padding: 6px 8px;
+    border: 1px solid var(--border-default);
+    text-align: left;
+}
+.preview-content th {
+    background: var(--bg-active);
+    font-weight: 600;
+}
 </style>
 
 <script>
@@ -376,9 +427,36 @@ window.REPORTS = {
         }
     },
 
-    preview() {
-        // Open report preview in new tab
-        window.open('/api/reports/preview', '_blank');
+    async preview() {
+        // Fetch and display report inline
+        const previewContainer = document.getElementById('report-preview-container');
+        if (!previewContainer) {
+            // Fallback to new tab if no preview container
+            this.openReportNewTab();
+            return;
+        }
+
+        previewContainer.innerHTML = '<div style="text-align:center;padding:20px;">Loading report...</div>';
+        previewContainer.style.display = 'block';
+
+        try {
+            const res = await fetch('/api/reports/daily/html');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const html = await res.text();
+            previewContainer.innerHTML = `
+                <div class="preview-header">
+                    <span>Report Preview</span>
+                    <button onclick="document.getElementById('report-preview-container').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:18px;">&times;</button>
+                </div>
+                <div class="preview-content">${html}</div>
+            `;
+        } catch (e) {
+            previewContainer.innerHTML = `<div style="color:#dc2626;padding:20px;">Failed to load report: ${e.message}</div>`;
+        }
+    },
+
+    openReportNewTab() {
+        window.open('/api/reports/daily/html', '_blank');
     }
 };
 
