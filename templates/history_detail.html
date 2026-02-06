@@ -1,0 +1,188 @@
+<!-- ============================================================
+     FORD-CAD — INCIDENT HISTORY DETAIL (MODAL)
+     Phase-3 Canon
+     ============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal history-detail-modal">
+  <div class="cad-modal-body">
+
+    <div class="history-detail">
+
+      <div class="history-detail-header">
+        <h2>Incident #{{ incident.incident_number or incident.incident_id }}</h2>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="pill-btn pill-btn-primary" type="button"
+                  onclick="window._openIAWFromHistory({{ incident.incident_id }})">
+            Open IAW
+          </button>
+
+          {% if (incident.status or "")|upper == "CLOSED" %}
+            <button class="pill-btn" type="button"
+                    data-action="incident-reopen"
+                    data-incident-id="{{ incident.incident_id }}">
+              Reopen
+            </button>
+          {% endif %}
+
+          <button class="pill-btn" type="button" onclick="CAD_MODAL.close()">Close</button>
+        </div>
+      </div>
+
+      <div class="history-meta">
+        <div><strong>Run:</strong> {{ incident.incident_number or "" }}</div>
+        <div><strong>Date:</strong> {{ incident.incident_date }}</div>
+        <div><strong>Time:</strong> {{ incident.incident_time }}</div>
+        <div><strong>Type:</strong> {{ incident.type }}</div>
+        <div><strong>Location:</strong> {{ incident.location }}</div>
+        <div><strong>Status:</strong> {{ incident.status }}</div>
+      </div>
+
+      <h3>Narrative</h3>
+
+      <div class="history-narrative">
+        {% if narrative|length == 0 %}
+          <div class="history-narrative-empty">No narrative entries.</div>
+        {% else %}
+          {% for n in narrative %}
+            <div class="history-narrative-entry">
+              <div class="history-narrative-header">
+                <span>{{ n.timestamp }}</span>
+                <span>{{ n.user }}</span>
+              </div>
+              <div class="history-narrative-text">{{ n.text }}</div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <h3>Activity</h3>
+
+      <div class="history-narrative">
+        {% if events is not defined or events|length == 0 %}
+          <div class="history-narrative-empty">No activity events.</div>
+        {% else %}
+          {% for e in events %}
+            <div class="history-narrative-entry">
+              <div class="history-narrative-header">
+                <span>{{ e.timestamp }}</span>
+                <span>{{ e.user or "" }}{% if e.unit_id %} ({{ e.unit_id }}){% endif %}</span>
+              </div>
+              <div class="history-narrative-text">
+                <strong>{{ e.event_type }}</strong>{% if e.details %}: {{ e.details }}{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <h3>Add Note</h3>
+      <div class="history-add-note">
+        <textarea id="history-note-text-{{ incident.incident_id }}"
+                  class="history-note-textarea"
+                  placeholder="Enter note or remark..."
+                  rows="2"></textarea>
+        <button class="pill-btn pill-btn-primary"
+                onclick="window._addNoteFromHistory({{ incident.incident_id }})">
+          Add Note
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<style>
+.history-add-note {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.history-note-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #1e293b);
+  resize: vertical;
+  min-height: 60px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.history-note-textarea:focus {
+  outline: none;
+  border-color: var(--ford-blue, #003478);
+  box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
+}
+
+.history-note-textarea::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.pill-btn-primary {
+  background: var(--ford-blue, #003478);
+  color: #ffffff;
+  border-color: var(--ford-blue, #003478);
+}
+
+.pill-btn-primary:hover {
+  background: #002855;
+}
+</style>
+
+<script>
+// Helper to open IAW from history detail
+window._openIAWFromHistory = function(incidentId) {
+  if (!incidentId) return;
+  CAD_MODAL.close();
+  setTimeout(() => {
+    if (window.IAW?.open) {
+      window.IAW.open(incidentId);
+    }
+  }, 150);
+};
+
+// Helper to add note from history detail
+window._addNoteFromHistory = async function(incidentId) {
+  if (!incidentId) return;
+
+  const textarea = document.getElementById(`history-note-text-${incidentId}`);
+  const text = (textarea?.value || "").trim();
+
+  if (!text) {
+    textarea?.focus();
+    return;
+  }
+
+  try {
+    const res = await fetch('/remark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        incident_id: Number(incidentId),
+        text: text
+      })
+    });
+
+    if (res.ok) {
+      textarea.value = "";
+      window.TOAST?.success?.("Note added");
+      // Reload the history detail to show updated narrative
+      CAD_MODAL.open(`/history/${encodeURIComponent(incidentId)}`);
+    } else {
+      window.TOAST?.error?.("Failed to add note");
+    }
+  } catch (err) {
+    console.error("[HISTORY] Add note failed:", err);
+    window.TOAST?.error?.("Failed to add note");
+  }
+};
+</script>

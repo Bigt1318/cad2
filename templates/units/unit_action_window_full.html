@@ -1,0 +1,61 @@
+<!-- ============================================================
+     FORD CAD — UNIT ACTION WINDOW (FULL DETAILS)
+     templates/units/unit_action_window_full.html
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal uaw-full-modal" id="uaw-full-modal">
+
+  <div class="cad-modal-header" onmousedown="UAW.startDrag?.(event)">
+    Unit {{ unit.unit_id }} — Details
+  </div>
+
+  <div class="cad-modal-body">
+
+    <div class="uaw-full-grid">
+
+      <div class="uaw-full-icon">
+        {% if unit.icon %}
+          <img src="/static/images/{{ unit.icon }}" alt="icon">
+        {% else %}
+          <img src="/static/images/firefighter.jpg" alt="icon">
+        {% endif %}
+      </div>
+
+      <div class="uaw-full-meta">
+        <div><b>Role:</b> {{ unit.role or "—" }}</div>
+        <div><b>Status:</b> {{ unit.status or "—" }}</div>
+        <div><b>Updated:</b> {{ unit.updated or "—" }}</div>
+        <div><b>Location:</b> {{ unit.location or "—" }}</div>
+
+        {% if active_incident_id %}
+          <div style="margin-top:10px;"><b>Active Incident:</b> #{{ active_incident_id }}</div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <hr style="border:0;border-top:1px solid #1c2833;margin:14px 0;">
+
+    {% if active_incident_id %}
+      <div class="uaw-full-actions">
+        <button onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'ENROUTE')">Enroute</button>
+        <button onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'ARRIVED')">Arrived</button>
+        <button onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'OPERATING')">Operating</button>
+        <button onclick="UAW.updateStatus('{{ unit.unit_id }}', '{{ active_incident_id }}', 'CLEAR')">Clear</button>
+      </div>
+    {% else %}
+      <div style="opacity:.85;">
+        No active incident for this unit. Status actions require an assigned incident.
+      </div>
+    {% endif %}
+
+  </div>
+
+  <div class="cad-modal-footer">
+    <button onclick="UAW.open('{{ unit.unit_id }}')">Back to Commands</button>
+    <button onclick="CAD_MODAL.close()">Close</button>
+  </div>
+
+</div>

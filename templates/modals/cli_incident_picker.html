@@ -1,0 +1,161 @@
+<!-- =========================================================================
+  FORD CAD — CLI INCIDENT PICKER MODAL
+  Used when dispatcher types: 18 D  (no incident specified)
+============================================================================= -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal cli-incident-picker-modal">
+  <div class="cad-modal-body">
+      <div class="history-header" style="margin-bottom:16px;">
+        <h3>Select Incident</h3>
+        <div class="history-header-actions">
+          <span style="margin-right:12px;">
+            <strong>Units:</strong> {{ units_csv or "(none)" }}
+            &nbsp;|&nbsp;
+            <strong>Mode:</strong> {{ mode or "D" }}
+          </span>
+          <button class="pill-btn" onclick="CAD_MODAL.close()">Cancel</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:600; margin-bottom:6px;">OPEN</div>
+        {% if not open_incidents %}
+          <div style="opacity:.75;">(none)</div>
+        {% else %}
+          <table class="dispatch-picker-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>#</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for i in open_incidents %}
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
+                <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
+                <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
+                <td>{{ i.type }}</td>
+                <td>{{ i.location }}</td>
+                <td>{{ i.updated }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:600; margin-bottom:6px;">ACTIVE</div>
+        {% if not active_incidents %}
+          <div style="opacity:.75;">(none)</div>
+        {% else %}
+          <table class="dispatch-picker-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>#</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for i in active_incidents %}
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
+                <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
+                <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
+                <td>{{ i.type }}</td>
+                <td>{{ i.location }}</td>
+                <td>{{ i.updated }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-weight:600; margin-bottom:6px;">HELD</div>
+        {% if not held_incidents %}
+          <div style="opacity:.75;">(none)</div>
+        {% else %}
+          <table class="dispatch-picker-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>#</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for i in held_incidents %}
+              <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
+                <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
+                <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
+                <td>{{ i.type }}</td>
+                <td>{{ i.location }}</td>
+                <td>{{ i.updated }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+
+      <details>
+        <summary style="cursor:pointer; font-weight:600;">
+          CLOSED (clicking will REOPEN it)
+        </summary>
+
+        <div style="margin-top:10px;">
+          {% if not closed_incidents %}
+            <div style="opacity:.75;">(none)</div>
+          {% else %}
+            <table class="dispatch-picker-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>#</th>
+                  <th>Type</th>
+                  <th>Location</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for i in closed_incidents %}
+                <tr class="picker-row" data-incident-id="{{ i.incident_id }}">
+                  <td class="issue-flag">{% if i.issue_flag %}⚠{% endif %}</td>
+                  <td class="incident-id">{{ i.incident_number if i.incident_number else "NO#" }}</td>
+                  <td>{{ i.type }}</td>
+                  <td>{{ i.location }}</td>
+                  <td>{{ i.updated }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        </div>
+      </details>
+
+  </div>
+</div>
+
+<script>
+// Event delegation for picker rows - more reliable than inline onclick
+document.addEventListener('click', function(e) {
+    const row = e.target.closest('.picker-row');
+    if (!row) return;
+
+    const incidentId = row.dataset.incidentId;
+    if (incidentId && window.CAD?.cli?.pickIncident) {
+        console.log('[CLI Picker] Selected incident:', incidentId);
+        window.CAD.cli.pickIncident(incidentId);
+    }
+}, true);
+</script>

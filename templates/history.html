@@ -1,0 +1,56 @@
+<!-- ============================================================
+     FORD-CAD — INCIDENT HISTORY LIST
+     Phase-3 Canon • Clean Table Style
+     ============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal history-modal">
+    <div class="cad-modal-body">
+
+        <div class="history-panel">
+
+            <div class="history-header">
+                <h3>Incident History</h3>
+                <div class="history-header-actions">
+                    <span class="history-count">{{ incidents|length }} records</span>
+                    <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
+                </div>
+            </div>
+
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th style="width:100px;">Run #</th>
+                        <th style="width:100px;">Date</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th style="width:100px;">Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                {% if incidents|length == 0 %}
+                    <tr>
+                        <td colspan="5" class="history-empty">No historical incidents.</td>
+                    </tr>
+                {% else %}
+                    {% for i in incidents %}
+                    <tr class="history-row"
+                        style="cursor:pointer;"
+                        onclick="CAD_MODAL.open('/history/{{ i.incident_id }}')">
+                        <td class="history-id">{{ i.incident_number }}</td>
+                        <td>{{ i.incident_date }}</td>
+                        <td>{{ i.type }}</td>
+                        <td>{{ i.location }}</td>
+                        <td>{{ i.status }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+                </tbody>
+            </table>
+
+        </div>
+
+    </div>
+</div>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Station Alerts - FORD CAD</title>
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+    }
+    .alerts-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .alerts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #003478;
+    }
+    .alerts-header h1 {
+      margin: 0;
+      color: #003478;
+      font-size: 1.75rem;
+    }
+    .back-link {
+      color: #003478;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .btn-primary { background: #003478; color: #fff; }
+    .btn-primary:hover { background: #002356; }
+    .btn-secondary { background: #e2e8f0; color: #1e293b; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-success { background: #22c55e; color: #fff; }
+
+    /* Alert Cards */
+    .alerts-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    .alert-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .alert-card.inactive {
+      opacity: 0.6;
+      background: #f8fafc;
+    }
+    .alert-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #dbeafe;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .alert-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: #003478;
+    }
+    .alert-info {
+      flex: 1;
+    }
+    .alert-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .alert-details {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 0.25rem;
+    }
+    .alert-status {
+      font-size: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .status-active { color: #22c55e; }
+    .status-inactive { color: #94a3b8; }
+    .status-success { color: #22c55e; }
+    .status-error { color: #dc2626; }
+    .alert-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .alert-actions button {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 700px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 1rem 1.5rem;
+      background: #003478;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.25rem; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      background: #f8fafc;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .form-group textarea {
+      min-height: 80px;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      font-size: 0.85rem;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .form-help {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="alerts-container">
+    <div class="alerts-header">
+      <div>
+        <a href="/" class="back-link">&larr; Back to CAD</a>
+        <h1>Station Alerting</h1>
+        <p style="color: #64748b; margin: 0.5rem 0 0 0;">Configure webhooks to notify stations on dispatch events</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()">+ New Alert</button>
+    </div>
+
+    <div class="alerts-grid" id="alerts-grid">
+      <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modal-title">New Station Alert</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="alert-form">
+          <input type="hidden" id="alert-id">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Alert Name *</label>
+              <input type="text" id="alert-name" required placeholder="e.g., Station 1 Alert">
+            </div>
+            <div class="form-group">
+              <label>Station ID</label>
+              <input type="text" id="alert-station" placeholder="e.g., STA1">
+              <div class="form-help">Optional identifier sent with webhook</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Webhook URL *</label>
+            <input type="url" id="alert-url" required placeholder="https://example.com/webhook">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>HTTP Method</label>
+              <select id="alert-method">
+                <option value="POST">POST</option>
+                <option value="GET">GET</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Trigger On</label>
+              <select id="alert-trigger">
+                <option value="DISPATCH">Dispatch</option>
+                <option value="ENROUTE">Unit Enroute</option>
+                <option value="ARRIVED">Unit Arrived</option>
+                <option value="CLEARED">Unit Cleared</option>
+                <option value="ALL">All Events</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Custom Headers (JSON)</label>
+            <textarea id="alert-headers" placeholder='{"Authorization": "Bearer token123"}'></textarea>
+            <div class="form-help">Optional JSON object with custom HTTP headers</div>
+          </div>
+
+          <div class="form-group">
+            <label>Custom Template (JSON)</label>
+            <textarea id="alert-template" placeholder='{"alert": "{{type}} at {{location}}", "units": {{units}}}'></textarea>
+            <div class="form-help">Optional custom payload template. Use {{field}} for variables: incident_id, incident_number, type, location, priority, units, narrative, timestamp</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Unit Filter</label>
+              <input type="text" id="alert-unit-filter" placeholder="ENGINE1, ENGINE2, LADDER1">
+              <div class="form-help">Comma-separated list. Alert only fires for these units.</div>
+            </div>
+            <div class="form-group">
+              <label>Incident Type Filter</label>
+              <input type="text" id="alert-type-filter" placeholder="STRUCTURE FIRE, VEHICLE FIRE">
+              <div class="form-help">Comma-separated list. Alert only fires for these types.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" id="alert-active" checked>
+              Active
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-danger" id="delete-btn" style="display:none" onclick="deleteAlert()">Delete</button>
+        <button class="btn btn-primary" onclick="saveAlert()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let alerts = [];
+    let editingId = null;
+
+    async function loadAlerts() {
+      try {
+        const res = await fetch('/api/station_alerts');
+        const data = await res.json();
+        if (data.ok) {
+          alerts = data.alerts;
+          renderAlerts();
+        }
+      } catch (err) {
+        console.error('Load error:', err);
+      }
+    }
+
+    function renderAlerts() {
+      const grid = document.getElementById('alerts-grid');
+
+      if (alerts.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <h3>No Station Alerts Configured</h3>
+            <p>Click "New Alert" to add a webhook notification.</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = alerts.map(a => `
+        <div class="alert-card ${a.is_active ? '' : 'inactive'}">
+          <div class="alert-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+          </div>
+          <div class="alert-info">
+            <div class="alert-name">${escapeHtml(a.name)}</div>
+            <div class="alert-details">
+              ${a.station_id ? `Station: ${escapeHtml(a.station_id)} | ` : ''}
+              Trigger: ${a.trigger_on || 'DISPATCH'}
+              ${a.unit_filter ? ` | Units: ${escapeHtml(a.unit_filter)}` : ''}
+            </div>
+            <div class="alert-status">
+              <span class="${a.is_active ? 'status-active' : 'status-inactive'}">
+                ${a.is_active ? 'Active' : 'Inactive'}
+              </span>
+              ${a.last_triggered ? ` | Last: ${a.last_triggered.substring(0, 19)}` : ''}
+              ${a.last_status ? ` (${a.last_status === 200 ? '<span class="status-success">OK</span>' : '<span class="status-error">Error ' + a.last_status + '</span>'})` : ''}
+            </div>
+          </div>
+          <div class="alert-actions">
+            <button class="btn btn-secondary" onclick="testAlert(${a.id})">Test</button>
+            <button class="btn btn-primary" onclick="editAlert(${a.id})">Edit</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function openModal(alert = null) {
+      editingId = alert ? alert.id : null;
+      document.getElementById('modal-title').textContent = alert ? 'Edit Station Alert' : 'New Station Alert';
+      document.getElementById('delete-btn').style.display = alert ? 'inline-block' : 'none';
+
+      document.getElementById('alert-id').value = alert?.id || '';
+      document.getElementById('alert-name').value = alert?.name || '';
+      document.getElementById('alert-station').value = alert?.station_id || '';
+      document.getElementById('alert-url').value = alert?.webhook_url || '';
+      document.getElementById('alert-method').value = alert?.webhook_method || 'POST';
+      document.getElementById('alert-trigger').value = alert?.trigger_on || 'DISPATCH';
+      document.getElementById('alert-headers').value = alert?.webhook_headers || '';
+      document.getElementById('alert-template').value = alert?.webhook_template || '';
+      document.getElementById('alert-unit-filter').value = alert?.unit_filter || '';
+      document.getElementById('alert-type-filter').value = alert?.incident_type_filter || '';
+      document.getElementById('alert-active').checked = alert ? alert.is_active : true;
+
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+
+    function closeModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('modal-overlay').classList.remove('active');
+      editingId = null;
+    }
+
+    function editAlert(id) {
+      const alert = alerts.find(a => a.id === id);
+      if (alert) openModal(alert);
+    }
+
+    async function saveAlert() {
+      const data = {
+        id: editingId,
+        name: document.getElementById('alert-name').value,
+        station_id: document.getElementById('alert-station').value,
+        webhook_url: document.getElementById('alert-url').value,
+        webhook_method: document.getElementById('alert-method').value,
+        trigger_on: document.getElementById('alert-trigger').value,
+        webhook_headers: document.getElementById('alert-headers').value,
+        webhook_template: document.getElementById('alert-template').value,
+        unit_filter: document.getElementById('alert-unit-filter').value,
+        incident_type_filter: document.getElementById('alert-type-filter').value,
+        is_active: document.getElementById('alert-active').checked
+      };
+
+      if (!data.name || !data.webhook_url) {
+        alert('Name and URL are required');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/station_alerts', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.ok) {
+          closeModal();
+          loadAlerts();
+        } else {
+          alert('Error: ' + (result.error || 'Unknown'));
+        }
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+      }
+    }
+
+    async function deleteAlert() {
+      if (!editingId) return;
+      if (!confirm('Delete this station alert?')) return;
+
+      try {
+        const res = await fetch(`/api/station_alerts/${editingId}`, {method: 'DELETE'});
+        const result = await res.json();
+        if (result.ok) {
+          closeModal();
+          loadAlerts();
+        }
+      } catch (err) {
+        alert('Delete failed');
+      }
+    }
+
+    async function testAlert(id) {
+      try {
+        const res = await fetch(`/api/station_alerts/${id}/test`, {method: 'POST'});
+        const result = await res.json();
+        if (result.ok) {
+          alert(`Test successful! Status: ${result.status_code}`);
+        } else {
+          alert(`Test failed: ${result.error || 'Unknown error'}`);
+        }
+        loadAlerts(); // Refresh to show last triggered
+      } catch (err) {
+        alert('Test failed: ' + err.message);
+      }
+    }
+
+    loadAlerts();
+  </script>
+</body>
+</html>

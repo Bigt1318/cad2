@@ -1,0 +1,51 @@
+{# ============================================================
+   FILE: templates/partials/eventlog_rows.html
+   FORD-CAD — EVENT LOG ROWS (PARTIAL)
+   Uses history-table styling for consistency
+   ============================================================ #}
+
+{% if rows and rows|length %}
+  {% for row in rows %}
+    <tr class="history-row{% if row.issue_found %} issue-row{% endif %}" data-log-id="{{ row.id }}">
+
+      {# Issue Flag Column #}
+      <td>
+        {% if row.issue_found %}
+          <span class="issue-indicator" title="Issue flagged">!</span>
+        {% endif %}
+      </td>
+
+      {# Timestamp #}
+      <td>{{ row.timestamp or "" }}</td>
+
+      {# Category #}
+      <td>
+        <span class="log-category">{{ row.category or row.event_type or row.action or "OTHER" }}</span>
+      </td>
+
+      {# Unit #}
+      <td>{{ row.unit_id or "—" }}</td>
+
+      {# Incident #}
+      <td>
+        {% if row.incident_id %}
+          <a href="#" class="history-id" onclick="IAW.open({{ row.incident_id }}); return false;">
+            {{ row.incident_number or row.incident_id }}
+          </a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      {# Details #}
+      <td>
+        {{ row.details or "" }}
+        {% if row.user %}<span class="log-user"> — {{ row.user }}</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="6" class="history-empty">No entries found</td>
+  </tr>
+{% endif %}

@@ -1,0 +1,66 @@
+<!-- ============================================================
+     FORD CAD — HELD INCIDENTS (MODAL)
+     Phase-3 Canon: Matches History style
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal history-modal">
+    <div class="cad-modal-body">
+
+        <div class="history-panel">
+
+            <div class="history-header">
+                <h3>Held Incidents</h3>
+                <div class="history-header-actions">
+                    <span class="history-count">{{ incidents|length }} held</span>
+                    <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
+                </div>
+            </div>
+
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th style="width:30px;"></th>
+                        <th style="width:100px;">Run #</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th style="width:80px;">Age</th>
+                        <th style="width:160px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if incidents|length == 0 %}
+                        <tr>
+                            <td colspan="6" class="history-empty">No held incidents</td>
+                        </tr>
+                    {% else %}
+                        {% for i in incidents %}
+                        <tr class="history-row"
+                            tabindex="0"
+                            data-incident-id="{{ i.incident_id }}"
+                            data-status="HELD"
+                            oncontextmenu="CAD_CONTEXTMENU.showForIncident(event, {{ i.incident_id }}, this)">
+                            <td class="issue-flag">{% if i.issue_flag %}<span class="issue-indicator" title="Issue reported">!</span>{% endif %}</td>
+                            <td class="history-id">{{ i.incident_number or '—' }}</td>
+                            <td>{{ i.type }}</td>
+                            <td title="{{ i.location }}">{{ i.location }}</td>
+                            <td class="history-age">{{ i.age or '' }}</td>
+                            <td class="history-actions">
+                                <button class="pill-btn pill-btn-sm" onclick="IAW.open({{ i.incident_id }}); CAD_MODAL.close();">
+                                    Open
+                                </button>
+                                <button class="pill-btn pill-btn-sm pill-btn-info" onclick="IAW.dispositionIncident({{ i.incident_id }})">
+                                    Dispatch
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+
+        </div>
+
+    </div>
+</div>

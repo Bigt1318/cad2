@@ -1,0 +1,8 @@
+<div class="dispatcher-identity">
+    <span class="dispatcher-identity-unit">
+        {{ request.session.get("dispatcher_unit") or request.session.get("unit") or "Dispatcher" }}
+    </span>
+    <span class="dispatcher-identity-shift">
+        Shift {{ request.session.get("shift_letter") or request.session.get("shift") or "X" }}
+    </span>
+</div>

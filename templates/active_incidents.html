@@ -1,0 +1,106 @@
+<!-- FILE: templates/active_incidents.html -->
+
+<div id="panel-active"
+     class="incident-subpanel active-incidents"
+     hx-get="/panel/active"
+     hx-trigger="incident-updated from:body"
+     hx-target="#panel-active"
+     hx-swap="outerHTML">
+
+    <div class="incident-panel-header">
+        <div class="incident-panel-title">Active Incidents</div>
+        <div class="incident-panel-meta">
+            <span class="panel-badge">{{ incidents|length }}</span>
+        </div>
+    </div>
+
+    <div class="incident-content">
+    {% if incidents|length == 0 %}
+        <div class="incident-empty">No active incidents</div>
+    {% else %}
+        <table class="incident-table">
+            <thead>
+                <tr>
+                    <th class="col-num">#</th>
+                    <th class="col-issue"></th>
+                    <th class="col-id">ID</th>
+                    <th class="col-type">Type</th>
+                    <th class="col-location">Location</th>
+                    <th class="col-age">Age</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in incidents %}
+                    <tr class="incident-row"
+                        tabindex="0"
+                        data-incident-id="{{ i.incident_id }}"
+                        data-status="{{ i.status or 'ACTIVE' }}"
+                        data-row-num="{{ loop.index }}"
+                        onclick="IAW.open({{ i.incident_id }})"
+                        oncontextmenu="CAD_CONTEXTMENU.showForIncident(event, {{ i.incident_id }}, this)">
+
+                        <td class="row-num">{{ loop.index }}</td>
+                        <td class="issue-flag">{% if i.issue_flag %}<span class="issue-indicator" title="Issue reported">!</span>{% endif %}</td>
+                        <td class="incident-id">{{ i.incident_number or 'NO#' }}</td>
+
+                        <td class="incident-type">
+                            <div class="inc-type-line">
+                                <span class="inc-type">{{ i.type }}</span>
+                                {% if i.unit_count > 0 %}
+                                    <span class="unit-count-badge" title="{{ i.unit_count }} unit(s) assigned">{{ i.unit_count }}</span>
+                                {% endif %}
+                            </div>
+
+                            {% if i.assigned_units and i.assigned_units|length > 0 %}
+                                <div class="inc-units-inline" aria-label="Assigned units">
+                                    {% for u in i.assigned_units %}
+                                        {% set us = (u.display_status or u.status or u.unit_status or u.unit_status_label or '') %}
+                                        {% set us_u = (us|upper) %}
+                                        {% set us_code = {
+                                            'DISPATCHED':'DSP',
+                                            'ENROUTE':'ENR',
+                                            'ARRIVED':'ARR',
+                                            'ONSCENE':'OSC',
+                                            'ON_SCENE':'OSC',
+                                            'OPERATING':'OPR',
+                                            'TRANSPORTING':'TRN',
+                                            'AT_MEDICAL':'MED',
+                                            'BUSY':'BUS',
+                                            'ACTIVE':'ACT',
+                                            'CLEARED':'CLR'
+                                        }.get(us_u, (us_u[:3] if us_u else '')) %}
+
+                                        <button type="button"
+                                                class="unit-chip"
+                                                draggable="true"
+                                                data-unit-id="{{ u.unit_id }}"
+                                                data-incident-id="{{ i.incident_id }}"
+                                                onclick="event.stopPropagation(); UAW.openIncidentUnit({{ i.incident_id }}, '{{ u.unit_id }}', this)"
+                                                oncontextmenu="event.stopPropagation(); CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)"
+                                                title="Open {{ u.unit_id }} actions">
+                                            {% if u.is_command or u.commanding_unit == 1 %}
+                                                <span class="cmd-chip">CMD</span>
+                                            {% endif %}
+                                            <span class="unit-chip-id">{{ u.unit_id }}</span>
+                                            {% if us_u %}
+                                                <span class="unit-chip-status"
+                                                      data-status="{{ us_u }}"
+                                                      title="{{ us_u }}">{{ us_code }}</span>
+                                            {% endif %}
+                                            <span class="unit-timer-badge" data-unit-timer="{{ u.unit_id }}" style="display:none" onclick="event.stopPropagation(); UAW.showTimerControls?.('{{ u.unit_id }}', this)" title="Timer active - click to manage"></span>
+                                        </button>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </td>
+
+                        <td class="incident-location" title="{{ i.location }}">{{ i.location }}</td>
+                        <td class="incident-age" data-timestamp="{{ i.created }}">{{ i.age or '' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    </div>
+
+</div>

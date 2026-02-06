@@ -1,0 +1,285 @@
+/* ============================================================
+   FORD-CAD — THEME SYSTEM
+   CSS Variables for Light/Dark/High-Contrast themes
+   Must load AFTER ford-cad-v4.css to override variables
+============================================================ */
+
+/* ============================================================
+   LIGHT THEME (Default - Ford Blue)
+============================================================ */
+:root,
+[data-theme="light"] {
+    /* === FORD BRAND === */
+    --ford-blue: #003478;
+    --ford-blue-light: #1351a3;
+    --ford-blue-lighter: #2563eb;
+    --ford-blue-dark: #00264d;
+
+    /* === BACKGROUNDS === */
+    --bg-app: #f1f5f9;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f8fafc;
+    --bg-panel: #ffffff;
+    --bg-header: linear-gradient(135deg, #003478 0%, #1351a3 100%);
+    --bg-hover: #e2e8f0;
+    --bg-active: #dbeafe;
+
+    /* === TEXT === */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #1d4ed8;
+
+    /* === BORDERS === */
+    --border-default: #cbd5e1;
+    --border-light: #e2e8f0;
+    --border-emphasis: #94a3b8;
+
+    /* === STATUS COLORS === */
+    --status-available: #16a34a;
+    --status-available-bg: #dcfce7;
+    --status-dispatched: #ea580c;
+    --status-dispatched-bg: #ffedd5;
+    --status-enroute: #2563eb;
+    --status-enroute-bg: #dbeafe;
+    --status-arrived: #16a34a;
+    --status-arrived-bg: #dcfce7;
+    --status-onscene: #7c3aed;
+    --status-onscene-bg: #ede9fe;
+    --status-transporting: #db2777;
+    --status-transporting-bg: #fce7f3;
+    --status-oos: #64748b;
+    --status-oos-bg: #f1f5f9;
+    --status-busy: #dc2626;
+    --status-busy-bg: #fee2e2;
+
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #dc2626;
+    --fire-red-light: #ef4444;
+    --fire-orange: #ea580c;
+    --fire-amber: #f59e0b;
+
+    /* === ACCENT COLORS === */
+    --accent-rose: #e11d48;
+    --accent-pink: #ec4899;
+    --accent-purple: #a855f7;
+
+    /* === SEMANTIC === */
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --warning: #ca8a04;
+    --warning-bg: #fef9c3;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --info: #2563eb;
+    --info-bg: #dbeafe;
+
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #16a34a;
+
+    /* === SHADOWS === */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================================
+   DARK THEME
+============================================================ */
+[data-theme="dark"] {
+    /* === FORD BRAND === */
+    --ford-blue: #60a5fa;
+    --ford-blue-light: #3b82f6;
+    --ford-blue-lighter: #93c5fd;
+    --ford-blue-dark: #1e40af;
+
+    /* === BACKGROUNDS === */
+    --bg-app: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-elevated: #334155;
+    --bg-panel: #1e293b;
+    --bg-header: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+    --bg-hover: #475569;
+    --bg-active: #1e3a5f;
+
+    /* === TEXT === */
+    --text-primary: #f8fafc;
+    --text-secondary: #e2e8f0;
+    --text-muted: #cbd5e1;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #93c5fd;
+
+    /* === BORDERS === */
+    --border-default: #475569;
+    --border-light: #334155;
+    --border-emphasis: #64748b;
+
+    /* === STATUS COLORS (brighter for dark bg) === */
+    --status-available: #4ade80;
+    --status-available-bg: #166534;
+    --status-dispatched: #fb923c;
+    --status-dispatched-bg: #9a3412;
+    --status-enroute: #60a5fa;
+    --status-enroute-bg: #1e40af;
+    --status-arrived: #4ade80;
+    --status-arrived-bg: #166534;
+    --status-onscene: #a78bfa;
+    --status-onscene-bg: #5b21b6;
+    --status-transporting: #f472b6;
+    --status-transporting-bg: #9d174d;
+    --status-oos: #9ca3af;
+    --status-oos-bg: #374151;
+    --status-busy: #f87171;
+    --status-busy-bg: #991b1b;
+
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #f87171;
+    --fire-red-light: #fca5a5;
+    --fire-orange: #fb923c;
+    --fire-amber: #fbbf24;
+
+    /* === ACCENT COLORS === */
+    --accent-rose: #fb7185;
+    --accent-pink: #f472b6;
+    --accent-purple: #c4b5fd;
+
+    /* === SEMANTIC === */
+    --success: #4ade80;
+    --success-bg: #166534;
+    --warning: #fbbf24;
+    --warning-bg: #854d0e;
+    --danger: #f87171;
+    --danger-bg: #991b1b;
+    --info: #60a5fa;
+    --info-bg: #1e40af;
+
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #4ade80;
+
+    /* === SHADOWS === */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================================
+   HIGH CONTRAST THEME (Accessibility)
+============================================================ */
+[data-theme="high-contrast"] {
+    /* === FORD BRAND === */
+    --ford-blue: #0055cc;
+    --ford-blue-light: #0066ff;
+    --ford-blue-lighter: #3388ff;
+    --ford-blue-dark: #003399;
+
+    /* === BACKGROUNDS === */
+    --bg-app: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f0f0f0;
+    --bg-panel: #ffffff;
+    --bg-header: #000000;
+    --bg-hover: #e0e0e0;
+    --bg-active: #cce5ff;
+
+    /* === TEXT === */
+    --text-primary: #000000;
+    --text-secondary: #222222;
+    --text-muted: #444444;
+    --text-on-dark: #ffffff;
+    --text-on-brand: #ffffff;
+    --text-link: #0000cc;
+
+    /* === BORDERS === */
+    --border-default: #000000;
+    --border-light: #444444;
+    --border-emphasis: #000000;
+
+    /* === STATUS COLORS (high contrast) === */
+    --status-available: #006600;
+    --status-available-bg: #ccffcc;
+    --status-dispatched: #cc4400;
+    --status-dispatched-bg: #ffddcc;
+    --status-enroute: #0044cc;
+    --status-enroute-bg: #cce5ff;
+    --status-arrived: #006600;
+    --status-arrived-bg: #ccffcc;
+    --status-onscene: #6600aa;
+    --status-onscene-bg: #e5ccff;
+    --status-transporting: #aa0055;
+    --status-transporting-bg: #ffccee;
+    --status-oos: #444444;
+    --status-oos-bg: #e0e0e0;
+    --status-busy: #cc0000;
+    --status-busy-bg: #ffcccc;
+
+    /* === FIRE SERVICE ACCENTS === */
+    --fire-red: #cc0000;
+    --fire-red-light: #ff0000;
+    --fire-orange: #cc4400;
+    --fire-amber: #cc7700;
+
+    /* === ACCENT COLORS === */
+    --accent-rose: #cc0044;
+    --accent-pink: #cc0088;
+    --accent-purple: #7700cc;
+
+    /* === SEMANTIC === */
+    --success: #006600;
+    --success-bg: #ccffcc;
+    --warning: #cc7700;
+    --warning-bg: #fff3cc;
+    --danger: #cc0000;
+    --danger-bg: #ffcccc;
+    --info: #0044cc;
+    --info-bg: #cce5ff;
+
+    /* === UI COLORS === */
+    --badge-text: #ffffff;
+    --clock-color: #006600;
+
+    /* === SHADOWS (minimal) === */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+   THEME-SPECIFIC ELEMENT OVERRIDES
+============================================================ */
+
+/* High contrast uses thicker borders */
+[data-theme="high-contrast"] input,
+[data-theme="high-contrast"] select,
+[data-theme="high-contrast"] textarea,
+[data-theme="high-contrast"] button {
+    border-width: 2px;
+}
+
+/* Dark mode form inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-default);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    border-color: var(--ford-blue);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+}

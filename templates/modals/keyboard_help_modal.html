@@ -1,0 +1,86 @@
+<div class="modal-content" style="max-width: 600px;">
+  <div class="modal-header">
+    <h2>Keyboard Shortcuts</h2>
+    <button class="modal-close-btn" onclick="CAD_MODAL.close()" aria-label="Close">&times;</button>
+  </div>
+
+  <div class="modal-body" style="padding: 1.5rem;">
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.875rem;">
+      OSSI/Sungard style Alt commands for quick CAD operations
+    </p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+      <!-- Left Column: Unit Status -->
+      <div>
+        <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--ford-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+          Unit Status Commands
+        </h3>
+        <table style="width: 100%; font-size: 0.875rem;">
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>D</kbd></td><td style="padding: 0.25rem 0.5rem;">Dispatch unit</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>E</kbd></td><td style="padding: 0.25rem 0.5rem;">Enroute</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>A</kbd></td><td style="padding: 0.25rem 0.5rem;">Arrived on scene</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>O</kbd></td><td style="padding: 0.25rem 0.5rem;">On scene (same as A)</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>T</kbd></td><td style="padding: 0.25rem 0.5rem;">Transport</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>C</kbd></td><td style="padding: 0.25rem 0.5rem;">Clear unit</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>B</kbd></td><td style="padding: 0.25rem 0.5rem;">Back in service</td></tr>
+        </table>
+      </div>
+
+      <!-- Right Column: Incident & Navigation -->
+      <div>
+        <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--ford-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+          Incident & Navigation
+        </h3>
+        <table style="width: 100%; font-size: 0.875rem;">
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>N</kbd></td><td style="padding: 0.25rem 0.5rem;">New incident</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>I</kbd></td><td style="padding: 0.25rem 0.5rem;">Open incident</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>K</kbd></td><td style="padding: 0.25rem 0.5rem;">Add remark</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>H</kbd></td><td style="padding: 0.25rem 0.5rem;">Held calls</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>L</kbd></td><td style="padding: 0.25rem 0.5rem;">Daily log</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>S</kbd></td><td style="padding: 0.25rem 0.5rem;">Search / History</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>U</kbd></td><td style="padding: 0.25rem 0.5rem;">Units panel</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>R</kbd></td><td style="padding: 0.25rem 0.5rem;">Send report</td></tr>
+          <tr><td style="padding: 0.25rem 0;"><kbd>Alt</kbd>+<kbd>F</kbd></td><td style="padding: 0.25rem 0.5rem;">Focus command line</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Function Keys Section -->
+    <div style="margin-top: 1.5rem;">
+      <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--ford-blue); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        Function Keys
+      </h3>
+      <table style="width: 100%; font-size: 0.875rem;">
+        <tr><td style="padding: 0.25rem 0; width: 120px;"><kbd>F1</kbd></td><td style="padding: 0.25rem 0.5rem;">This help screen</td></tr>
+        <tr><td style="padding: 0.25rem 0;"><kbd>F2</kbd></td><td style="padding: 0.25rem 0.5rem;">New incident</td></tr>
+        <tr><td style="padding: 0.25rem 0;"><kbd>F5</kbd></td><td style="padding: 0.25rem 0.5rem;">Refresh panels</td></tr>
+        <tr><td style="padding: 0.25rem 0;"><kbd>F9</kbd></td><td style="padding: 0.25rem 0.5rem;">Daily log</td></tr>
+        <tr><td style="padding: 0.25rem 0;"><kbd>Esc</kbd></td><td style="padding: 0.25rem 0.5rem;">Close modal / Cancel</td></tr>
+        <tr><td style="padding: 0.25rem 0;"><kbd>H</kbd></td><td style="padding: 0.25rem 0.5rem;">Held calls (when not typing)</td></tr>
+      </table>
+    </div>
+
+    <div style="margin-top: 1.5rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 4px; font-size: 0.8rem; color: var(--text-muted);">
+      <strong>Tip:</strong> Alt shortcuts work even when typing in input fields. Press <kbd>Alt</kbd>+<kbd>F</kbd> to quickly focus the command line.
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" onclick="CAD_MODAL.close()">Close</button>
+  </div>
+</div>
+
+<style>
+  kbd {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    line-height: 1;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+  }
+</style>

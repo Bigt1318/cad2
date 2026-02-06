@@ -1,0 +1,389 @@
+<!-- ============================================================================
+     FORD-CAD Messaging — Compose Modal
+============================================================================ -->
+
+<div class="compose-modal">
+    <div class="compose-header">
+        <h3>New Message</h3>
+        <button class="btn-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+
+    <form class="compose-form"
+          hx-post="/api/messaging/send"
+          hx-trigger="submit"
+          hx-swap="none"
+          hx-on::after-request="MessagingUI.afterComposeSend(event)">
+
+        <div class="form-group">
+            <label for="compose-to">To</label>
+            <div class="recipient-input-wrap">
+                <input type="text"
+                       id="compose-to"
+                       name="to"
+                       value="{{ to or '' }}"
+                       placeholder="Name, phone, email, or user ID..."
+                       autocomplete="off"
+                       hx-get="/api/messaging/contacts"
+                       hx-trigger="input changed delay:300ms"
+                       hx-target="#recipient-suggestions"
+                       hx-swap="innerHTML"
+                       hx-params="search">
+                <div id="recipient-suggestions" class="suggestions-dropdown"></div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="compose-channel">Channel</label>
+            <div class="channel-selector">
+                <label class="channel-option {% if channel == 'internal' or not channel %}selected{% endif %}"
+                       {% if not providers.internal %}disabled{% endif %}>
+                    <input type="radio" name="channel" value="internal"
+                           {% if channel == 'internal' or not channel %}checked{% endif %}
+                           {% if not providers.internal %}disabled{% endif %}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                    </svg>
+                    <span>Internal</span>
+                </label>
+
+                <label class="channel-option {% if channel == 'sms' %}selected{% endif %}"
+                       {% if not providers.sms %}disabled title="Not configured"{% endif %}>
+                    <input type="radio" name="channel" value="sms"
+                           {% if channel == 'sms' %}checked{% endif %}
+                           {% if not providers.sms %}disabled{% endif %}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
+                    <span>SMS</span>
+                </label>
+
+                <label class="channel-option {% if channel == 'email' %}selected{% endif %}"
+                       {% if not providers.email %}disabled title="Not configured"{% endif %}>
+                    <input type="radio" name="channel" value="email"
+                           {% if channel == 'email' %}checked{% endif %}
+                           {% if not providers.email %}disabled{% endif %}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <span>Email</span>
+                </label>
+
+                <label class="channel-option {% if channel == 'webex' %}selected{% endif %}"
+                       {% if not providers.webex %}disabled title="Not configured"{% endif %}>
+                    <input type="radio" name="channel" value="webex"
+                           {% if channel == 'webex' %}checked{% endif %}
+                           {% if not providers.webex %}disabled{% endif %}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polygon points="10,8 16,12 10,16"/>
+                    </svg>
+                    <span>WebEx</span>
+                </label>
+
+                <label class="channel-option {% if channel == 'signal' %}selected{% endif %}"
+                       {% if not providers.signal %}disabled title="Not configured"{% endif %}>
+                    <input type="radio" name="channel" value="signal"
+                           {% if channel == 'signal' %}checked{% endif %}
+                           {% if not providers.signal %}disabled{% endif %}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                    </svg>
+                    <span>Signal</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group subject-group" id="subject-group" style="display: none;">
+            <label for="compose-subject">Subject</label>
+            <input type="text" id="compose-subject" name="subject" placeholder="Email subject...">
+        </div>
+
+        <div class="form-group">
+            <label for="compose-message">Message</label>
+            <textarea id="compose-message"
+                      name="message"
+                      placeholder="Type your message..."
+                      rows="5"
+                      required></textarea>
+        </div>
+
+        <div class="form-group attachments-group">
+            <label>Attachments</label>
+            <div class="attachments-area" id="attachments-area">
+                <input type="file" id="file-input" multiple style="display: none;"
+                       onchange="MessagingUI.handleFiles(this.files)">
+                <button type="button" class="btn-attach" onclick="document.getElementById('file-input').click()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                    Add attachment
+                </button>
+                <div class="attachments-list" id="attachments-list"></div>
+            </div>
+        </div>
+
+        <div class="compose-footer">
+            <button type="button" class="btn-secondary" onclick="CAD_MODAL.close()">Cancel</button>
+            <button type="submit" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+                Send
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Show/hide subject field based on channel
+document.querySelectorAll('.channel-option input').forEach(input => {
+    input.addEventListener('change', function() {
+        document.querySelectorAll('.channel-option').forEach(opt => opt.classList.remove('selected'));
+        this.parentElement.classList.add('selected');
+
+        const subjectGroup = document.getElementById('subject-group');
+        subjectGroup.style.display = this.value === 'email' ? 'block' : 'none';
+    });
+});
+
+// Initial state
+const checkedChannel = document.querySelector('.channel-option input:checked');
+if (checkedChannel && checkedChannel.value === 'email') {
+    document.getElementById('subject-group').style.display = 'block';
+}
+</script>
+
+<style>
+.compose-modal {
+    background: var(--bg-surface);
+    border-radius: 12px;
+    width: min(500px, 95vw);
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.compose-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.compose-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    line-height: 1;
+}
+
+.compose-form {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.recipient-input-wrap {
+    position: relative;
+}
+
+.recipient-input-wrap input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.suggestions-dropdown:not(:empty) {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.suggestion-item:hover {
+    background: var(--bg-hover);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.channel-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.channel-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+}
+
+.channel-option input {
+    display: none;
+}
+
+.channel-option:hover:not([disabled]) {
+    border-color: var(--ford-blue);
+}
+
+.channel-option.selected {
+    background: var(--ford-blue);
+    border-color: var(--ford-blue);
+    color: white;
+}
+
+.channel-option[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.compose-form input[type="text"],
+.compose-form textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--bg-default);
+}
+
+.compose-form textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.attachments-area {
+    border: 2px dashed var(--border-default);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.btn-attach {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.btn-attach:hover {
+    background: var(--bg-hover);
+}
+
+.attachments-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--bg-elevated);
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.attachment-item .remove {
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.compose-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-default);
+}
+
+.btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--ford-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.btn-primary:hover {
+    background: var(--ford-blue-dark);
+}
+</style>

@@ -1,0 +1,301 @@
+<!-- FILE: templates/login.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FORD-CAD — Login</title>
+
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg-app, #f1f5f9);
+      color: var(--text-primary, #0f172a);
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    .login-shell {
+      width: min(480px, calc(100vw - 32px));
+      background: var(--bg-surface, #ffffff);
+      border: 1px solid var(--border-default, #cbd5e1);
+      border-radius: 16px;
+      box-shadow: var(--shadow-xl, 0 20px 25px rgba(0,0,0,0.15));
+      overflow: hidden;
+    }
+    .login-top {
+      padding: 20px 24px;
+      background: var(--bg-header, linear-gradient(135deg, #003478 0%, #1351a3 100%));
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .login-logo {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      padding: 6px;
+    }
+    .login-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      color: var(--text-on-dark, #ffffff);
+    }
+    .login-title h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .login-title div {
+      opacity: 0.9;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .login-body { padding: 24px; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary, #475569);
+    }
+    .field input, .field select {
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border-default, #cbd5e1);
+      background: var(--bg-surface, #ffffff);
+      color: var(--text-primary, #0f172a);
+      padding: 0 14px;
+      outline: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--ford-blue, #003478);
+      box-shadow: 0 0 0 3px rgba(0, 52, 120, 0.1);
+    }
+    .field input::placeholder {
+      color: var(--text-muted, #64748b);
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--text-muted, #64748b);
+      margin-top: 2px;
+    }
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .checks {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--text-secondary, #475569);
+      font-weight: 500;
+    }
+    .checks input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--ford-blue, #003478);
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .btn {
+      height: 44px;
+      border-radius: 8px;
+      border: 1px solid var(--border-default, #cbd5e1);
+      background: var(--bg-surface, #ffffff);
+      color: var(--text-primary, #0f172a);
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: var(--bg-hover, #e2e8f0);
+    }
+    .btn.primary {
+      background: var(--ford-blue, #003478);
+      border-color: var(--ford-blue, #003478);
+      color: var(--text-on-brand, #ffffff);
+    }
+    .btn.primary:hover {
+      background: var(--ford-blue-dark, #00264d);
+    }
+    .error {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--danger-bg, #fee2e2);
+      border: 1px solid var(--danger, #dc2626);
+      color: var(--danger, #dc2626);
+      font-weight: 500;
+      font-size: 14px;
+      display: {% if error %}block{% else %}none{% endif %};
+    }
+
+    /* Shift Banner */
+    .shift-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-bottom: 1px solid var(--border-light, #e2e8f0);
+    }
+    .shift-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted, #64748b);
+    }
+    .shift-letter {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--ford-blue, #003478);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shift-type {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary, #475569);
+    }
+
+    /* Footer */
+    .login-footer {
+      padding: 16px 24px;
+      background: var(--bg-elevated, #f8fafc);
+      border-top: 1px solid var(--border-light, #e2e8f0);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted, #64748b);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Clean up any cached service workers -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    }
+  </script>
+  <div class="login-shell">
+    <div class="login-top">
+      <img class="login-logo" src="/static/images/logo.png" alt="Ford">
+      <div class="login-title">
+        <h1>FORD-CAD</h1>
+        <div>Dispatcher Login</div>
+      </div>
+    </div>
+
+    <!-- Current Shift Indicator -->
+    <div class="shift-banner">
+      <div class="shift-label">Current Shift</div>
+      <div class="shift-letter">{{ suggested_shift_letter or 'A' }}</div>
+      <div class="shift-type">{% if suggested_shift_letter in ['A', 'C'] %}Day Shift (0600-1800){% else %}Night Shift (1800-0600){% endif %}</div>
+    </div>
+
+    <div class="login-body">
+      <form method="post" action="/login" autocomplete="off">
+
+        <div class="field">
+          <label for="dispatcher_unit">Unit ID</label>
+          <input id="dispatcher_unit"
+                 name="dispatcher_unit"
+                 type="text"
+                 inputmode="text"
+                 autofocus
+                 placeholder="Enter your unit number (e.g., 17)"
+                 value="{{ (dispatcher_unit or '') }}"
+                 list="dispatcher-options" />
+          <datalist id="dispatcher-options">
+            {% for opt in dispatcher_options %}
+              <option value="{{ opt.unit_id }}">{{ opt.label }}</option>
+            {% endfor %}
+          </datalist>
+          <div class="hint">Type your unit number to see matching options</div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label for="shift_letter">Shift</label>
+            <select id="shift_letter" name="shift_letter">
+              {% for s in ["A","B","C","D"] %}
+                <option value="{{ s }}" {% if (shift_letter or suggested_shift_letter) == s %}selected{% endif %}>{{ s }} Shift</option>
+              {% endfor %}
+            </select>
+            <div class="hint">Current on-duty shift</div>
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <input id="password"
+                   name="password"
+                   type="password"
+                   placeholder="Optional for non-admin" />
+            <div class="hint">Required for admin users</div>
+          </div>
+        </div>
+
+        <div class="checks">
+          <label><input type="checkbox" name="require_password" value="1" {% if require_password %}checked{% endif %}> Require password next time</label>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Sign In</button>
+        </div>
+
+        <div class="error" id="login-error">{% if error %}{{ error }}{% endif %}</div>
+
+      </form>
+    </div>
+
+    <div class="login-footer">
+      Ford Motor Company Fire Department &bull; Computer Aided Dispatch
+    </div>
+  </div>
+</body>
+</html>

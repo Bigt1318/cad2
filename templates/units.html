@@ -1,0 +1,226 @@
+<!-- ============================================================
+     FORD CAD — UNITS PANEL (Phase-3 Canon)
+     Two-column groups: (Command/Personnel) | (Apparatus/Mutual Aid)
+     Per-unit columns: Icon | Unit | Status/Misc
+     Drag rules:
+       • Drag personnel -> drop on apparatus row = crew assign
+       • Drag crew chip -> drop on Units panel background = crew unassign
+       • Drag unit from incident -> drop on Units panel background = return/clear
+============================================================ -->
+
+<section id="panel-units" class="workspace-panel panel-units"
+        oncontextmenu="CAD_CONTEXTMENU.showForUnitsPanel(event, this)">
+
+    <div class="units-panel">
+
+        <div class="units-header">
+            <div class="units-title">Units</div>
+
+            <div class="units-subhint">
+                {% if login_required|default(false) %}
+                    Login Required
+                {% else %}
+                    Shift {{ shift_letter }} | {{ units|length }} units
+                    {% if roster_view_mode == 'ALL' %}<span class="view-mode-hint">(All)</span>{% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        {% if login_required|default(false) %}
+            <div class="units-empty">
+                <div style="margin-bottom:8px;">Login Required to view shift roster.</div>
+                <button class="pill-btn modal-submit-btn" type="button" onclick="window.location.href='/login'">
+                    Login / Select Shift
+                </button>
+            </div>
+        {% else %}
+
+            {% set COMMAND_IDS = ["1578","Car1","Batt1","Batt2","Batt3","Batt4"] %}
+
+            {% set command_units = [] %}
+            {% set personnel_units = [] %}
+            {% set apparatus_units = [] %}
+            {% set mutual_units = [] %}
+            {% set other_units = [] %}
+
+            {% for u in units %}
+                {% set uid = (u.unit_id or '') %}
+                {% if uid in COMMAND_IDS %}
+                    {% set _ = command_units.append(u) %}
+                {% elif uid.isdigit() and uid|length == 2 %}
+                    {% set _ = personnel_units.append(u) %}
+                {% elif u.is_apparatus == 1 %}
+                    {% set _ = apparatus_units.append(u) %}
+                {% elif u.is_mutual_aid == 1 %}
+                    {% set _ = mutual_units.append(u) %}
+                {% else %}
+                    {% set _ = other_units.append(u) %}
+                {% endif %}
+            {% endfor %}
+
+            {% if units|length == 0 %}
+                <div class="units-empty">No available units.</div>
+            {% else %}
+
+                <div class="units-two-col">
+
+                    <!-- LEFT -->
+                    <div class="units-col">
+                        <div class="units-col-title">Command / Personnel</div>
+                        <div class="units-col-content">
+                        {% if command_units|length == 0 and personnel_units|length == 0 and other_units|length == 0 %}
+                            <div class="units-empty-col">None</div>
+                        {% endif %}
+
+                        {% for u in command_units %}
+                            <div class="unit-row" draggable="true" tabindex="0"
+                                 data-unit-id="{{ u.unit_id }}"
+                                 data-is-personnel="0"
+                                 data-is-apparatus="0"
+                                 data-is-command="1"
+                                 data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
+                                 onclick="UAW.open('{{ u.unit_id }}', this)"
+                                 oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
+                                <div class="unit-cell icon"><img src="/static/images/{{ u.icon }}" alt="{{ u.unit_id }}"></div>
+                                <div class="unit-cell id">
+                                    {{ u.unit_id }}
+                                    {% if u.has_coverage %}<span class="coverage-badge">COV</span>{% endif %}
+                                </div>
+                                <div class="unit-cell status">
+                                    {% if (u.custom_status and (u.custom_status|trim) != '') %}
+                                        <span class="status-badge status-misc">{{ u.custom_status }}</span>
+                                    {% elif u.status and u.status != 'AVAILABLE' %}
+                                        <span class="status-badge status-{{ (u.status or '')|lower }}">{{ u.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        {% for u in personnel_units %}
+                            <div class="unit-row" draggable="true" tabindex="0"
+                                 data-unit-id="{{ u.unit_id }}"
+                                 data-is-personnel="1"
+                                 data-is-apparatus="0"
+                                 data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
+                                 data-current-apparatus="{{ u.current_apparatus or '' }}"
+                                 onclick="UAW.open('{{ u.unit_id }}', this)"
+                                 oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
+                                <div class="unit-cell icon"><img src="/static/images/{{ u.icon }}" alt="{{ u.unit_id }}"></div>
+                                <div class="unit-cell id">
+                                    {{ u.unit_id }}
+                                    {% if u.has_coverage %}<span class="coverage-badge">COV</span>{% endif %}
+                                </div>
+                                <div class="unit-cell status">
+                                    {% if (u.custom_status and (u.custom_status|trim) != '') %}
+                                        <span class="status-badge status-misc">{{ u.custom_status }}</span>
+                                    {% elif u.status and u.status != 'AVAILABLE' %}
+                                        <span class="status-badge status-{{ (u.status or '')|lower }}">{{ u.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        {% for u in other_units %}
+                            <div class="unit-row" draggable="true" tabindex="0"
+                                 data-unit-id="{{ u.unit_id }}"
+                                 data-is-personnel="0"
+                                 data-is-apparatus="0"
+                                 data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
+                                 onclick="UAW.open('{{ u.unit_id }}', this)"
+                                 oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
+                                <div class="unit-cell icon"><img src="/static/images/{{ u.icon }}" alt="{{ u.unit_id }}"></div>
+                                <div class="unit-cell id">
+                                    {{ u.unit_id }}
+                                    {% if u.has_coverage %}<span class="coverage-badge">COV</span>{% endif %}
+                                </div>
+                                <div class="unit-cell status">
+                                    {% if (u.custom_status and (u.custom_status|trim) != '') %}
+                                        <span class="status-badge status-misc">{{ u.custom_status }}</span>
+                                    {% elif u.status and u.status != 'AVAILABLE' %}
+                                        <span class="status-badge status-{{ (u.status or '')|lower }}">{{ u.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        </div><!-- /.units-col-content -->
+                    </div>
+
+                    <!-- RIGHT -->
+                    <div class="units-col">
+                        <div class="units-col-title">Apparatus / Mutual Aid</div>
+                        <div class="units-col-content">
+                        {% if apparatus_units|length == 0 and mutual_units|length == 0 %}
+                            <div class="units-empty-col">None</div>
+                        {% endif %}
+
+                        {% for u in apparatus_units %}
+                            {% set crew = (crew_map.get(u.unit_id) if crew_map else []) %}
+                            <div class="unit-row unit-row-apparatus" draggable="true" tabindex="0"
+                                 data-unit-id="{{ u.unit_id }}"
+                                 data-is-apparatus="1"
+                                 data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
+                                 onclick="UAW.open('{{ u.unit_id }}', this)"
+                                 oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
+                                <div class="unit-cell icon"><img src="/static/images/{{ u.icon }}" alt="{{ u.unit_id }}"></div>
+                                <div class="unit-cell id">
+                                    {{ u.unit_id }}
+                                    {% if crew and crew|length > 0 %}
+                                        <span class="crew-count">{{ crew|length }}</span>
+                                    {% endif %}
+                                    {% if u.has_coverage %}<span class="coverage-badge">COV</span>{% endif %}
+                                </div>
+                                <div class="unit-cell status">
+                                    {% if (u.custom_status and (u.custom_status|trim) != '') %}
+                                        <span class="status-badge status-misc">{{ u.custom_status }}</span>
+                                    {% elif u.status and u.status != 'AVAILABLE' %}
+                                        <span class="status-badge status-{{ (u.status or '')|lower }}">{{ u.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if crew and crew|length > 0 %}
+                                <div class="unit-crew">
+                                    {% for pid in crew %}
+                                        <span class="crew-chip" draggable="true"
+                                              data-personnel-id="{{ pid }}"
+                                              data-apparatus-id="{{ u.unit_id }}"
+                                              oncontextmenu="CAD_CONTEXTMENU.showForCrewChip(event, '{{ pid }}', '{{ u.unit_id }}', this)">{{ pid }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% for u in mutual_units %}
+                            <div class="unit-row" draggable="true" tabindex="0"
+                                 data-unit-id="{{ u.unit_id }}"
+                                 data-is-apparatus="0"
+                                 data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
+                                 onclick="UAW.open('{{ u.unit_id }}', this)"
+                                 oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
+                                <div class="unit-cell icon"><img src="/static/images/{{ u.icon }}" alt="{{ u.unit_id }}"></div>
+                                <div class="unit-cell id">
+                                    {{ u.unit_id }}
+                                    {% if u.has_coverage %}<span class="coverage-badge">COV</span>{% endif %}
+                                </div>
+                                <div class="unit-cell status">
+                                    {% if (u.custom_status and (u.custom_status|trim) != '') %}
+                                        <span class="status-badge status-misc">{{ u.custom_status }}</span>
+                                    {% elif u.status and u.status != 'AVAILABLE' %}
+                                        <span class="status-badge status-{{ (u.status or '')|lower }}">{{ u.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                        </div><!-- /.units-col-content -->
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        {% endif %}
+    </div>
+
+    <!-- Styles in static/style.css -->
+
+</section>

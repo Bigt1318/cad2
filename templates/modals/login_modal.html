@@ -1,0 +1,133 @@
+<!-- ============================================================
+     FORD-CAD — LOGIN / SHIFT SELECT (Phase-3.5)
+     Username = Unit ID
+     Password = optional for non-admin, mandatory for admin
+============================================================= -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal login-modal" id="login-modal">
+
+    <div class="dp-header" onmousedown="PICKER.startDrag(event)">
+        <div class="dp-title">Login / Select Shift</div>
+        <div class="dp-close" onclick="CAD_MODAL.close()">✖</div>
+    </div>
+
+    <div class="dp-body">
+
+        <div id="login-error" class="dp-empty" style="display:none; opacity:0.9;"></div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+
+            <div>
+                <div class="dp-section-title" style="margin:0 0 6px 0;">Unit ID (Username)</div>
+                <input id="login-unit-id"
+                       class="login-input"
+                       type="text"
+                       inputmode="numeric"
+                       autocomplete="username"
+                       placeholder="e.g. 17"
+                       list="dispatcher-list"
+                       value="{{ current_user|default('') }}"
+                       autofocus />
+
+                <datalist id="dispatcher-list">
+                    {% for r in dispatcher_roster %}
+                        <option value="{{ r.unit_id }}" label="{{ r.unit_id }} - {{ r.display_name }}"></option>
+                    {% endfor %}
+                </datalist>
+
+                <div id="login-unit-label" class="login-hint">
+                    {% if current_user_label %}{{ current_user_label }}{% endif %}
+                </div>
+            </div>
+
+            <div>
+                <div class="dp-section-title" style="margin:0 0 6px 0;">Password (optional)</div>
+                <input id="login-password"
+                       class="login-input"
+                       type="password"
+                       autocomplete="current-password"
+                       placeholder="Leave blank if not required" />
+                <div class="login-hint">Admins must use a password. Non-admin password is optional and controlled in User Settings.</div>
+            </div>
+
+            <div id="login-password-confirm-wrap" style="display:none;">
+                <div class="dp-section-title" style="margin:0 0 6px 0;">Confirm Password (admin first login)</div>
+                <input id="login-password-confirm"
+                       class="login-input"
+                       type="password"
+                       autocomplete="new-password"
+                       placeholder="Re-enter password" />
+            </div>
+
+            <div>
+                <div class="dp-section-title" style="margin:0 0 6px 0;">Shift Context</div>
+                <select id="login-shift-letter" class="login-input">
+                    <option value="A" {% if default_shift == "A" %}selected{% endif %}>A</option>
+                    <option value="B" {% if default_shift == "B" %}selected{% endif %}>B</option>
+                    <option value="C" {% if default_shift == "C" %}selected{% endif %}>C</option>
+                    <option value="D" {% if default_shift == "D" %}selected{% endif %}>D</option>
+                </select>
+                <div class="login-hint">Defaults to current rotation. Override only when covering another shift.</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="dp-footer">
+        <button class="pill-btn dp-cancel" onclick="CAD_MODAL.close()">Cancel</button>
+        <button class="pill-btn modal-submit-btn" onclick="LAYOUT.loginFromModal()">Login</button>
+    </div>
+
+</div>
+
+<style>
+.login-modal { width: 520px; max-width: 92vw; }
+.login-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #243446;
+    background: #0f1722;
+    color: #e7edf5;
+    outline: none;
+}
+.login-input:focus { border-color: #3b82f6; }
+.login-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #9fb3c8;
+    opacity: 0.9;
+}
+.modal-submit-btn { font-weight: 800; }
+</style>
+
+<script>
+(function () {
+    const inp = document.getElementById('login-unit-id');
+    const lbl = document.getElementById('login-unit-label');
+
+    function findLabel(val) {
+        try {
+            const opts = document.querySelectorAll('#dispatcher-list option');
+            for (const o of opts) {
+                if ((o.value || '').trim() === val) return o.getAttribute('label') || '';
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    function updateLabel() {
+        if (!inp || !lbl) return;
+        const v = (inp.value || '').trim();
+        lbl.textContent = findLabel(v);
+    }
+
+    if (inp) {
+        inp.addEventListener('input', updateLabel);
+        setTimeout(() => { inp.focus(); inp.select(); updateLabel(); }, 0);
+    }
+})();
+</script>

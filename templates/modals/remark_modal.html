@@ -1,0 +1,41 @@
+<!-- ============================================================
+     FORD-CAD — ADD REMARK MODAL (CANONICAL JSON POST)
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal remark-modal" id="remark-modal">
+
+    <div class="modal-header">
+        <div class="modal-title">Add Remark</div>
+        <div class="modal-subtitle">
+            {% if incident_id is defined %}Incident #{{ incident_id }}{% else %}Incident{% endif %}
+        </div>
+        <div class="modal-close" onclick="CAD_MODAL.close()">✖</div>
+    </div>
+
+    {% include "modals/dispatcher_identity_block.html" %}
+
+    <div class="modal-body">
+        <form onsubmit="event.preventDefault(); window.REMARK.submitFromModal();">
+
+            <input type="hidden" id="remark-incident-id" value="{% if incident_id is defined %}{{ incident_id }}{% else %}{% endif %}">
+            <input type="hidden" id="remark-unit-id" value="">
+
+            <div class="modal-field">
+                <label class="modal-label">Remark</label>
+                <textarea class="modal-textarea"
+                          id="remark-text"
+                          placeholder="Type remark..."
+                          required></textarea>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="pill-btn modal-submit-btn">Submit Remark</button>
+                <button type="button" class="pill-btn modal-cancel-btn" onclick="CAD_MODAL.close()">Cancel</button>
+            </div>
+
+        </form>
+    </div>
+
+</div>

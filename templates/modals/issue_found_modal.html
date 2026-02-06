@@ -1,0 +1,165 @@
+<!-- ============================================================
+     FORD-CAD — ISSUE FOUND MODAL
+     Phase-3 Enterprise Edition (Canonical)
+     templates/modals/issue_found_modal.html
+============================================================ -->
+
+<!-- Modal Overlay -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<!-- Main Modal -->
+<div class="cad-modal issue-modal" id="issue-modal">
+
+    <!-- ========================================================
+         HEADER / DRAG HANDLE
+    ======================================================== -->
+    <div class="issue-header" onmousedown="ISSUE.startDrag(event)">
+
+        <div class="issue-title">
+            {% if mode == 'view' %}
+                Issue Found — Incident #{{ incident.incident_id }}
+            {% else %}
+                Record Issue Found — Incident #{{ incident.incident_id }}
+            {% endif %}
+        </div>
+
+        <div class="issue-close" onclick="CAD_MODAL.close()">✖</div>
+    </div>
+
+
+    <!-- ========================================================
+         DISPATCHER IDENTITY (Phase-3 Canon)
+    ======================================================== -->
+    <div class="issue-identity">
+        {% include "modals/dispatcher_identity_block.html" %}
+    </div>
+
+
+    <!-- ========================================================
+         VIEW-ONLY MODE (existing issue)
+    ======================================================== -->
+    {% if mode == 'view' %}
+
+        <div class="issue-section">
+
+            <div class="issue-section-title">Issue Details</div>
+
+            <div class="issue-view-grid">
+
+                <div class="issue-label">Category</div>
+                <div class="issue-value">{{ issue.category }}</div>
+
+                <div class="issue-label">Description</div>
+                <div class="issue-value">{{ issue.description }}</div>
+
+                <div class="issue-label">Resolution</div>
+                <div class="issue-value">{{ issue.resolution }}</div>
+
+                <div class="issue-label">Reported By</div>
+                <div class="issue-value">{{ issue.reported_by }}</div>
+
+                <div class="issue-label">Timestamp</div>
+                <div class="issue-value">{{ issue.timestamp }}</div>
+
+                <div class="issue-label">Follow-Up Required</div>
+                <div class="issue-value">
+                    {% if issue.followup_required %}
+                        Yes
+                    {% else %}
+                        No
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+
+        <div class="issue-footer">
+            <button class="pill-btn issue-close-btn"
+                    onclick="CAD_MODAL.close()">
+                Close
+            </button>
+        </div>
+
+    {% endif %}
+
+
+
+    <!-- ========================================================
+         ENTRY MODE (recording a new issue)
+    ======================================================== -->
+    {% if mode == 'new' %}
+
+        <form id="issueForm">
+            <input type="hidden" name="incident_id" value="{{ incident.incident_id }}">
+
+            <!-- CATEGORY -->
+            <div class="issue-section">
+
+                <div class="issue-section-title">Issue Category</div>
+
+                <select name="category" class="issue-dropdown" required>
+                    <option value="">Select Category...</option>
+                    <option value="Safety Hazard">Safety Hazard</option>
+                    <option value="Equipment Issue">Equipment Issue</option>
+                    <option value="System Failure">System Failure</option>
+                    <option value="Process Failure">Process Failure</option>
+                    <option value="Policy Violation">Policy Violation</option>
+                    <option value="Other">Other</option>
+                </select>
+
+            </div>
+
+            <!-- DESCRIPTION -->
+            <div class="issue-section">
+
+                <div class="issue-section-title">Description (Required)</div>
+
+                <textarea class="issue-text" name="description"
+                          placeholder="Describe the issue in detail..."
+                          required></textarea>
+
+            </div>
+
+            <!-- RESOLUTION -->
+            <div class="issue-section">
+
+                <div class="issue-section-title">Resolution / Action Taken</div>
+
+                <textarea class="issue-text" name="resolution"
+                          placeholder="Describe actions taken... (optional)"></textarea>
+
+            </div>
+
+            <!-- FOLLOW-UP REQUIRED -->
+            <div class="issue-section">
+
+                <div class="issue-section-title">Follow-Up Needed?</div>
+
+                <select name="followup_required" class="issue-dropdown">
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                </select>
+
+            </div>
+
+        </form>
+
+
+        <!-- FOOTER ACTIONS -->
+        <div class="issue-footer">
+
+            <button class="pill-btn issue-submit"
+                    onclick="ISSUE.submitIssue()">
+                Submit Issue
+            </button>
+
+            <button class="pill-btn issue-cancel"
+                    onclick="CAD_MODAL.close()">
+                Cancel
+            </button>
+
+        </div>
+
+    {% endif %}
+
+</div> <!-- END MODAL -->

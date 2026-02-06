@@ -1,0 +1,28 @@
+{
+  "name": "FORD-CAD",
+  "short_name": "FORD-CAD",
+  "description": "Fire & EMS Computer Aided Dispatch",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1622",
+  "theme_color": "#003a8f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/images/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "New Incident",
+      "short_name": "New",
+      "description": "Create a new incident",
+      "url": "/?action=new",
+      "icons": [{"src": "/static/images/logo.png", "sizes": "96x96"}]
+    }
+  ]
+}

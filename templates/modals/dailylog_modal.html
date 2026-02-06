@@ -1,0 +1,176 @@
+<!-- ============================================================
+     FORD-CAD — DAILY LOG (MODAL)
+     Phase-3 Canon • Matches History style
+============================================================ -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal history-modal dailylog-modal">
+    <div class="cad-modal-body">
+
+        <div class="history-panel">
+
+            <div class="history-header">
+                <h3>Daily Log</h3>
+                <div class="history-header-actions">
+                    <button class="pill-btn pill-btn-sm" onclick="EL.toggleAdd()">+ New Entry</button>
+                    <button class="pill-btn pill-btn-sm" onclick="EL.refresh()">Refresh</button>
+                    <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
+                </div>
+            </div>
+
+            <!-- ADD ENTRY PANEL (hidden by default) -->
+            <div id="el-add-panel" class="dailylog-add-panel" hidden>
+                <form id="el-add-form" class="dailylog-add-form" onsubmit="return EL.addEntry(event)">
+                    <div class="dailylog-add-row">
+                        <select id="el-add-category" name="category" required>
+                            <option value="">Category...</option>
+                            {% for s in subtypes %}
+                                <option value="{{ s }}">{{ s }}</option>
+                            {% endfor %}
+                            <option value="REMARK">REMARK</option>
+                        </select>
+                        <input type="text" id="el-add-unit" name="unit_id" placeholder="Unit" autocomplete="off">
+                        <input type="text" id="el-add-incident" name="incident_id" placeholder="Incident #" autocomplete="off">
+                        <input type="text" id="el-add-details" name="details" placeholder="Details..." autocomplete="off" class="dailylog-details-input">
+                        <label class="dailylog-issue-check">
+                            <input type="checkbox" id="el-add-issue" name="issue_found" value="1">
+                            Issue
+                        </label>
+                        <button type="submit" class="pill-btn pill-btn-sm">Add</button>
+                        <button type="button" class="pill-btn pill-btn-sm" onclick="EL.toggleAdd(false)">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th style="width:30px;"></th>
+                        <th style="width:140px;">Time</th>
+                        <th style="width:100px;">Category</th>
+                        <th style="width:70px;">Unit</th>
+                        <th style="width:80px;">Incident</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="el-table-body"
+                       hx-get="/panel/eventlog_rows"
+                       hx-trigger="load, eventlog-updated from:body"
+                       hx-target="#el-table-body"
+                       hx-swap="innerHTML">
+                    <tr>
+                        <td colspan="6" class="history-empty">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+
+    </div>
+</div>
+
+<style>
+.dailylog-modal {
+    width: 900px;
+}
+
+.dailylog-add-panel {
+    background: var(--bg-elevated, #334155);
+    border: 1px solid var(--border-default, #475569);
+    border-radius: var(--radius-md, 6px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    margin-bottom: var(--space-3, 12px);
+}
+
+.dailylog-add-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    flex-wrap: wrap;
+}
+
+.dailylog-add-row select,
+.dailylog-add-row input[type="text"] {
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    border: 1px solid var(--border-default, #475569);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--bg-surface, #1e293b);
+    color: var(--text-primary, #f1f5f9);
+    font-size: var(--text-sm, 0.875em);
+}
+
+.dailylog-add-row select {
+    min-width: 120px;
+}
+
+.dailylog-add-row input[type="text"] {
+    width: 80px;
+}
+
+.dailylog-details-input {
+    flex: 1;
+    min-width: 150px !important;
+    width: auto !important;
+}
+
+.dailylog-issue-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    font-size: var(--text-sm, 0.875em);
+    color: var(--text-secondary, #cbd5e1);
+    cursor: pointer;
+}
+
+.dailylog-issue-check input {
+    width: 16px;
+    height: 16px;
+}
+</style>
+
+<script>
+// Simple Daily Log functions
+window.EL = window.EL || {
+    toggleAdd(show) {
+        const panel = document.getElementById('el-add-panel');
+        if (!panel) return;
+        if (show === undefined) {
+            panel.hidden = !panel.hidden;
+        } else {
+            panel.hidden = !show;
+        }
+    },
+
+    refresh() {
+        htmx.trigger('#el-table-body', 'eventlog-updated');
+    },
+
+    async addEntry(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+
+        try {
+            const resp = await fetch('/api/dailylog', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (resp.ok) {
+                form.reset();
+                this.toggleAdd(false);
+                this.refresh();
+                TOAST?.success?.('Entry added');
+            } else {
+                TOAST?.error?.('Failed to add entry');
+            }
+        } catch (err) {
+            console.error('[EL] Add entry error:', err);
+            TOAST?.error?.('Error adding entry');
+        }
+
+        return false;
+    }
+};
+</script>

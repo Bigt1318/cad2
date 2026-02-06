@@ -1,0 +1,30 @@
+<!-- ============================================================
+     FORD-CAD — IAW NARRATIVE FRAGMENT
+     Phase-3 Enterprise Edition
+     templates/iaw/iaw_narrative_fragment.html
+============================================================ -->
+
+{% if narrative|length == 0 %}
+
+    <div class="iaw-narrative-empty">
+        No narrative entries.
+    </div>
+
+{% else %}
+
+    {% for entry in narrative %}
+    <div class="iaw-narrative-entry">
+
+        <div class="iaw-narrative-header">
+            <span class="iaw-narrative-time">{{ entry.timestamp }}</span>
+            <span class="iaw-narrative-user">{{ entry.user }}</span>
+        </div>
+
+        <div class="iaw-narrative-text">
+            {% if entry.unit_id %}{{ entry.unit_id }} - {% endif %}{{ entry.text }}
+        </div>
+
+    </div>
+    {% endfor %}
+
+{% endif %}

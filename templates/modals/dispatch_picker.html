@@ -1,0 +1,345 @@
+<!-- ============================================================
+     FORD-CAD — DISPATCH PICKER (Phase-3 Enterprise)
+     Canonical Order:
+       1) Command
+       2) Personnel
+       3) Apparatus
+       4) Mutual Aid (collapsible)
+============================================================= -->
+
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+
+<div class="cad-modal dispatch-picker-modal" id="dispatch-picker">
+
+    <!-- ========================================================
+         HEADER
+    ======================================================== -->
+    <div class="dp-header" onmousedown="PICKER.startDrag(event)">
+        <div class="dp-title">
+            Dispatch Units — Incident #{{ incident_id }}
+        </div>
+        <div class="dp-close" onclick="CAD_MODAL.close()">✖</div>
+    </div>
+
+    <!-- ========================================================
+         BODY
+    ======================================================== -->
+    <div class="dp-body">
+        {% if login_required|default(false) %}
+            <div class="dp-empty dp-login-required">
+                <div>Login Required to dispatch units.</div>
+                <button class="pill-btn modal-submit-btn" onclick="window.location='/login'">Go to Login</button>
+            </div>
+        {% else %}
+
+            <!-- ====================================================
+                 SECTION 0 — RECOMMENDED UNITS (Run Card)
+            ====================================================== -->
+            {% if recommended_units|default([])|length > 0 %}
+            <div class="dp-section dp-recommended">
+                <div class="dp-section-title dp-recommended-title">
+                    Recommended for {{ incident_type or 'this incident' }}
+                </div>
+
+                {% for u in recommended_units %}
+                <div class="dp-unit-row dp-recommended-row"
+                     onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                    <img src="/static/images/{{ u.icon }}"
+                         class="dp-unit-icon"
+                         alt="{{ u.unit_id }}">
+
+                    <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                    <div class="dp-unit-status">
+                        <span class="status-badge status-{{ (u.status or '')|lower }}">
+                            {{ u.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- ====================================================
+                 SECTION 1 — COMMAND UNITS
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Command Units</div>
+
+                {% if command_units|length == 0 %}
+                    <div class="dp-empty">No command units found.</div>
+                {% else %}
+                    {% for u in command_units %}
+                    <div class="dp-unit-row"
+                         onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                        <img src="/static/images/{{ u.icon }}"
+                             class="dp-unit-icon"
+                             alt="{{ u.unit_id }}">
+
+                        <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                        <div class="dp-unit-status">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                {{ u.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ====================================================
+                 SECTION 2 — PERSONNEL
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Personnel</div>
+
+                {% if personnel_units|length == 0 %}
+                    <div class="dp-empty">No personnel on shift.</div>
+                {% else %}
+                    {% for u in personnel_units %}
+                    <div class="dp-unit-row"
+                         onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                        <img src="/static/images/{{ u.icon }}"
+                             class="dp-unit-icon"
+                             alt="{{ u.unit_id }}">
+
+                        <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                        <div class="dp-unit-status">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                {{ u.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ====================================================
+                 SECTION 3 — APPARATUS
+            ====================================================== -->
+            <div class="dp-section">
+                <div class="dp-section-title">Apparatus</div>
+
+                {% if apparatus_units|length == 0 %}
+                    <div class="dp-empty">No apparatus found.</div>
+                {% else %}
+                    {% for u in apparatus_units %}
+                    <div class="dp-unit-row"
+                         onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                        <img src="/static/images/{{ u.icon }}"
+                             class="dp-unit-icon"
+                             alt="{{ u.unit_id }}">
+
+                        <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                        <div class="dp-unit-status">
+                            <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                {{ u.status }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- ====================================================
+                 SECTION 4 — MUTUAL AID (COLLAPSIBLE)
+            ====================================================== -->
+            <div class="dp-section">
+
+                <div class="dp-section-title collapsible"
+                     onclick="PICKER.toggleMutualAid()">
+                    Mutual Aid Units
+                    <span id="mutual-aid-arrow">▼</span>
+                </div>
+
+                <div id="mutual-aid-container" class="collapsed">
+
+                    {% if mutual_aid_units|length == 0 %}
+                        <div class="dp-empty">No mutual-aid units.</div>
+                    {% else %}
+                        {% for u in mutual_aid_units %}
+                        <div class="dp-unit-row"
+                             onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+
+                            <img src="/static/images/{{ u.icon }}"
+                                 class="dp-unit-icon"
+                                 alt="{{ u.unit_id }}">
+
+                            <div class="dp-unit-id">{{ u.unit_id }}</div>
+
+                            <div class="dp-unit-status">
+                                <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                    {{ u.status }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+            </div>
+
+        {% endif %}
+    </div> <!-- END body -->
+
+    <!-- ========================================================
+         FOOTER
+    ======================================================== -->
+    <div class="dp-footer">
+        <button class="pill-btn dp-cancel" onclick="CAD_MODAL.close()">
+            Cancel
+        </button>
+    </div>
+
+</div> <!-- END MODAL -->
+
+<style>
+/* ============================================================
+   DISPATCH PICKER STYLE (Phase-3)
+============================================================ */
+
+.dispatch-picker-modal {
+    width: 520px;
+    max-height: 80vh;
+    overflow: hidden;
+    background: #131d27;
+    border-radius: 10px;
+    box-shadow: 0 0 12px #000a;
+    display: flex;
+    flex-direction: column;
+}
+
+.dp-header {
+    padding: 10px;
+    background: #1b2836;
+    color: #e7edf5;
+    display: flex;
+    justify-content: space-between;
+    cursor: grab;
+}
+
+.dp-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.dp-close {
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.dp-body {
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.dp-section {
+    margin-bottom: 14px;
+}
+
+.dp-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #9fb3c8;
+    margin-bottom: 6px;
+}
+
+.dp-unit-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid #1f2a35;
+    cursor: pointer;
+}
+
+.dp-unit-row:hover {
+    background: #18232f;
+}
+
+.dp-unit-icon {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    margin-right: 10px;
+}
+
+.dp-unit-id {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: #dce4ef;
+}
+
+.dp-unit-status {
+    min-width: 100px;
+    text-align: right;
+}
+
+.dp-empty {
+    opacity: 0.5;
+    padding: 6px 0;
+    font-size: 14px;
+    color: #9fb3c8;
+}
+
+/* STATUS COLORS */
+.status-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #fff;
+}
+.status-available { background: #2e8b57; }
+.status-enroute   { background: #0275d8; }
+.status-arrived   { background: #5bc0de; }
+.status-transporting { background: #f0ad4e; color: #000; }
+.status-active    { background: #d9534f; }
+
+/* MUTUAL AID COLLAPSIBLE */
+.collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+#mutual-aid-container.collapsed {
+    display: none;
+}
+
+/* RECOMMENDED SECTION */
+.dp-recommended {
+    background: linear-gradient(135deg, #1a3a1a 0%, #0d2818 100%);
+    border: 1px solid #2e8b57;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 16px;
+}
+
+.dp-recommended-title {
+    color: #4ade80 !important;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dp-recommended-title::before {
+    content: "★";
+    color: #fbbf24;
+}
+
+.dp-recommended-row {
+    background: rgba(46, 139, 87, 0.15);
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.dp-recommended-row:hover {
+    background: rgba(46, 139, 87, 0.3);
+}
+</style>

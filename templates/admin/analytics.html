@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard - FORD CAD</title>
+  <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow-y: auto;
+    }
+    .analytics-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      min-height: 100%;
+      overflow-y: visible;
+    }
+    .analytics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #003478;
+    }
+    .analytics-header h1 {
+      margin: 0;
+      color: #003478;
+      font-size: 1.75rem;
+    }
+    .back-link {
+      color: #003478;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Date Filter */
+    .date-filter {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .date-filter label {
+      font-weight: 600;
+      color: #475569;
+    }
+    .date-filter input, .date-filter select {
+      padding: 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+    .date-filter button {
+      padding: 0.5rem 1rem;
+      background: #003478;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .kpi-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #003478;
+      margin-bottom: 0.25rem;
+    }
+    .kpi-label {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+    .kpi-card.highlight {
+      background: linear-gradient(135deg, #003478 0%, #0052b4 100%);
+    }
+    .kpi-card.highlight .kpi-value,
+    .kpi-card.highlight .kpi-label {
+      color: #fff;
+    }
+
+    /* Chart Grid */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .chart-card.wide {
+      grid-column: span 2;
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Response Time Table */
+    .response-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .response-table th, .response-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .response-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+    }
+    .response-table tr:hover {
+      background: #f8fafc;
+    }
+    .time-good { color: #22c55e; font-weight: 600; }
+    .time-warn { color: #f59e0b; font-weight: 600; }
+    .time-bad { color: #ef4444; font-weight: 600; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+      .chart-card.wide {
+        grid-column: span 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="analytics-container">
+    <div class="analytics-header">
+      <div>
+        <a href="/" class="back-link">&larr; Back to CAD</a>
+        <h1>Analytics Dashboard</h1>
+      </div>
+      <span style="color: #64748b;">Data as of <span id="last-updated">--</span></span>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="date-filter">
+      <label>Period:</label>
+      <select id="period-select" onchange="loadAnalytics()">
+        <option value="today">Today</option>
+        <option value="week" selected>Last 7 Days</option>
+        <option value="month">Last 30 Days</option>
+        <option value="year">This Year</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      <input type="date" id="date-from" style="display:none;">
+      <input type="date" id="date-to" style="display:none;">
+      <button onclick="loadAnalytics()">Refresh</button>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card highlight">
+        <div class="kpi-value" id="kpi-total">--</div>
+        <div class="kpi-label">Total Incidents</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-avg-response">--</div>
+        <div class="kpi-label">Avg Response Time</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-90th">--</div>
+        <div class="kpi-label">90th Percentile</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-units">--</div>
+        <div class="kpi-label">Active Units</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-transports">--</div>
+        <div class="kpi-label">Transports</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="chart-card wide">
+        <div class="chart-title">Incidents Over Time</div>
+        <div class="chart-container">
+          <canvas id="chart-timeline"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Incidents by Type</div>
+        <div class="chart-container">
+          <canvas id="chart-types"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Incidents by Hour</div>
+        <div class="chart-container">
+          <canvas id="chart-hours"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Response Times Distribution</div>
+        <div class="chart-container">
+          <canvas id="chart-response"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-title">Unit Utilization</div>
+        <div class="chart-container">
+          <canvas id="chart-units"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response Time Details -->
+    <div class="chart-card wide">
+      <div class="chart-title">Response Time by Incident Type</div>
+      <table class="response-table" id="response-table">
+        <thead>
+          <tr>
+            <th>Incident Type</th>
+            <th>Count</th>
+            <th>Avg Dispatch→Enroute</th>
+            <th>Avg Enroute→Arrived</th>
+            <th>Avg Total Response</th>
+            <th>90th Percentile</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6" style="text-align:center; color:#64748b;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let charts = {};
+
+    // Period select handler
+    document.getElementById('period-select').addEventListener('change', function() {
+      const custom = this.value === 'custom';
+      document.getElementById('date-from').style.display = custom ? 'inline-block' : 'none';
+      document.getElementById('date-to').style.display = custom ? 'inline-block' : 'none';
+    });
+
+    async function loadAnalytics() {
+      const period = document.getElementById('period-select').value;
+      let url = `/api/analytics?period=${period}`;
+
+      if (period === 'custom') {
+        const from = document.getElementById('date-from').value;
+        const to = document.getElementById('date-to').value;
+        if (from) url += `&from=${from}`;
+        if (to) url += `&to=${to}`;
+      }
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.ok) {
+          renderKPIs(data);
+          renderCharts(data);
+          renderResponseTable(data);
+          document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        }
+      } catch (err) {
+        console.error('Analytics load error:', err);
+      }
+    }
+
+    function renderKPIs(data) {
+      document.getElementById('kpi-total').textContent = data.total_incidents || 0;
+      document.getElementById('kpi-avg-response').textContent = formatTime(data.avg_response_time);
+      document.getElementById('kpi-90th').textContent = formatTime(data.percentile_90);
+      document.getElementById('kpi-units').textContent = data.active_units || 0;
+      document.getElementById('kpi-transports').textContent = data.total_transports || 0;
+    }
+
+    function formatTime(seconds) {
+      if (!seconds || seconds === 0) return '--';
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function renderCharts(data) {
+      // Timeline Chart
+      if (charts.timeline) charts.timeline.destroy();
+      charts.timeline = new Chart(document.getElementById('chart-timeline'), {
+        type: 'line',
+        data: {
+          labels: data.timeline_labels || [],
+          datasets: [{
+            label: 'Incidents',
+            data: data.timeline_data || [],
+            borderColor: '#003478',
+            backgroundColor: 'rgba(0, 52, 120, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Types Chart
+      if (charts.types) charts.types.destroy();
+      charts.types = new Chart(document.getElementById('chart-types'), {
+        type: 'doughnut',
+        data: {
+          labels: data.type_labels || [],
+          datasets: [{
+            data: data.type_data || [],
+            backgroundColor: ['#003478', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right' } }
+        }
+      });
+
+      // Hours Chart
+      if (charts.hours) charts.hours.destroy();
+      charts.hours = new Chart(document.getElementById('chart-hours'), {
+        type: 'bar',
+        data: {
+          labels: Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`),
+          datasets: [{
+            label: 'Incidents',
+            data: data.hourly_data || new Array(24).fill(0),
+            backgroundColor: '#003478'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Response Time Distribution
+      if (charts.response) charts.response.destroy();
+      charts.response = new Chart(document.getElementById('chart-response'), {
+        type: 'bar',
+        data: {
+          labels: ['<4 min', '4-6 min', '6-8 min', '8-10 min', '>10 min'],
+          datasets: [{
+            label: 'Incidents',
+            data: data.response_distribution || [0, 0, 0, 0, 0],
+            backgroundColor: ['#22c55e', '#84cc16', '#f59e0b', '#f97316', '#ef4444']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Unit Utilization
+      if (charts.units) charts.units.destroy();
+      charts.units = new Chart(document.getElementById('chart-units'), {
+        type: 'bar',
+        data: {
+          labels: data.unit_labels || [],
+          datasets: [{
+            label: 'Runs',
+            data: data.unit_data || [],
+            backgroundColor: '#003478'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function renderResponseTable(data) {
+      const tbody = document.querySelector('#response-table tbody');
+      const rows = data.response_by_type || [];
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">No data available</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(row => `
+        <tr>
+          <td><strong>${row.type}</strong></td>
+          <td>${row.count}</td>
+          <td>${formatTime(row.avg_dispatch_to_enroute)}</td>
+          <td>${formatTime(row.avg_enroute_to_arrived)}</td>
+          <td class="${getTimeClass(row.avg_total)}">${formatTime(row.avg_total)}</td>
+          <td class="${getTimeClass(row.percentile_90)}">${formatTime(row.percentile_90)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function getTimeClass(seconds) {
+      if (!seconds) return '';
+      if (seconds < 240) return 'time-good';
+      if (seconds < 480) return 'time-warn';
+      return 'time-bad';
+    }
+
+    // Load on page load
+    loadAnalytics();
+  </script>
+</body>
+</html>
