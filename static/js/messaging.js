@@ -25,6 +25,11 @@ const MessagingUI = {
         console.log('[Messaging] Initialized for user:', userId);
     },
 
+    bindEvents() {
+        // Event bindings for messaging UI elements
+        // Currently handled inline; this stub prevents initialization errors
+    },
+
     // =========================================================================
     // WEBSOCKET CONNECTION
     // =========================================================================

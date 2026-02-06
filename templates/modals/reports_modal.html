@@ -77,7 +77,7 @@
                         Additional email addresses that receive all reports (comma-separated).
                     </p>
                     <div class="report-form">
-                        <textarea id="report-recipients" placeholder="email1@example.com, email2@example.com" 
+                        <textarea id="report-recipients" placeholder="email1@example.com, email2@example.com"
                             style="width:100%; min-height:60px; padding:8px; border:1px solid var(--border-default); border-radius:var(--radius-sm);"></textarea>
                         <button class="btn-primary" onclick="REPORTS.saveRecipients()">Save Recipients</button>
                     </div>
@@ -87,7 +87,7 @@
                     <div class="report-section-title">Battalion Chief Emails</div>
                     <div id="bc-emails-list" style="font-size:13px;">Loading...</div>
                     <p style="font-size:11px; color:var(--text-secondary); margin-top:8px;">
-                        * Battalion Chief emails are configured in Admin → Reports
+                        * Battalion Chief emails are configured in Admin &rarr; Reports
                     </p>
                 </div>
 
@@ -284,7 +284,7 @@ window.REPORTS = {
                 document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
             });
         });
-        
+
         this.loadStatus();
         this.loadRecipients();
         this.loadBCEmails();
@@ -298,7 +298,7 @@ window.REPORTS = {
             ]);
             const config = await configRes.json();
             const shift = await shiftRes.json();
-            
+
             // Update auto-report status
             const statusEl = document.getElementById('auto-report-status');
             if (config.auto_report_enabled) {
@@ -308,16 +308,18 @@ window.REPORTS = {
                 statusEl.textContent = 'Auto-reporting: DISABLED';
                 statusEl.className = 'status-badge disabled';
             }
-            
+
             // Update shift status
             document.getElementById('shift-status').innerHTML = `
-                <strong>Current Shift:</strong> ${shift.shift} (${shift.shift_type})<br>
+                <strong>Current Shift:</strong> ${shift.shift || 'Unknown'} (${shift.shift_type || 'N/A'})<br>
                 <strong>Battalion Chief:</strong> ${shift.battalion_chief || 'Not configured'}<br>
-                <strong>Period:</strong> ${shift.start_time} - ${shift.end_time}<br>
+                <strong>Period:</strong> ${shift.start_time || '--'} - ${shift.end_time || '--'}<br>
                 <strong>Active:</strong> ${shift.is_during_shift ? 'Yes' : 'No (outside shift hours)'}
             `;
         } catch (e) {
             console.error('Failed to load status:', e);
+            document.getElementById('shift-status').innerHTML = '<em>Failed to load shift status</em>';
+            document.getElementById('auto-report-status').textContent = 'Unknown';
         }
     },
 
@@ -337,22 +339,25 @@ window.REPORTS = {
         try {
             const res = await fetch('/api/reports/battalion_chiefs');
             const data = await res.json();
-            
+
             const el = document.getElementById('bc-emails-list');
             if (data.battalion_chiefs) {
-                el.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => 
+                el.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) =>
                     `<div style="padding:4px 0;"><strong>Shift ${shift}:</strong> ${bc.name} - ${bc.email || '<em style="color:var(--text-secondary)">not configured</em>'}</div>`
                 ).join('');
+            } else {
+                el.innerHTML = '<em>No battalion chiefs configured</em>';
             }
         } catch (e) {
             console.error('Failed to load BC emails:', e);
+            document.getElementById('bc-emails-list').innerHTML = '<em>Failed to load</em>';
         }
     },
 
     async saveRecipients() {
         const input = document.getElementById('report-recipients').value;
         const recipients = input.split(',').map(e => e.trim()).filter(e => e);
-        
+
         try {
             const res = await fetch('/api/reports/config/recipients', {
                 method: 'POST',
@@ -360,11 +365,11 @@ window.REPORTS = {
                 body: JSON.stringify({recipients})
             });
             const data = await res.json();
-            
+
             if (data.ok) {
-                TOAST?.success?.(data.message || 'Saved');
+                TOAST?.success?.(data.message || 'Recipients saved');
             } else {
-                TOAST?.error?.(data.error || 'Failed');
+                TOAST?.error?.(data.error || 'Failed to save');
             }
         } catch (e) {
             TOAST?.error?.('Error: ' + e.message);
@@ -373,13 +378,13 @@ window.REPORTS = {
 
     async sendToAll() {
         if (!confirm('Send daily report to all configured recipients now?')) return;
-        
+
         TOAST?.info?.('Sending report...');
-        
+
         try {
             const input = document.getElementById('report-recipients')?.value || '';
             const extraRecipients = input.split(',').map(e => e.trim()).filter(e => e);
-            
+
             const res = await fetch('/api/reports/send', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -389,11 +394,11 @@ window.REPORTS = {
                 })
             });
             const data = await res.json();
-            
+
             if (data.ok) {
                 TOAST?.success?.(`Report sent to ${data.recipients?.length || 0} recipient(s)`);
             } else {
-                TOAST?.error?.(data.error || 'Failed');
+                TOAST?.error?.(data.error || 'Failed to send report');
             }
         } catch (e) {
             TOAST?.error?.('Error: ' + e.message);
@@ -406,9 +411,9 @@ window.REPORTS = {
             TOAST?.error?.('Enter an email address');
             return;
         }
-        
+
         TOAST?.info?.('Sending report...');
-        
+
         try {
             const res = await fetch('/api/reports/test', {
                 method: 'POST',
@@ -416,11 +421,11 @@ window.REPORTS = {
                 body: JSON.stringify({email})
             });
             const data = await res.json();
-            
+
             if (data.ok) {
                 TOAST?.success?.('Report sent!');
             } else {
-                TOAST?.error?.(data.error || 'Failed');
+                TOAST?.error?.(data.error || 'Failed to send');
             }
         } catch (e) {
             TOAST?.error?.('Error: ' + e.message);
@@ -428,10 +433,8 @@ window.REPORTS = {
     },
 
     async preview() {
-        // Fetch and display report inline
         const previewContainer = document.getElementById('report-preview-container');
         if (!previewContainer) {
-            // Fallback to new tab if no preview container
             this.openReportNewTab();
             return;
         }
