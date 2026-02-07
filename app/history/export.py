@@ -85,12 +85,20 @@ tr:nth-child(even) { background: #f8f9fa; }
 # HTML Incident Report
 # ============================================================================
 
+def _is_http_audit(event_type: str) -> bool:
+    """Return True for raw HTTP audit trail entries that clutter reports."""
+    if not event_type:
+        return False
+    et = event_type.strip().upper()
+    return et.startswith("HTTP_")
+
+
 def render_incident_html(incident: Dict[str, Any]) -> str:
     """Render a self-contained, printable HTML incident report."""
     inc = incident
     narrative_entries = inc.get("narrative_entries", [])
     units = inc.get("units", [])
-    history = inc.get("history", [])
+    history = [h for h in inc.get("history", []) if not _is_http_audit(h.get("event_type", ""))]
 
     run_num = _h(str(inc.get("incident_number") or inc.get("run_number") or inc.get("incident_id", "")))
     inc_type = _h(str(inc.get("type") or "Unknown"))
@@ -109,9 +117,37 @@ def render_incident_html(incident: Dict[str, Any]) -> str:
 <head>
 <meta charset="utf-8">
 <title>Incident Report — {run_num} — Ford Fire Department</title>
-<style>{_BASE_CSS}</style>
+<style>{_BASE_CSS}
+.print-toolbar {{
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 10px;
+    background: #1e293b; color: #f8fafc;
+    padding: 10px 20px; margin: 0;
+    border-bottom: 2px solid #3b82f6;
+    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}}
+.print-toolbar button {{
+    padding: 6px 16px; border-radius: 4px; font-size: 12px;
+    font-weight: 600; cursor: pointer; border: 1px solid #64748b;
+}}
+.print-toolbar .btn-print {{
+    background: #3b82f6; color: #fff; border-color: #3b82f6;
+}}
+.print-toolbar .btn-print:hover {{ opacity: 0.9; }}
+.print-toolbar .btn-close {{
+    background: #334155; color: #e2e8f0; border-color: #64748b;
+}}
+.print-toolbar .btn-close:hover {{ background: #475569; }}
+.print-toolbar span {{ font-size: 13px; font-weight: 600; }}
+@media print {{ .print-toolbar {{ display: none !important; }} }}
+</style>
 </head>
 <body>
+<div class="print-toolbar">
+    <button class="btn-print" onclick="window.print()">Print</button>
+    <button class="btn-close" onclick="window.close()">Close</button>
+    <span>Incident Report #{run_num} — {inc_type}</span>
+</div>
 <div class="page">
 <div class="header">
     <div>
@@ -365,6 +401,8 @@ def render_incident_xlsx(incident: Dict[str, Any], output_path: Path) -> bool:
             cell.font = header_font
             cell.fill = header_fill
         for h in inc.get("history", []):
+            if _is_http_audit(h.get("event_type", "")):
+                continue
             ws4.append([
                 h.get("timestamp", ""), h.get("event_type", ""),
                 h.get("user", ""), h.get("unit_id", ""), str(h.get("details", ""))[:200],

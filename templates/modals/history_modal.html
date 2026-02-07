@@ -114,10 +114,10 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
                         </button>
                         <div class="hist-dropdown-menu" id="hist-export-menu" style="display:none;">
-                            <button class="hist-dropdown-item" data-action="print">Print</button>
-                            <button class="hist-dropdown-item" data-action="pdf">Export PDF</button>
-                            <button class="hist-dropdown-item" data-action="csv">Export CSV</button>
-                            <button class="hist-dropdown-item" data-action="xlsx">Export XLSX</button>
+                            <button class="hist-dropdown-item" data-hist-action="print">Print</button>
+                            <button class="hist-dropdown-item" data-hist-action="pdf">Export PDF</button>
+                            <button class="hist-dropdown-item" data-hist-action="csv">Export CSV</button>
+                            <button class="hist-dropdown-item" data-hist-action="xlsx">Export XLSX</button>
                         </div>
                     </div>
                 </div>
@@ -158,21 +158,21 @@
                         Back to list
                     </button>
                     <div class="hist-detail-actions" id="hist-detail-actions">
-                        <button class="hist-btn hist-btn-sm" data-action="print" title="Print">Print</button>
-                        <button class="hist-btn hist-btn-sm" data-action="pdf" title="Export PDF">PDF</button>
-                        <button class="hist-btn hist-btn-sm" data-action="csv" title="Export CSV">CSV</button>
-                        <button class="hist-btn hist-btn-sm" data-action="xlsx" title="Export XLSX">XLSX</button>
+                        <button class="hist-btn hist-btn-sm" data-hist-action="print" title="Print">Print</button>
+                        <button class="hist-btn hist-btn-sm" data-hist-action="pdf" title="Export PDF">PDF</button>
+                        <button class="hist-btn hist-btn-sm" data-hist-action="csv" title="Export CSV">CSV</button>
+                        <button class="hist-btn hist-btn-sm" data-hist-action="xlsx" title="Export XLSX">XLSX</button>
                         <div class="hist-dropdown">
                             <button class="hist-btn hist-btn-sm hist-btn-primary" id="hist-send-btn">
                                 Send
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
                             </button>
                             <div class="hist-dropdown-menu hist-send-menu" id="hist-send-menu" style="display:none;">
-                                <button class="hist-dropdown-item" data-channel="email">Email</button>
-                                <button class="hist-dropdown-item" data-channel="sms">SMS</button>
-                                <button class="hist-dropdown-item" data-channel="signal">Signal</button>
-                                <button class="hist-dropdown-item" data-channel="webex">Webex</button>
-                                <button class="hist-dropdown-item" data-channel="webhook">Webhook</button>
+                                <button class="hist-dropdown-item" data-hist-channel="email">Email</button>
+                                <button class="hist-dropdown-item" data-hist-channel="sms">SMS</button>
+                                <button class="hist-dropdown-item" data-hist-channel="signal">Signal</button>
+                                <button class="hist-dropdown-item" data-hist-channel="webex">Webex</button>
+                                <button class="hist-dropdown-item" data-hist-channel="webhook">Webhook</button>
                             </div>
                         </div>
                     </div>
@@ -242,8 +242,8 @@
 
 /* ---- Filter Bar ---- */
 .hist-filter-bar {
-    background: var(--bg-secondary, #f4f6f8);
-    border: 1px solid var(--border-light, #e0e0e0);
+    background: var(--bg-elevated, #334155);
+    border: 1px solid var(--border-default, #475569);
     border-radius: 6px;
     padding: 10px 12px;
     margin-bottom: 12px;
@@ -258,7 +258,7 @@
 .hist-separator {
     width: 1px;
     height: 24px;
-    background: var(--border-default, #ccc);
+    background: var(--border-emphasis, #64748b);
     margin: 0 4px;
 }
 
@@ -267,9 +267,9 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    border: 1px solid var(--border-default, #ccc);
-    background: var(--bg-primary, #fff);
-    color: var(--text-primary, #1a1a2e);
+    border: 1px solid var(--border-emphasis, #64748b);
+    background: var(--bg-surface, #1e293b);
+    color: var(--text-secondary, #e2e8f0);
     padding: 6px 12px;
     border-radius: 4px;
     font-size: 12px;
@@ -278,14 +278,14 @@
     transition: all 0.12s;
     white-space: nowrap;
 }
-.hist-btn:hover { background: var(--bg-active, #e8eef4); }
+.hist-btn:hover { background: var(--bg-hover, #475569); color: var(--text-primary, #f8fafc); }
 .hist-btn-sm { padding: 4px 10px; font-size: 11px; }
-.hist-btn-ghost { border-color: transparent; background: transparent; }
-.hist-btn-ghost:hover { background: var(--bg-active, #e8eef4); }
+.hist-btn-ghost { border-color: transparent; background: transparent; color: var(--text-muted, #cbd5e1); }
+.hist-btn-ghost:hover { background: var(--bg-hover, #475569); color: var(--text-primary, #f8fafc); }
 .hist-btn-primary {
-    background: var(--ford-blue, #003478);
+    background: var(--ford-blue, #3b82f6);
     color: #fff;
-    border-color: var(--ford-blue, #003478);
+    border-color: var(--ford-blue, #3b82f6);
 }
 .hist-btn-primary:hover { opacity: 0.9; }
 
@@ -301,32 +301,32 @@
 .hist-btn-group .hist-btn:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
 .hist-btn-group .hist-btn:last-child { border-radius: 0 4px 4px 0; }
 .hist-btn-group .hist-btn.active {
-    background: var(--ford-blue, #003478);
+    background: var(--ford-blue, #3b82f6);
     color: #fff;
-    border-color: var(--ford-blue, #003478);
+    border-color: var(--ford-blue, #3b82f6);
     z-index: 1;
 }
 
 /* ---- Inputs ---- */
 .hist-input {
-    border: 1px solid var(--border-default, #ccc);
+    border: 1px solid var(--border-emphasis, #64748b);
     border-radius: 4px;
     padding: 6px 10px;
     font-size: 12px;
-    background: var(--bg-primary, #fff);
-    color: var(--text-primary, #1a1a2e);
+    background: var(--bg-surface, #1e293b);
+    color: var(--text-primary, #f8fafc);
     outline: none;
     transition: border-color 0.15s;
 }
-.hist-input:focus { border-color: var(--ford-blue, #003478); }
+.hist-input:focus { border-color: var(--ford-blue, #3b82f6); }
 .hist-input-sm { padding: 4px 8px; font-size: 11px; }
 .hist-select {
-    border: 1px solid var(--border-default, #ccc);
+    border: 1px solid var(--border-emphasis, #64748b);
     border-radius: 4px;
     padding: 6px 10px;
     font-size: 12px;
-    background: var(--bg-primary, #fff);
-    color: var(--text-primary, #1a1a2e);
+    background: var(--bg-surface, #1e293b);
+    color: var(--text-primary, #f8fafc);
     outline: none;
     cursor: pointer;
 }
@@ -342,7 +342,7 @@
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    color: var(--text-muted, #999);
+    color: var(--text-muted, #cbd5e1);
     pointer-events: none;
 }
 .hist-search-input {
@@ -356,12 +356,15 @@
     align-items: center;
     gap: 6px;
 }
+.hist-date-custom input[type="date"] {
+    color-scheme: dark;
+}
 
 /* ---- Advanced drawer ---- */
 .hist-advanced-drawer {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid var(--border-light, #e0e0e0);
+    border-top: 1px solid var(--border-default, #475569);
 }
 .hist-filter-grid {
     display: grid;
@@ -373,7 +376,7 @@
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
-    color: var(--text-secondary, #666);
+    color: var(--text-muted, #cbd5e1);
     margin-bottom: 4px;
 }
 .hist-field .hist-input,
@@ -391,6 +394,7 @@
     font-size: 11px;
     text-transform: none;
     cursor: pointer;
+    color: var(--text-secondary, #e2e8f0);
 }
 
 /* ---- Results header ---- */
@@ -404,7 +408,7 @@
 .hist-result-count {
     font-size: 12px;
     font-weight: 600;
-    color: var(--text-secondary, #666);
+    color: var(--text-secondary, #e2e8f0);
 }
 
 /* ---- Dropdown ---- */
@@ -414,10 +418,10 @@
     right: 0;
     top: 100%;
     margin-top: 4px;
-    background: var(--bg-primary, #fff);
-    border: 1px solid var(--border-default, #ccc);
+    background: var(--bg-elevated, #334155);
+    border: 1px solid var(--border-emphasis, #64748b);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     z-index: 100;
     min-width: 140px;
     overflow: hidden;
@@ -430,27 +434,28 @@
     background: none;
     text-align: left;
     font-size: 12px;
-    color: var(--text-primary, #1a1a2e);
+    color: var(--text-primary, #f8fafc);
     cursor: pointer;
 }
-.hist-dropdown-item:hover { background: var(--bg-active, #e8eef4); }
+.hist-dropdown-item:hover { background: var(--bg-hover, #475569); }
 
 /* ---- Table ---- */
 .hist-table-wrap {
     overflow-y: auto;
     max-height: calc(92vh - 340px);
-    border: 1px solid var(--border-light, #e0e0e0);
+    border: 1px solid var(--border-default, #475569);
     border-radius: 6px;
 }
 .hist-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
+    color: var(--text-primary, #f8fafc);
 }
 .hist-table thead { position: sticky; top: 0; z-index: 10; }
 .hist-table th {
-    background: var(--bg-tertiary, #2c3e50);
-    color: #fff;
+    background: var(--bg-elevated, #334155);
+    color: var(--text-primary, #f8fafc);
     padding: 7px 10px;
     text-align: left;
     font-size: 10px;
@@ -461,17 +466,18 @@
 }
 .hist-table td {
     padding: 6px 10px;
-    border-bottom: 1px solid var(--border-light, #eee);
+    border-bottom: 1px solid var(--border-light, #334155);
     vertical-align: middle;
+    color: var(--text-secondary, #e2e8f0);
 }
 .hist-table tbody tr {
     cursor: pointer;
     transition: background 0.1s;
 }
-.hist-table tbody tr:hover { background: var(--bg-active, #e8eef4); }
-.hist-table tbody tr.hist-row-selected { background: var(--bg-active, #dce8f4); }
-.hist-table tbody tr.hist-row-issue { background: rgba(231,76,60,0.06); }
-.hist-table tbody tr.hist-row-issue:hover { background: rgba(231,76,60,0.12); }
+.hist-table tbody tr:hover { background: var(--bg-hover, #475569); }
+.hist-table tbody tr.hist-row-selected { background: var(--bg-active, #1e3a5f); }
+.hist-table tbody tr.hist-row-issue { background: rgba(248,113,113,0.08); }
+.hist-table tbody tr.hist-row-issue:hover { background: rgba(248,113,113,0.15); }
 
 /* ---- Badges ---- */
 .hist-badge {
@@ -496,12 +502,13 @@
     border-radius: 3px;
     font-size: 10px;
     font-weight: 600;
-    background: var(--bg-tertiary, #34495e);
-    color: #fff;
+    background: var(--bg-elevated, #334155);
+    color: var(--text-primary, #f8fafc);
+    border: 1px solid var(--border-emphasis, #64748b);
     margin: 1px 2px;
 }
 
-.hist-flag-icon { color: #e74c3c; font-weight: 700; font-size: 14px; }
+.hist-flag-icon { color: var(--danger, #f87171); font-weight: 700; font-size: 14px; }
 .hist-label-text {
     max-width: 320px;
     overflow: hidden;
@@ -513,15 +520,15 @@
 .hist-loading, .hist-empty {
     text-align: center;
     padding: 32px;
-    color: var(--text-muted, #999);
+    color: var(--text-muted, #cbd5e1);
     font-size: 13px;
 }
 .hist-spinner {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 2px solid var(--border-light, #ddd);
-    border-top-color: var(--ford-blue, #003478);
+    border: 2px solid var(--border-default, #475569);
+    border-top-color: var(--ford-blue, #60a5fa);
     border-radius: 50%;
     animation: hist-spin 0.7s linear infinite;
     margin-right: 8px;
@@ -531,7 +538,7 @@
 
 /* ---- Detail Panel ---- */
 .hist-detail-panel {
-    border-top: 2px solid var(--ford-blue, #003478);
+    border-top: 2px solid var(--ford-blue, #60a5fa);
     margin-top: 8px;
     padding-top: 8px;
 }
@@ -542,7 +549,7 @@
     margin-bottom: 12px;
 }
 .hist-detail-actions { display: flex; gap: 6px; align-items: center; }
-.hist-detail-content { font-size: 12px; }
+.hist-detail-content { font-size: 12px; color: var(--text-primary, #f8fafc); }
 
 /* ---- Detail sections ---- */
 .hist-detail-section { margin-bottom: 16px; }
@@ -550,8 +557,8 @@
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    color: var(--text-secondary, #666);
-    border-bottom: 1px solid var(--border-light, #ddd);
+    color: var(--text-muted, #cbd5e1);
+    border-bottom: 1px solid var(--border-default, #475569);
     padding-bottom: 4px;
     margin-bottom: 8px;
     letter-spacing: 0.5px;
@@ -564,19 +571,20 @@
 .hist-detail-grid .label {
     font-size: 10px;
     font-weight: 600;
-    color: var(--text-secondary, #888);
+    color: var(--text-muted, #cbd5e1);
     text-transform: uppercase;
 }
-.hist-detail-grid .value { font-size: 12px; }
+.hist-detail-grid .value { font-size: 12px; color: var(--text-primary, #f8fafc); }
 
 .hist-detail-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 11px;
+    color: var(--text-secondary, #e2e8f0);
 }
 .hist-detail-table th {
-    background: var(--bg-tertiary, #2c3e50);
-    color: #fff;
+    background: var(--bg-elevated, #334155);
+    color: var(--text-primary, #f8fafc);
     padding: 5px 8px;
     text-align: left;
     font-size: 10px;
@@ -584,27 +592,27 @@
 }
 .hist-detail-table td {
     padding: 4px 8px;
-    border-bottom: 1px solid var(--border-light, #eee);
+    border-bottom: 1px solid var(--border-light, #334155);
 }
-.hist-detail-table tr:nth-child(even) { background: var(--bg-secondary, #f8f9fa); }
+.hist-detail-table tr:nth-child(even) { background: var(--bg-surface, #1e293b); }
 
 .hist-narrative-entry {
     padding: 6px 0;
-    border-bottom: 1px solid var(--border-light, #eee);
+    border-bottom: 1px solid var(--border-light, #334155);
 }
 .hist-narrative-ts {
     font-size: 10px;
-    color: var(--text-muted, #888);
+    color: var(--text-muted, #cbd5e1);
     font-family: monospace;
 }
-.hist-narrative-author { font-weight: 600; color: var(--text-primary, #2c3e50); }
-.hist-narrative-text { margin-top: 2px; line-height: 1.5; }
+.hist-narrative-author { font-weight: 600; color: var(--ford-blue, #60a5fa); }
+.hist-narrative-text { margin-top: 2px; line-height: 1.5; color: var(--text-secondary, #e2e8f0); }
 .hist-issue-banner {
-    background: rgba(231,76,60,0.1);
-    border: 1px solid #e74c3c;
+    background: var(--danger-bg, rgba(248,113,113,0.15));
+    border: 1px solid var(--danger, #f87171);
     border-radius: 4px;
     padding: 8px 12px;
-    color: #c0392b;
+    color: var(--danger, #f87171);
     font-weight: 600;
     margin-bottom: 12px;
     font-size: 12px;
@@ -614,24 +622,25 @@
 .hist-send-dialog {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 200;
 }
 .hist-send-dialog-inner {
-    background: var(--bg-primary, #fff);
+    background: var(--bg-elevated, #334155);
+    border: 1px solid var(--border-emphasis, #64748b);
     border-radius: 8px;
     padding: 20px 24px;
     min-width: 340px;
     max-width: 400px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .hist-send-dialog-title {
     font-size: 14px;
     font-weight: 700;
-    color: var(--text-primary, #1a1a2e);
+    color: var(--text-primary, #f8fafc);
     margin-bottom: 4px;
 }
 .hist-send-status {
@@ -640,8 +649,8 @@
     border-radius: 4px;
     font-size: 12px;
 }
-.hist-send-status.success { background: #d4edda; color: #155724; }
-.hist-send-status.error { background: #f8d7da; color: #721c24; }
+.hist-send-status.success { background: var(--success-bg, #166534); color: var(--success, #4ade80); }
+.hist-send-status.error { background: var(--danger-bg, #991b1b); color: var(--danger, #f87171); }
 </style>
 
 <!-- ============================================================ -->
@@ -1172,8 +1181,8 @@
                 html += "</table></div>";
             }
 
-            // History / Timeline
-            const history = inc.history || [];
+            // History / Timeline (filter out raw HTTP audit entries)
+            const history = (inc.history || []).filter(h => !(h.event_type || "").toUpperCase().startsWith("HTTP_"));
             if (history.length > 0) {
                 html += `<div class="hist-detail-section"><div class="hist-detail-section-title">Timeline / Audit</div>
                     <table class="hist-detail-table">
@@ -1215,17 +1224,19 @@
             });
 
             exportMenu.addEventListener("click", (e) => {
-                const item = e.target.closest("[data-action]");
+                e.stopPropagation();
+                const item = e.target.closest("[data-hist-action]");
                 if (!item) return;
                 exportMenu.style.display = "none";
-                self._handleExport(item.dataset.action);
+                self._handleExport(item.dataset.histAction);
             });
 
             // Detail panel export buttons
             document.getElementById("hist-detail-actions").addEventListener("click", (e) => {
-                const btn = e.target.closest("[data-action]");
+                e.stopPropagation();
+                const btn = e.target.closest("[data-hist-action]");
                 if (!btn) return;
-                self._handleExport(btn.dataset.action);
+                self._handleExport(btn.dataset.histAction);
             });
 
             // Close dropdown when clicking outside
@@ -1282,10 +1293,11 @@
             });
 
             sendMenu.addEventListener("click", (e) => {
-                const item = e.target.closest("[data-channel]");
+                e.stopPropagation();
+                const item = e.target.closest("[data-hist-channel]");
                 if (!item) return;
                 sendMenu.style.display = "none";
-                currentChannel = item.dataset.channel;
+                currentChannel = item.dataset.histChannel;
                 self._openSendDialog(currentChannel);
             });
 
