@@ -20,6 +20,7 @@
             <!-- Tab Navigation -->
             <div class="rpt-tabs" role="tablist">
                 <button class="rpt-tab active" data-tab="run" role="tab" aria-selected="true" aria-controls="rpt-panel-run">Run</button>
+                <button class="rpt-tab" data-tab="analytics" role="tab" aria-selected="false" aria-controls="rpt-panel-analytics">Analytics</button>
                 <button class="rpt-tab" data-tab="builder" role="tab" aria-selected="false" aria-controls="rpt-panel-builder">Builder</button>
                 <button class="rpt-tab" data-tab="history" role="tab" aria-selected="false" aria-controls="rpt-panel-history">History</button>
             </div>
@@ -162,7 +163,115 @@
             </div>
 
             <!-- ============================================================ -->
-            <!-- TAB 2: BUILDER                                               -->
+            <!-- TAB 2: ANALYTICS                                             -->
+            <!-- ============================================================ -->
+            <div class="rpt-panel" id="rpt-panel-analytics" role="tabpanel">
+                <!-- Date Range -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Date Range</div>
+                    <div class="analytics-date-row">
+                        <select id="analytics-preset" class="rpt-select" style="max-width:170px;" onchange="REPORTING.onAnalyticsPresetChange()">
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d" selected>Last 30 Days</option>
+                            <option value="90d">Last 90 Days</option>
+                            <option value="mtd">Month to Date</option>
+                            <option value="ytd">Year to Date</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input type="date" id="analytics-date-from" class="rpt-input" style="max-width:150px;">
+                        <span style="color:var(--text-secondary);">to</span>
+                        <input type="date" id="analytics-date-to" class="rpt-input" style="max-width:150px;">
+                        <button class="rpt-btn-primary rpt-btn-sm" onclick="REPORTING.loadAnalytics()">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23,4 23,10 17,10"></polyline><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path></svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="rpt-section">
+                    <div class="analytics-kpi-row" id="analytics-kpi-row">
+                        <div class="analytics-kpi-card">
+                            <div class="analytics-kpi-value" id="kpi-total-incidents">--</div>
+                            <div class="analytics-kpi-label">Total Incidents</div>
+                            <div class="analytics-kpi-trend" id="kpi-trend-incidents"></div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <div class="analytics-kpi-value" id="kpi-avg-response">--</div>
+                            <div class="analytics-kpi-label">Avg Response Time</div>
+                            <div class="analytics-kpi-trend" id="kpi-trend-response"></div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <div class="analytics-kpi-value" id="kpi-p90-response">--</div>
+                            <div class="analytics-kpi-label">90th Percentile</div>
+                            <div class="analytics-kpi-trend" id="kpi-trend-p90"></div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <div class="analytics-kpi-value" id="kpi-compliance">--</div>
+                            <div class="analytics-kpi-label">Compliance %</div>
+                            <div class="analytics-kpi-trend" id="kpi-trend-compliance"></div>
+                        </div>
+                        <div class="analytics-kpi-card">
+                            <div class="analytics-kpi-value" id="kpi-active-units">--</div>
+                            <div class="analytics-kpi-label">Active Units</div>
+                            <div class="analytics-kpi-trend" id="kpi-trend-units"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="rpt-section">
+                    <div class="analytics-charts-grid">
+                        <div class="analytics-chart-panel span-2">
+                            <div class="analytics-chart-title">Incident Trend</div>
+                            <canvas id="chart-incident-trend" height="200"></canvas>
+                        </div>
+                        <div class="analytics-chart-panel">
+                            <div class="analytics-chart-title">Type Breakdown</div>
+                            <canvas id="chart-type-breakdown" height="200"></canvas>
+                        </div>
+                        <div class="analytics-chart-panel">
+                            <div class="analytics-chart-title">Hourly Pattern</div>
+                            <canvas id="chart-hourly-pattern" height="200"></canvas>
+                        </div>
+                        <div class="analytics-chart-panel">
+                            <div class="analytics-chart-title">Unit Utilization</div>
+                            <canvas id="chart-unit-utilization" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Report Section -->
+                <div class="rpt-section">
+                    <div class="rpt-section-title">Generate Analytics Report</div>
+                    <div class="analytics-generate-row">
+                        <select id="analytics-template-select" class="rpt-select" style="flex:1;">
+                            <option value="executive_summary">Executive Summary Dashboard</option>
+                            <option value="response_performance">Response Performance Analysis</option>
+                            <option value="incident_analytics">Incident Analytics Report</option>
+                            <option value="unit_performance">Unit Performance Dashboard</option>
+                            <option value="department_overview">Department Overview Report</option>
+                        </select>
+                        <select id="analytics-format-select" class="rpt-select" style="max-width:100px;">
+                            <option value="html">HTML</option>
+                            <option value="pdf">PDF</option>
+                            <option value="csv">CSV</option>
+                            <option value="xlsx">XLSX</option>
+                        </select>
+                        <button class="rpt-btn-primary" onclick="REPORTING.generateAnalyticsReport()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21 5,3"></polygon></svg>
+                            Generate
+                        </button>
+                        <button class="rpt-btn-secondary" onclick="REPORTING.previewAnalyticsReport()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- TAB 3: BUILDER                                               -->
             <!-- ============================================================ -->
             <div class="rpt-panel" id="rpt-panel-builder" role="tabpanel">
                 <!-- Base Dataset -->
@@ -345,8 +454,8 @@
 <style>
 /* ---- Modal size ---- */
 .reporting-modal {
-    min-width: 720px;
-    max-width: 940px;
+    min-width: 750px;
+    max-width: 1000px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
@@ -884,6 +993,74 @@
     to { transform: rotate(360deg); }
 }
 
+/* ---- Analytics tab ---- */
+.reporting-modal .analytics-date-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.reporting-modal .analytics-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+}
+.reporting-modal .analytics-kpi-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    text-align: center;
+}
+.reporting-modal .analytics-kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #003478;
+    line-height: 1.2;
+}
+.reporting-modal .analytics-kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+.reporting-modal .analytics-kpi-trend {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+.reporting-modal .analytics-kpi-trend.up { color: #dc2626; }
+.reporting-modal .analytics-kpi-trend.down { color: #16a34a; }
+.reporting-modal .analytics-kpi-trend.neutral { color: var(--text-secondary); }
+.reporting-modal .analytics-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.reporting-modal .analytics-chart-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+.reporting-modal .analytics-chart-panel.span-2 {
+    grid-column: span 2;
+}
+.reporting-modal .analytics-chart-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+.reporting-modal .analytics-generate-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 /* ============================================================ */
 /* REPORT VIEWER OVERLAY                                        */
 /* ============================================================ */
@@ -997,6 +1174,7 @@
 <!-- ===================================================================== -->
 <!-- JAVASCRIPT                                                            -->
 <!-- ===================================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 window.REPORTING = {
 
@@ -1004,6 +1182,8 @@ window.REPORTING = {
     _templates: [],
     _historyCache: [],
     _historyLoaded: false,
+    _analyticsLoaded: false,
+    _chartInstances: {},
     _activeDataset: 'dailylog',
     _sortDir: 'asc',
     _blotterMode: 'condensed',
@@ -1059,6 +1239,9 @@ window.REPORTING = {
                 if (panel) panel.classList.add('active');
 
                 // Lazy-load data
+                if (tab.dataset.tab === 'analytics' && !this._analyticsLoaded) {
+                    this.loadAnalytics();
+                }
                 if (tab.dataset.tab === 'history' && !this._historyLoaded) {
                     this.loadHistory();
                 }
@@ -1703,6 +1886,329 @@ window.REPORTING = {
         this._currentRunId = runId;
         await this.viewHistoryRun(runId);
         window.TOAST?.info?.('Use the email/SMS fields below the report to deliver');
+    },
+
+    // ------------------------------------------------------------------ Analytics Tab
+    _getAnalyticsDateRange() {
+        const preset = document.getElementById('analytics-preset')?.value || '30d';
+        const today = new Date();
+        let from, to;
+        to = new Date(today);
+
+        switch (preset) {
+            case '7d':
+                from = new Date(today); from.setDate(from.getDate() - 6); break;
+            case '30d':
+                from = new Date(today); from.setDate(from.getDate() - 29); break;
+            case '90d':
+                from = new Date(today); from.setDate(from.getDate() - 89); break;
+            case 'mtd':
+                from = new Date(today.getFullYear(), today.getMonth(), 1); break;
+            case 'ytd':
+                from = new Date(today.getFullYear(), 0, 1); break;
+            case 'custom':
+                return {
+                    from: document.getElementById('analytics-date-from')?.value || this._dateStr(new Date(today.setDate(today.getDate() - 29))),
+                    to: document.getElementById('analytics-date-to')?.value || this._dateStr(new Date())
+                };
+        }
+        const result = { from: this._dateStr(from), to: this._dateStr(to) };
+        const fromEl = document.getElementById('analytics-date-from');
+        const toEl = document.getElementById('analytics-date-to');
+        if (fromEl) fromEl.value = result.from;
+        if (toEl) toEl.value = result.to;
+        return result;
+    },
+
+    onAnalyticsPresetChange() {
+        this._getAnalyticsDateRange();
+    },
+
+    async loadAnalytics() {
+        const range = this._getAnalyticsDateRange();
+        this._analyticsLoaded = true;
+
+        // Try to fetch analytics data from server
+        try {
+            const params = new URLSearchParams({ date_from: range.from, date_to: range.to });
+            const res = await fetch('/api/reporting/preview?template_key=executive_summary&' + params.toString());
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+
+            // Parse KPI data from server-generated report
+            // We'll use the analytics API or extract from executive summary
+            const analyticsRes = await fetch('/api/analytics?' + params.toString()).catch(() => null);
+            let kpis = null;
+            if (analyticsRes && analyticsRes.ok) {
+                kpis = await analyticsRes.json();
+            }
+
+            // Also fetch raw data for charts
+            const incRes = await fetch('/api/reporting/preview?template_key=incident_analytics&' + params.toString()).catch(() => null);
+
+            this._renderAnalyticsKPIs(kpis, range);
+            this._renderAnalyticsCharts(range);
+        } catch (e) {
+            console.warn('[REPORTING] Analytics load error:', e);
+            // Still render charts with whatever data we can get
+            this._renderAnalyticsKPIs(null, range);
+            this._renderAnalyticsCharts(range);
+        }
+    },
+
+    _renderAnalyticsKPIs(data, range) {
+        // Fetch incident count from dailylog for KPIs
+        const setKPI = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        const setTrend = (id, val, cls) => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = val; el.className = 'analytics-kpi-trend ' + cls; }
+        };
+
+        if (data && data.kpis) {
+            const k = data.kpis;
+            setKPI('kpi-total-incidents', k.total_incidents || '--');
+            setKPI('kpi-avg-response', k.avg_response_time || '--');
+            setKPI('kpi-p90-response', k.p90_response_time || '--');
+            setKPI('kpi-compliance', k.compliance_pct ? (k.compliance_pct + '%') : '--');
+            setKPI('kpi-active-units', k.active_units || '--');
+        } else {
+            // Fetch from run to get KPIs
+            fetch('/api/reporting/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_key: 'executive_summary',
+                    filters: { date_from: range.from, date_to: range.to },
+                    formats: [],
+                    title: '__analytics_kpi_fetch__'
+                })
+            }).then(r => r.json()).then(d => {
+                if (d.ok && d.kpis) {
+                    const k = d.kpis;
+                    setKPI('kpi-total-incidents', k.total_incidents ?? '--');
+                    setKPI('kpi-avg-response', k.avg_response_time ? (k.avg_response_time + ' min') : '--');
+                    setKPI('kpi-p90-response', k.p90_response_time ? (k.p90_response_time + ' min') : '--');
+                    setKPI('kpi-compliance', k.compliance_pct != null ? (k.compliance_pct + '%') : '--');
+                    setKPI('kpi-active-units', k.active_units ?? '--');
+
+                    if (k.delta) {
+                        const d = k.delta;
+                        if (d.incidents != null) setTrend('kpi-trend-incidents',
+                            (d.incidents >= 0 ? '+' : '') + d.incidents + '%',
+                            d.incidents > 5 ? 'up' : d.incidents < -5 ? 'down' : 'neutral');
+                    }
+                }
+            }).catch(() => {});
+        }
+    },
+
+    _renderAnalyticsCharts(range) {
+        if (typeof Chart === 'undefined') {
+            console.warn('[REPORTING] Chart.js not loaded yet');
+            setTimeout(() => this._renderAnalyticsCharts(range), 500);
+            return;
+        }
+
+        const FORD_BLUE = '#003478';
+        const FORD_LIGHT = '#4a7cc9';
+        const FIRE_RED = '#dc2626';
+        const CHART_COLORS = [FORD_BLUE, FIRE_RED, '#f59e0b', '#16a34a', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1'];
+
+        // Destroy previous chart instances
+        Object.values(this._chartInstances).forEach(c => { try { c.destroy(); } catch(_){} });
+        this._chartInstances = {};
+
+        // Fetch data for charts via the run API
+        fetch('/api/reporting/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_key: 'incident_analytics',
+                filters: { date_from: range.from, date_to: range.to },
+                formats: [],
+                title: '__analytics_chart_fetch__'
+            })
+        }).then(r => r.json()).then(result => {
+            const cd = result.chart_data || {};
+
+            // 1. Incident Trend (line chart)
+            const trendCtx = document.getElementById('chart-incident-trend');
+            if (trendCtx && cd.daily_trend) {
+                this._chartInstances.trend = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: cd.daily_trend.labels || [],
+                        datasets: [{
+                            label: 'Incidents',
+                            data: cd.daily_trend.values || [],
+                            borderColor: FORD_BLUE,
+                            backgroundColor: FORD_BLUE + '20',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            // 2. Type Breakdown (donut)
+            const typeCtx = document.getElementById('chart-type-breakdown');
+            if (typeCtx && cd.type_breakdown) {
+                this._chartInstances.typeBreak = new Chart(typeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: cd.type_breakdown.labels || [],
+                        datasets: [{
+                            data: cd.type_breakdown.values || [],
+                            backgroundColor: CHART_COLORS.slice(0, (cd.type_breakdown.labels || []).length),
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } }
+                        }
+                    }
+                });
+            }
+
+            // 3. Hourly Pattern (bar)
+            const hourCtx = document.getElementById('chart-hourly-pattern');
+            if (hourCtx && cd.hourly_pattern) {
+                this._chartInstances.hourly = new Chart(hourCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: cd.hourly_pattern.labels || [],
+                        datasets: [{
+                            label: 'Incidents',
+                            data: cd.hourly_pattern.values || [],
+                            backgroundColor: FORD_BLUE + 'cc',
+                            borderRadius: 3,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { font: { size: 9 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            // 4. Unit Utilization (horizontal bar) - fetch from unit_performance
+            fetch('/api/reporting/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_key: 'unit_performance',
+                    filters: { date_from: range.from, date_to: range.to },
+                    formats: [],
+                    title: '__analytics_unit_fetch__'
+                })
+            }).then(r => r.json()).then(uResult => {
+                const ucd = uResult.chart_data || {};
+                const utilCtx = document.getElementById('chart-unit-utilization');
+                if (utilCtx && ucd.utilization) {
+                    this._chartInstances.util = new Chart(utilCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: ucd.utilization.labels || [],
+                            datasets: [{
+                                label: 'Utilization %',
+                                data: ucd.utilization.values || [],
+                                backgroundColor: FORD_LIGHT + 'cc',
+                                borderRadius: 3,
+                            }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { beginAtZero: true, max: 100, ticks: { font: { size: 10 } } },
+                                y: { ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    });
+                }
+            }).catch(() => {});
+
+        }).catch(e => {
+            console.warn('[REPORTING] Chart data fetch error:', e);
+        });
+    },
+
+    async generateAnalyticsReport() {
+        const templateKey = document.getElementById('analytics-template-select')?.value || 'executive_summary';
+        const format = document.getElementById('analytics-format-select')?.value || 'html';
+        const range = this._getAnalyticsDateRange();
+
+        const tplName = document.getElementById('analytics-template-select')?.selectedOptions[0]?.text || templateKey;
+        window.TOAST?.info?.('Generating ' + tplName + '...');
+
+        try {
+            const res = await fetch('/api/reporting/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_key: templateKey,
+                    filters: { date_from: range.from, date_to: range.to },
+                    formats: [format],
+                    title: tplName + ' - ' + range.from + ' to ' + range.to,
+                })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                window.TOAST?.success?.(data.message || 'Report generated');
+                this._currentRunId = data.run_id;
+                this._currentRunLinks = data.links || {};
+                this._historyLoaded = false;
+                this._openViewerForRun(data.run_id, data.links);
+            } else {
+                window.TOAST?.error?.(data.error || 'Report generation failed');
+            }
+        } catch (e) {
+            window.TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async previewAnalyticsReport() {
+        const templateKey = document.getElementById('analytics-template-select')?.value || 'executive_summary';
+        const range = this._getAnalyticsDateRange();
+        const tplName = document.getElementById('analytics-template-select')?.selectedOptions[0]?.text || templateKey;
+
+        this._currentRunId = null;
+        this._currentRunLinks = {};
+        this._showViewer('Preview: ' + tplName);
+        const content = document.getElementById('rpt-viewer-content');
+        if (content) content.innerHTML = '<div class="rpt-viewer-loading"><span class="rpt-spinner"></span> Loading preview...</div>';
+
+        try {
+            const params = new URLSearchParams({
+                template_key: templateKey,
+                date_from: range.from,
+                date_to: range.to,
+            });
+            const res = await fetch('/api/reporting/preview?' + params.toString());
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const html = await res.text();
+            if (content) content.innerHTML = html;
+        } catch (e) {
+            if (content) content.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load preview: ' + this._escHtml(e.message) + '</div>';
+        }
     },
 
     _jsonParse(str) {

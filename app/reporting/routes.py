@@ -513,11 +513,12 @@ async def run_report(request: Request, background_tasks: BackgroundTasks):
             links[fmt] = f"/api/reporting/download/{token}"
 
         # Parse summary for response
-        summary = result.get("data", {}).get("stats", {})
+        result_data = result.get("data", {})
+        summary = result_data.get("stats", {})
 
         logger.info("Report run completed: run_id=%d, template=%s, user=%s", run_id, template_key, user)
 
-        return {
+        resp: Dict[str, Any] = {
             "ok": result.get("ok", True),
             "run_id": run_id,
             "links": links,
@@ -525,6 +526,16 @@ async def run_report(request: Request, background_tasks: BackgroundTasks):
             "message": f"Report completed ({template_key})",
             "status": result.get("status", "completed"),
         }
+
+        # Include chart_data and kpis for analytics templates (used by frontend charts)
+        if result_data.get("chart_data"):
+            resp["chart_data"] = result_data["chart_data"]
+        if result_data.get("kpis"):
+            resp["kpis"] = result_data["kpis"]
+        elif result_data.get("stats"):
+            resp["kpis"] = result_data["stats"]
+
+        return resp
 
     except Exception as exc:
         error_msg = str(exc)
