@@ -7,10 +7,11 @@
 import json
 import logging
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from .queries import (
@@ -23,7 +24,13 @@ from .queries import (
     log_delivery,
     log_export,
 )
-from .export import render_incident_html, render_incident_report
+from .export import (
+    render_incident_html,
+    render_incident_report,
+    render_results_csv_bytes,
+    render_results_html,
+    render_results_xlsx_bytes,
+)
 
 logger = logging.getLogger("history.routes")
 
@@ -317,6 +324,130 @@ async def api_history_send(request: Request):
         "status": status,
         "message_id": provider_id,
         "error": error,
+    }
+
+
+@api_router.post("/export-results")
+async def api_export_results(request: Request):
+    """Export current search results as CSV or XLSX."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    filters = data.get("filters", {})
+    fmt = data.get("format", "csv")
+
+    result = fetch_unified_events(filters, page=1, per_page=10000)
+    events = result.get("events", [])
+    ts_slug = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if fmt == "xlsx":
+        try:
+            content = render_results_xlsx_bytes(events)
+            return Response(
+                content=content,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f'attachment; filename="call_history_{ts_slug}.xlsx"'},
+            )
+        except ImportError:
+            return JSONResponse({"ok": False, "error": "openpyxl not installed"}, status_code=500)
+    else:
+        content = render_results_csv_bytes(events)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="call_history_{ts_slug}.csv"'},
+        )
+
+
+@api_router.post("/send-results")
+async def api_send_results(request: Request):
+    """Send search results list via email/SMS/Signal/Webex/webhook."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    filters = data.get("filters", {})
+    channel = data.get("channel", "").lower()
+    destination = data.get("destination", "").strip()
+
+    if not channel:
+        raise HTTPException(status_code=400, detail="channel is required")
+    if not destination:
+        raise HTTPException(status_code=400, detail="destination is required")
+
+    result = fetch_unified_events(filters, page=1, per_page=10000)
+    events = result.get("events", [])
+    total = result.get("total", 0)
+
+    html_body = render_results_html(events, total)
+    subject = f"Call History — {total} Events"
+    summary = f"Call History export: {total} events"
+
+    # Bridge to existing delivery channels
+    result_delivery = None
+    try:
+        if channel == "email":
+            from app.reporting.delivery import EmailDelivery
+            delivery = EmailDelivery()
+            result_delivery = delivery.send(
+                recipient=destination,
+                subject=subject,
+                body_text=summary,
+                body_html=html_body,
+            )
+        elif channel == "sms":
+            from app.reporting.delivery import SMSDelivery
+            delivery = SMSDelivery()
+            result_delivery = delivery.send(
+                recipient=destination,
+                subject=subject,
+                body_text=summary,
+            )
+        elif channel == "signal":
+            from app.reporting.delivery import SignalDelivery
+            delivery = SignalDelivery()
+            result_delivery = delivery.send(
+                recipient=destination,
+                subject=subject,
+                body_text=summary,
+            )
+        elif channel == "webex":
+            from app.reporting.delivery import WebexDelivery
+            delivery = WebexDelivery()
+            result_delivery = delivery.send(
+                recipient=destination,
+                subject=subject,
+                body_text=summary,
+                body_html=html_body,
+            )
+        elif channel == "webhook":
+            from app.reporting.delivery import WebhookDelivery
+            delivery = WebhookDelivery()
+            result_delivery = delivery.send(
+                recipient=destination,
+                subject=subject,
+                body_text=summary,
+                body_html=html_body,
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported channel: {channel}")
+
+    except ImportError as ie:
+        logger.error("Delivery channel import failed: %s", ie)
+        return JSONResponse({"ok": False, "error": f"Delivery channel not available: {ie}"}, status_code=500)
+    except Exception as e:
+        logger.error("Send results failed: %s\n%s", e, traceback.format_exc())
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    return {
+        "ok": result_delivery.success if result_delivery else False,
+        "channel": channel,
+        "destination": destination,
+        "total_events": total,
+        "error": result_delivery.error if result_delivery and not result_delivery.success else None,
     }
 
 

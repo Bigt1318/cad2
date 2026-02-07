@@ -461,3 +461,152 @@ def render_incident_report(
             results["xlsx"] = str(out.resolve())
 
     return results
+
+
+# ============================================================================
+# Results List Exports (search results, not individual incidents)
+# ============================================================================
+
+def render_results_html(events: List[Dict[str, Any]], total: int, filters_desc: str = "") -> str:
+    """Render search results list as self-contained HTML for print/email."""
+    now = _ts()
+    rows_html = ""
+    for ev in events:
+        source = ev.get("source", "")
+        src_badge = "INC" if source == "incident" else "LOG"
+        badge_color = "#e74c3c" if source == "incident" else "#3498db"
+        time_val = ev.get("timestamp", "")
+
+        if source == "incident":
+            ref = ev.get("ref_number") or ev.get("run_number") or ev.get("event_id", "")
+            label = f"#{_h(str(ref))}"
+            if ev.get("event_type"):
+                label += f" &middot; {_h(str(ev['event_type']))}"
+            if ev.get("location"):
+                label += f" &middot; {_h(str(ev['location']))}"
+        else:
+            cat = ev.get("daily_log_category") or ev.get("event_type") or "LOG"
+            summary = (ev.get("summary") or "")[:80]
+            label = _h(str(cat))
+            if summary:
+                label += f" &middot; {_h(str(summary))}"
+
+        status = _h(str(ev.get("status", "")).upper())
+        unit = _h(str(ev.get("dl_unit_id") or ""))
+        issue = ev.get("issue_found")
+        issue_style = ' style="background:#fdeaea;"' if issue else ""
+        issue_mark = '<span style="color:#e74c3c;font-weight:700;">!</span>' if issue else ""
+
+        rows_html += f"""<tr{issue_style}>
+            <td>{issue_mark}</td>
+            <td style="white-space:nowrap;font-family:monospace;font-size:10px;">{_h(str(time_val))}</td>
+            <td><span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:{badge_color};color:#fff;">{src_badge}</span></td>
+            <td>{label}</td>
+            <td>{status}</td>
+            <td>{unit}</td>
+        </tr>\n"""
+
+    filters_line = f'<div style="font-size:10px;color:#666;margin-bottom:12px;">{_h(filters_desc)}</div>' if filters_desc else ""
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8">
+<title>Call History &mdash; Search Results</title>
+<style>{_BASE_CSS}
+@page {{ size: letter landscape; margin: 0.4in; }}
+</style></head>
+<body><div class="page">
+<div class="header">
+    <div><h1>CALL HISTORY &mdash; SEARCH RESULTS</h1></div>
+    <div class="meta">Ford Fire Department CAD<br>{total} events | Generated: {now}</div>
+</div>
+{filters_line}
+<table>
+    <tr><th></th><th>Time</th><th>Type</th><th>Label</th><th>Status</th><th>Unit</th></tr>
+    {rows_html}
+</table>
+<div class="footer">Ford Fire Department &mdash; Computer-Aided Dispatch &mdash; Call History Export &mdash; {now}</div>
+</div></body></html>"""
+
+
+def render_results_csv_bytes(events: List[Dict[str, Any]]) -> bytes:
+    """Render search results as CSV bytes."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Time", "Type", "Source", "Label", "Status", "Unit", "Issue Found"])
+    for ev in events:
+        src = "INC" if ev.get("source") == "incident" else "LOG"
+        if ev.get("source") == "incident":
+            ref = ev.get("ref_number") or ev.get("run_number") or ev.get("event_id", "")
+            label = f"#{ref}"
+            if ev.get("event_type"):
+                label += f" - {ev['event_type']}"
+            if ev.get("location"):
+                label += f" - {ev['location']}"
+        else:
+            cat = ev.get("daily_log_category") or ev.get("event_type") or "LOG"
+            summary = (ev.get("summary") or "")[:100]
+            label = str(cat)
+            if summary:
+                label += f" - {summary}"
+        writer.writerow([
+            ev.get("timestamp", ""),
+            ev.get("event_type", ""),
+            src,
+            label,
+            (ev.get("status") or "").upper(),
+            ev.get("dl_unit_id") or "",
+            "Yes" if ev.get("issue_found") else "No",
+        ])
+    return output.getvalue().encode("utf-8")
+
+
+def render_results_xlsx_bytes(events: List[Dict[str, Any]]) -> bytes:
+    """Render search results as XLSX bytes. Requires openpyxl."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Call History"
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+
+    headers = ["Time", "Type", "Source", "Label", "Status", "Unit", "Issue Found"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+
+    for ev in events:
+        src = "INC" if ev.get("source") == "incident" else "LOG"
+        if ev.get("source") == "incident":
+            ref = ev.get("ref_number") or ev.get("run_number") or ev.get("event_id", "")
+            label = f"#{ref}"
+            if ev.get("event_type"):
+                label += f" - {ev['event_type']}"
+            if ev.get("location"):
+                label += f" - {ev['location']}"
+        else:
+            cat = ev.get("daily_log_category") or ev.get("event_type") or "LOG"
+            summary = (ev.get("summary") or "")[:100]
+            label = str(cat)
+            if summary:
+                label += f" - {summary}"
+        ws.append([
+            ev.get("timestamp", ""),
+            ev.get("event_type", ""),
+            src,
+            label,
+            (ev.get("status") or "").upper(),
+            ev.get("dl_unit_id") or "",
+            "Yes" if ev.get("issue_found") else "No",
+        ])
+
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["D"].width = 50
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()

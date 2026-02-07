@@ -11,7 +11,11 @@
             Call History Viewer
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-            <select id="hist-saved-views" class="hist-select hist-select-sm" title="Saved Views">
+            <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-save-view-btn" title="Save current search filters as a reusable view">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+                Save View
+            </button>
+            <select id="hist-saved-views" class="hist-select hist-select-sm" title="Load a saved view" style="min-width:140px;">
                 <option value="">Saved Views...</option>
             </select>
             <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
@@ -105,19 +109,21 @@
             <div class="hist-results-header">
                 <span class="hist-result-count" id="hist-result-count">Loading...</span>
                 <div style="display:flex;gap:6px;align-items:center;">
-                    <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-save-view-btn" title="Save current filters as view">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-                    </button>
                     <div class="hist-dropdown" id="hist-export-dropdown">
                         <button class="hist-btn hist-btn-sm" id="hist-export-btn">
-                            Export
+                            Export / Send
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
                         </button>
                         <div class="hist-dropdown-menu" id="hist-export-menu" style="display:none;">
-                            <button class="hist-dropdown-item" data-hist-action="print">Print</button>
-                            <button class="hist-dropdown-item" data-hist-action="pdf">Export PDF</button>
-                            <button class="hist-dropdown-item" data-hist-action="csv">Export CSV</button>
-                            <button class="hist-dropdown-item" data-hist-action="xlsx">Export XLSX</button>
+                            <button class="hist-dropdown-item" data-hist-action="print-results">Print Results</button>
+                            <button class="hist-dropdown-item" data-hist-action="csv-results">Export CSV</button>
+                            <button class="hist-dropdown-item" data-hist-action="xlsx-results">Export XLSX</button>
+                            <div style="height:1px;background:var(--border-default,#475569);margin:4px 0;"></div>
+                            <button class="hist-dropdown-item" data-hist-action="send-results" data-hist-channel="email">Send via Email</button>
+                            <button class="hist-dropdown-item" data-hist-action="send-results" data-hist-channel="sms">Send via SMS</button>
+                            <button class="hist-dropdown-item" data-hist-action="send-results" data-hist-channel="signal">Send via Signal</button>
+                            <button class="hist-dropdown-item" data-hist-action="send-results" data-hist-channel="webex">Send via Webex</button>
+                            <button class="hist-dropdown-item" data-hist-action="send-results" data-hist-channel="webhook">Send via Webhook</button>
                         </div>
                     </div>
                 </div>
@@ -671,6 +677,8 @@
         selectedIncidentId: null,
         selectedSource: null,
         events: [],
+        _sendMode: "incident",  // "incident" or "results"
+        _sendChannel: "",
 
         // --- DOM refs ---
         $tbody: null,
@@ -1228,7 +1236,15 @@
                 const item = e.target.closest("[data-hist-action]");
                 if (!item) return;
                 exportMenu.style.display = "none";
-                self._handleExport(item.dataset.histAction);
+                const action = item.dataset.histAction;
+                const channel = item.dataset.histChannel;
+                if (action === "send-results" && channel) {
+                    self._sendMode = "results";
+                    self._sendChannel = channel;
+                    self._openSendDialog(channel);
+                } else {
+                    self._handleExport(action);
+                }
             });
 
             // Detail panel export buttons
@@ -1244,6 +1260,21 @@
         },
 
         async _handleExport(action) {
+            // ---- Results-level exports (from the header dropdown) ----
+            if (action === "print-results") {
+                this._printResults();
+                return;
+            }
+            if (action === "csv-results") {
+                this._downloadResultsCsv();
+                return;
+            }
+            if (action === "xlsx-results") {
+                this._downloadResultsXlsx();
+                return;
+            }
+
+            // ---- Incident-level exports (from the detail panel) ----
             if (action === "print") {
                 if (this.selectedIncidentId && this.selectedSource === "incident") {
                     window.open(`/modals/history/incident/${this.selectedIncidentId}`, "_blank");
@@ -1277,6 +1308,123 @@
             }
         },
 
+        _printResults() {
+            const w = window.open("", "_blank");
+            if (!w) return;
+            const rows = this.events;
+            let tableHtml = "";
+            for (const ev of rows) {
+                const time = ev.timestamp || "";
+                const src = ev.source === "incident" ? "INC" : "LOG";
+                let label = "";
+                if (ev.source === "incident") {
+                    const ref = ev.ref_number || ev.run_number || ev.event_id;
+                    label = `#${ref}`;
+                    if (ev.event_type) label += ` - ${ev.event_type}`;
+                    if (ev.location) label += ` - ${ev.location}`;
+                } else {
+                    label = ev.daily_log_category || ev.event_type || "LOG";
+                    if (ev.summary) label += ` - ${(ev.summary || "").substring(0, 80)}`;
+                }
+                const status = (ev.status || "").toUpperCase();
+                const unit = ev.dl_unit_id || "";
+                const issue = ev.issue_found ? "!" : "";
+                tableHtml += `<tr${ev.issue_found ? ' style="background:#fdeaea;"' : ""}>
+                    <td>${this._esc(issue)}</td>
+                    <td style="white-space:nowrap">${this._esc(time)}</td>
+                    <td>${this._esc(src)}</td>
+                    <td>${this._esc(label)}</td>
+                    <td>${this._esc(status)}</td>
+                    <td>${this._esc(unit)}</td></tr>`;
+            }
+            const now = new Date().toLocaleString();
+            w.document.write(`<!DOCTYPE html><html><head><title>Call History — Search Results</title>
+<style>
+body { font-family: -apple-system,'Segoe UI',Roboto,Arial,sans-serif; font-size: 11px; color: #1a1a2e; margin: 20px; }
+h1 { font-size: 16px; color: #c0392b; border-bottom: 3px solid #c0392b; padding-bottom: 6px; }
+.meta { font-size: 10px; color: #666; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { background: #2c3e50; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; text-transform: uppercase; }
+td { padding: 4px 8px; border-bottom: 1px solid #eee; }
+tr:nth-child(even) { background: #f8f9fa; }
+.footer { margin-top: 16px; border-top: 1px solid #ddd; padding-top: 6px; font-size: 9px; color: #999; text-align: center; }
+@page { size: letter landscape; margin: 0.4in; }
+</style></head><body>
+<h1>CALL HISTORY — SEARCH RESULTS</h1>
+<div class="meta">${this._esc(String(this.totalEvents))} events | Exported: ${this._esc(now)}</div>
+<table><tr><th></th><th>Time</th><th>Type</th><th>Label</th><th>Status</th><th>Unit</th></tr>
+${tableHtml}</table>
+<div class="footer">Ford Fire Department — Computer-Aided Dispatch — Call History Export — ${this._esc(now)}</div>
+</body></html>`);
+            w.document.close();
+            w.print();
+        },
+
+        _downloadResultsCsv() {
+            const rows = this.events;
+            if (rows.length === 0) {
+                if (typeof TOAST !== "undefined") TOAST.info("No events to export");
+                return;
+            }
+            let csv = "Time,Type,Source,Label,Status,Unit,Issue Found\n";
+            for (const ev of rows) {
+                const time = (ev.timestamp || "").replace(/,/g, "");
+                const src = ev.source === "incident" ? "INC" : "LOG";
+                let label = "";
+                if (ev.source === "incident") {
+                    const ref = ev.ref_number || ev.run_number || ev.event_id;
+                    label = `#${ref}`;
+                    if (ev.event_type) label += ` - ${ev.event_type}`;
+                    if (ev.location) label += ` - ${ev.location}`;
+                } else {
+                    label = ev.daily_log_category || ev.event_type || "LOG";
+                    if (ev.summary) label += ` - ${(ev.summary || "").substring(0, 100)}`;
+                }
+                // Escape CSV fields
+                const esc = (s) => `"${String(s || "").replace(/"/g, '""')}"`;
+                const status = (ev.status || "").toUpperCase();
+                const unit = ev.dl_unit_id || "";
+                const issue = ev.issue_found ? "Yes" : "No";
+                csv += `${esc(time)},${esc(ev.event_type || "")},${esc(src)},${esc(label)},${esc(status)},${esc(unit)},${esc(issue)}\n`;
+            }
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `call_history_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        async _downloadResultsXlsx() {
+            if (this.events.length === 0) {
+                if (typeof TOAST !== "undefined") TOAST.info("No events to export");
+                return;
+            }
+            try {
+                const resp = await fetch("/api/history/export-results", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filters: this.currentFilters, format: "xlsx" }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    if (typeof TOAST !== "undefined") TOAST.error(err.error || "XLSX export failed");
+                    return;
+                }
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `call_history_${new Date().toISOString().slice(0,10)}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error("XLSX export error:", err);
+                if (typeof TOAST !== "undefined") TOAST.error("XLSX export failed");
+            }
+        },
+
         // ============================
         // Send
         // ============================
@@ -1285,7 +1433,6 @@
             const sendBtn = document.getElementById("hist-send-btn");
             const sendMenu = document.getElementById("hist-send-menu");
             const sendDialog = document.getElementById("hist-send-dialog");
-            let currentChannel = "";
 
             sendBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
@@ -1297,8 +1444,9 @@
                 const item = e.target.closest("[data-hist-channel]");
                 if (!item) return;
                 sendMenu.style.display = "none";
-                currentChannel = item.dataset.histChannel;
-                self._openSendDialog(currentChannel);
+                self._sendMode = "incident";
+                self._sendChannel = item.dataset.histChannel;
+                self._openSendDialog(self._sendChannel);
             });
 
             document.getElementById("hist-send-cancel").addEventListener("click", () => {
@@ -1308,7 +1456,9 @@
             document.getElementById("hist-send-confirm").addEventListener("click", async () => {
                 const dest = document.getElementById("hist-send-destination").value.trim();
                 if (!dest) return;
-                if (!self.selectedIncidentId) return;
+
+                // For incident mode, require a selected incident
+                if (self._sendMode === "incident" && !self.selectedIncidentId) return;
 
                 const statusEl = document.getElementById("hist-send-status");
                 statusEl.style.display = "";
@@ -1316,19 +1466,34 @@
                 statusEl.textContent = "Sending...";
 
                 try {
-                    const resp = await fetch("/api/history/send", {
+                    let url, body;
+                    if (self._sendMode === "results") {
+                        url = "/api/history/send-results";
+                        body = {
+                            filters: self.currentFilters,
+                            channel: self._sendChannel,
+                            destination: dest,
+                        };
+                    } else {
+                        url = "/api/history/send";
+                        body = {
+                            incident_id: self.selectedIncidentId,
+                            channel: self._sendChannel,
+                            destination: dest,
+                        };
+                    }
+
+                    const resp = await fetch(url, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            incident_id: self.selectedIncidentId,
-                            channel: currentChannel,
-                            destination: dest,
-                        }),
+                        body: JSON.stringify(body),
                     });
                     const data = await resp.json();
                     if (data.ok) {
                         statusEl.className = "hist-send-status success";
-                        statusEl.textContent = "Sent successfully!";
+                        statusEl.textContent = self._sendMode === "results"
+                            ? `Sent ${data.total_events || ""} events successfully!`
+                            : "Sent successfully!";
                         setTimeout(() => { sendDialog.style.display = "none"; }, 1500);
                     } else {
                         statusEl.className = "hist-send-status error";
@@ -1359,7 +1524,8 @@
                 webhook: "https://...",
             };
 
-            document.getElementById("hist-send-title").textContent = `Send via ${channel.charAt(0).toUpperCase() + channel.slice(1)}`;
+            const modeLabel = this._sendMode === "results" ? "Send Results via" : "Send via";
+            document.getElementById("hist-send-title").textContent = `${modeLabel} ${channel.charAt(0).toUpperCase() + channel.slice(1)}`;
             document.getElementById("hist-send-label").textContent = labels[channel] || "Destination";
             const input = document.getElementById("hist-send-destination");
             input.value = "";
@@ -1403,14 +1569,18 @@
             });
 
             document.getElementById("hist-saved-views").addEventListener("change", (e) => {
-                const val = e.target.value;
+                const sel = e.target;
+                const val = sel.value;
                 if (!val) return;
                 try {
                     const filters = JSON.parse(val);
                     self._applySavedFilters(filters);
+                    if (typeof TOAST !== "undefined") TOAST.success("View loaded");
                 } catch (err) {
                     console.error("Load view error:", err);
                 }
+                // Reset dropdown to placeholder after loading
+                sel.value = "";
             });
         },
 
@@ -1419,12 +1589,21 @@
                 const resp = await fetch("/api/history/saved-views");
                 const data = await resp.json();
                 const sel = document.getElementById("hist-saved-views");
+                const views = data.views || [];
                 sel.innerHTML = '<option value="">Saved Views...</option>';
-                for (const v of (data.views || [])) {
+                if (views.length === 0) {
                     const opt = document.createElement("option");
-                    opt.value = v.filters_json || "{}";
-                    opt.textContent = v.name;
+                    opt.disabled = true;
+                    opt.textContent = "— No saved views yet —";
                     sel.appendChild(opt);
+                } else {
+                    for (const v of views) {
+                        const opt = document.createElement("option");
+                        opt.value = v.filters_json || "{}";
+                        opt.textContent = v.name;
+                        opt.dataset.viewId = v.id;
+                        sel.appendChild(opt);
+                    }
                 }
             } catch (err) {
                 console.error("Load saved views error:", err);
