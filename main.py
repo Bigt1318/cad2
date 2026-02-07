@@ -83,6 +83,18 @@ except ImportError as e:
 except Exception as e:
     print(f"[MAIN] Reports v2 module error: {e}")
 
+# ================================================================
+# HISTORY MODULE (Enterprise Call History Viewer)
+# ================================================================
+try:
+    from app.history import register_history_routes
+    register_history_routes(app)
+    print("[MAIN] History module loaded")
+except ImportError as e:
+    print(f"[MAIN] History module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] History module error: {e}")
+
 # ------------------------------------------------
 # Middleware: guarantee every mutation is written to MasterLog
 # ------------------------------------------------
@@ -2122,6 +2134,44 @@ def ensure_phase3_schema():
         )
     """)
     _create_index("CREATE INDEX IF NOT EXISTS idx_contacts_unit ON Contacts(unit_id)")
+
+    # --------------------------------------------------
+    # HISTORY MODULE TABLES (Call History Viewer)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS history_saved_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            filters_json TEXT NOT NULL DEFAULT '{}',
+            created_by TEXT,
+            created_at TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS incident_exports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id INTEGER,
+            format TEXT,
+            artifact_path TEXT,
+            created_at TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS incident_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id INTEGER,
+            channel TEXT,
+            destination TEXT,
+            payload_json TEXT,
+            status TEXT DEFAULT 'pending',
+            provider_id TEXT,
+            error_text TEXT,
+            created_at TEXT
+        )
+    """)
+    _create_index("CREATE INDEX IF NOT EXISTS idx_incident_deliveries_incident ON incident_deliveries(incident_id)")
 
     conn.commit()
     conn.close()

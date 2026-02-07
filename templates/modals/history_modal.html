@@ -1,0 +1,1542 @@
+{% set is_admin = is_admin|default(false) %}
+<!-- Call History Viewer — Enterprise CAD History System -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal history-modal" role="dialog" aria-modal="true" aria-label="Call History Viewer">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12,6 12,12 16,14"></polyline>
+            </svg>
+            Call History Viewer
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <select id="hist-saved-views" class="hist-select hist-select-sm" title="Saved Views">
+                <option value="">Saved Views...</option>
+            </select>
+            <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+        </div>
+    </div>
+    <div class="cad-modal-body">
+        <div class="hist-container">
+
+            <!-- ===== FILTER BAR ===== -->
+            <div class="hist-filter-bar">
+                <!-- Row 1: Date presets + Shift + Mode -->
+                <div class="hist-filter-row">
+                    <div class="hist-btn-group" id="hist-date-presets">
+                        <button class="hist-btn hist-btn-sm active" data-range="today">Today</button>
+                        <button class="hist-btn hist-btn-sm" data-range="24h">24h</button>
+                        <button class="hist-btn hist-btn-sm" data-range="7d">7d</button>
+                        <button class="hist-btn hist-btn-sm" data-range="30d">30d</button>
+                        <button class="hist-btn hist-btn-sm" data-range="custom">Custom</button>
+                    </div>
+                    <div class="hist-date-custom" id="hist-date-custom" style="display:none;">
+                        <input type="date" id="hist-date-start" class="hist-input hist-input-sm">
+                        <span style="color:var(--text-muted);">to</span>
+                        <input type="date" id="hist-date-end" class="hist-input hist-input-sm">
+                    </div>
+                    <div class="hist-separator"></div>
+                    <div class="hist-btn-group" id="hist-shift-btns">
+                        <button class="hist-btn hist-btn-sm active" data-shift="">All</button>
+                        <button class="hist-btn hist-btn-sm" data-shift="A">A</button>
+                        <button class="hist-btn hist-btn-sm" data-shift="B">B</button>
+                        <button class="hist-btn hist-btn-sm" data-shift="C">C</button>
+                        <button class="hist-btn hist-btn-sm" data-shift="D">D</button>
+                    </div>
+                    <div class="hist-separator"></div>
+                    <div class="hist-btn-group" id="hist-mode-btns">
+                        <button class="hist-btn hist-btn-sm active" data-mode="all">All Events</button>
+                        <button class="hist-btn hist-btn-sm" data-mode="incidents">Incidents</button>
+                        <button class="hist-btn hist-btn-sm" data-mode="dailylog">Daily Log</button>
+                    </div>
+                </div>
+
+                <!-- Row 2: Search + Advanced toggle -->
+                <div class="hist-filter-row">
+                    <div class="hist-search-wrap">
+                        <svg class="hist-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="hist-search" class="hist-input hist-search-input" placeholder="Search location, run #, caller, narrative...">
+                    </div>
+                    <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-advanced-toggle">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+                        Advanced
+                    </button>
+                </div>
+
+                <!-- Advanced Drawer (collapsed) -->
+                <div class="hist-advanced-drawer" id="hist-advanced" style="display:none;">
+                    <div class="hist-filter-grid">
+                        <div class="hist-field">
+                            <label>Event Type</label>
+                            <select id="hist-filter-type" class="hist-select hist-select-sm">
+                                <option value="">All Types</option>
+                            </select>
+                        </div>
+                        <div class="hist-field">
+                            <label>Disposition</label>
+                            <select id="hist-filter-disposition" class="hist-select hist-select-sm">
+                                <option value="">All Dispositions</option>
+                            </select>
+                        </div>
+                        <div class="hist-field">
+                            <label>Unit</label>
+                            <select id="hist-filter-unit" class="hist-select hist-select-sm">
+                                <option value="">All Units</option>
+                            </select>
+                        </div>
+                        <div class="hist-field">
+                            <label>Calltaker</label>
+                            <input type="text" id="hist-filter-calltaker" class="hist-input hist-input-sm" placeholder="Name...">
+                        </div>
+                        <div class="hist-field hist-field-flags">
+                            <label>
+                                <input type="checkbox" id="hist-filter-narrative"> Has Narrative
+                            </label>
+                            <label>
+                                <input type="checkbox" id="hist-filter-issue"> Issue Found
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== RESULTS HEADER ===== -->
+            <div class="hist-results-header">
+                <span class="hist-result-count" id="hist-result-count">Loading...</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-save-view-btn" title="Save current filters as view">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+                    </button>
+                    <div class="hist-dropdown" id="hist-export-dropdown">
+                        <button class="hist-btn hist-btn-sm" id="hist-export-btn">
+                            Export
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
+                        </button>
+                        <div class="hist-dropdown-menu" id="hist-export-menu" style="display:none;">
+                            <button class="hist-dropdown-item" data-action="print">Print</button>
+                            <button class="hist-dropdown-item" data-action="pdf">Export PDF</button>
+                            <button class="hist-dropdown-item" data-action="csv">Export CSV</button>
+                            <button class="hist-dropdown-item" data-action="xlsx">Export XLSX</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== RESULTS TABLE ===== -->
+            <div class="hist-table-wrap" id="hist-table-wrap">
+                <table class="hist-table" id="hist-table">
+                    <thead>
+                        <tr>
+                            <th class="hist-col-flag" style="width:28px;"></th>
+                            <th class="hist-col-time">Time</th>
+                            <th class="hist-col-type">Type</th>
+                            <th class="hist-col-label">Label</th>
+                            <th class="hist-col-status">Status</th>
+                            <th class="hist-col-units">Units</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hist-tbody">
+                    </tbody>
+                </table>
+                <div class="hist-loading" id="hist-loading" style="display:none;">
+                    <div class="hist-spinner"></div>
+                    Loading...
+                </div>
+                <div class="hist-empty" id="hist-empty" style="display:none;">
+                    No events found matching your filters.
+                </div>
+                <!-- Infinite scroll sentinel -->
+                <div id="hist-sentinel" style="height:1px;"></div>
+            </div>
+
+            <!-- ===== DETAIL PANEL (shown when event clicked) ===== -->
+            <div class="hist-detail-panel" id="hist-detail-panel" style="display:none;">
+                <div class="hist-detail-header">
+                    <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-detail-back">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12,19 5,12 12,5"/></svg>
+                        Back to list
+                    </button>
+                    <div class="hist-detail-actions" id="hist-detail-actions">
+                        <button class="hist-btn hist-btn-sm" data-action="print" title="Print">Print</button>
+                        <button class="hist-btn hist-btn-sm" data-action="pdf" title="Export PDF">PDF</button>
+                        <button class="hist-btn hist-btn-sm" data-action="csv" title="Export CSV">CSV</button>
+                        <button class="hist-btn hist-btn-sm" data-action="xlsx" title="Export XLSX">XLSX</button>
+                        <div class="hist-dropdown">
+                            <button class="hist-btn hist-btn-sm hist-btn-primary" id="hist-send-btn">
+                                Send
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>
+                            </button>
+                            <div class="hist-dropdown-menu hist-send-menu" id="hist-send-menu" style="display:none;">
+                                <button class="hist-dropdown-item" data-channel="email">Email</button>
+                                <button class="hist-dropdown-item" data-channel="sms">SMS</button>
+                                <button class="hist-dropdown-item" data-channel="signal">Signal</button>
+                                <button class="hist-dropdown-item" data-channel="webex">Webex</button>
+                                <button class="hist-dropdown-item" data-channel="webhook">Webhook</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hist-detail-content" id="hist-detail-content">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- ===== SEND DIALOG (overlaid when sending) ===== -->
+            <div class="hist-send-dialog" id="hist-send-dialog" style="display:none;">
+                <div class="hist-send-dialog-inner">
+                    <div class="hist-send-dialog-title" id="hist-send-title">Send via Email</div>
+                    <div class="hist-field" style="margin:12px 0;">
+                        <label id="hist-send-label">Recipient</label>
+                        <input type="text" id="hist-send-destination" class="hist-input" placeholder="">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-send-cancel">Cancel</button>
+                        <button class="hist-btn hist-btn-sm hist-btn-primary" id="hist-send-confirm">Send</button>
+                    </div>
+                    <div id="hist-send-status" class="hist-send-status" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ===== SAVE VIEW DIALOG ===== -->
+            <div class="hist-send-dialog" id="hist-save-dialog" style="display:none;">
+                <div class="hist-send-dialog-inner">
+                    <div class="hist-send-dialog-title">Save Current View</div>
+                    <div class="hist-field" style="margin:12px 0;">
+                        <label>View Name</label>
+                        <input type="text" id="hist-save-name" class="hist-input" placeholder="e.g. Today's Incidents">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button class="hist-btn hist-btn-sm hist-btn-ghost" id="hist-save-cancel">Cancel</button>
+                        <button class="hist-btn hist-btn-sm hist-btn-primary" id="hist-save-confirm">Save</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- STYLES                                                       -->
+<!-- ============================================================ -->
+<style>
+/* ---- Modal size ---- */
+.history-modal {
+    min-width: 780px;
+    max-width: 1100px;
+    width: 90vw;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+.history-modal .cad-modal-body {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+/* ---- Container ---- */
+.hist-container { padding: 12px 16px; }
+
+/* ---- Filter Bar ---- */
+.hist-filter-bar {
+    background: var(--bg-secondary, #f4f6f8);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
+.hist-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.hist-filter-row + .hist-filter-row { margin-top: 8px; }
+.hist-separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border-default, #ccc);
+    margin: 0 4px;
+}
+
+/* ---- Buttons ---- */
+.hist-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border-default, #ccc);
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1a1a2e);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+}
+.hist-btn:hover { background: var(--bg-active, #e8eef4); }
+.hist-btn-sm { padding: 4px 10px; font-size: 11px; }
+.hist-btn-ghost { border-color: transparent; background: transparent; }
+.hist-btn-ghost:hover { background: var(--bg-active, #e8eef4); }
+.hist-btn-primary {
+    background: var(--ford-blue, #003478);
+    color: #fff;
+    border-color: var(--ford-blue, #003478);
+}
+.hist-btn-primary:hover { opacity: 0.9; }
+
+/* ---- Button Group ---- */
+.hist-btn-group {
+    display: inline-flex;
+    gap: 0;
+}
+.hist-btn-group .hist-btn {
+    border-radius: 0;
+    margin-left: -1px;
+}
+.hist-btn-group .hist-btn:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+.hist-btn-group .hist-btn:last-child { border-radius: 0 4px 4px 0; }
+.hist-btn-group .hist-btn.active {
+    background: var(--ford-blue, #003478);
+    color: #fff;
+    border-color: var(--ford-blue, #003478);
+    z-index: 1;
+}
+
+/* ---- Inputs ---- */
+.hist-input {
+    border: 1px solid var(--border-default, #ccc);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1a1a2e);
+    outline: none;
+    transition: border-color 0.15s;
+}
+.hist-input:focus { border-color: var(--ford-blue, #003478); }
+.hist-input-sm { padding: 4px 8px; font-size: 11px; }
+.hist-select {
+    border: 1px solid var(--border-default, #ccc);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1a1a2e);
+    outline: none;
+    cursor: pointer;
+}
+.hist-select-sm { padding: 4px 8px; font-size: 11px; }
+
+/* ---- Search ---- */
+.hist-search-wrap {
+    flex: 1;
+    position: relative;
+}
+.hist-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted, #999);
+    pointer-events: none;
+}
+.hist-search-input {
+    width: 100%;
+    padding-left: 32px !important;
+}
+
+/* ---- Date custom ---- */
+.hist-date-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ---- Advanced drawer ---- */
+.hist-advanced-drawer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light, #e0e0e0);
+}
+.hist-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+.hist-field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary, #666);
+    margin-bottom: 4px;
+}
+.hist-field .hist-input,
+.hist-field .hist-select { width: 100%; }
+.hist-field-flags {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    padding-bottom: 4px;
+}
+.hist-field-flags label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    text-transform: none;
+    cursor: pointer;
+}
+
+/* ---- Results header ---- */
+.hist-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 4px 0;
+}
+.hist-result-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+}
+
+/* ---- Dropdown ---- */
+.hist-dropdown { position: relative; display: inline-block; }
+.hist-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-default, #ccc);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 100;
+    min-width: 140px;
+    overflow: hidden;
+}
+.hist-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-primary, #1a1a2e);
+    cursor: pointer;
+}
+.hist-dropdown-item:hover { background: var(--bg-active, #e8eef4); }
+
+/* ---- Table ---- */
+.hist-table-wrap {
+    overflow-y: auto;
+    max-height: calc(92vh - 340px);
+    border: 1px solid var(--border-light, #e0e0e0);
+    border-radius: 6px;
+}
+.hist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.hist-table thead { position: sticky; top: 0; z-index: 10; }
+.hist-table th {
+    background: var(--bg-tertiary, #2c3e50);
+    color: #fff;
+    padding: 7px 10px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+.hist-table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-light, #eee);
+    vertical-align: middle;
+}
+.hist-table tbody tr {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.hist-table tbody tr:hover { background: var(--bg-active, #e8eef4); }
+.hist-table tbody tr.hist-row-selected { background: var(--bg-active, #dce8f4); }
+.hist-table tbody tr.hist-row-issue { background: rgba(231,76,60,0.06); }
+.hist-table tbody tr.hist-row-issue:hover { background: rgba(231,76,60,0.12); }
+
+/* ---- Badges ---- */
+.hist-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.hist-badge-inc { background: #e74c3c; color: #fff; }
+.hist-badge-log { background: #3498db; color: #fff; }
+.hist-badge-open { background: #27ae60; color: #fff; }
+.hist-badge-closed { background: #7f8c8d; color: #fff; }
+.hist-badge-dispatched { background: #e67e22; color: #fff; }
+.hist-badge-logged { background: #3498db; color: #fff; }
+
+.hist-unit-chip {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--bg-tertiary, #34495e);
+    color: #fff;
+    margin: 1px 2px;
+}
+
+.hist-flag-icon { color: #e74c3c; font-weight: 700; font-size: 14px; }
+.hist-label-text {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- Loading / Empty ---- */
+.hist-loading, .hist-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-muted, #999);
+    font-size: 13px;
+}
+.hist-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-light, #ddd);
+    border-top-color: var(--ford-blue, #003478);
+    border-radius: 50%;
+    animation: hist-spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+@keyframes hist-spin { to { transform: rotate(360deg); } }
+
+/* ---- Detail Panel ---- */
+.hist-detail-panel {
+    border-top: 2px solid var(--ford-blue, #003478);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+.hist-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.hist-detail-actions { display: flex; gap: 6px; align-items: center; }
+.hist-detail-content { font-size: 12px; }
+
+/* ---- Detail sections ---- */
+.hist-detail-section { margin-bottom: 16px; }
+.hist-detail-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary, #666);
+    border-bottom: 1px solid var(--border-light, #ddd);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+.hist-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 20px;
+}
+.hist-detail-grid .label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary, #888);
+    text-transform: uppercase;
+}
+.hist-detail-grid .value { font-size: 12px; }
+
+.hist-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+.hist-detail-table th {
+    background: var(--bg-tertiary, #2c3e50);
+    color: #fff;
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+}
+.hist-detail-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-light, #eee);
+}
+.hist-detail-table tr:nth-child(even) { background: var(--bg-secondary, #f8f9fa); }
+
+.hist-narrative-entry {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-light, #eee);
+}
+.hist-narrative-ts {
+    font-size: 10px;
+    color: var(--text-muted, #888);
+    font-family: monospace;
+}
+.hist-narrative-author { font-weight: 600; color: var(--text-primary, #2c3e50); }
+.hist-narrative-text { margin-top: 2px; line-height: 1.5; }
+.hist-issue-banner {
+    background: rgba(231,76,60,0.1);
+    border: 1px solid #e74c3c;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #c0392b;
+    font-weight: 600;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+/* ---- Send dialog ---- */
+.hist-send-dialog {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+.hist-send-dialog-inner {
+    background: var(--bg-primary, #fff);
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 340px;
+    max-width: 400px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.hist-send-dialog-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a2e);
+    margin-bottom: 4px;
+}
+.hist-send-status {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.hist-send-status.success { background: #d4edda; color: #155724; }
+.hist-send-status.error { background: #f8d7da; color: #721c24; }
+</style>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                   -->
+<!-- ============================================================ -->
+<script>
+(function() {
+    "use strict";
+
+    const CALL_HISTORY = {
+        page: 1,
+        perPage: 50,
+        totalEvents: 0,
+        totalPages: 0,
+        loading: false,
+        hasMore: true,
+        currentFilters: {},
+        selectedIncidentId: null,
+        selectedSource: null,
+        events: [],
+
+        // --- DOM refs ---
+        $tbody: null,
+        $resultCount: null,
+        $loading: null,
+        $empty: null,
+        $tableWrap: null,
+        $detailPanel: null,
+        $detailContent: null,
+        $sentinel: null,
+        _observer: null,
+        _searchTimer: null,
+
+        // ============================
+        // Init
+        // ============================
+        init() {
+            this.$tbody = document.getElementById("hist-tbody");
+            this.$resultCount = document.getElementById("hist-result-count");
+            this.$loading = document.getElementById("hist-loading");
+            this.$empty = document.getElementById("hist-empty");
+            this.$tableWrap = document.getElementById("hist-table-wrap");
+            this.$detailPanel = document.getElementById("hist-detail-panel");
+            this.$detailContent = document.getElementById("hist-detail-content");
+            this.$sentinel = document.getElementById("hist-sentinel");
+
+            this._wireFilters();
+            this._wireDetail();
+            this._wireExport();
+            this._wireSend();
+            this._wireSavedViews();
+            this._wireKeyboard();
+            this._wireInfiniteScroll();
+            this._loadFilterOptions();
+            this._loadSavedViews();
+
+            // Default: today
+            this._setDateRange("today");
+            this.applyFilters();
+        },
+
+        // ============================
+        // Filter wiring
+        // ============================
+        _wireFilters() {
+            const self = this;
+
+            // Date presets
+            document.getElementById("hist-date-presets").addEventListener("click", (e) => {
+                const btn = e.target.closest("[data-range]");
+                if (!btn) return;
+                document.querySelectorAll("#hist-date-presets .hist-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                const range = btn.dataset.range;
+                if (range === "custom") {
+                    document.getElementById("hist-date-custom").style.display = "";
+                } else {
+                    document.getElementById("hist-date-custom").style.display = "none";
+                    self._setDateRange(range);
+                    self.applyFilters();
+                }
+            });
+
+            // Custom dates
+            document.getElementById("hist-date-start").addEventListener("change", () => self.applyFilters());
+            document.getElementById("hist-date-end").addEventListener("change", () => self.applyFilters());
+
+            // Shift buttons
+            document.getElementById("hist-shift-btns").addEventListener("click", (e) => {
+                const btn = e.target.closest("[data-shift]");
+                if (!btn) return;
+                document.querySelectorAll("#hist-shift-btns .hist-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                self.applyFilters();
+            });
+
+            // Mode buttons
+            document.getElementById("hist-mode-btns").addEventListener("click", (e) => {
+                const btn = e.target.closest("[data-mode]");
+                if (!btn) return;
+                document.querySelectorAll("#hist-mode-btns .hist-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                self.applyFilters();
+            });
+
+            // Search (debounced)
+            document.getElementById("hist-search").addEventListener("input", () => {
+                clearTimeout(self._searchTimer);
+                self._searchTimer = setTimeout(() => self.applyFilters(), 350);
+            });
+
+            // Advanced toggle
+            document.getElementById("hist-advanced-toggle").addEventListener("click", () => {
+                const drawer = document.getElementById("hist-advanced");
+                drawer.style.display = drawer.style.display === "none" ? "" : "none";
+            });
+
+            // Advanced filter changes
+            ["hist-filter-type", "hist-filter-disposition", "hist-filter-unit"].forEach(id => {
+                document.getElementById(id).addEventListener("change", () => self.applyFilters());
+            });
+            document.getElementById("hist-filter-calltaker").addEventListener("input", () => {
+                clearTimeout(self._searchTimer);
+                self._searchTimer = setTimeout(() => self.applyFilters(), 350);
+            });
+            document.getElementById("hist-filter-narrative").addEventListener("change", () => self.applyFilters());
+            document.getElementById("hist-filter-issue").addEventListener("change", () => self.applyFilters());
+        },
+
+        _setDateRange(range) {
+            const now = new Date();
+            let start, end;
+            end = now.toISOString().slice(0, 10);
+
+            switch (range) {
+                case "today":
+                    start = end;
+                    break;
+                case "24h":
+                    const h24 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                    start = h24.toISOString().slice(0, 10);
+                    break;
+                case "7d":
+                    const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    start = d7.toISOString().slice(0, 10);
+                    break;
+                case "30d":
+                    const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    start = d30.toISOString().slice(0, 10);
+                    break;
+                default:
+                    start = end;
+            }
+
+            document.getElementById("hist-date-start").value = start;
+            document.getElementById("hist-date-end").value = end;
+        },
+
+        // ============================
+        // Apply filters & load
+        // ============================
+        applyFilters() {
+            const filters = {};
+
+            const dateStart = document.getElementById("hist-date-start").value;
+            const dateEnd = document.getElementById("hist-date-end").value;
+            if (dateStart) filters.date_start = dateStart;
+            if (dateEnd) filters.date_end = dateEnd;
+
+            const activeShift = document.querySelector("#hist-shift-btns .hist-btn.active");
+            if (activeShift && activeShift.dataset.shift) filters.shift = activeShift.dataset.shift;
+
+            const activeMode = document.querySelector("#hist-mode-btns .hist-btn.active");
+            if (activeMode && activeMode.dataset.mode !== "all") filters.mode = activeMode.dataset.mode;
+
+            const search = document.getElementById("hist-search").value.trim();
+            if (search) filters.search = search;
+
+            const eventType = document.getElementById("hist-filter-type").value;
+            if (eventType) filters.event_type = eventType;
+
+            const disposition = document.getElementById("hist-filter-disposition").value;
+            if (disposition) filters.disposition = disposition;
+
+            const unitId = document.getElementById("hist-filter-unit").value;
+            if (unitId) filters.unit_id = unitId;
+
+            const calltaker = document.getElementById("hist-filter-calltaker").value.trim();
+            if (calltaker) filters.calltaker = calltaker;
+
+            if (document.getElementById("hist-filter-narrative").checked) filters.has_narrative = true;
+            if (document.getElementById("hist-filter-issue").checked) filters.issue_found = true;
+
+            this.currentFilters = filters;
+            this.page = 1;
+            this.hasMore = true;
+            this.events = [];
+            this.$tbody.innerHTML = "";
+            this._hideDetail();
+            this.loadEvents(1, true);
+        },
+
+        // ============================
+        // Load events
+        // ============================
+        async loadEvents(page, replace) {
+            if (this.loading) return;
+            this.loading = true;
+            this.$loading.style.display = "";
+            this.$empty.style.display = "none";
+
+            const params = new URLSearchParams(this.currentFilters);
+            params.set("page", page);
+            params.set("per_page", this.perPage);
+
+            try {
+                const resp = await fetch(`/api/history?${params.toString()}`);
+                const data = await resp.json();
+
+                if (data.error) {
+                    console.error("History API error:", data.error);
+                    this.$loading.style.display = "none";
+                    this.loading = false;
+                    return;
+                }
+
+                this.totalEvents = data.total || 0;
+                this.totalPages = data.pages || 0;
+                this.page = data.page || page;
+
+                if (replace) {
+                    this.events = data.events || [];
+                } else {
+                    this.events = this.events.concat(data.events || []);
+                }
+
+                this._renderEvents(data.events || [], replace);
+                this.$resultCount.textContent = `${this.totalEvents.toLocaleString()} event${this.totalEvents !== 1 ? 's' : ''}`;
+
+                this.hasMore = this.page < this.totalPages;
+
+                if (this.totalEvents === 0) {
+                    this.$empty.style.display = "";
+                }
+
+            } catch (err) {
+                console.error("Failed to load history:", err);
+            }
+
+            this.$loading.style.display = "none";
+            this.loading = false;
+        },
+
+        // ============================
+        // Render events
+        // ============================
+        _renderEvents(events, replace) {
+            if (replace) this.$tbody.innerHTML = "";
+
+            for (const ev of events) {
+                const tr = document.createElement("tr");
+                tr.dataset.source = ev.source;
+                tr.dataset.eventId = ev.event_id;
+
+                const isIssue = ev.issue_found;
+                if (isIssue) tr.classList.add("hist-row-issue");
+
+                // Flag column
+                const tdFlag = document.createElement("td");
+                tdFlag.innerHTML = isIssue ? '<span class="hist-flag-icon" title="Issue Found">!</span>' : "";
+                tr.appendChild(tdFlag);
+
+                // Time
+                const tdTime = document.createElement("td");
+                tdTime.textContent = this._fmtTime(ev.timestamp);
+                tdTime.style.whiteSpace = "nowrap";
+                tdTime.style.fontFamily = "monospace";
+                tdTime.style.fontSize = "11px";
+                tr.appendChild(tdTime);
+
+                // Type badge
+                const tdType = document.createElement("td");
+                if (ev.source === "incident") {
+                    tdType.innerHTML = '<span class="hist-badge hist-badge-inc">INC</span>';
+                } else {
+                    tdType.innerHTML = '<span class="hist-badge hist-badge-log">LOG</span>';
+                }
+                tr.appendChild(tdType);
+
+                // Label
+                const tdLabel = document.createElement("td");
+                let label = "";
+                if (ev.source === "incident") {
+                    const ref = ev.ref_number || ev.run_number || ev.event_id;
+                    const nature = ev.event_type || "";
+                    const loc = ev.location || "";
+                    label = `#${this._esc(ref)}`;
+                    if (nature) label += ` &middot; ${this._esc(nature)}`;
+                    if (loc) label += ` &middot; ${this._esc(loc)}`;
+                } else {
+                    const cat = ev.daily_log_category || ev.event_type || "LOG";
+                    const sum = (ev.summary || "").substring(0, 80);
+                    label = `${this._esc(cat)}`;
+                    if (sum) label += ` &middot; ${this._esc(sum)}`;
+                }
+                tdLabel.innerHTML = `<span class="hist-label-text">${label}</span>`;
+                tr.appendChild(tdLabel);
+
+                // Status
+                const tdStatus = document.createElement("td");
+                const st = (ev.status || "").toUpperCase();
+                let stClass = "hist-badge-open";
+                if (st === "CLOSED") stClass = "hist-badge-closed";
+                else if (st === "DISPATCHED" || st === "ENROUTE" || st === "ARRIVED") stClass = "hist-badge-dispatched";
+                else if (st === "LOGGED") stClass = "hist-badge-logged";
+                tdStatus.innerHTML = `<span class="hist-badge ${stClass}">${this._esc(st)}</span>`;
+                tr.appendChild(tdStatus);
+
+                // Units
+                const tdUnits = document.createElement("td");
+                if (ev.source === "incident") {
+                    tdUnits.textContent = ""; // Will be populated from detail
+                } else if (ev.dl_unit_id) {
+                    tdUnits.innerHTML = `<span class="hist-unit-chip">${this._esc(ev.dl_unit_id)}</span>`;
+                }
+                tr.appendChild(tdUnits);
+
+                // Click handler
+                tr.addEventListener("click", () => {
+                    this.openDetail(ev.source, ev.event_id);
+                    document.querySelectorAll("#hist-tbody tr").forEach(r => r.classList.remove("hist-row-selected"));
+                    tr.classList.add("hist-row-selected");
+                });
+
+                this.$tbody.appendChild(tr);
+            }
+        },
+
+        _fmtTime(ts) {
+            if (!ts) return "";
+            // Extract time portion
+            if (ts.includes("T")) {
+                const parts = ts.split("T");
+                return parts[0].slice(5) + " " + parts[1].slice(0, 5);
+            }
+            if (ts.includes(" ")) {
+                const parts = ts.split(" ");
+                return parts[0].slice(5) + " " + (parts[1] || "").slice(0, 5);
+            }
+            return ts;
+        },
+
+        _esc(s) {
+            const el = document.createElement("span");
+            el.textContent = s || "";
+            return el.innerHTML;
+        },
+
+        // ============================
+        // Infinite scroll
+        // ============================
+        _wireInfiniteScroll() {
+            const self = this;
+            this._observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && self.hasMore && !self.loading) {
+                        self.page++;
+                        self.loadEvents(self.page, false);
+                    }
+                }
+            }, { root: this.$tableWrap, threshold: 0.1 });
+            if (this.$sentinel) {
+                this._observer.observe(this.$sentinel);
+            }
+        },
+
+        // ============================
+        // Detail panel
+        // ============================
+        _wireDetail() {
+            const self = this;
+            document.getElementById("hist-detail-back").addEventListener("click", () => self._hideDetail());
+        },
+
+        _hideDetail() {
+            this.$detailPanel.style.display = "none";
+            this.$detailContent.innerHTML = "";
+            this.selectedIncidentId = null;
+            this.selectedSource = null;
+            // Show table
+            document.getElementById("hist-table-wrap").style.display = "";
+            document.getElementById("hist-results-header") && (document.querySelector(".hist-results-header").style.display = "");
+        },
+
+        async openDetail(source, eventId) {
+            if (source !== "incident") {
+                // For daily log entries, show summary inline
+                const ev = this.events.find(e => e.source === source && e.event_id == eventId);
+                if (ev) {
+                    this._showDailyLogDetail(ev);
+                }
+                return;
+            }
+
+            this.selectedIncidentId = eventId;
+            this.selectedSource = source;
+
+            // Hide table, show detail
+            document.getElementById("hist-table-wrap").style.display = "none";
+            document.querySelector(".hist-results-header").style.display = "none";
+            this.$detailPanel.style.display = "";
+            this.$detailContent.innerHTML = '<div class="hist-loading"><div class="hist-spinner"></div>Loading incident...</div>';
+
+            try {
+                const resp = await fetch(`/api/history/${eventId}`);
+                const data = await resp.json();
+                if (!data.ok || !data.incident) {
+                    this.$detailContent.innerHTML = '<div class="hist-empty">Incident not found.</div>';
+                    return;
+                }
+                this._renderIncidentDetail(data.incident);
+            } catch (err) {
+                this.$detailContent.innerHTML = `<div class="hist-empty">Error loading incident: ${this._esc(String(err))}</div>`;
+            }
+        },
+
+        _showDailyLogDetail(ev) {
+            document.getElementById("hist-table-wrap").style.display = "none";
+            document.querySelector(".hist-results-header").style.display = "none";
+            this.$detailPanel.style.display = "";
+            this.selectedSource = "dailylog";
+            this.selectedIncidentId = ev.event_id;
+
+            const html = `
+                <div class="hist-detail-section">
+                    <div class="hist-detail-section-title">Daily Log Entry</div>
+                    <div class="hist-detail-grid">
+                        <div><span class="label">ID</span><br><span class="value">${this._esc(String(ev.event_id))}</span></div>
+                        <div><span class="label">Timestamp</span><br><span class="value">${this._esc(ev.timestamp || '')}</span></div>
+                        <div><span class="label">Category</span><br><span class="value">${this._esc(ev.daily_log_category || ev.event_type || '')}</span></div>
+                        <div><span class="label">Unit</span><br><span class="value">${ev.dl_unit_id ? '<span class="hist-unit-chip">' + this._esc(ev.dl_unit_id) + '</span>' : '—'}</span></div>
+                        <div><span class="label">User</span><br><span class="value">${this._esc(ev.dl_user || '—')}</span></div>
+                        <div><span class="label">Issue Found</span><br><span class="value">${ev.issue_found ? 'Yes' : 'No'}</span></div>
+                    </div>
+                </div>
+                ${ev.summary ? `<div class="hist-detail-section"><div class="hist-detail-section-title">Details</div><div style="line-height:1.6;">${this._esc(ev.summary)}</div></div>` : ''}
+            `;
+            this.$detailContent.innerHTML = html;
+        },
+
+        _renderIncidentDetail(inc) {
+            let html = "";
+            const runNum = inc.incident_number || inc.run_number || inc.incident_id;
+            const issue = inc.issue_found || inc.issue_flag;
+
+            if (issue) {
+                html += '<div class="hist-issue-banner">ISSUE FOUND — This incident has been flagged for review.</div>';
+            }
+
+            // Header / Summary
+            html += `
+                <div class="hist-detail-section">
+                    <div class="hist-detail-section-title">Summary</div>
+                    <div class="hist-detail-grid">
+                        <div><span class="label">Run #</span><br><span class="value">${this._esc(String(runNum))}</span></div>
+                        <div><span class="label">Type / Nature</span><br><span class="value">${this._esc(inc.type || '—')}</span></div>
+                        <div><span class="label">Location</span><br><span class="value">${this._esc(inc.location || inc.address || '—')}</span></div>
+                        <div><span class="label">Priority</span><br><span class="value">${this._esc(String(inc.priority || '—'))}</span></div>
+                        <div><span class="label">Caller</span><br><span class="value">${this._esc(inc.caller_name || '—')}</span></div>
+                        <div><span class="label">Phone</span><br><span class="value">${this._esc(inc.caller_phone || '—')}</span></div>
+                        <div><span class="label">Shift</span><br><span class="value">${this._esc(inc.shift || '—')}</span></div>
+                        <div><span class="label">Disposition</span><br><span class="value">${this._esc(inc.final_disposition || '—')}</span></div>
+                        <div><span class="label">Status</span><br><span class="value"><span class="hist-badge ${(inc.status||'').toUpperCase() === 'CLOSED' ? 'hist-badge-closed' : 'hist-badge-open'}">${this._esc((inc.status||'').toUpperCase())}</span></span></div>
+                    </div>
+                </div>
+            `;
+
+            // Times
+            html += `
+                <div class="hist-detail-section">
+                    <div class="hist-detail-section-title">Times</div>
+                    <div class="hist-detail-grid">
+                        <div><span class="label">Created</span><br><span class="value">${this._esc(inc.created || '—')}</span></div>
+                        <div><span class="label">Closed</span><br><span class="value">${this._esc(inc.closed_at || '—')}</span></div>
+                        <div><span class="label">Hold Start</span><br><span class="value">${this._esc(inc.held_at || '—')}</span></div>
+                        <div><span class="label">Hold End</span><br><span class="value">${this._esc(inc.held_released_at || '—')}</span></div>
+                    </div>
+                </div>
+            `;
+
+            // Narrative
+            const entries = inc.narrative_entries || [];
+            if (entries.length > 0) {
+                html += '<div class="hist-detail-section"><div class="hist-detail-section-title">Narrative</div>';
+                for (const n of entries) {
+                    html += `<div class="hist-narrative-entry">
+                        <span class="hist-narrative-ts">${this._esc(n.timestamp || '')}</span>
+                        <span class="hist-narrative-author">${this._esc(n.user || '')}</span>
+                        <div class="hist-narrative-text">${this._esc(n.text || '')}</div>
+                    </div>`;
+                }
+                html += "</div>";
+            } else if (inc.narrative) {
+                html += `<div class="hist-detail-section"><div class="hist-detail-section-title">Narrative</div>
+                    <div class="hist-narrative-entry"><div class="hist-narrative-text">${this._esc(inc.narrative)}</div></div>
+                </div>`;
+            }
+
+            // Units
+            const units = inc.units || [];
+            if (units.length > 0) {
+                html += `<div class="hist-detail-section"><div class="hist-detail-section-title">Units</div>
+                    <table class="hist-detail-table">
+                        <tr><th>Unit</th><th>Assigned</th><th>Dispatched</th><th>Enroute</th><th>Arrived</th><th>Transporting</th><th>At Medical</th><th>Cleared</th><th>Disposition</th></tr>`;
+                for (const u of units) {
+                    html += `<tr>
+                        <td><span class="hist-unit-chip">${this._esc(u.unit_id || '')}</span></td>
+                        <td>${this._esc(this._shortTime(u.assigned))}</td>
+                        <td>${this._esc(this._shortTime(u.dispatched))}</td>
+                        <td>${this._esc(this._shortTime(u.enroute))}</td>
+                        <td>${this._esc(this._shortTime(u.arrived))}</td>
+                        <td>${this._esc(this._shortTime(u.transporting))}</td>
+                        <td>${this._esc(this._shortTime(u.at_medical))}</td>
+                        <td>${this._esc(this._shortTime(u.cleared))}</td>
+                        <td>${this._esc(u.disposition || '—')}</td>
+                    </tr>`;
+                }
+                html += "</table></div>";
+            }
+
+            // History / Timeline
+            const history = inc.history || [];
+            if (history.length > 0) {
+                html += `<div class="hist-detail-section"><div class="hist-detail-section-title">Timeline / Audit</div>
+                    <table class="hist-detail-table">
+                        <tr><th>Time</th><th>Event</th><th>User</th><th>Unit</th><th>Details</th></tr>`;
+                for (const h of history) {
+                    const details = (h.details || "").substring(0, 150);
+                    html += `<tr>
+                        <td style="white-space:nowrap">${this._esc(h.timestamp || '')}</td>
+                        <td>${this._esc(h.event_type || '')}</td>
+                        <td>${this._esc(h.user || '')}</td>
+                        <td>${this._esc(h.unit_id || '')}</td>
+                        <td>${this._esc(details)}</td>
+                    </tr>`;
+                }
+                html += "</table></div>";
+            }
+
+            this.$detailContent.innerHTML = html;
+        },
+
+        _shortTime(ts) {
+            if (!ts) return "—";
+            if (ts.includes("T")) return ts.split("T")[1].slice(0, 8);
+            if (ts.includes(" ")) return ts.split(" ")[1].slice(0, 8);
+            return ts;
+        },
+
+        // ============================
+        // Export
+        // ============================
+        _wireExport() {
+            const self = this;
+            const exportBtn = document.getElementById("hist-export-btn");
+            const exportMenu = document.getElementById("hist-export-menu");
+
+            exportBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                exportMenu.style.display = exportMenu.style.display === "none" ? "" : "none";
+            });
+
+            exportMenu.addEventListener("click", (e) => {
+                const item = e.target.closest("[data-action]");
+                if (!item) return;
+                exportMenu.style.display = "none";
+                self._handleExport(item.dataset.action);
+            });
+
+            // Detail panel export buttons
+            document.getElementById("hist-detail-actions").addEventListener("click", (e) => {
+                const btn = e.target.closest("[data-action]");
+                if (!btn) return;
+                self._handleExport(btn.dataset.action);
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener("click", () => { exportMenu.style.display = "none"; });
+        },
+
+        async _handleExport(action) {
+            if (action === "print") {
+                if (this.selectedIncidentId && this.selectedSource === "incident") {
+                    window.open(`/modals/history/incident/${this.selectedIncidentId}`, "_blank");
+                }
+                return;
+            }
+
+            if (!this.selectedIncidentId || this.selectedSource !== "incident") {
+                if (typeof TOAST !== "undefined") TOAST.info("Select an incident to export");
+                return;
+            }
+
+            try {
+                const resp = await fetch("/api/history/export", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        incident_id: this.selectedIncidentId,
+                        formats: [action],
+                    }),
+                });
+                const data = await resp.json();
+                if (data.ok && data.download_links && data.download_links[action]) {
+                    window.open(data.download_links[action], "_blank");
+                } else {
+                    if (typeof TOAST !== "undefined") TOAST.error(data.error || "Export failed");
+                }
+            } catch (err) {
+                console.error("Export error:", err);
+                if (typeof TOAST !== "undefined") TOAST.error("Export failed");
+            }
+        },
+
+        // ============================
+        // Send
+        // ============================
+        _wireSend() {
+            const self = this;
+            const sendBtn = document.getElementById("hist-send-btn");
+            const sendMenu = document.getElementById("hist-send-menu");
+            const sendDialog = document.getElementById("hist-send-dialog");
+            let currentChannel = "";
+
+            sendBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                sendMenu.style.display = sendMenu.style.display === "none" ? "" : "none";
+            });
+
+            sendMenu.addEventListener("click", (e) => {
+                const item = e.target.closest("[data-channel]");
+                if (!item) return;
+                sendMenu.style.display = "none";
+                currentChannel = item.dataset.channel;
+                self._openSendDialog(currentChannel);
+            });
+
+            document.getElementById("hist-send-cancel").addEventListener("click", () => {
+                sendDialog.style.display = "none";
+            });
+
+            document.getElementById("hist-send-confirm").addEventListener("click", async () => {
+                const dest = document.getElementById("hist-send-destination").value.trim();
+                if (!dest) return;
+                if (!self.selectedIncidentId) return;
+
+                const statusEl = document.getElementById("hist-send-status");
+                statusEl.style.display = "";
+                statusEl.className = "hist-send-status";
+                statusEl.textContent = "Sending...";
+
+                try {
+                    const resp = await fetch("/api/history/send", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            incident_id: self.selectedIncidentId,
+                            channel: currentChannel,
+                            destination: dest,
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (data.ok) {
+                        statusEl.className = "hist-send-status success";
+                        statusEl.textContent = "Sent successfully!";
+                        setTimeout(() => { sendDialog.style.display = "none"; }, 1500);
+                    } else {
+                        statusEl.className = "hist-send-status error";
+                        statusEl.textContent = data.error || "Send failed";
+                    }
+                } catch (err) {
+                    statusEl.className = "hist-send-status error";
+                    statusEl.textContent = "Send failed: " + String(err);
+                }
+            });
+
+            document.addEventListener("click", () => { sendMenu.style.display = "none"; });
+        },
+
+        _openSendDialog(channel) {
+            const labels = {
+                email: "Email Address",
+                sms: "Phone Number",
+                signal: "Signal Number",
+                webex: "Webex Room / Email",
+                webhook: "Webhook URL",
+            };
+            const placeholders = {
+                email: "user@example.com",
+                sms: "+1234567890",
+                signal: "+1234567890",
+                webex: "room-id or email",
+                webhook: "https://...",
+            };
+
+            document.getElementById("hist-send-title").textContent = `Send via ${channel.charAt(0).toUpperCase() + channel.slice(1)}`;
+            document.getElementById("hist-send-label").textContent = labels[channel] || "Destination";
+            const input = document.getElementById("hist-send-destination");
+            input.value = "";
+            input.placeholder = placeholders[channel] || "";
+            document.getElementById("hist-send-status").style.display = "none";
+            document.getElementById("hist-send-dialog").style.display = "";
+            input.focus();
+        },
+
+        // ============================
+        // Saved Views
+        // ============================
+        _wireSavedViews() {
+            const self = this;
+
+            document.getElementById("hist-save-view-btn").addEventListener("click", () => {
+                document.getElementById("hist-save-dialog").style.display = "";
+                document.getElementById("hist-save-name").value = "";
+                document.getElementById("hist-save-name").focus();
+            });
+
+            document.getElementById("hist-save-cancel").addEventListener("click", () => {
+                document.getElementById("hist-save-dialog").style.display = "none";
+            });
+
+            document.getElementById("hist-save-confirm").addEventListener("click", async () => {
+                const name = document.getElementById("hist-save-name").value.trim();
+                if (!name) return;
+                try {
+                    await fetch("/api/history/saved-views", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: name, filters: self.currentFilters }),
+                    });
+                    document.getElementById("hist-save-dialog").style.display = "none";
+                    self._loadSavedViews();
+                    if (typeof TOAST !== "undefined") TOAST.success("View saved");
+                } catch (err) {
+                    console.error("Save view error:", err);
+                }
+            });
+
+            document.getElementById("hist-saved-views").addEventListener("change", (e) => {
+                const val = e.target.value;
+                if (!val) return;
+                try {
+                    const filters = JSON.parse(val);
+                    self._applySavedFilters(filters);
+                } catch (err) {
+                    console.error("Load view error:", err);
+                }
+            });
+        },
+
+        async _loadSavedViews() {
+            try {
+                const resp = await fetch("/api/history/saved-views");
+                const data = await resp.json();
+                const sel = document.getElementById("hist-saved-views");
+                sel.innerHTML = '<option value="">Saved Views...</option>';
+                for (const v of (data.views || [])) {
+                    const opt = document.createElement("option");
+                    opt.value = v.filters_json || "{}";
+                    opt.textContent = v.name;
+                    sel.appendChild(opt);
+                }
+            } catch (err) {
+                console.error("Load saved views error:", err);
+            }
+        },
+
+        _applySavedFilters(filters) {
+            // Reset UI to match filters
+            if (filters.date_start) document.getElementById("hist-date-start").value = filters.date_start;
+            if (filters.date_end) document.getElementById("hist-date-end").value = filters.date_end;
+
+            // Shift
+            if (filters.shift) {
+                document.querySelectorAll("#hist-shift-btns .hist-btn").forEach(b => {
+                    b.classList.toggle("active", b.dataset.shift === filters.shift);
+                });
+            }
+
+            // Mode
+            if (filters.mode) {
+                document.querySelectorAll("#hist-mode-btns .hist-btn").forEach(b => {
+                    b.classList.toggle("active", b.dataset.mode === filters.mode);
+                });
+            }
+
+            if (filters.search) document.getElementById("hist-search").value = filters.search;
+            if (filters.event_type) document.getElementById("hist-filter-type").value = filters.event_type;
+            if (filters.disposition) document.getElementById("hist-filter-disposition").value = filters.disposition;
+            if (filters.unit_id) document.getElementById("hist-filter-unit").value = filters.unit_id;
+            if (filters.calltaker) document.getElementById("hist-filter-calltaker").value = filters.calltaker;
+            if (filters.has_narrative) document.getElementById("hist-filter-narrative").checked = true;
+            if (filters.issue_found) document.getElementById("hist-filter-issue").checked = true;
+
+            this.applyFilters();
+        },
+
+        // ============================
+        // Load filter dropdown options
+        // ============================
+        async _loadFilterOptions() {
+            try {
+                const resp = await fetch("/api/history/filters");
+                const data = await resp.json();
+
+                const typeSelect = document.getElementById("hist-filter-type");
+                for (const t of (data.event_types || [])) {
+                    const opt = document.createElement("option");
+                    opt.value = t;
+                    opt.textContent = t;
+                    typeSelect.appendChild(opt);
+                }
+
+                const dispSelect = document.getElementById("hist-filter-disposition");
+                for (const d of (data.dispositions || [])) {
+                    const opt = document.createElement("option");
+                    opt.value = d;
+                    opt.textContent = d;
+                    dispSelect.appendChild(opt);
+                }
+
+                const unitSelect = document.getElementById("hist-filter-unit");
+                for (const u of (data.units || [])) {
+                    const opt = document.createElement("option");
+                    opt.value = u;
+                    opt.textContent = u;
+                    unitSelect.appendChild(opt);
+                }
+            } catch (err) {
+                console.error("Load filter options error:", err);
+            }
+        },
+
+        // ============================
+        // Keyboard navigation
+        // ============================
+        _wireKeyboard() {
+            const self = this;
+            document.addEventListener("keydown", (e) => {
+                // Only handle when history modal is active
+                if (!document.querySelector(".history-modal")) return;
+
+                if (e.key === "Escape") {
+                    if (document.getElementById("hist-send-dialog").style.display !== "none") {
+                        document.getElementById("hist-send-dialog").style.display = "none";
+                        return;
+                    }
+                    if (document.getElementById("hist-save-dialog").style.display !== "none") {
+                        document.getElementById("hist-save-dialog").style.display = "none";
+                        return;
+                    }
+                    if (self.$detailPanel.style.display !== "none") {
+                        self._hideDetail();
+                        return;
+                    }
+                }
+
+                // Arrow keys for row navigation
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    if (self.$detailPanel.style.display !== "none") return;
+                    e.preventDefault();
+                    const rows = Array.from(self.$tbody.querySelectorAll("tr"));
+                    if (rows.length === 0) return;
+                    const selected = self.$tbody.querySelector("tr.hist-row-selected");
+                    let idx = selected ? rows.indexOf(selected) : -1;
+                    if (e.key === "ArrowDown") idx = Math.min(idx + 1, rows.length - 1);
+                    else idx = Math.max(idx - 1, 0);
+                    rows.forEach(r => r.classList.remove("hist-row-selected"));
+                    rows[idx].classList.add("hist-row-selected");
+                    rows[idx].scrollIntoView({ block: "nearest" });
+                }
+
+                // Enter to open detail
+                if (e.key === "Enter") {
+                    const selected = self.$tbody.querySelector("tr.hist-row-selected");
+                    if (selected && self.$detailPanel.style.display === "none") {
+                        self.openDetail(selected.dataset.source, selected.dataset.eventId);
+                    }
+                }
+            });
+        },
+    };
+
+    // Expose globally and init
+    window.CALL_HISTORY = CALL_HISTORY;
+    CALL_HISTORY.init();
+})();
+</script>

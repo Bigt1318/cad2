@@ -111,7 +111,7 @@ function _wireDrawer() {
           CAD_MODAL.open("/modals/held");
           break;
         case "history":
-          CAD_MODAL.open("/history");
+          CAD_MODAL.open("/modals/history");
           break;
         case "settings":
           window.SETTINGS?.openModal?.();
@@ -172,7 +172,7 @@ function _wireToolbar() {
   }
 
   if (btnDaily) btnDaily.addEventListener("click", () => CAD_MODAL.open("/modals/dailylog"));
-  if (btnHistory) btnHistory.addEventListener("click", () => CAD_MODAL.open("/history"));
+  if (btnHistory) btnHistory.addEventListener("click", () => CAD_MODAL.open("/modals/history"));
   if (btnHeld) btnHeld.addEventListener("click", () => CAD_MODAL.open("/modals/held"));
 }
 
@@ -442,7 +442,7 @@ function _wireGlobalShortcuts() {
         case "s":
           // Alt+S = Search / History
           e.preventDefault();
-          CAD_MODAL.open("/history");
+          CAD_MODAL.open("/modals/history");
           break;
 
         case "t":
