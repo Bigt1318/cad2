@@ -1057,10 +1057,26 @@
         <!-- ============================================ -->
         <div class="rpt-sub-panel" id="rpt-panel-analytics">
             <div class="card">
-                <h3>Analytics Dashboard</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="margin:0; padding:0; border:none;">Analytics Dashboard</h3>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn btn-sm btn-secondary" onclick="rptPrintAnalytics()" title="Print this dashboard">Print</button>
+                        <button class="btn btn-sm btn-secondary" onclick="rptExportAnalytics('pdf')" title="Export as PDF">PDF</button>
+                        <button class="btn btn-sm btn-secondary" onclick="rptExportAnalytics('csv')" title="Export as CSV">CSV</button>
+                        <button class="btn btn-sm btn-secondary" onclick="rptExportAnalytics('html')" title="Export as HTML">HTML</button>
+                        <button class="btn btn-sm btn-primary" onclick="rptSendAnalytics()" title="Send via delivery channels">Send</button>
+                    </div>
+                </div>
 
-                <!-- Date Range Presets -->
+                <!-- Report Type & Date Range -->
                 <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <select id="rpt-analytics-template" style="width: 220px; padding: 5px 8px; font-size: 12px;" onchange="rptLoadAnalytics()">
+                        <option value="department_overview">Department Overview</option>
+                        <option value="executive_summary">Executive Summary</option>
+                        <option value="response_performance">Response Performance</option>
+                        <option value="incident_analytics">Incident Analytics</option>
+                        <option value="unit_performance">Unit Performance</option>
+                    </select>
                     <div class="rpt-date-presets" id="rpt-analytics-presets">
                         <button data-days="7" class="active">7 Days</button>
                         <button data-days="30">30 Days</button>
@@ -1075,6 +1091,9 @@
                         <button class="btn btn-sm btn-primary" onclick="rptLoadAnalytics()">Update</button>
                     </div>
                 </div>
+
+                <!-- Status bar -->
+                <div id="rpt-analytics-status" style="display:none; margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; background: var(--info-light, #eff6ff); border: 1px solid var(--info, #3b82f6); font-size: 12px;"></div>
 
                 <!-- KPI Cards -->
                 <div class="rpt-kpi-grid" id="rpt-kpi-grid">
@@ -1120,6 +1139,12 @@
                         <h4>Unit Utilization</h4>
                         <canvas id="rpt-chart-units"></canvas>
                     </div>
+                </div>
+
+                <!-- Download links after export -->
+                <div id="rpt-analytics-downloads" style="display:none; margin-top: 12px; padding: 12px; border-radius: 6px; background: var(--success-light, #f0fdf4); border: 1px solid var(--success, #22c55e);">
+                    <strong>Report Ready</strong>
+                    <div id="rpt-analytics-download-links" style="margin-top: 6px;"></div>
                 </div>
             </div>
         </div>
@@ -1277,8 +1302,18 @@
                 </div>
 
                 <div class="rpt-form-group">
-                    <label>Recipients (comma-separated emails)</label>
-                    <input type="text" id="rpt-sched-recipients" placeholder="chief@dept.com, captain@dept.com">
+                    <label>Recipients</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <select id="rpt-sched-keyword-filter" onchange="rptFilterContactPicker()" style="flex:1;">
+                            <option value="">-- Select by keyword --</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="rptApplyKeywordToSchedule()">Add by Keyword</button>
+                    </div>
+                    <div id="rpt-sched-contact-picker" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color, #ddd); border-radius: 6px; padding: 6px; background: var(--bg-secondary, #f9fafb);">
+                        <div style="color: var(--text-muted, #999); font-size: 12px;">Loading contacts...</div>
+                    </div>
+                    <div id="rpt-sched-selected-chips" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;"></div>
+                    <input type="hidden" id="rpt-sched-recipients" value="">
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 12px;">
@@ -1289,11 +1324,104 @@
         </div>
 
         <!-- ============================================ -->
-        <!-- 5. DELIVERY CHANNELS CONFIG                  -->
+        <!-- 5. DELIVERY CHANNELS & CONTACTS              -->
         <!-- ============================================ -->
         <div class="rpt-sub-panel" id="rpt-panel-delivery">
+            <!-- Contact Management -->
             <div class="card">
-                <h3>Delivery Channel Configuration</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin:0; padding:0; border:none;">Contact Management</h3>
+                    <button class="btn btn-primary btn-sm" onclick="rptShowAddContact()">+ Add Contact</button>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <input type="text" id="rpt-contact-search" placeholder="Search contacts..." style="flex: 1;" oninput="rptFilterContacts()">
+                    <select id="rpt-contact-keyword-filter" onchange="rptFilterContacts()" style="width: 180px;">
+                        <option value="">All Keywords</option>
+                    </select>
+                </div>
+
+                <table class="rpt-sched-table" id="rpt-contacts-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Carrier</th>
+                            <th>Department</th>
+                            <th>Keywords</th>
+                            <th>Enabled</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt-contacts-tbody">
+                        <tr><td colspan="8" style="text-align:center; padding:20px; color: var(--text-muted, #999);">Loading contacts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Add/Edit Contact Form -->
+            <div class="card" id="rpt-contact-form" style="display: none;">
+                <h3 id="rpt-contact-form-title">Add New Contact</h3>
+                <input type="hidden" id="rpt-contact-edit-id">
+
+                <div class="rpt-form-row">
+                    <div class="rpt-form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="rpt-contact-name" placeholder="John Smith" required>
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Email</label>
+                        <input type="email" id="rpt-contact-email" placeholder="jsmith@dept.com">
+                    </div>
+                </div>
+
+                <div class="rpt-form-row">
+                    <div class="rpt-form-group">
+                        <label>Phone</label>
+                        <input type="text" id="rpt-contact-phone" placeholder="555-123-4567">
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Phone Carrier</label>
+                        <select id="rpt-contact-carrier">
+                            <option value="">-- Select Carrier --</option>
+                            <option value="verizon">Verizon</option>
+                            <option value="att">AT&T</option>
+                            <option value="tmobile">T-Mobile</option>
+                            <option value="sprint">Sprint/T-Mobile</option>
+                            <option value="uscellular">US Cellular</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rpt-form-row">
+                    <div class="rpt-form-group">
+                        <label>Department</label>
+                        <input type="text" id="rpt-contact-dept" placeholder="Fire, EMS, Admin, SHE...">
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Keywords <span style="font-weight:normal;color:var(--text-muted,#999);">(comma-separated)</span></label>
+                        <input type="text" id="rpt-contact-keywords" placeholder="A Shift, Supervisor, SHE, All">
+                    </div>
+                </div>
+
+                <div class="rpt-form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="rpt-contact-enabled" checked>
+                        Enabled (receives deliveries)
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="rptSaveContact()">Save Contact</button>
+                    <button class="btn btn-secondary" onclick="rptCancelContact()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Channel Configuration -->
+            <div class="card">
+                <h3>Channel Configuration</h3>
 
                 <div class="settings-section">
                     <h4>Email</h4>
@@ -1304,15 +1432,6 @@
                         </div>
                         <div class="setting-control">
                             <input type="email" id="rpt-dlv-email-from" placeholder="cad@blueovalsk.com" style="width: 260px;">
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <div class="setting-info">
-                            <div class="setting-label">Default Recipients</div>
-                            <div class="setting-desc">Default email recipients (comma-separated)</div>
-                        </div>
-                        <div class="setting-control">
-                            <input type="text" id="rpt-dlv-email-recipients" placeholder="chief@dept.com" style="width: 300px;">
                         </div>
                     </div>
                 </div>
@@ -1331,36 +1450,21 @@
                             </select>
                         </div>
                     </div>
-                    <div class="setting-row">
-                        <div class="setting-info">
-                            <div class="setting-label">SMS Recipients</div>
-                            <div class="setting-desc">Phone numbers (comma-separated, E.164 format)</div>
-                        </div>
-                        <div class="setting-control">
-                            <input type="text" id="rpt-dlv-sms-recipients" placeholder="+15551234567" style="width: 300px;">
-                        </div>
-                    </div>
                 </div>
 
                 <div class="settings-section">
-                    <h4>Signal</h4>
+                    <h4>Signal / Webex / Webhook</h4>
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-label">Signal API Endpoint</div>
-                            <div class="setting-desc">Signal REST API URL for message delivery</div>
                         </div>
                         <div class="setting-control">
                             <input type="url" id="rpt-dlv-signal-url" placeholder="https://signal-api.example.com" style="width: 300px;">
                         </div>
                     </div>
-                </div>
-
-                <div class="settings-section">
-                    <h4>Webex</h4>
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-label">Webex Bot Token</div>
-                            <div class="setting-desc">Webex Teams bot access token</div>
                         </div>
                         <div class="setting-control">
                             <input type="password" id="rpt-dlv-webex-token" placeholder="Bearer token" style="width: 300px;">
@@ -1369,20 +1473,14 @@
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-label">Webex Room ID</div>
-                            <div class="setting-desc">Target room/space for report delivery</div>
                         </div>
                         <div class="setting-control">
                             <input type="text" id="rpt-dlv-webex-room" placeholder="Room ID" style="width: 300px;">
                         </div>
                     </div>
-                </div>
-
-                <div class="settings-section">
-                    <h4>Webhook</h4>
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-label">Webhook URL</div>
-                            <div class="setting-desc">POST reports to this endpoint</div>
                         </div>
                         <div class="setting-control">
                             <input type="url" id="rpt-dlv-webhook-url" placeholder="https://hooks.example.com/reports" style="width: 300px;">
@@ -1391,7 +1489,6 @@
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-label">Webhook Secret</div>
-                            <div class="setting-desc">HMAC signing key for webhook payloads</div>
                         </div>
                         <div class="setting-control">
                             <input type="password" id="rpt-dlv-webhook-secret" placeholder="Secret key" style="width: 300px;">
@@ -1399,7 +1496,7 @@
                     </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="rptSaveDeliveryConfig()">Save Delivery Configuration</button>
+                <button class="btn btn-primary" onclick="rptSaveDeliveryConfig()">Save Channel Configuration</button>
             </div>
         </div>
 
@@ -1485,6 +1582,7 @@
                 // Lazy-load data
                 if (btn.dataset.rptTab === 'analytics') rptLoadAnalytics();
                 if (btn.dataset.rptTab === 'schedules') rptLoadSchedules();
+                if (btn.dataset.rptTab === 'delivery') rptLoadContacts();
                 if (btn.dataset.rptTab === 'history') rptLoadHistory();
             });
 
@@ -1555,26 +1653,199 @@
                 rptLoadAnalytics();
             });
 
+            let rptLastAnalyticsRunId = null;
+
             window.rptLoadAnalytics = async function() {
+                const templateKey = document.getElementById('rpt-analytics-template').value;
                 const dateFrom = document.getElementById('rpt-analytics-from').value;
                 const dateTo = document.getElementById('rpt-analytics-to').value;
+                const statusBar = document.getElementById('rpt-analytics-status');
+
+                statusBar.style.display = 'block';
+                statusBar.textContent = 'Loading ' + (document.getElementById('rpt-analytics-template').selectedOptions[0]?.text || templateKey) + '...';
+                document.getElementById('rpt-analytics-downloads').style.display = 'none';
 
                 try {
                     const res = await fetch(API + '/run', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            template_key: 'department_overview',
+                            template_key: templateKey,
                             filters: { date_from: dateFrom, date_to: dateTo },
                             formats: [],
                             created_by: 'admin_dashboard'
                         })
                     });
                     const data = await res.json();
+                    rptLastAnalyticsRunId = data.run_id || null;
                     rptUpdateKPIs(data.kpis || data.data?.stats || {});
                     rptUpdateCharts(data.chart_data || data.data?.chart_data || {});
+
+                    const templateName = document.getElementById('rpt-analytics-template').selectedOptions[0]?.text || templateKey;
+                    statusBar.textContent = templateName + ' loaded — ' + (dateFrom || '?') + ' to ' + (dateTo || '?');
+                    if (!data.ok && data.error) {
+                        statusBar.textContent = 'Warning: ' + data.error;
+                        statusBar.style.background = 'var(--warning-light, #fffbeb)';
+                        statusBar.style.borderColor = 'var(--warning, #f59e0b)';
+                    } else {
+                        statusBar.style.background = 'var(--info-light, #eff6ff)';
+                        statusBar.style.borderColor = 'var(--info, #3b82f6)';
+                    }
                 } catch (e) {
                     console.error('Analytics load failed:', e);
+                    statusBar.textContent = 'Failed to load analytics: ' + e.message;
+                    statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                    statusBar.style.borderColor = 'var(--danger, #dc2626)';
+                }
+            };
+
+            window.rptPrintAnalytics = function() {
+                const panel = document.getElementById('rpt-panel-analytics');
+                const printWin = window.open('', '_blank');
+                printWin.document.write(`<!DOCTYPE html><html><head><title>Analytics Report</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; color: #1a1a1a; }
+                        h3 { color: #003478; border-bottom: 2px solid #003478; padding-bottom: 8px; }
+                        .kpi-grid { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
+                        .kpi-card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; text-align: center; min-width: 120px; flex: 1; }
+                        .kpi-value { font-size: 28px; font-weight: 700; color: #003478; }
+                        .kpi-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+                        @media print { body { padding: 0; } }
+                    </style></head><body>`);
+                const templateName = document.getElementById('rpt-analytics-template').selectedOptions[0]?.text || 'Analytics';
+                const dateFrom = document.getElementById('rpt-analytics-from').value;
+                const dateTo = document.getElementById('rpt-analytics-to').value;
+                printWin.document.write('<h3>' + templateName + ' Report</h3>');
+                printWin.document.write('<p style="color:#666;font-size:13px;">' + dateFrom + ' to ' + dateTo + ' | Generated ' + new Date().toLocaleString() + '</p>');
+                // KPI cards
+                const kpiGrid = document.getElementById('rpt-kpi-grid');
+                if (kpiGrid) printWin.document.write(kpiGrid.outerHTML);
+                // Charts as images
+                ['rpt-chart-trend','rpt-chart-types','rpt-chart-hourly','rpt-chart-units'].forEach(id => {
+                    const canvas = document.getElementById(id);
+                    if (canvas) {
+                        const title = canvas.closest('.rpt-chart-box')?.querySelector('h4')?.textContent || '';
+                        printWin.document.write('<h4 style="margin-top:20px;">' + title + '</h4>');
+                        printWin.document.write('<img src="' + canvas.toDataURL('image/png') + '" style="max-width:100%;height:auto;">');
+                    }
+                });
+                printWin.document.write('</body></html>');
+                printWin.document.close();
+                setTimeout(() => { printWin.print(); }, 500);
+            };
+
+            window.rptExportAnalytics = async function(format) {
+                const templateKey = document.getElementById('rpt-analytics-template').value;
+                const dateFrom = document.getElementById('rpt-analytics-from').value;
+                const dateTo = document.getElementById('rpt-analytics-to').value;
+
+                const statusBar = document.getElementById('rpt-analytics-status');
+                statusBar.style.display = 'block';
+                statusBar.textContent = 'Generating ' + format.toUpperCase() + ' export...';
+
+                try {
+                    const res = await fetch(API + '/run', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            template_key: templateKey,
+                            filters: { date_from: dateFrom, date_to: dateTo },
+                            formats: [format],
+                            created_by: 'admin_dashboard'
+                        })
+                    });
+                    const data = await res.json();
+                    rptLastAnalyticsRunId = data.run_id || null;
+
+                    if (data.ok && data.links && Object.keys(data.links).length) {
+                        const dlDiv = document.getElementById('rpt-analytics-download-links');
+                        dlDiv.innerHTML = Object.entries(data.links).map(([fmt, url]) =>
+                            `<a href="${url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right: 6px;">Download ${fmt.toUpperCase()}</a>`
+                        ).join('');
+                        document.getElementById('rpt-analytics-downloads').style.display = 'block';
+                        statusBar.textContent = format.toUpperCase() + ' export ready — Run ID: ' + (data.run_id || '--');
+                    } else if (data.ok) {
+                        statusBar.textContent = 'Report generated (Run ID: ' + (data.run_id || '--') + ') but no downloadable files produced. Try HTML or CSV format.';
+                    } else {
+                        statusBar.textContent = 'Export failed: ' + (data.error || 'Unknown error');
+                        statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                        statusBar.style.borderColor = 'var(--danger, #dc2626)';
+                    }
+                } catch (e) {
+                    statusBar.textContent = 'Export failed: ' + e.message;
+                    statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                    statusBar.style.borderColor = 'var(--danger, #dc2626)';
+                }
+            };
+
+            window.rptSendAnalytics = async function() {
+                if (!rptLastAnalyticsRunId) {
+                    // Generate first, then send
+                    const templateKey = document.getElementById('rpt-analytics-template').value;
+                    const dateFrom = document.getElementById('rpt-analytics-from').value;
+                    const dateTo = document.getElementById('rpt-analytics-to').value;
+
+                    try {
+                        const res = await fetch(API + '/run', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                template_key: templateKey,
+                                filters: { date_from: dateFrom, date_to: dateTo },
+                                formats: ['html', 'pdf'],
+                                created_by: 'admin_dashboard'
+                            })
+                        });
+                        const data = await res.json();
+                        rptLastAnalyticsRunId = data.run_id || null;
+                    } catch (e) {
+                        if (typeof showToast === 'function') showToast('Failed to generate report: ' + e.message, 'error');
+                        return;
+                    }
+                }
+
+                if (!rptLastAnalyticsRunId) {
+                    if (typeof showToast === 'function') showToast('No report to send. Click Update first.', 'error');
+                    return;
+                }
+
+                // Get contacts with email and build delivery channels
+                const email = prompt('Enter recipient email (or leave blank to use configured contacts):');
+                if (email === null) return; // cancelled
+
+                const destinations = [];
+                if (email.trim()) {
+                    destinations.push({ channel: 'email', destination: email.trim() });
+                } else {
+                    // Use all enabled contacts with email
+                    const contactsRes = await fetch(API + '/contacts');
+                    const contactsData = await contactsRes.json();
+                    (contactsData.contacts || []).forEach(c => {
+                        if (c.enabled && c.email) destinations.push({ channel: 'email', destination: c.email });
+                    });
+                }
+
+                if (!destinations.length) {
+                    if (typeof showToast === 'function') showToast('No recipients specified and no contacts with email found', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(API + '/deliver', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ report_run_id: rptLastAnalyticsRunId, channels: destinations })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        const sent = (data.deliveries || []).filter(d => d.status === 'sent').length;
+                        if (typeof showToast === 'function') showToast('Report sent to ' + sent + ' of ' + destinations.length + ' recipient(s)');
+                    } else {
+                        if (typeof showToast === 'function') showToast('Send failed: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Send failed: ' + e.message, 'error');
                 }
             };
 
@@ -1586,12 +1857,22 @@
                 document.getElementById('rpt-kpi-units').textContent = kpis.active_units ?? kpis.units_count ?? '--';
             }
 
+            // Normalize chart data: handles both {labels, values} and [{label, value}] formats
+            function rptNormalizeChartData(data) {
+                if (!data) return [];
+                if (Array.isArray(data)) return data;
+                if (data.labels && data.values) {
+                    return data.labels.map((label, i) => ({ label: label, value: data.values[i] || 0 }));
+                }
+                return [];
+            }
+
             function rptUpdateCharts(chartData) {
                 const colors = ['#003478','#1e5bb8','#4a8fe7','#7ab8ff','#a8d4ff','#002a6b','#dc2626','#f59e0b','#10b981','#6366f1'];
 
                 // Incident Trend (line)
                 if (rptCharts.trend) rptCharts.trend.destroy();
-                const trendData = chartData.daily_trend || chartData.incident_trend || chartData.trend || [];
+                const trendData = rptNormalizeChartData(chartData.daily_trend || chartData.incident_trend || chartData.trend);
                 const trendLabels = trendData.map(d => d.date || d.label || d.day || '');
                 const trendValues = trendData.map(d => d.count || d.value || d.incidents || 0);
                 const trendCtx = document.getElementById('rpt-chart-trend');
@@ -1605,7 +1886,7 @@
 
                 // Type Breakdown (doughnut)
                 if (rptCharts.types) rptCharts.types.destroy();
-                const typeData = chartData.type_breakdown || chartData.incident_types || chartData.types || [];
+                const typeData = rptNormalizeChartData(chartData.type_breakdown || chartData.incident_types || chartData.types);
                 const typeLabels = typeData.map(d => d.type || d.label || d.name || '');
                 const typeValues = typeData.map(d => d.count || d.value || 0);
                 const typeCtx = document.getElementById('rpt-chart-types');
@@ -1619,7 +1900,7 @@
 
                 // Hourly Pattern (bar)
                 if (rptCharts.hourly) rptCharts.hourly.destroy();
-                const hourlyData = chartData.hourly_pattern || chartData.hourly || chartData.by_hour || [];
+                const hourlyData = rptNormalizeChartData(chartData.hourly_pattern || chartData.hourly || chartData.by_hour);
                 const hourlyLabels = hourlyData.length ? hourlyData.map(d => d.hour != null ? String(d.hour).padStart(2,'0') + ':00' : d.label || '') : Array.from({length:24}, (_, i) => String(i).padStart(2,'0') + ':00');
                 const hourlyValues = hourlyData.length ? hourlyData.map(d => d.count || d.value || 0) : new Array(24).fill(0);
                 const hourlyCtx = document.getElementById('rpt-chart-hourly');
@@ -1633,7 +1914,7 @@
 
                 // Unit Utilization (horizontal bar)
                 if (rptCharts.units) rptCharts.units.destroy();
-                const unitData = chartData.unit_utilization || chartData.units || chartData.by_unit || [];
+                const unitData = rptNormalizeChartData(chartData.unit_utilization || chartData.units || chartData.by_unit);
                 const unitLabels = unitData.map(d => d.unit || d.label || d.name || '');
                 const unitValues = unitData.map(d => d.utilization || d.pct || d.value || d.count || 0);
                 const unitCtx = document.getElementById('rpt-chart-units');
@@ -1809,7 +2090,6 @@
                     document.getElementById('rpt-sched-template').value = sched.template_key || '';
                     document.getElementById('rpt-sched-type').value = sched.schedule_type || 'daily';
                     document.getElementById('rpt-sched-time').value = sched.time || '06:00';
-                    document.getElementById('rpt-sched-recipients').value = (sched.recipients || []).join(', ');
 
                     // Update format pills
                     const formats = sched.formats || sched.format || ['html'];
@@ -1822,6 +2102,21 @@
                     document.querySelectorAll('#rpt-sched-form-card .rpt-channel-checks input').forEach(cb => {
                         cb.checked = channels.includes(cb.value);
                     });
+
+                    // Load contact picker and pre-select recipients
+                    const loadAndSelect = () => {
+                        rptLoadContactPicker();
+                        const recipientEmails = (sched.recipients || []).map(r => r.toLowerCase());
+                        document.querySelectorAll('#rpt-sched-contact-picker input').forEach(cb => {
+                            cb.checked = recipientEmails.includes((cb.dataset.email || '').toLowerCase());
+                        });
+                        rptUpdateScheduleRecipients();
+                    };
+                    if (!rptAllContacts.length) {
+                        rptLoadContacts().then(loadAndSelect);
+                    } else {
+                        loadAndSelect();
+                    }
                 } catch (e) {
                     console.error('Edit schedule failed:', e);
                 }
@@ -1835,6 +2130,7 @@
                 document.getElementById('rpt-sched-type').value = 'daily';
                 document.getElementById('rpt-sched-time').value = '06:00';
                 document.getElementById('rpt-sched-recipients').value = '';
+                document.getElementById('rpt-sched-selected-chips').innerHTML = '';
                 document.getElementById('rpt-sched-cron').value = '';
                 document.querySelectorAll('#rpt-sched-formats .rpt-format-pill').forEach(p => {
                     p.classList.toggle('active', p.dataset.fmt === 'html');
@@ -1842,6 +2138,12 @@
                 document.querySelectorAll('#rpt-sched-form-card .rpt-channel-checks input').forEach(cb => {
                     cb.checked = cb.value === 'email';
                 });
+                // Load contact picker if contacts not loaded yet
+                if (!rptAllContacts.length) {
+                    rptLoadContacts().then(() => rptLoadContactPicker());
+                } else {
+                    rptLoadContactPicker();
+                }
             };
 
             window.rptCancelSchedule = function() {
@@ -1890,20 +2192,251 @@
                 }
             };
 
-            // ----- 5. DELIVERY CONFIG -----
+            // ----- 5. DELIVERY CONFIG & CONTACT MANAGEMENT -----
+            let rptAllContacts = [];
+
+            window.rptLoadContacts = async function() {
+                try {
+                    const res = await fetch(API + '/contacts');
+                    const data = await res.json();
+                    rptAllContacts = data.contacts || [];
+                    rptRenderContacts(rptAllContacts);
+                    rptLoadKeywords();
+                } catch (e) {
+                    console.error('Load contacts failed:', e);
+                    document.getElementById('rpt-contacts-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted,#999);">Failed to load contacts</td></tr>';
+                }
+            };
+
+            function rptRenderContacts(contacts) {
+                const tbody = document.getElementById('rpt-contacts-tbody');
+                if (!contacts.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted,#999);">No contacts yet. Click "+ Add Contact" to create one.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = contacts.map(c => {
+                    const enabledBadge = c.enabled ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#999;">Disabled</span>';
+                    const keywords = (c.keywords_list || []).map(k => `<span style="display:inline-block;background:var(--bg-tertiary,#e5e7eb);padding:1px 6px;border-radius:3px;font-size:11px;margin:1px;">${k}</span>`).join(' ');
+                    return `<tr>
+                        <td><strong>${c.full_name || '--'}</strong></td>
+                        <td>${c.email || '--'}</td>
+                        <td>${c.phone || '--'}</td>
+                        <td>${c.phone_carrier || '--'}</td>
+                        <td>${c.department || '--'}</td>
+                        <td>${keywords || '--'}</td>
+                        <td>${enabledBadge}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="btn btn-sm btn-secondary" onclick="rptShowEditContact(${c.id})">Edit</button>
+                            <button class="btn btn-sm btn-secondary" onclick="rptTestContact(${c.id})" title="Send test">Test</button>
+                            <button class="btn btn-sm" style="color:var(--danger,#dc2626);" onclick="rptDeleteContact(${c.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+            window.rptLoadKeywords = async function() {
+                try {
+                    const res = await fetch(API + '/contacts/keywords');
+                    const data = await res.json();
+                    const keywords = data.keywords || [];
+                    // Update filter dropdown
+                    const filterSel = document.getElementById('rpt-contact-keyword-filter');
+                    if (filterSel) {
+                        filterSel.innerHTML = '<option value="">All Keywords</option>' +
+                            keywords.map(k => `<option value="${k}">${k}</option>`).join('');
+                    }
+                    // Update schedule keyword picker
+                    const schedSel = document.getElementById('rpt-sched-keyword-filter');
+                    if (schedSel) {
+                        schedSel.innerHTML = '<option value="">-- Select by keyword --</option>' +
+                            keywords.map(k => `<option value="${k}">${k}</option>`).join('');
+                    }
+                } catch (e) { console.error('Load keywords failed:', e); }
+            };
+
+            window.rptFilterContacts = function() {
+                const search = (document.getElementById('rpt-contact-search').value || '').toLowerCase();
+                const keyword = document.getElementById('rpt-contact-keyword-filter').value;
+                let filtered = rptAllContacts;
+                if (keyword) {
+                    filtered = filtered.filter(c => (c.keywords_list || []).some(k => k.toLowerCase() === keyword.toLowerCase()));
+                }
+                if (search) {
+                    filtered = filtered.filter(c =>
+                        (c.full_name || '').toLowerCase().includes(search) ||
+                        (c.email || '').toLowerCase().includes(search) ||
+                        (c.department || '').toLowerCase().includes(search) ||
+                        (c.keywords || '').toLowerCase().includes(search)
+                    );
+                }
+                rptRenderContacts(filtered);
+            };
+
+            window.rptShowAddContact = function() {
+                document.getElementById('rpt-contact-form').style.display = 'block';
+                document.getElementById('rpt-contact-form-title').textContent = 'Add New Contact';
+                document.getElementById('rpt-contact-edit-id').value = '';
+                document.getElementById('rpt-contact-name').value = '';
+                document.getElementById('rpt-contact-email').value = '';
+                document.getElementById('rpt-contact-phone').value = '';
+                document.getElementById('rpt-contact-carrier').value = '';
+                document.getElementById('rpt-contact-dept').value = '';
+                document.getElementById('rpt-contact-keywords').value = '';
+                document.getElementById('rpt-contact-enabled').checked = true;
+            };
+
+            window.rptShowEditContact = function(id) {
+                const c = rptAllContacts.find(x => x.id === id);
+                if (!c) return;
+                document.getElementById('rpt-contact-form').style.display = 'block';
+                document.getElementById('rpt-contact-form-title').textContent = 'Edit Contact';
+                document.getElementById('rpt-contact-edit-id').value = id;
+                document.getElementById('rpt-contact-name').value = c.full_name || '';
+                document.getElementById('rpt-contact-email').value = c.email || '';
+                document.getElementById('rpt-contact-phone').value = c.phone || '';
+                document.getElementById('rpt-contact-carrier').value = c.phone_carrier || '';
+                document.getElementById('rpt-contact-dept').value = c.department || '';
+                document.getElementById('rpt-contact-keywords').value = c.keywords || '';
+                document.getElementById('rpt-contact-enabled').checked = c.enabled;
+            };
+
+            window.rptCancelContact = function() {
+                document.getElementById('rpt-contact-form').style.display = 'none';
+            };
+
+            window.rptSaveContact = async function() {
+                const editId = document.getElementById('rpt-contact-edit-id').value;
+                const body = {
+                    full_name: document.getElementById('rpt-contact-name').value,
+                    email: document.getElementById('rpt-contact-email').value,
+                    phone: document.getElementById('rpt-contact-phone').value,
+                    phone_carrier: document.getElementById('rpt-contact-carrier').value,
+                    department: document.getElementById('rpt-contact-dept').value,
+                    keywords: document.getElementById('rpt-contact-keywords').value,
+                    enabled: document.getElementById('rpt-contact-enabled').checked,
+                };
+                if (!body.full_name.trim()) {
+                    if (typeof showToast === 'function') showToast('Full name is required', 'error');
+                    return;
+                }
+                try {
+                    const url = editId ? API + '/contacts/' + editId : API + '/contacts';
+                    const method = editId ? 'PUT' : 'POST';
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (data.ok !== false) {
+                        if (typeof showToast === 'function') showToast(editId ? 'Contact updated' : 'Contact created');
+                        document.getElementById('rpt-contact-form').style.display = 'none';
+                        rptLoadContacts();
+                    } else {
+                        if (typeof showToast === 'function') showToast(data.detail || data.error || 'Failed to save', 'error');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            window.rptDeleteContact = async function(id) {
+                if (!confirm('Delete this contact permanently?')) return;
+                try {
+                    const res = await fetch(API + '/contacts/' + id, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (data.ok !== false) {
+                        if (typeof showToast === 'function') showToast('Contact deleted');
+                        rptLoadContacts();
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            window.rptTestContact = async function(id) {
+                try {
+                    const res = await fetch(API + '/contacts/' + id + '/test', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.ok) {
+                        if (typeof showToast === 'function') showToast(data.message || 'Test sent');
+                    } else {
+                        if (typeof showToast === 'function') showToast(data.error || 'Test failed', 'error');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            // Contact picker for schedule form
+            window.rptLoadContactPicker = function() {
+                const picker = document.getElementById('rpt-sched-contact-picker');
+                if (!picker) return;
+                if (!rptAllContacts.length) {
+                    picker.innerHTML = '<div style="color:var(--text-muted,#999);font-size:12px;padding:8px;">No contacts available. Add contacts in the Delivery tab first.</div>';
+                    return;
+                }
+                picker.innerHTML = rptAllContacts.filter(c => c.enabled).map(c =>
+                    `<label style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:13px;cursor:pointer;" title="${c.email || ''} | ${c.keywords || ''}">
+                        <input type="checkbox" class="rpt-sched-contact-cb" value="${c.id}" data-email="${c.email || ''}" data-name="${c.full_name}" onchange="rptUpdateScheduleRecipients()">
+                        <strong>${c.full_name}</strong>
+                        <span style="color:var(--text-muted,#999);font-size:11px;">${c.department || ''} ${c.email ? '(' + c.email + ')' : ''}</span>
+                    </label>`
+                ).join('');
+            };
+
+            window.rptFilterContactPicker = function() {
+                const keyword = document.getElementById('rpt-sched-keyword-filter').value;
+                if (!keyword) {
+                    // Show all
+                    document.querySelectorAll('#rpt-sched-contact-picker label').forEach(l => l.style.display = 'flex');
+                    return;
+                }
+                document.querySelectorAll('#rpt-sched-contact-picker label').forEach(label => {
+                    const cb = label.querySelector('input');
+                    const id = parseInt(cb.value);
+                    const contact = rptAllContacts.find(c => c.id === id);
+                    const matches = contact && (contact.keywords_list || []).some(k => k.toLowerCase() === keyword.toLowerCase());
+                    label.style.display = matches ? 'flex' : 'none';
+                });
+            };
+
+            window.rptApplyKeywordToSchedule = function() {
+                const keyword = document.getElementById('rpt-sched-keyword-filter').value;
+                if (!keyword) return;
+                document.querySelectorAll('#rpt-sched-contact-picker label').forEach(label => {
+                    if (label.style.display !== 'none') {
+                        const cb = label.querySelector('input');
+                        cb.checked = true;
+                    }
+                });
+                rptUpdateScheduleRecipients();
+            };
+
+            window.rptUpdateScheduleRecipients = function() {
+                const checked = document.querySelectorAll('#rpt-sched-contact-picker input:checked');
+                const emails = [];
+                const chips = [];
+                checked.forEach(cb => {
+                    const email = cb.dataset.email;
+                    const name = cb.dataset.name;
+                    if (email) emails.push(email);
+                    chips.push(`<span style="display:inline-flex;align-items:center;gap:3px;background:var(--bg-tertiary,#e5e7eb);padding:2px 8px;border-radius:12px;font-size:12px;">${name}<button type="button" onclick="this.closest('span').remove(); document.querySelector('#rpt-sched-contact-picker input[value=\\'${cb.value}\\']').checked=false; rptUpdateScheduleRecipients();" style="background:none;border:none;cursor:pointer;font-size:14px;color:#999;padding:0 2px;">&times;</button></span>`);
+                });
+                document.getElementById('rpt-sched-recipients').value = emails.join(',');
+                document.getElementById('rpt-sched-selected-chips').innerHTML = chips.join('');
+            };
+
             window.rptSaveDeliveryConfig = async function() {
                 const config = {
                     email_from: document.getElementById('rpt-dlv-email-from').value,
-                    email_recipients: document.getElementById('rpt-dlv-email-recipients').value,
                     sms_provider: document.getElementById('rpt-dlv-sms-provider').value,
-                    sms_recipients: document.getElementById('rpt-dlv-sms-recipients').value,
                     signal_url: document.getElementById('rpt-dlv-signal-url').value,
                     webex_token: document.getElementById('rpt-dlv-webex-token').value,
                     webex_room: document.getElementById('rpt-dlv-webex-room').value,
                     webhook_url: document.getElementById('rpt-dlv-webhook-url').value,
                     webhook_secret: document.getElementById('rpt-dlv-webhook-secret').value,
                 };
-                // Save each as a setting
                 for (const [key, value] of Object.entries(config)) {
                     if (value) {
                         try {
@@ -1915,7 +2448,7 @@
                         } catch (e) { /* ignore individual failures */ }
                     }
                 }
-                if (typeof showToast === 'function') showToast('Delivery configuration saved');
+                if (typeof showToast === 'function') showToast('Channel configuration saved');
             };
 
             // ----- 6. HISTORY -----

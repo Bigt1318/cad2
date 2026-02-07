@@ -168,6 +168,20 @@ CREATE TABLE IF NOT EXISTS ReportDeliveryLog (
     response_data TEXT
 );
 
+-- Contact management ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS report_contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    full_name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    phone_carrier TEXT,
+    department TEXT,
+    keywords TEXT,
+    enabled INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes ------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_report_runs_status ON report_runs(status);
 CREATE INDEX IF NOT EXISTS idx_report_runs_template ON report_runs(template_key);
@@ -178,6 +192,7 @@ CREATE INDEX IF NOT EXISTS idx_report_templates_key ON report_templates(template
 CREATE INDEX IF NOT EXISTS idx_report_history_status ON ReportHistory(status);
 CREATE INDEX IF NOT EXISTS idx_audit_log_action ON ReportAuditLog(action);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON ReportAuditLog(timestamp);
+CREATE INDEX IF NOT EXISTS idx_report_contacts_enabled ON report_contacts(enabled);
 """
 
 
@@ -328,6 +343,33 @@ class ReportScheduleNew:
             except Exception:
                 d[key] = [] if "delivery" in jf or "formats" in jf else {}
         return d
+
+
+@dataclass
+class ReportContact:
+    """Contact for report delivery and messaging."""
+    id: Optional[int] = None
+    full_name: str = ""
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    phone_carrier: Optional[str] = None
+    department: Optional[str] = None
+    keywords: Optional[str] = None
+    enabled: bool = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    def to_dict(self):
+        d = asdict(self)
+        d["enabled"] = bool(d.get("enabled", True))
+        d["keywords_list"] = [k.strip() for k in (d.get("keywords") or "").split(",") if k.strip()]
+        return d
+
+    @classmethod
+    def from_row(cls, row):
+        d = dict(row)
+        d["enabled"] = bool(d.get("enabled", 1))
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
 # Keep legacy classes for backward compat
@@ -623,6 +665,106 @@ class NewScheduleRepository:
         conn.execute("DELETE FROM report_schedules WHERE id = ?", (sid,))
         conn.commit()
         conn.close()
+
+
+class ContactRepository:
+    @staticmethod
+    def get_all(keyword: str = None) -> List[ReportContact]:
+        conn = get_db()
+        if keyword:
+            rows = conn.execute(
+                "SELECT * FROM report_contacts WHERE keywords LIKE ? ORDER BY full_name",
+                (f"%{keyword}%",)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM report_contacts ORDER BY full_name").fetchall()
+        conn.close()
+        return [ReportContact.from_row(r) for r in rows]
+
+    @staticmethod
+    def get_by_id(cid: int) -> Optional[ReportContact]:
+        conn = get_db()
+        row = conn.execute("SELECT * FROM report_contacts WHERE id = ?", (cid,)).fetchone()
+        conn.close()
+        return ReportContact.from_row(row) if row else None
+
+    @staticmethod
+    def create(c: ReportContact) -> int:
+        conn = get_db()
+        cur = conn.execute(
+            """INSERT INTO report_contacts
+               (full_name, email, phone, phone_carrier, department, keywords, enabled)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (c.full_name, c.email, c.phone, c.phone_carrier,
+             c.department, c.keywords, 1 if c.enabled else 0),
+        )
+        conn.commit()
+        cid = cur.lastrowid
+        conn.close()
+        return cid
+
+    @staticmethod
+    def update(c: ReportContact) -> bool:
+        conn = get_db()
+        conn.execute(
+            """UPDATE report_contacts SET
+               full_name=?, email=?, phone=?, phone_carrier=?,
+               department=?, keywords=?, enabled=?, updated_at=CURRENT_TIMESTAMP
+               WHERE id=?""",
+            (c.full_name, c.email, c.phone, c.phone_carrier,
+             c.department, c.keywords, 1 if c.enabled else 0, c.id),
+        )
+        conn.commit()
+        conn.close()
+        return True
+
+    @staticmethod
+    def delete(cid: int) -> bool:
+        conn = get_db()
+        conn.execute("DELETE FROM report_contacts WHERE id = ?", (cid,))
+        conn.commit()
+        conn.close()
+        return True
+
+    @staticmethod
+    def search(query: str) -> List[ReportContact]:
+        conn = get_db()
+        like = f"%{query}%"
+        rows = conn.execute(
+            """SELECT * FROM report_contacts
+               WHERE full_name LIKE ? OR email LIKE ? OR department LIKE ? OR keywords LIKE ?
+               ORDER BY full_name""",
+            (like, like, like, like)).fetchall()
+        conn.close()
+        return [ReportContact.from_row(r) for r in rows]
+
+    @staticmethod
+    def get_by_keyword(keyword: str) -> List[ReportContact]:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT * FROM report_contacts WHERE enabled = 1 AND keywords LIKE ? ORDER BY full_name",
+            (f"%{keyword}%",)).fetchall()
+        conn.close()
+        # Filter for exact keyword match within comma-separated list
+        results = []
+        for r in rows:
+            contact = ReportContact.from_row(r)
+            kw_list = [k.strip().lower() for k in (contact.keywords or "").split(",")]
+            if keyword.strip().lower() in kw_list:
+                results.append(contact)
+        return results
+
+    @staticmethod
+    def get_all_keywords() -> List[str]:
+        conn = get_db()
+        rows = conn.execute("SELECT keywords FROM report_contacts WHERE keywords IS NOT NULL AND keywords != ''").fetchall()
+        conn.close()
+        keywords = set()
+        for r in rows:
+            for kw in r["keywords"].split(","):
+                kw = kw.strip()
+                if kw:
+                    keywords.add(kw)
+        return sorted(keywords)
 
 
 # ============================================================================

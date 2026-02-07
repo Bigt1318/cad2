@@ -24,6 +24,7 @@ from .models import (
     TemplateRepository, RunRepository, DeliveryRepository,
     NewScheduleRepository, AuditRepository, ReportRun,
     ReportDelivery, ReportScheduleNew, ReportTemplate,
+    ContactRepository, ReportContact,
     make_download_token, verify_download_token, ensure_artifact_dir,
     # Legacy imports
     ScheduleRepository, RecipientRepository, HistoryRepository,
@@ -1077,6 +1078,151 @@ async def download_artifact(token: str):
         media_type=media_type,
         filename=filename,
     )
+
+
+# ============================================================================
+# Contact management  (/api/reporting/contacts)
+# ============================================================================
+
+@router.get("/contacts")
+async def list_contacts(keyword: Optional[str] = Query(None, description="Filter by keyword")):
+    """List all contacts, optionally filtered by keyword."""
+    if keyword:
+        contacts = ContactRepository.get_by_keyword(keyword)
+    else:
+        contacts = ContactRepository.get_all()
+    return {"contacts": [c.to_dict() for c in contacts]}
+
+
+@router.post("/contacts")
+async def create_contact(request: Request):
+    """Create a new contact.
+
+    Expects JSON body with full_name (required) and optional email, phone,
+    phone_carrier, department, keywords, enabled fields.
+    """
+    data = await request.json()
+    user = _get_user(request)
+
+    full_name = (data.get("full_name") or "").strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="full_name is required")
+
+    contact = ReportContact(
+        full_name=full_name,
+        email=(data.get("email") or "").strip() or None,
+        phone=(data.get("phone") or "").strip() or None,
+        phone_carrier=(data.get("phone_carrier") or "").strip() or None,
+        department=(data.get("department") or "").strip() or None,
+        keywords=(data.get("keywords") or "").strip() or None,
+        enabled=bool(data.get("enabled", True)),
+    )
+
+    contact_id = ContactRepository.create(contact)
+
+    AuditRepository.log(
+        action="contact_created",
+        category="contacts",
+        user_name=user,
+        new_value=full_name,
+        details=f"Created contact: {full_name}",
+    )
+
+    logger.info("Contact created: id=%d, name=%s, user=%s", contact_id, full_name, user)
+    return {"ok": True, "id": contact_id}
+
+
+@router.put("/contacts/{contact_id}")
+async def update_contact(contact_id: int, request: Request):
+    """Update an existing contact."""
+    data = await request.json()
+    user = _get_user(request)
+
+    contact = ContactRepository.get_by_id(contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail=f"Contact {contact_id} not found")
+
+    if "full_name" in data:
+        contact.full_name = (data["full_name"] or "").strip()
+    if "email" in data:
+        contact.email = (data["email"] or "").strip() or None
+    if "phone" in data:
+        contact.phone = (data["phone"] or "").strip() or None
+    if "phone_carrier" in data:
+        contact.phone_carrier = (data["phone_carrier"] or "").strip() or None
+    if "department" in data:
+        contact.department = (data["department"] or "").strip() or None
+    if "keywords" in data:
+        contact.keywords = (data["keywords"] or "").strip() or None
+    if "enabled" in data:
+        contact.enabled = bool(data["enabled"])
+
+    ContactRepository.update(contact)
+
+    AuditRepository.log(
+        action="contact_updated",
+        category="contacts",
+        user_name=user,
+        details=f"Updated contact {contact_id}: {contact.full_name}",
+    )
+
+    logger.info("Contact %d updated by %s", contact_id, user)
+    return {"ok": True, "id": contact_id}
+
+
+@router.delete("/contacts/{contact_id}")
+async def delete_contact(contact_id: int, request: Request):
+    """Delete a contact."""
+    user = _get_user(request)
+
+    contact = ContactRepository.get_by_id(contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail=f"Contact {contact_id} not found")
+
+    ContactRepository.delete(contact_id)
+
+    AuditRepository.log(
+        action="contact_deleted",
+        category="contacts",
+        user_name=user,
+        details=f"Deleted contact {contact_id}: {contact.full_name}",
+    )
+
+    logger.info("Contact %d deleted by %s", contact_id, user)
+    return {"ok": True, "id": contact_id}
+
+
+@router.get("/contacts/keywords")
+async def list_contact_keywords():
+    """Get all unique keywords across contacts."""
+    keywords = ContactRepository.get_all_keywords()
+    return {"keywords": keywords}
+
+
+@router.post("/contacts/{contact_id}/test")
+async def test_contact(contact_id: int):
+    """Send a test message to a specific contact."""
+    contact = ContactRepository.get_by_id(contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail=f"Contact {contact_id} not found")
+
+    if not contact.email:
+        return {"ok": False, "error": "Contact has no email address configured"}
+
+    delivery = EmailDelivery()
+    if not delivery.is_configured():
+        return {"ok": False, "error": "Email delivery not configured"}
+
+    result = delivery.send(
+        recipient=contact.email,
+        subject="[FORD CAD] Test Message",
+        body_text=f"Hello {contact.full_name}, this is a test message from FORD CAD.",
+        body_html=f"<p>Hello <strong>{contact.full_name}</strong>, this is a test message from <strong>FORD CAD</strong>.</p>",
+    )
+
+    if result.success:
+        return {"ok": True, "message": f"Test sent to {contact.email}"}
+    return {"ok": False, "error": result.error}
 
 
 # ============================================================================

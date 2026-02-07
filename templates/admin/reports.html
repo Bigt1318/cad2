@@ -461,9 +461,25 @@
         <!-- ============================================ -->
         <div class="tab-panel" id="tab-analytics">
             <div class="card">
-                <h3>Department Analytics</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <h3 style="margin:0; padding:0; border:none;">Analytics Dashboard</h3>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn btn-sm btn-secondary" onclick="printAnalytics()" title="Print">Print</button>
+                        <button class="btn btn-sm btn-secondary" onclick="exportAnalytics('pdf')" title="PDF">PDF</button>
+                        <button class="btn btn-sm btn-secondary" onclick="exportAnalytics('csv')" title="CSV">CSV</button>
+                        <button class="btn btn-sm btn-secondary" onclick="exportAnalytics('html')" title="HTML">HTML</button>
+                        <button class="btn btn-sm btn-primary" onclick="sendAnalytics()" title="Send">Send</button>
+                    </div>
+                </div>
 
                 <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <select id="analytics-template" class="form-control" style="width: 220px; padding: 5px 8px; font-size: 12px;" onchange="loadAnalytics()">
+                        <option value="department_overview">Department Overview</option>
+                        <option value="executive_summary">Executive Summary</option>
+                        <option value="response_performance">Response Performance</option>
+                        <option value="incident_analytics">Incident Analytics</option>
+                        <option value="unit_performance">Unit Performance</option>
+                    </select>
                     <div class="date-presets" id="date-presets">
                         <button data-days="7" class="active">7 Days</button>
                         <button data-days="30">30 Days</button>
@@ -478,6 +494,8 @@
                         <button class="btn btn-sm btn-primary" onclick="loadAnalytics()">Update</button>
                     </div>
                 </div>
+
+                <div id="analytics-status" style="display:none; margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; background: var(--info-light, #eff6ff); border: 1px solid var(--info, #3b82f6); font-size: 12px;"></div>
 
                 <div class="kpi-grid">
                     <div class="kpi-card">
@@ -521,6 +539,11 @@
                         <h4>Unit Utilization</h4>
                         <canvas id="chart-units"></canvas>
                     </div>
+                </div>
+
+                <div id="analytics-downloads" style="display:none; margin-top: 12px; padding: 12px; border-radius: 6px; background: var(--success-light, #f0fdf4); border: 1px solid var(--success, #22c55e);">
+                    <strong>Report Ready</strong>
+                    <div id="analytics-download-links" style="margin-top: 6px;"></div>
                 </div>
             </div>
         </div>
@@ -677,8 +700,18 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Recipients (comma-separated emails)</label>
-                    <input type="text" id="sched-recipients" class="form-control" placeholder="chief@dept.com, captain@dept.com">
+                    <label>Recipients</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <select id="sched-keyword-filter" onchange="filterContactPicker()" class="form-control" style="flex:1;">
+                            <option value="">-- Select by keyword --</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="applyKeywordToSchedule()">Add by Keyword</button>
+                    </div>
+                    <div id="sched-contact-picker" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color, #ddd); border-radius: 6px; padding: 6px; background: var(--bg-secondary, #f9fafb);">
+                        <div style="color: var(--text-secondary, #999); font-size: 12px;">Loading contacts...</div>
+                    </div>
+                    <div id="sched-selected-chips" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;"></div>
+                    <input type="hidden" id="sched-recipients" value="">
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 12px;">
@@ -692,6 +725,99 @@
         <!-- DELIVERY TAB                                 -->
         <!-- ============================================ -->
         <div class="tab-panel" id="tab-delivery">
+            <!-- Contact Management -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin:0; padding:0; border:none;">Contact Management</h3>
+                    <button class="btn btn-primary btn-sm" onclick="showAddContact()">+ Add Contact</button>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <input type="text" id="contact-search" class="form-control" placeholder="Search contacts..." style="flex: 1;" oninput="filterContacts()">
+                    <select id="contact-keyword-filter" class="form-control" onchange="filterContacts()" style="width: 180px;">
+                        <option value="">All Keywords</option>
+                    </select>
+                </div>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Carrier</th>
+                            <th>Department</th>
+                            <th>Keywords</th>
+                            <th>Enabled</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contacts-tbody">
+                        <tr><td colspan="8" class="loading">Loading contacts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Add/Edit Contact Form -->
+            <div class="card" id="contact-form" style="display: none;">
+                <h3 id="contact-form-title">Add New Contact</h3>
+                <input type="hidden" id="contact-edit-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="contact-name" class="form-control" placeholder="John Smith" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="contact-email" class="form-control" placeholder="jsmith@dept.com">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" id="contact-phone" class="form-control" placeholder="555-123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Carrier</label>
+                        <select id="contact-carrier" class="form-control">
+                            <option value="">-- Select Carrier --</option>
+                            <option value="verizon">Verizon</option>
+                            <option value="att">AT&T</option>
+                            <option value="tmobile">T-Mobile</option>
+                            <option value="sprint">Sprint/T-Mobile</option>
+                            <option value="uscellular">US Cellular</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="contact-dept" class="form-control" placeholder="Fire, EMS, Admin, SHE...">
+                    </div>
+                    <div class="form-group">
+                        <label>Keywords <span style="font-weight:normal;color:var(--text-secondary,#999);">(comma-separated)</span></label>
+                        <input type="text" id="contact-keywords" class="form-control" placeholder="A Shift, Supervisor, SHE, All">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="contact-enabled" checked>
+                        Enabled (receives deliveries)
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="saveContact()">Save Contact</button>
+                    <button class="btn btn-secondary" onclick="cancelContact()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Channel Configuration -->
             <div class="card">
                 <h3>Email Configuration</h3>
                 <div class="settings-section">
@@ -757,7 +883,7 @@
             </div>
 
             <div class="card">
-                <h3>SMS Configuration</h3>
+                <h3>SMS / Signal / Webex / Webhook</h3>
                 <div class="form-row">
                     <div class="form-group">
                         <label>SMS Provider</label>
@@ -767,40 +893,32 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Default SMS Recipients</label>
-                        <input type="text" id="dlv-sms-recipients" class="form-control" placeholder="+15551234567">
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>Signal / Webex / Webhook</h3>
-                <div class="form-row">
-                    <div class="form-group">
                         <label>Signal API Endpoint</label>
                         <input type="url" id="dlv-signal-url" class="form-control" placeholder="https://signal-api.example.com">
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group">
                         <label>Webex Bot Token</label>
                         <input type="password" id="dlv-webex-token" class="form-control" placeholder="Bearer token">
                     </div>
-                </div>
-                <div class="form-row">
                     <div class="form-group">
                         <label>Webex Room ID</label>
                         <input type="text" id="dlv-webex-room" class="form-control" placeholder="Room ID">
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group">
                         <label>Webhook URL</label>
                         <input type="url" id="dlv-webhook-url" class="form-control" placeholder="https://hooks.example.com/reports">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Webhook Secret (HMAC signing key)</label>
-                    <input type="password" id="dlv-webhook-secret" class="form-control" placeholder="Secret key">
+                    <div class="form-group">
+                        <label>Webhook Secret</label>
+                        <input type="password" id="dlv-webhook-secret" class="form-control" placeholder="Secret key">
+                    </div>
                 </div>
 
-                <button class="btn btn-primary" onclick="saveDeliveryConfig()" style="margin-top: 12px;">Save All Delivery Settings</button>
+                <button class="btn btn-primary" onclick="saveDeliveryConfig()" style="margin-top: 12px;">Save All Channel Settings</button>
             </div>
         </div>
 
@@ -894,6 +1012,7 @@
 
                 if (tab.dataset.tab === 'analytics') loadAnalytics();
                 if (tab.dataset.tab === 'schedules') loadSchedules();
+                if (tab.dataset.tab === 'delivery') loadContacts();
                 if (tab.dataset.tab === 'history') loadHistory();
             });
         });
@@ -1010,26 +1129,177 @@
             loadAnalytics();
         });
 
+        var lastAnalyticsRunId = null;
+
         window.loadAnalytics = async function() {
+            var templateKey = document.getElementById('analytics-template').value;
             var dateFrom = document.getElementById('analytics-from').value;
             var dateTo = document.getElementById('analytics-to').value;
+            var statusBar = document.getElementById('analytics-status');
+
+            statusBar.style.display = 'block';
+            statusBar.textContent = 'Loading ' + (document.getElementById('analytics-template').selectedOptions[0]?.text || templateKey) + '...';
+            document.getElementById('analytics-downloads').style.display = 'none';
 
             try {
                 var res = await fetch(API + '/run', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        template_key: 'department_overview',
+                        template_key: templateKey,
                         filters: { date_from: dateFrom, date_to: dateTo },
                         formats: [],
                         created_by: 'admin_reports_page'
                     })
                 });
                 var data = await res.json();
+                lastAnalyticsRunId = data.run_id || null;
                 updateKPIs(data.kpis || data.data?.stats || {});
                 updateCharts(data.chart_data || data.data?.chart_data || {});
+
+                var templateName = document.getElementById('analytics-template').selectedOptions[0]?.text || templateKey;
+                statusBar.textContent = templateName + ' loaded \u2014 ' + (dateFrom || '?') + ' to ' + (dateTo || '?');
+                if (!data.ok && data.error) {
+                    statusBar.textContent = 'Warning: ' + data.error;
+                    statusBar.style.background = 'var(--warning-light, #fffbeb)';
+                    statusBar.style.borderColor = 'var(--warning, #f59e0b)';
+                } else {
+                    statusBar.style.background = 'var(--info-light, #eff6ff)';
+                    statusBar.style.borderColor = 'var(--info, #3b82f6)';
+                }
             } catch (e) {
                 console.error('Analytics load failed:', e);
+                statusBar.textContent = 'Failed to load analytics: ' + e.message;
+                statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                statusBar.style.borderColor = 'var(--danger, #dc2626)';
+            }
+        };
+
+        window.printAnalytics = function() {
+            var printWin = window.open('', '_blank');
+            var templateName = document.getElementById('analytics-template').selectedOptions[0]?.text || 'Analytics';
+            var dateFrom = document.getElementById('analytics-from').value;
+            var dateTo = document.getElementById('analytics-to').value;
+            printWin.document.write('<!DOCTYPE html><html><head><title>Analytics Report</title>' +
+                '<style>body{font-family:Arial,sans-serif;padding:20px;color:#1a1a1a;}h3{color:#003478;border-bottom:2px solid #003478;padding-bottom:8px;}.kpi-grid{display:flex;gap:16px;margin:16px 0;flex-wrap:wrap;}.kpi-card{background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:16px;text-align:center;min-width:120px;flex:1;}.value{font-size:28px;font-weight:700;color:#003478;}.label{font-size:12px;color:#6b7280;margin-top:4px;}@media print{body{padding:0;}}</style></head><body>');
+            printWin.document.write('<h3>' + templateName + ' Report</h3>');
+            printWin.document.write('<p style="color:#666;font-size:13px;">' + dateFrom + ' to ' + dateTo + ' | Generated ' + new Date().toLocaleString() + '</p>');
+            var kpiGrid = document.querySelector('#tab-analytics .kpi-grid');
+            if (kpiGrid) printWin.document.write(kpiGrid.outerHTML);
+            ['chart-trend','chart-types','chart-hourly','chart-units'].forEach(function(id) {
+                var canvas = document.getElementById(id);
+                if (canvas) {
+                    var title = canvas.closest('.chart-box')?.querySelector('h4')?.textContent || '';
+                    printWin.document.write('<h4 style="margin-top:20px;">' + title + '</h4>');
+                    printWin.document.write('<img src="' + canvas.toDataURL('image/png') + '" style="max-width:100%;height:auto;">');
+                }
+            });
+            printWin.document.write('</body></html>');
+            printWin.document.close();
+            setTimeout(function() { printWin.print(); }, 500);
+        };
+
+        window.exportAnalytics = async function(format) {
+            var templateKey = document.getElementById('analytics-template').value;
+            var dateFrom = document.getElementById('analytics-from').value;
+            var dateTo = document.getElementById('analytics-to').value;
+            var statusBar = document.getElementById('analytics-status');
+            statusBar.style.display = 'block';
+            statusBar.textContent = 'Generating ' + format.toUpperCase() + ' export...';
+
+            try {
+                var res = await fetch(API + '/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        template_key: templateKey,
+                        filters: { date_from: dateFrom, date_to: dateTo },
+                        formats: [format],
+                        created_by: 'admin_reports_page'
+                    })
+                });
+                var data = await res.json();
+                lastAnalyticsRunId = data.run_id || null;
+
+                if (data.ok && data.links && Object.keys(data.links).length) {
+                    var dlDiv = document.getElementById('analytics-download-links');
+                    dlDiv.innerHTML = Object.entries(data.links).map(function(entry) {
+                        return '<a href="' + entry[1] + '" target="_blank" class="btn btn-sm btn-secondary" style="margin-right:6px;">Download ' + entry[0].toUpperCase() + '</a>';
+                    }).join('');
+                    document.getElementById('analytics-downloads').style.display = 'block';
+                    statusBar.textContent = format.toUpperCase() + ' export ready \u2014 Run ID: ' + (data.run_id || '--');
+                } else if (data.ok) {
+                    statusBar.textContent = 'Report generated (Run ID: ' + (data.run_id || '--') + ') but no downloadable files produced.';
+                } else {
+                    statusBar.textContent = 'Export failed: ' + (data.error || 'Unknown error');
+                    statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                    statusBar.style.borderColor = 'var(--danger, #dc2626)';
+                }
+            } catch (e) {
+                statusBar.textContent = 'Export failed: ' + e.message;
+                statusBar.style.background = 'var(--danger-light, #fef2f2)';
+                statusBar.style.borderColor = 'var(--danger, #dc2626)';
+            }
+        };
+
+        window.sendAnalytics = async function() {
+            if (!lastAnalyticsRunId) {
+                var templateKey = document.getElementById('analytics-template').value;
+                var dateFrom = document.getElementById('analytics-from').value;
+                var dateTo = document.getElementById('analytics-to').value;
+                try {
+                    var res = await fetch(API + '/run', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            template_key: templateKey,
+                            filters: { date_from: dateFrom, date_to: dateTo },
+                            formats: ['html', 'pdf'],
+                            created_by: 'admin_reports_page'
+                        })
+                    });
+                    var data = await res.json();
+                    lastAnalyticsRunId = data.run_id || null;
+                } catch (e) {
+                    showToast('Failed to generate report: ' + e.message, 'error');
+                    return;
+                }
+            }
+            if (!lastAnalyticsRunId) {
+                showToast('No report to send. Click Update first.', 'error');
+                return;
+            }
+            var email = prompt('Enter recipient email (or leave blank to use configured contacts):');
+            if (email === null) return;
+            var destinations = [];
+            if (email.trim()) {
+                destinations.push({ channel: 'email', destination: email.trim() });
+            } else {
+                var contactsRes = await fetch(API + '/contacts');
+                var contactsData = await contactsRes.json();
+                (contactsData.contacts || []).forEach(function(c) {
+                    if (c.enabled && c.email) destinations.push({ channel: 'email', destination: c.email });
+                });
+            }
+            if (!destinations.length) {
+                showToast('No recipients specified and no contacts with email found', 'error');
+                return;
+            }
+            try {
+                var res2 = await fetch(API + '/deliver', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ report_run_id: lastAnalyticsRunId, channels: destinations })
+                });
+                var data2 = await res2.json();
+                if (data2.ok) {
+                    var sent = (data2.deliveries || []).filter(function(d) { return d.status === 'sent'; }).length;
+                    showToast('Report sent to ' + sent + ' of ' + destinations.length + ' recipient(s)', 'success');
+                } else {
+                    showToast('Send failed: ' + (data2.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                showToast('Send failed: ' + e.message, 'error');
             }
         };
 
@@ -1041,12 +1311,22 @@
             document.getElementById('kpi-units').textContent = kpis.active_units ?? kpis.units_count ?? '--';
         }
 
+        // Normalize chart data: handles both {labels, values} and [{label, value}] formats
+        function normalizeChartData(data) {
+            if (!data) return [];
+            if (Array.isArray(data)) return data;
+            if (data.labels && data.values) {
+                return data.labels.map(function(label, i) { return { label: label, value: data.values[i] || 0 }; });
+            }
+            return [];
+        }
+
         function updateCharts(chartData) {
             var colors = ['#003478','#1e5bb8','#4a8fe7','#7ab8ff','#a8d4ff','#002a6b','#dc2626','#f59e0b','#10b981','#6366f1'];
 
             // Incident Trend (line)
             if (charts.trend) charts.trend.destroy();
-            var trendData = chartData.daily_trend || chartData.incident_trend || chartData.trend || [];
+            var trendData = normalizeChartData(chartData.daily_trend || chartData.incident_trend || chartData.trend);
             var trendCtx = document.getElementById('chart-trend');
             if (trendCtx) {
                 charts.trend = new Chart(trendCtx, {
@@ -1061,7 +1341,7 @@
 
             // Type Breakdown (doughnut)
             if (charts.types) charts.types.destroy();
-            var typeData = chartData.type_breakdown || chartData.incident_types || chartData.types || [];
+            var typeData = normalizeChartData(chartData.type_breakdown || chartData.incident_types || chartData.types);
             var typeCtx = document.getElementById('chart-types');
             if (typeCtx) {
                 charts.types = new Chart(typeCtx, {
@@ -1076,7 +1356,7 @@
 
             // Hourly Pattern (bar)
             if (charts.hourly) charts.hourly.destroy();
-            var hourlyData = chartData.hourly_pattern || chartData.hourly || chartData.by_hour || [];
+            var hourlyData = normalizeChartData(chartData.hourly_pattern || chartData.hourly || chartData.by_hour);
             var hourlyLabels = hourlyData.length ? hourlyData.map(function(d) { return d.hour != null ? String(d.hour).padStart(2,'0') + ':00' : d.label || ''; }) : Array.from({length:24}, function(_, i) { return String(i).padStart(2,'0') + ':00'; });
             var hourlyValues = hourlyData.length ? hourlyData.map(function(d) { return d.count || d.value || 0; }) : new Array(24).fill(0);
             var hourlyCtx = document.getElementById('chart-hourly');
@@ -1090,7 +1370,7 @@
 
             // Unit Utilization (horizontal bar)
             if (charts.units) charts.units.destroy();
-            var unitData = chartData.unit_utilization || chartData.units || chartData.by_unit || [];
+            var unitData = normalizeChartData(chartData.unit_utilization || chartData.units || chartData.by_unit);
             var unitCtx = document.getElementById('chart-units');
             if (unitCtx) {
                 charts.units = new Chart(unitCtx, {
@@ -1251,7 +1531,6 @@
                 document.getElementById('sched-template').value = sched.template_key || '';
                 document.getElementById('sched-type').value = sched.schedule_type || 'daily';
                 document.getElementById('sched-time').value = sched.time || '06:00';
-                document.getElementById('sched-recipients').value = (sched.recipients || []).join(', ');
 
                 var formats = sched.formats || sched.format || ['html'];
                 document.querySelectorAll('#sched-formats .format-pill').forEach(function(p) {
@@ -1262,6 +1541,21 @@
                 document.querySelectorAll('#sched-channels input').forEach(function(cb) {
                     cb.checked = channels.includes(cb.value);
                 });
+
+                // Load contact picker and pre-select recipients
+                var loadAndSelect = function() {
+                    loadContactPicker();
+                    var recipientEmails = (sched.recipients || []).map(function(r) { return r.toLowerCase(); });
+                    document.querySelectorAll('#sched-contact-picker input').forEach(function(cb) {
+                        cb.checked = recipientEmails.indexOf((cb.dataset.email || '').toLowerCase()) !== -1;
+                    });
+                    updateScheduleRecipients();
+                };
+                if (!allContacts.length) {
+                    loadContacts().then(loadAndSelect);
+                } else {
+                    loadAndSelect();
+                }
             } catch (e) { console.error('editSchedule:', e); }
         };
 
@@ -1273,6 +1567,7 @@
             document.getElementById('sched-type').value = 'daily';
             document.getElementById('sched-time').value = '06:00';
             document.getElementById('sched-recipients').value = '';
+            document.getElementById('sched-selected-chips').innerHTML = '';
             document.getElementById('sched-cron').value = '';
             document.querySelectorAll('#sched-formats .format-pill').forEach(function(p) {
                 p.classList.toggle('active', p.dataset.fmt === 'html');
@@ -1280,6 +1575,11 @@
             document.querySelectorAll('#sched-channels input').forEach(function(cb) {
                 cb.checked = cb.value === 'email';
             });
+            if (!allContacts.length) {
+                loadContacts().then(function() { loadContactPicker(); });
+            } else {
+                loadContactPicker();
+            }
         };
 
         window.cancelSchedule = function() {
@@ -1319,6 +1619,227 @@
                     showToast(data.error || 'Failed to save', 'error');
                 }
             } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        // ---- CONTACT MANAGEMENT ----
+        var allContacts = [];
+
+        window.loadContacts = async function() {
+            try {
+                var res = await fetch(API + '/contacts');
+                var data = await res.json();
+                allContacts = data.contacts || [];
+                renderContacts(allContacts);
+                loadKeywords();
+            } catch (e) {
+                console.error('Load contacts failed:', e);
+                document.getElementById('contacts-tbody').innerHTML = '<tr><td colspan="8" class="empty">Failed to load contacts</td></tr>';
+            }
+        };
+
+        function renderContacts(contacts) {
+            var tbody = document.getElementById('contacts-tbody');
+            if (!contacts.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty">No contacts yet. Click "+ Add Contact" to create one.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = contacts.map(function(c) {
+                var enabledBadge = c.enabled ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#999;">Disabled</span>';
+                var keywords = (c.keywords_list || []).map(function(k) { return '<span style="display:inline-block;background:var(--bg-tertiary,#e5e7eb);padding:1px 6px;border-radius:3px;font-size:11px;margin:1px;">' + k + '</span>'; }).join(' ');
+                return '<tr>' +
+                    '<td><strong>' + (c.full_name || '--') + '</strong></td>' +
+                    '<td>' + (c.email || '--') + '</td>' +
+                    '<td>' + (c.phone || '--') + '</td>' +
+                    '<td>' + (c.phone_carrier || '--') + '</td>' +
+                    '<td>' + (c.department || '--') + '</td>' +
+                    '<td>' + (keywords || '--') + '</td>' +
+                    '<td>' + enabledBadge + '</td>' +
+                    '<td style="white-space:nowrap;">' +
+                        '<button class="btn btn-sm btn-secondary" onclick="showEditContact(' + c.id + ')">Edit</button> ' +
+                        '<button class="btn btn-sm btn-secondary" onclick="testContact(' + c.id + ')" title="Send test">Test</button> ' +
+                        '<button class="btn btn-sm" style="color:var(--danger,#dc2626);" onclick="deleteContact(' + c.id + ')">Delete</button>' +
+                    '</td></tr>';
+            }).join('');
+        }
+
+        window.loadKeywords = async function() {
+            try {
+                var res = await fetch(API + '/contacts/keywords');
+                var data = await res.json();
+                var keywords = data.keywords || [];
+                var filterSel = document.getElementById('contact-keyword-filter');
+                if (filterSel) {
+                    filterSel.innerHTML = '<option value="">All Keywords</option>' +
+                        keywords.map(function(k) { return '<option value="' + k + '">' + k + '</option>'; }).join('');
+                }
+                var schedSel = document.getElementById('sched-keyword-filter');
+                if (schedSel) {
+                    schedSel.innerHTML = '<option value="">-- Select by keyword --</option>' +
+                        keywords.map(function(k) { return '<option value="' + k + '">' + k + '</option>'; }).join('');
+                }
+            } catch (e) { console.error('Load keywords failed:', e); }
+        };
+
+        window.filterContacts = function() {
+            var search = (document.getElementById('contact-search').value || '').toLowerCase();
+            var keyword = document.getElementById('contact-keyword-filter').value;
+            var filtered = allContacts;
+            if (keyword) {
+                filtered = filtered.filter(function(c) { return (c.keywords_list || []).some(function(k) { return k.toLowerCase() === keyword.toLowerCase(); }); });
+            }
+            if (search) {
+                filtered = filtered.filter(function(c) {
+                    return (c.full_name || '').toLowerCase().indexOf(search) !== -1 ||
+                        (c.email || '').toLowerCase().indexOf(search) !== -1 ||
+                        (c.department || '').toLowerCase().indexOf(search) !== -1 ||
+                        (c.keywords || '').toLowerCase().indexOf(search) !== -1;
+                });
+            }
+            renderContacts(filtered);
+        };
+
+        window.showAddContact = function() {
+            document.getElementById('contact-form').style.display = 'block';
+            document.getElementById('contact-form-title').textContent = 'Add New Contact';
+            document.getElementById('contact-edit-id').value = '';
+            document.getElementById('contact-name').value = '';
+            document.getElementById('contact-email').value = '';
+            document.getElementById('contact-phone').value = '';
+            document.getElementById('contact-carrier').value = '';
+            document.getElementById('contact-dept').value = '';
+            document.getElementById('contact-keywords').value = '';
+            document.getElementById('contact-enabled').checked = true;
+        };
+
+        window.showEditContact = function(id) {
+            var c = allContacts.find(function(x) { return x.id === id; });
+            if (!c) return;
+            document.getElementById('contact-form').style.display = 'block';
+            document.getElementById('contact-form-title').textContent = 'Edit Contact';
+            document.getElementById('contact-edit-id').value = id;
+            document.getElementById('contact-name').value = c.full_name || '';
+            document.getElementById('contact-email').value = c.email || '';
+            document.getElementById('contact-phone').value = c.phone || '';
+            document.getElementById('contact-carrier').value = c.phone_carrier || '';
+            document.getElementById('contact-dept').value = c.department || '';
+            document.getElementById('contact-keywords').value = c.keywords || '';
+            document.getElementById('contact-enabled').checked = c.enabled;
+        };
+
+        window.cancelContact = function() {
+            document.getElementById('contact-form').style.display = 'none';
+        };
+
+        window.saveContact = async function() {
+            var editId = document.getElementById('contact-edit-id').value;
+            var body = {
+                full_name: document.getElementById('contact-name').value,
+                email: document.getElementById('contact-email').value,
+                phone: document.getElementById('contact-phone').value,
+                phone_carrier: document.getElementById('contact-carrier').value,
+                department: document.getElementById('contact-dept').value,
+                keywords: document.getElementById('contact-keywords').value,
+                enabled: document.getElementById('contact-enabled').checked,
+            };
+            if (!body.full_name.trim()) {
+                showToast('Full name is required', 'error');
+                return;
+            }
+            try {
+                var url = editId ? API + '/contacts/' + editId : API + '/contacts';
+                var method = editId ? 'PUT' : 'POST';
+                var res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                var data = await res.json();
+                if (data.ok !== false) {
+                    showToast(editId ? 'Contact updated' : 'Contact created', 'success');
+                    document.getElementById('contact-form').style.display = 'none';
+                    loadContacts();
+                } else {
+                    showToast(data.detail || data.error || 'Failed to save', 'error');
+                }
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        window.deleteContact = async function(id) {
+            if (!confirm('Delete this contact permanently?')) return;
+            try {
+                var res = await fetch(API + '/contacts/' + id, { method: 'DELETE' });
+                var data = await res.json();
+                if (data.ok !== false) {
+                    showToast('Contact deleted', 'success');
+                    loadContacts();
+                }
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        window.testContact = async function(id) {
+            try {
+                var res = await fetch(API + '/contacts/' + id + '/test', { method: 'POST' });
+                var data = await res.json();
+                if (data.ok) showToast(data.message || 'Test sent', 'success');
+                else showToast(data.error || 'Test failed', 'error');
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        // Contact picker for schedule form
+        window.loadContactPicker = function() {
+            var picker = document.getElementById('sched-contact-picker');
+            if (!picker) return;
+            if (!allContacts.length) {
+                picker.innerHTML = '<div style="color:var(--text-secondary,#999);font-size:12px;padding:8px;">No contacts available. Add contacts in the Delivery tab first.</div>';
+                return;
+            }
+            picker.innerHTML = allContacts.filter(function(c) { return c.enabled; }).map(function(c) {
+                return '<label style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:13px;cursor:pointer;" title="' + (c.email || '') + ' | ' + (c.keywords || '') + '">' +
+                    '<input type="checkbox" class="sched-contact-cb" value="' + c.id + '" data-email="' + (c.email || '') + '" data-name="' + c.full_name + '" onchange="updateScheduleRecipients()">' +
+                    '<strong>' + c.full_name + '</strong>' +
+                    '<span style="color:var(--text-secondary,#999);font-size:11px;">' + (c.department || '') + (c.email ? ' (' + c.email + ')' : '') + '</span>' +
+                '</label>';
+            }).join('');
+        };
+
+        window.filterContactPicker = function() {
+            var keyword = document.getElementById('sched-keyword-filter').value;
+            if (!keyword) {
+                document.querySelectorAll('#sched-contact-picker label').forEach(function(l) { l.style.display = 'flex'; });
+                return;
+            }
+            document.querySelectorAll('#sched-contact-picker label').forEach(function(label) {
+                var cb = label.querySelector('input');
+                var id = parseInt(cb.value);
+                var contact = allContacts.find(function(c) { return c.id === id; });
+                var matches = contact && (contact.keywords_list || []).some(function(k) { return k.toLowerCase() === keyword.toLowerCase(); });
+                label.style.display = matches ? 'flex' : 'none';
+            });
+        };
+
+        window.applyKeywordToSchedule = function() {
+            var keyword = document.getElementById('sched-keyword-filter').value;
+            if (!keyword) return;
+            document.querySelectorAll('#sched-contact-picker label').forEach(function(label) {
+                if (label.style.display !== 'none') {
+                    label.querySelector('input').checked = true;
+                }
+            });
+            updateScheduleRecipients();
+        };
+
+        window.updateScheduleRecipients = function() {
+            var checked = document.querySelectorAll('#sched-contact-picker input:checked');
+            var emails = [];
+            var chips = [];
+            checked.forEach(function(cb) {
+                var email = cb.dataset.email;
+                var name = cb.dataset.name;
+                if (email) emails.push(email);
+                chips.push('<span style="display:inline-flex;align-items:center;gap:3px;background:var(--bg-tertiary,#e5e7eb);padding:2px 8px;border-radius:12px;font-size:12px;">' + name + '<button type="button" onclick="this.closest(\'span\').remove(); document.querySelector(\'#sched-contact-picker input[value=\\x27' + cb.value + '\\x27]\').checked=false; updateScheduleRecipients();" style="background:none;border:none;cursor:pointer;font-size:14px;color:#999;padding:0 2px;">&times;</button></span>');
+            });
+            document.getElementById('sched-recipients').value = emails.join(',');
+            document.getElementById('sched-selected-chips').innerHTML = chips.join('');
         };
 
         // ---- DELIVERY CONFIG ----
@@ -1368,7 +1889,6 @@
         window.saveDeliveryConfig = async function() {
             var config = {
                 sms_provider: document.getElementById('dlv-sms-provider').value,
-                sms_recipients: document.getElementById('dlv-sms-recipients').value,
                 signal_url: document.getElementById('dlv-signal-url').value,
                 webex_token: document.getElementById('dlv-webex-token').value,
                 webex_room: document.getElementById('dlv-webex-room').value,
@@ -1386,7 +1906,7 @@
                     } catch (e) { /* ignore individual failures */ }
                 }
             }
-            showToast('Delivery configuration saved', 'success');
+            showToast('Channel configuration saved', 'success');
         };
 
         // ---- HISTORY ----
