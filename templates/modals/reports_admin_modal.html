@@ -19,9 +19,11 @@
             <!-- Tab Navigation -->
             <div class="admin-tabs">
                 <button class="admin-tab active" data-tab="schedule">Schedule</button>
+                <button class="admin-tab" data-tab="analytics">Analytics</button>
                 <button class="admin-tab" data-tab="times">Report Times</button>
                 <button class="admin-tab" data-tab="recipients">Recipients</button>
                 <button class="admin-tab" data-tab="email">Email Settings</button>
+                <button class="admin-tab" data-tab="schedules">Schedules</button>
             </div>
 
             <!-- TAB 1: REPORT SCHEDULE -->
@@ -94,6 +96,112 @@
                             <small>When enabled, reports will automatically start when the server restarts</small>
                         </span>
                     </label>
+                </div>
+            </div>
+
+            <!-- TAB 6: ANALYTICS DASHBOARD -->
+            <div class="admin-tab-content" id="admin-tab-analytics">
+                <!-- Date Range Picker -->
+                <div class="form-section">
+                    <div class="section-title">Date Range</div>
+                    <div class="analytics-date-row">
+                        <select id="analytics-preset" class="form-select" style="max-width:180px;" onchange="REPORTS_ADMIN.onAnalyticsPresetChange()">
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d" selected>Last 30 Days</option>
+                            <option value="90d">Last 90 Days</option>
+                            <option value="mtd">Month to Date</option>
+                            <option value="ytd">Year to Date</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        <input type="date" id="analytics-start" class="form-input" style="max-width:160px;display:none;">
+                        <input type="date" id="analytics-end" class="form-input" style="max-width:160px;display:none;">
+                        <button class="btn-action primary" onclick="REPORTS_ADMIN.loadAnalytics()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="analytics-kpi-row" id="analytics-kpis">
+                    <div class="analytics-kpi-card">
+                        <div class="analytics-kpi-value" id="kpi-total-incidents">--</div>
+                        <div class="analytics-kpi-label">Total Incidents</div>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <div class="analytics-kpi-value" id="kpi-avg-response">--</div>
+                        <div class="analytics-kpi-label">Avg Response Time</div>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <div class="analytics-kpi-value" id="kpi-p90-response">--</div>
+                        <div class="analytics-kpi-label">90th Percentile</div>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <div class="analytics-kpi-value" id="kpi-compliance">--</div>
+                        <div class="analytics-kpi-label">Compliance %</div>
+                    </div>
+                    <div class="analytics-kpi-card">
+                        <div class="analytics-kpi-value" id="kpi-active-units">--</div>
+                        <div class="analytics-kpi-label">Active Units</div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="analytics-charts-grid">
+                    <div class="analytics-chart-panel" style="grid-column: span 2;">
+                        <div class="analytics-chart-title">Incident Trend</div>
+                        <canvas id="analytics-trend-chart" height="200"></canvas>
+                    </div>
+                    <div class="analytics-chart-panel">
+                        <div class="analytics-chart-title">Type Breakdown</div>
+                        <canvas id="analytics-type-chart" height="220"></canvas>
+                    </div>
+                    <div class="analytics-chart-panel">
+                        <div class="analytics-chart-title">Hourly Pattern</div>
+                        <canvas id="analytics-hourly-chart" height="220"></canvas>
+                    </div>
+                </div>
+
+                <!-- Generate Report Actions -->
+                <div class="analytics-actions">
+                    <div class="section-title">Generate Analytics Report</div>
+                    <div class="analytics-action-row">
+                        <select id="analytics-template" class="form-select" style="flex:1;">
+                            <option value="executive_summary">Executive Summary Dashboard</option>
+                            <option value="response_performance">Response Performance Analysis</option>
+                            <option value="incident_analytics">Incident Analytics Report</option>
+                            <option value="unit_performance">Unit Performance Dashboard</option>
+                            <option value="department_overview">Department Overview Report</option>
+                        </select>
+                        <select id="analytics-format" class="form-select" style="max-width:100px;">
+                            <option value="html">HTML</option>
+                            <option value="pdf">PDF</option>
+                            <option value="csv">CSV</option>
+                            <option value="xlsx">XLSX</option>
+                        </select>
+                        <button class="btn-action primary" onclick="REPORTS_ADMIN.generateAnalyticsReport()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                                <polyline points="14,2 14,8 20,8"></polyline>
+                            </svg>
+                            Generate
+                        </button>
+                        <button class="btn-action" onclick="REPORTS_ADMIN.previewAnalyticsReport()">
+                            Preview
+                        </button>
+                    </div>
+                    <div class="analytics-action-row" style="margin-top:8px;">
+                        <button class="btn-action" onclick="REPORTS_ADMIN.scheduleAnalyticsReport()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            Schedule This Report
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -200,6 +308,181 @@
                     <!-- Populated by JS -->
                 </div>
             </div>
+
+            <!-- TAB 5: SCHEDULES (v3 CRUD) -->
+            <div class="admin-tab-content" id="admin-tab-schedules">
+                <!-- Create / Edit Schedule Form (collapsible) -->
+                <div class="form-section">
+                    <div class="sched-form-header" onclick="REPORTS_ADMIN.toggleSchedForm()">
+                        <div class="section-title" style="margin-bottom:0;border-bottom:none;cursor:pointer;">
+                            <span id="sched-form-title">+ Create New Schedule</span>
+                        </div>
+                    </div>
+                    <div id="sched-form-panel" class="sched-form-panel" style="display:none;">
+                        <input type="hidden" id="sched-edit-id" value="">
+                        <div class="form-row">
+                            <label>Name</label>
+                            <input type="text" id="sched-name" class="form-input" placeholder="e.g. Daily Battalion Report">
+                        </div>
+                        <div class="form-row">
+                            <label>Template</label>
+                            <select id="sched-template" class="form-select">
+                                <option value="">Loading templates...</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Shift Filter</label>
+                            <select id="sched-shift" class="form-select">
+                                <option value="all">All Shifts</option>
+                                <option value="A">A Shift</option>
+                                <option value="B">B Shift</option>
+                                <option value="C">C Shift</option>
+                                <option value="D">D Shift</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Frequency</label>
+                            <select id="sched-frequency" class="form-select" onchange="REPORTS_ADMIN.onFrequencyChange()">
+                                <option value="shift_change">Shift Change</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="once">One-Time</option>
+                            </select>
+                        </div>
+
+                        <!-- Conditional: Weekly day picker -->
+                        <div class="form-row sched-cond sched-cond-weekly" style="display:none;">
+                            <label>Day of Week</label>
+                            <div class="sched-day-picker">
+                                <label class="sched-day-chip"><input type="checkbox" value="0"> Sun</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="1"> Mon</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="2"> Tue</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="3"> Wed</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="4"> Thu</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="5"> Fri</label>
+                                <label class="sched-day-chip"><input type="checkbox" value="6"> Sat</label>
+                            </div>
+                        </div>
+
+                        <!-- Conditional: Monthly day-of-month -->
+                        <div class="form-row sched-cond sched-cond-monthly" style="display:none;">
+                            <label>Day of Month</label>
+                            <input type="number" id="sched-day-of-month" class="form-input" min="1" max="31" value="1" style="max-width:100px;">
+                        </div>
+
+                        <!-- Conditional: One-time datetime -->
+                        <div class="form-row sched-cond sched-cond-once" style="display:none;">
+                            <label>Run At</label>
+                            <input type="datetime-local" id="sched-run-at" class="form-input">
+                        </div>
+
+                        <!-- Delivery Channels -->
+                        <div class="section-title" style="margin-top:var(--space-3);">Delivery Channels</div>
+                        <div class="sched-channels">
+                            <label class="checkbox-option sched-channel-opt">
+                                <input type="checkbox" id="sched-ch-email" onchange="REPORTS_ADMIN.toggleChannel('email')">
+                                <span class="checkbox-label">
+                                    <strong>Email</strong>
+                                    <small>Send report via email</small>
+                                </span>
+                            </label>
+                            <div class="form-row sched-channel-detail" id="sched-ch-email-detail" style="display:none;">
+                                <label>Email Address</label>
+                                <input type="email" id="sched-email-addr" class="form-input" placeholder="recipient@example.com">
+                            </div>
+
+                            <label class="checkbox-option sched-channel-opt">
+                                <input type="checkbox" id="sched-ch-sms" onchange="REPORTS_ADMIN.toggleChannel('sms')">
+                                <span class="checkbox-label">
+                                    <strong>SMS</strong>
+                                    <small>Send report via text message</small>
+                                </span>
+                            </label>
+                            <div class="form-row sched-channel-detail" id="sched-ch-sms-detail" style="display:none;">
+                                <label>Phone Number</label>
+                                <input type="tel" id="sched-sms-phone" class="form-input" placeholder="+15551234567">
+                            </div>
+
+                            <label class="checkbox-option sched-channel-opt">
+                                <input type="checkbox" id="sched-ch-webhook" onchange="REPORTS_ADMIN.toggleChannel('webhook')">
+                                <span class="checkbox-label">
+                                    <strong>Webhook</strong>
+                                    <small>POST report to a URL</small>
+                                </span>
+                            </label>
+                            <div class="form-row sched-channel-detail" id="sched-ch-webhook-detail" style="display:none;">
+                                <label>Webhook URL</label>
+                                <input type="url" id="sched-webhook-url" class="form-input" placeholder="https://hooks.example.com/report">
+                            </div>
+
+                            <label class="checkbox-option sched-channel-opt">
+                                <input type="checkbox" id="sched-ch-signal" onchange="REPORTS_ADMIN.toggleChannel('signal')">
+                                <span class="checkbox-label">
+                                    <strong>Signal</strong>
+                                    <small>Send report via Signal messenger</small>
+                                </span>
+                            </label>
+                            <div class="form-row sched-channel-detail" id="sched-ch-signal-detail" style="display:none;">
+                                <label>Signal Number</label>
+                                <input type="tel" id="sched-signal-phone" class="form-input" placeholder="+15551234567">
+                            </div>
+
+                            <label class="checkbox-option sched-channel-opt">
+                                <input type="checkbox" id="sched-ch-webex" onchange="REPORTS_ADMIN.toggleChannel('webex')">
+                                <span class="checkbox-label">
+                                    <strong>Webex</strong>
+                                    <small>Send report to Webex space</small>
+                                </span>
+                            </label>
+                            <div class="form-row sched-channel-detail" id="sched-ch-webex-detail" style="display:none;">
+                                <label>Webex Room ID</label>
+                                <input type="text" id="sched-webex-room" class="form-input" placeholder="Room ID or email">
+                            </div>
+                        </div>
+
+                        <!-- Output Format -->
+                        <div class="section-title" style="margin-top:var(--space-3);">Output Format</div>
+                        <div class="form-row">
+                            <label>Format</label>
+                            <select id="sched-format" class="form-select">
+                                <option value="html" selected>HTML</option>
+                                <option value="pdf">PDF</option>
+                                <option value="csv">CSV</option>
+                                <option value="xlsx">XLSX</option>
+                            </select>
+                        </div>
+
+                        <div class="form-actions" style="display:flex;gap:8px;">
+                            <button class="btn-primary" id="sched-submit-btn" onclick="REPORTS_ADMIN.saveSchedule()">Create Schedule</button>
+                            <button class="btn-action" id="sched-cancel-btn" style="display:none;" onclick="REPORTS_ADMIN.cancelEditSchedule()">Cancel Edit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedules Table -->
+                <div class="form-section">
+                    <div class="section-title">All Schedules</div>
+                    <div id="sched-table-wrap" class="sched-table-wrap">
+                        <table class="sched-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Template</th>
+                                    <th>Frequency</th>
+                                    <th>Enabled</th>
+                                    <th>Next Run</th>
+                                    <th>Last Run</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sched-table-body">
+                                <tr><td colspan="7" class="sched-loading">Loading schedules...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <div class="cad-modal-footer">
@@ -209,8 +492,8 @@
 
 <style>
 .reports-admin-modal {
-    min-width: 650px;
-    max-width: 750px;
+    min-width: 700px;
+    max-width: 850px;
 }
 
 .reports-admin-container {
@@ -671,6 +954,277 @@
 .config-status-item .cross {
     color: #dc2626;
 }
+
+/* ---- Schedules Tab ---- */
+.sched-form-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sched-form-panel {
+    padding-top: var(--space-2);
+}
+
+.sched-day-picker {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.sched-day-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    transition: all 0.15s;
+}
+
+.sched-day-chip:has(input:checked) {
+    background: var(--ford-blue);
+    color: white;
+    border-color: var(--ford-blue);
+}
+
+.sched-day-chip input {
+    display: none;
+}
+
+.sched-channels {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.sched-channel-opt {
+    margin-bottom: 0;
+}
+
+.sched-channel-detail {
+    margin-left: 30px;
+    margin-bottom: var(--space-2);
+}
+
+.sched-table-wrap {
+    overflow-x: auto;
+}
+
+.sched-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.sched-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border-default);
+    white-space: nowrap;
+}
+
+.sched-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.sched-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.sched-loading {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px 10px !important;
+}
+
+.sched-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px 10px !important;
+    font-style: italic;
+}
+
+.sched-actions {
+    display: flex;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.sched-actions button {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    transition: all 0.15s;
+}
+
+.sched-actions button:hover {
+    border-color: var(--ford-blue);
+    background: var(--bg-active);
+}
+
+.sched-actions button.sched-btn-run {
+    color: #16a34a;
+}
+
+.sched-actions button.sched-btn-del {
+    color: #dc2626;
+}
+
+.sched-actions button.sched-btn-del:hover {
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.sched-toggle-label {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    cursor: pointer;
+}
+
+.sched-toggle-label input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.sched-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #dc2626;
+    border-radius: 11px;
+    transition: 0.25s;
+}
+
+.sched-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.25s;
+}
+
+.sched-toggle-label input:checked + .sched-toggle-slider {
+    background: #16a34a;
+}
+
+.sched-toggle-label input:checked + .sched-toggle-slider:before {
+    transform: translateX(18px);
+}
+
+.sched-freq-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-light);
+}
+
+/* ---- Analytics Tab ---- */
+.analytics-date-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.analytics-kpi-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.analytics-kpi-card {
+    flex: 1;
+    min-width: 110px;
+    padding: 14px 10px;
+    text-align: center;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    transition: border-color 0.2s;
+}
+
+.analytics-kpi-card:hover {
+    border-color: var(--ford-blue);
+}
+
+.analytics-kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ford-blue);
+    line-height: 1.1;
+}
+
+.analytics-kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+}
+
+.analytics-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: var(--space-4);
+}
+
+.analytics-chart-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    overflow: hidden;
+}
+
+.analytics-chart-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.analytics-actions {
+    margin-top: var(--space-3);
+}
+
+.analytics-action-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
 </style>
 
 <script>
@@ -685,6 +1239,14 @@ window.REPORTS_ADMIN = {
                 document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 document.getElementById('admin-tab-' + tab.dataset.tab)?.classList.add('active');
+
+                // Lazy-load data when tabs are activated
+                if (tab.dataset.tab === 'schedules') {
+                    this.loadSchedules();
+                    this.loadSchedTemplates();
+                } else if (tab.dataset.tab === 'analytics') {
+                    this.loadAnalytics();
+                }
             });
         });
 
@@ -1025,6 +1587,641 @@ window.REPORTS_ADMIN = {
         const input = document.getElementById(id);
         if (input) {
             input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    },
+
+    // ======== Schedules Tab (v3 API) ========
+
+    _schedTemplates: [],
+    _schedEditId: null,
+
+    async loadSchedules() {
+        const tbody = document.getElementById('sched-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" class="sched-loading">Loading schedules...</td></tr>';
+
+        try {
+            const res = await fetch('/api/reporting/schedules');
+            const data = await res.json();
+            const schedules = data.schedules || data || [];
+
+            if (!Array.isArray(schedules) || schedules.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="sched-empty">No schedules configured yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = schedules.map(s => `
+                <tr data-sched-id="${s.id}">
+                    <td>${this._esc(s.name || '--')}</td>
+                    <td>${this._esc(s.template || s.template_id || '--')}</td>
+                    <td><span class="sched-freq-badge">${this._esc(s.frequency || '--')}</span></td>
+                    <td>
+                        <label class="sched-toggle-label">
+                            <input type="checkbox" ${s.enabled ? 'checked' : ''}
+                                onchange="REPORTS_ADMIN.toggleScheduleEnabled('${s.id}', this.checked)">
+                            <span class="sched-toggle-slider"></span>
+                        </label>
+                    </td>
+                    <td>${s.next_run ? this._fmtDate(s.next_run) : '--'}</td>
+                    <td>${s.last_run ? this._fmtDate(s.last_run) : '--'}</td>
+                    <td>
+                        <div class="sched-actions">
+                            <button onclick="REPORTS_ADMIN.editSchedule('${s.id}')">Edit</button>
+                            <button class="sched-btn-run" onclick="REPORTS_ADMIN.runScheduleNow('${s.id}')">Run</button>
+                            <button class="sched-btn-del" onclick="REPORTS_ADMIN.deleteSchedule('${s.id}')">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error('Failed to load schedules:', e);
+            tbody.innerHTML = '<tr><td colspan="7" class="sched-empty">Error loading schedules.</td></tr>';
+        }
+    },
+
+    async loadSchedTemplates() {
+        try {
+            const res = await fetch('/api/reporting/templates');
+            const data = await res.json();
+            const templates = data.templates || data || [];
+            this._schedTemplates = templates;
+
+            const sel = document.getElementById('sched-template');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Select Template --</option>' +
+                templates.map(t => {
+                    const id = t.id || t.template_id || t;
+                    const name = t.name || t.label || id;
+                    return `<option value="${this._esc(String(id))}">${this._esc(String(name))}</option>`;
+                }).join('');
+        } catch (e) {
+            console.error('Failed to load templates:', e);
+            const sel = document.getElementById('sched-template');
+            if (sel) sel.innerHTML = '<option value="">Error loading templates</option>';
+        }
+    },
+
+    toggleSchedForm() {
+        const panel = document.getElementById('sched-form-panel');
+        const title = document.getElementById('sched-form-title');
+        if (!panel) return;
+        const visible = panel.style.display !== 'none';
+        panel.style.display = visible ? 'none' : 'block';
+        if (!this._schedEditId) {
+            title.textContent = visible ? '+ Create New Schedule' : '- Create New Schedule';
+        }
+    },
+
+    onFrequencyChange() {
+        const freq = document.getElementById('sched-frequency')?.value;
+        document.querySelectorAll('.sched-cond').forEach(el => el.style.display = 'none');
+        if (freq === 'weekly') {
+            document.querySelectorAll('.sched-cond-weekly').forEach(el => el.style.display = 'flex');
+        } else if (freq === 'monthly') {
+            document.querySelectorAll('.sched-cond-monthly').forEach(el => el.style.display = 'flex');
+        } else if (freq === 'once') {
+            document.querySelectorAll('.sched-cond-once').forEach(el => el.style.display = 'flex');
+        }
+    },
+
+    toggleChannel(ch) {
+        const checked = document.getElementById(`sched-ch-${ch}`)?.checked;
+        const detail = document.getElementById(`sched-ch-${ch}-detail`);
+        if (detail) detail.style.display = checked ? 'flex' : 'none';
+    },
+
+    _collectFormData() {
+        const name = document.getElementById('sched-name')?.value?.trim();
+        const template = document.getElementById('sched-template')?.value;
+        const shift = document.getElementById('sched-shift')?.value;
+        const frequency = document.getElementById('sched-frequency')?.value;
+
+        if (!name) { TOAST?.error?.('Schedule name is required'); return null; }
+        if (!template) { TOAST?.error?.('Please select a template'); return null; }
+
+        const payload = { name, template_id: template, shift, frequency };
+
+        // Conditional fields
+        if (frequency === 'weekly') {
+            const days = [];
+            document.querySelectorAll('.sched-cond-weekly input[type=checkbox]:checked').forEach(cb => {
+                days.push(parseInt(cb.value, 10));
+            });
+            if (days.length === 0) { TOAST?.error?.('Select at least one day for weekly schedule'); return null; }
+            payload.days_of_week = days;
+        } else if (frequency === 'monthly') {
+            payload.day_of_month = parseInt(document.getElementById('sched-day-of-month')?.value, 10) || 1;
+        } else if (frequency === 'once') {
+            const runAt = document.getElementById('sched-run-at')?.value;
+            if (!runAt) { TOAST?.error?.('Select a date/time for one-time schedule'); return null; }
+            payload.run_at = runAt;
+        }
+
+        // Delivery channels
+        const channels = [];
+        if (document.getElementById('sched-ch-email')?.checked) {
+            const addr = document.getElementById('sched-email-addr')?.value?.trim();
+            if (!addr) { TOAST?.error?.('Enter an email address for email delivery'); return null; }
+            channels.push({ type: 'email', address: addr });
+        }
+        if (document.getElementById('sched-ch-sms')?.checked) {
+            const phone = document.getElementById('sched-sms-phone')?.value?.trim();
+            if (!phone) { TOAST?.error?.('Enter a phone number for SMS delivery'); return null; }
+            channels.push({ type: 'sms', phone: phone });
+        }
+        if (document.getElementById('sched-ch-webhook')?.checked) {
+            const url = document.getElementById('sched-webhook-url')?.value?.trim();
+            if (!url) { TOAST?.error?.('Enter a URL for webhook delivery'); return null; }
+            channels.push({ type: 'webhook', url: url });
+        }
+        if (document.getElementById('sched-ch-signal')?.checked) {
+            const phone = document.getElementById('sched-signal-phone')?.value?.trim();
+            if (!phone) { TOAST?.error?.('Enter a phone number for Signal delivery'); return null; }
+            channels.push({ type: 'signal', phone: phone });
+        }
+        if (document.getElementById('sched-ch-webex')?.checked) {
+            const room = document.getElementById('sched-webex-room')?.value?.trim();
+            if (!room) { TOAST?.error?.('Enter a room ID for Webex delivery'); return null; }
+            channels.push({ type: 'webex', room_id: room });
+        }
+        payload.channels = channels;
+
+        // Output format
+        const fmt = document.getElementById('sched-format')?.value;
+        if (fmt) payload.format = fmt;
+
+        return payload;
+    },
+
+    async saveSchedule() {
+        const payload = this._collectFormData();
+        if (!payload) return;
+
+        const editId = this._schedEditId;
+        const url = editId ? `/api/reporting/schedule/${editId}` : '/api/reporting/schedule';
+        const verb = editId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: verb,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok && (data.ok !== false)) {
+                TOAST?.success?.(editId ? 'Schedule updated' : 'Schedule created');
+                this._resetSchedForm();
+                this.loadSchedules();
+            } else {
+                TOAST?.error?.(data.error || data.message || 'Failed to save schedule');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async editSchedule(id) {
+        // Fetch all schedules and find the one to edit
+        try {
+            const res = await fetch('/api/reporting/schedules');
+            const data = await res.json();
+            const schedules = data.schedules || data || [];
+            const sched = schedules.find(s => String(s.id) === String(id));
+
+            if (!sched) {
+                TOAST?.error?.('Schedule not found');
+                return;
+            }
+
+            // Open form
+            const panel = document.getElementById('sched-form-panel');
+            panel.style.display = 'block';
+            document.getElementById('sched-form-title').textContent = '- Edit Schedule';
+
+            this._schedEditId = id;
+            document.getElementById('sched-edit-id').value = id;
+            document.getElementById('sched-name').value = sched.name || '';
+            document.getElementById('sched-template').value = sched.template_id || sched.template || '';
+            document.getElementById('sched-shift').value = sched.shift || 'all';
+            document.getElementById('sched-frequency').value = sched.frequency || 'daily';
+            this.onFrequencyChange();
+
+            // Weekly days
+            if (sched.frequency === 'weekly' && sched.days_of_week) {
+                document.querySelectorAll('.sched-cond-weekly input[type=checkbox]').forEach(cb => {
+                    cb.checked = sched.days_of_week.includes(parseInt(cb.value, 10));
+                });
+            }
+
+            // Monthly
+            if (sched.frequency === 'monthly' && sched.day_of_month) {
+                document.getElementById('sched-day-of-month').value = sched.day_of_month;
+            }
+
+            // Once
+            if (sched.frequency === 'once' && sched.run_at) {
+                document.getElementById('sched-run-at').value = sched.run_at;
+            }
+
+            // Channels
+            this._resetChannels();
+            if (sched.channels && Array.isArray(sched.channels)) {
+                sched.channels.forEach(ch => {
+                    if (ch.type === 'email') {
+                        document.getElementById('sched-ch-email').checked = true;
+                        document.getElementById('sched-ch-email-detail').style.display = 'flex';
+                        document.getElementById('sched-email-addr').value = ch.address || '';
+                    } else if (ch.type === 'sms') {
+                        document.getElementById('sched-ch-sms').checked = true;
+                        document.getElementById('sched-ch-sms-detail').style.display = 'flex';
+                        document.getElementById('sched-sms-phone').value = ch.phone || '';
+                    } else if (ch.type === 'webhook') {
+                        document.getElementById('sched-ch-webhook').checked = true;
+                        document.getElementById('sched-ch-webhook-detail').style.display = 'flex';
+                        document.getElementById('sched-webhook-url').value = ch.url || '';
+                    } else if (ch.type === 'signal') {
+                        const el = document.getElementById('sched-ch-signal');
+                        if (el) { el.checked = true; document.getElementById('sched-ch-signal-detail').style.display = 'flex'; }
+                        const phoneEl = document.getElementById('sched-signal-phone');
+                        if (phoneEl) phoneEl.value = ch.phone || '';
+                    } else if (ch.type === 'webex') {
+                        const el = document.getElementById('sched-ch-webex');
+                        if (el) { el.checked = true; document.getElementById('sched-ch-webex-detail').style.display = 'flex'; }
+                        const roomEl = document.getElementById('sched-webex-room');
+                        if (roomEl) roomEl.value = ch.room_id || '';
+                    }
+                });
+            }
+
+            // Update button labels
+            document.getElementById('sched-submit-btn').textContent = 'Update Schedule';
+            document.getElementById('sched-cancel-btn').style.display = 'inline-flex';
+
+            // Scroll form into view
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            TOAST?.error?.('Error loading schedule: ' + e.message);
+        }
+    },
+
+    cancelEditSchedule() {
+        this._resetSchedForm();
+    },
+
+    _resetSchedForm() {
+        this._schedEditId = null;
+        document.getElementById('sched-edit-id').value = '';
+        document.getElementById('sched-name').value = '';
+        document.getElementById('sched-template').value = '';
+        document.getElementById('sched-shift').value = 'all';
+        document.getElementById('sched-frequency').value = 'shift_change';
+        document.getElementById('sched-day-of-month').value = '1';
+        document.getElementById('sched-run-at').value = '';
+        document.querySelectorAll('.sched-cond').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.sched-cond-weekly input[type=checkbox]').forEach(cb => cb.checked = false);
+        this._resetChannels();
+        document.getElementById('sched-submit-btn').textContent = 'Create Schedule';
+        document.getElementById('sched-cancel-btn').style.display = 'none';
+        document.getElementById('sched-form-title').textContent = '+ Create New Schedule';
+        document.getElementById('sched-form-panel').style.display = 'none';
+    },
+
+    _resetChannels() {
+        ['email', 'sms', 'webhook', 'signal', 'webex'].forEach(ch => {
+            const cb = document.getElementById(`sched-ch-${ch}`);
+            if (cb) cb.checked = false;
+            const detail = document.getElementById(`sched-ch-${ch}-detail`);
+            if (detail) detail.style.display = 'none';
+        });
+        document.getElementById('sched-email-addr').value = '';
+        document.getElementById('sched-sms-phone').value = '';
+        document.getElementById('sched-webhook-url').value = '';
+        const signalEl = document.getElementById('sched-signal-phone');
+        if (signalEl) signalEl.value = '';
+        const webexEl = document.getElementById('sched-webex-room');
+        if (webexEl) webexEl.value = '';
+    },
+
+    async toggleScheduleEnabled(id, enabled) {
+        try {
+            const res = await fetch(`/api/reporting/schedule/${id}/toggle`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
+            });
+            const data = await res.json();
+            if (res.ok && (data.ok !== false)) {
+                TOAST?.success?.(enabled ? 'Schedule enabled' : 'Schedule disabled');
+            } else {
+                TOAST?.error?.(data.error || 'Failed to toggle schedule');
+                this.loadSchedules(); // revert UI
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+            this.loadSchedules();
+        }
+    },
+
+    async runScheduleNow(id) {
+        if (!confirm('Run this schedule immediately?')) return;
+        try {
+            const res = await fetch(`/api/reporting/schedule/${id}/run_now`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (res.ok && (data.ok !== false)) {
+                TOAST?.success?.(data.message || 'Schedule triggered');
+                this.loadSchedules();
+            } else {
+                TOAST?.error?.(data.error || 'Failed to run schedule');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    async deleteSchedule(id) {
+        if (!confirm('Delete this schedule permanently?')) return;
+        try {
+            const res = await fetch(`/api/reporting/schedule/${id}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (res.ok && (data.ok !== false)) {
+                TOAST?.success?.('Schedule deleted');
+                this.loadSchedules();
+            } else {
+                TOAST?.error?.(data.error || 'Failed to delete schedule');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    // ======== Analytics Tab ========
+
+    _analyticsCharts: {},
+    _analyticsData: null,
+
+    _getAnalyticsDateRange() {
+        const preset = document.getElementById('analytics-preset')?.value || '30d';
+        const now = new Date();
+        let start, end = new Date(now);
+
+        if (preset === 'custom') {
+            const sVal = document.getElementById('analytics-start')?.value;
+            const eVal = document.getElementById('analytics-end')?.value;
+            if (sVal && eVal) {
+                return { date_start: sVal + ' 00:00:00', date_end: eVal + ' 23:59:59' };
+            }
+        }
+
+        switch (preset) {
+            case '7d': start = new Date(now - 7 * 86400000); break;
+            case '90d': start = new Date(now - 90 * 86400000); break;
+            case 'mtd': start = new Date(now.getFullYear(), now.getMonth(), 1); break;
+            case 'ytd': start = new Date(now.getFullYear(), 0, 1); break;
+            default: start = new Date(now - 30 * 86400000); break;
+        }
+
+        const fmt = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        return { date_start: fmt(start) + ' 00:00:00', date_end: fmt(end) + ' 23:59:59' };
+    },
+
+    onAnalyticsPresetChange() {
+        const preset = document.getElementById('analytics-preset')?.value;
+        const showCustom = preset === 'custom';
+        document.getElementById('analytics-start').style.display = showCustom ? 'block' : 'none';
+        document.getElementById('analytics-end').style.display = showCustom ? 'block' : 'none';
+    },
+
+    async loadAnalytics() {
+        const range = this._getAnalyticsDateRange();
+        try {
+            // Use the executive_summary extractor via the run API with preview
+            const res = await fetch('/api/reporting/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_key: 'executive_summary',
+                    filters: range,
+                    formats: ['html']
+                })
+            });
+            const result = await res.json();
+            if (!result.ok) {
+                console.error('Analytics load failed:', result.error);
+                return;
+            }
+
+            const data = result.data || {};
+            this._analyticsData = data;
+            const stats = data.stats || {};
+            const chartData = data.chart_data || {};
+
+            // Update KPI cards
+            document.getElementById('kpi-total-incidents').textContent = stats.total_incidents ?? '--';
+            document.getElementById('kpi-avg-response').textContent =
+                stats.avg_response_time != null ? stats.avg_response_time.toFixed(1) + ' min' : '--';
+            document.getElementById('kpi-p90-response').textContent =
+                stats.p90_response_time != null ? stats.p90_response_time.toFixed(1) + ' min' : '--';
+            document.getElementById('kpi-compliance').textContent =
+                stats.compliance_pct != null ? stats.compliance_pct.toFixed(0) + '%' : '--';
+            document.getElementById('kpi-active-units').textContent = stats.active_units ?? '--';
+
+            // Render Chart.js charts
+            this._renderAnalyticsCharts(chartData);
+        } catch (e) {
+            console.error('Analytics load error:', e);
+        }
+    },
+
+    _renderAnalyticsCharts(chartData) {
+        if (typeof Chart === 'undefined') {
+            console.warn('Chart.js not loaded');
+            return;
+        }
+
+        // Destroy previous charts
+        Object.values(this._analyticsCharts).forEach(c => c?.destroy?.());
+        this._analyticsCharts = {};
+
+        const fordBlue = '#003478';
+        const fireRed = '#dc2626';
+        const green = '#16a34a';
+
+        // Trend line chart
+        const dt = chartData.daily_trend || {};
+        if (dt.labels?.length) {
+            const ctx = document.getElementById('analytics-trend-chart')?.getContext('2d');
+            if (ctx) {
+                this._analyticsCharts.trend = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dt.labels,
+                        datasets: [{
+                            label: 'Incidents',
+                            data: dt.values,
+                            borderColor: fordBlue,
+                            backgroundColor: fordBlue + '20',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: dt.labels.length > 30 ? 0 : 3,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Type donut chart
+        const tb = chartData.type_breakdown || {};
+        if (tb.labels?.length) {
+            const ctx = document.getElementById('analytics-type-chart')?.getContext('2d');
+            if (ctx) {
+                const palette = [fordBlue, fireRed, green, '#ca8a04', '#7c3aed', '#0891b2', '#c026d3', '#ea580c'];
+                this._analyticsCharts.type = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: tb.labels,
+                        datasets: [{
+                            data: tb.values,
+                            backgroundColor: tb.labels.map((_, i) => palette[i % palette.length]),
+                            borderWidth: 2,
+                            borderColor: '#fff',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12 } }
+                        },
+                        cutout: '55%',
+                    }
+                });
+            }
+        }
+
+        // Hourly bar chart (use incident_analytics data if available)
+        const hp = chartData.hourly_pattern || {};
+        if (hp.labels?.length) {
+            const ctx = document.getElementById('analytics-hourly-chart')?.getContext('2d');
+            if (ctx) {
+                this._analyticsCharts.hourly = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: hp.labels,
+                        datasets: [{
+                            label: 'Incidents',
+                            data: hp.values,
+                            backgroundColor: fordBlue + 'cc',
+                            borderRadius: 3,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { font: { size: 9 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        }
+    },
+
+    async generateAnalyticsReport() {
+        const template = document.getElementById('analytics-template')?.value || 'executive_summary';
+        const format = document.getElementById('analytics-format')?.value || 'html';
+        const range = this._getAnalyticsDateRange();
+
+        TOAST?.info?.('Generating report...');
+
+        try {
+            const res = await fetch('/api/reporting/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    template_key: template,
+                    filters: range,
+                    formats: [format, 'html']
+                })
+            });
+            const result = await res.json();
+
+            if (result.ok) {
+                TOAST?.success?.('Report generated successfully');
+                // Download if available
+                const token = result.download_tokens?.[format] || result.download_tokens?.html;
+                if (token) {
+                    window.open(`/api/reporting/download/${token}`, '_blank');
+                }
+            } else {
+                TOAST?.error?.(result.error || 'Report generation failed');
+            }
+        } catch (e) {
+            TOAST?.error?.('Error: ' + e.message);
+        }
+    },
+
+    previewAnalyticsReport() {
+        const template = document.getElementById('analytics-template')?.value || 'executive_summary';
+        const range = this._getAnalyticsDateRange();
+        const params = new URLSearchParams({
+            template_key: template,
+            date_start: range.date_start,
+            date_end: range.date_end
+        });
+        window.open('/api/reports/preview?' + params.toString(), '_blank');
+    },
+
+    scheduleAnalyticsReport() {
+        // Switch to schedules tab and pre-fill the form
+        const template = document.getElementById('analytics-template')?.value || 'executive_summary';
+        const schedTab = document.querySelector('.admin-tab[data-tab="schedules"]');
+        if (schedTab) schedTab.click();
+
+        // Wait for tab switch, then fill
+        setTimeout(() => {
+            this.toggleSchedForm();
+            this.loadSchedTemplates().then(() => {
+                const sel = document.getElementById('sched-template');
+                if (sel) sel.value = template;
+            });
+            document.getElementById('sched-name').value =
+                document.getElementById('analytics-template')?.selectedOptions[0]?.text || 'Analytics Report';
+        }, 200);
+    },
+
+    _esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    },
+
+    _fmtDate(dateStr) {
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleString('en-US', {
+                month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+                hour12: true
+            });
+        } catch (_) {
+            return dateStr;
         }
     }
 };

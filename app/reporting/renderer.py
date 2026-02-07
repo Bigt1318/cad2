@@ -7,6 +7,7 @@
 # Artifacts are saved to artifacts/reports/{run_id}/ via ensure_artifact_dir().
 # ============================================================================
 
+import base64
 import csv
 import io
 import logging
@@ -24,11 +25,34 @@ logger = logging.getLogger("reporting.renderer")
 EASTERN = ZoneInfo("America/New_York")
 
 # ---------------------------------------------------------------------------
+# Load Ford logo as base64 for embedding in reports
+# ---------------------------------------------------------------------------
+_LOGO_B64 = ""
+try:
+    _logo_path = Path(__file__).resolve().parent.parent.parent / "static" / "images" / "logo.png"
+    if _logo_path.exists():
+        _LOGO_B64 = base64.b64encode(_logo_path.read_bytes()).decode("ascii")
+        logger.info("Ford logo loaded from %s (%d bytes)", _logo_path, len(_LOGO_B64))
+except Exception:
+    logger.debug("Could not load Ford logo", exc_info=True)
+
+# ---------------------------------------------------------------------------
+# Import chart generator (optional)
+# ---------------------------------------------------------------------------
+try:
+    from . import charts as _charts
+    HAS_CHARTS = _charts.HAS_MATPLOTLIB
+except ImportError:
+    _charts = None  # type: ignore[assignment]
+    HAS_CHARTS = False
+
+# ---------------------------------------------------------------------------
 # Shared CSS & HTML fragments  (inline for self-contained output)
 # ---------------------------------------------------------------------------
 
-_BRAND_BLUE_DARK = "#1e40af"
-_BRAND_BLUE_LIGHT = "#3b82f6"
+_FORD_BLUE = "#003478"
+_BRAND_BLUE_DARK = "#003478"
+_BRAND_BLUE_LIGHT = "#1e5cb3"
 _BRAND_GREEN = "#16a34a"
 _BRAND_RED = "#dc2626"
 _BRAND_YELLOW = "#ca8a04"
@@ -62,12 +86,79 @@ _BASE_CSS = f"""
         margin-bottom: 24px;
     }}
     .header {{
-        background: linear-gradient(135deg, {_BRAND_BLUE_DARK}, {_BRAND_BLUE_LIGHT});
+        background: linear-gradient(135deg, {_FORD_BLUE}, {_BRAND_BLUE_LIGHT});
         color: #fff;
         padding: 24px 28px;
     }}
     .header h1 {{ margin: 0; font-size: 22px; }}
     .header .subtitle {{ margin: 4px 0 0; opacity: 0.9; font-size: 15px; }}
+    .header-logo {{ height: 40px; margin-right: 16px; vertical-align: middle; }}
+    .header-top {{ display: flex; align-items: center; margin-bottom: 6px; }}
+    .header-org {{ font-size: 11px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; }}
+    .meta-bar {{
+        display: flex; flex-wrap: wrap; gap: 16px;
+        padding: 12px 28px; background: {_GRAY_100};
+        font-size: 11px; color: {_GRAY_700};
+        border-bottom: 1px solid {_GRAY_200};
+    }}
+    .meta-bar strong {{ color: {_FORD_BLUE}; }}
+    .kpi-row {{
+        display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 24px;
+    }}
+    .kpi-card {{
+        flex: 1; min-width: 130px; max-width: 200px;
+        border: 1px solid {_GRAY_200}; border-radius: 10px;
+        padding: 16px; text-align: center; background: #fff;
+    }}
+    .kpi-card .kpi-value {{
+        font-size: 28px; font-weight: 800; color: {_FORD_BLUE};
+    }}
+    .kpi-card .kpi-label {{
+        font-size: 10px; color: {_GRAY_500}; text-transform: uppercase;
+        letter-spacing: 0.3px; margin-top: 4px;
+    }}
+    .kpi-card .kpi-trend {{
+        font-size: 11px; font-weight: 700; margin-top: 4px;
+    }}
+    .kpi-trend.up {{ color: {_BRAND_RED}; }}
+    .kpi-trend.down {{ color: {_BRAND_GREEN}; }}
+    .kpi-trend.flat {{ color: {_GRAY_500}; }}
+    .chart-section {{
+        margin-bottom: 28px; page-break-inside: avoid;
+    }}
+    .chart-section h3 {{
+        color: {_FORD_BLUE}; font-size: 15px; margin-bottom: 8px;
+        border-bottom: 2px solid {_GRAY_200}; padding-bottom: 6px;
+    }}
+    .chart-section .chart-narrative {{
+        font-size: 12px; color: {_GRAY_500}; margin-top: 6px; font-style: italic;
+    }}
+    .chart-section img {{
+        max-width: 100%; height: auto; display: block; margin: 0 auto;
+    }}
+    .chart-grid {{
+        display: grid; grid-template-columns: repeat(2, 1fr);
+        gap: 20px; margin-bottom: 24px;
+    }}
+    .branded-footer {{
+        text-align: center; padding: 14px 28px;
+        border-top: 2px solid {_FORD_BLUE}; color: {_GRAY_500};
+        font-size: 10px;
+    }}
+    .branded-footer .confidential {{
+        font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        color: {_FORD_BLUE};
+    }}
+    .section-divider {{
+        border: none; border-top: 3px solid {_FORD_BLUE};
+        margin: 32px 0;
+    }}
+    .recommendation-box {{
+        border-left: 4px solid {_BRAND_YELLOW};
+        background: #fffbeb; padding: 12px 16px;
+        border-radius: 0 8px 8px 0; margin-bottom: 8px;
+        font-size: 12px;
+    }}
     .body {{ padding: 24px 28px; }}
     .filter-bar {{
         display: flex;
@@ -168,6 +259,12 @@ _BASE_CSS = f"""
     @page {{
         size: letter;
         margin: 0.6in 0.5in;
+        @bottom-left {{
+            content: "CONFIDENTIAL - Ford Motor Company";
+            font-size: 8px;
+            color: {_FORD_BLUE};
+            font-weight: 700;
+        }}
         @bottom-center {{
             content: "Page " counter(page) " of " counter(pages);
             font-size: 9px;
@@ -383,6 +480,26 @@ class ReportRenderer:
             "calltaker_stats": self._html_body_stats_table,
             "shift_workload": self._html_body_stats_table,
             "response_compliance": self._html_body_compliance,
+            "shift_handoff": self._html_body_shift_handoff,
+            "incident_detail": self._html_body_incident_detail,
+            "open_incidents": self._html_body_open_incidents,
+            "unit_activity": self._html_body_unit_activity,
+            "unit_utilization": self._html_body_unit_utilization,
+            "response_time_analysis": self._html_body_response_time_analysis,
+            "monthly_summary": self._html_body_monthly_summary,
+            "personnel_activity": self._html_body_stats_table,
+            "incident_type_breakdown": self._html_body_stats_table,
+            "location_hotspot": self._html_body_stats_table,
+            "false_alarm": self._html_body_stats_table,
+            "mutual_aid": self._html_body_stats_table,
+            "issue_tracking": self._html_body_stats_table,
+            "training_log": self._html_body_stats_table,
+            # Analytics templates
+            "executive_summary": self._html_body_executive_summary,
+            "response_performance": self._html_body_response_performance,
+            "incident_analytics": self._html_body_incident_analytics,
+            "unit_performance": self._html_body_unit_performance,
+            "department_overview": self._html_body_department_overview,
         }.get(template_key)
 
         if body_builder is None:
@@ -419,9 +536,16 @@ class ReportRenderer:
     # -- HTML fragments ------------------------------------------------
 
     def _html_header(self, title: str, data: Dict) -> str:
-        """Blue gradient banner with department branding."""
-        subtitle = ""
+        """Professional branded header with Ford logo and metadata bar."""
         meta = data.get("metadata") or {}
+
+        # Logo
+        logo_html = ""
+        if _LOGO_B64:
+            logo_html = f'<img class="header-logo" src="data:image/png;base64,{_LOGO_B64}" alt="Ford">'
+
+        # Subtitle
+        subtitle = ""
         if meta.get("shift"):
             subtitle += f"Shift {_safe(meta['shift'])}"
         if meta.get("date") or data.get("date"):
@@ -432,13 +556,39 @@ class ReportRenderer:
         if not subtitle:
             subtitle = _format_ts()
 
-        return (
-            "<div class=\"header\">\n"
-            "  <h1>Ford Fire Department</h1>\n"
-            f"  <div class=\"subtitle\">{_safe(title)}"
-            f"{'  &mdash; ' + subtitle if subtitle else ''}</div>\n"
-            "</div>\n"
+        header = (
+            '<div class="header">\n'
+            f'  <div class="header-top">{logo_html}'
+            '    <div>'
+            '      <div class="header-org">Ford Motor Company &bull; BlueOval SK Battery Park &bull; Fire Department</div>'
+            '      <h1>Ford Fire Department</h1>'
+            '    </div>'
+            '  </div>\n'
+            f'  <div class="subtitle">{_safe(title)}'
+            f'{"  &mdash; " + subtitle if subtitle else ""}</div>\n'
+            '</div>\n'
         )
+
+        # Metadata bar
+        date_range = meta.get("date_range")
+        if date_range and isinstance(date_range, list) and len(date_range) == 2:
+            range_str = f"{_safe(str(date_range[0]))} to {_safe(str(date_range[1]))}"
+        else:
+            range_str = ""
+
+        generated = meta.get("generated_at", _format_ts())
+        tz = meta.get("timezone", "")
+
+        meta_bar = (
+            '<div class="meta-bar">\n'
+            f'  <span><strong>Date Range:</strong> {range_str}</span>\n'
+            f'  <span><strong>Generated:</strong> {_safe(str(generated))}</span>\n'
+            f'  <span><strong>Timezone:</strong> {_safe(str(tz))}</span>\n'
+            '  <span><strong>Classification:</strong> INTERNAL</span>\n'
+            '</div>\n'
+        )
+
+        return header + meta_bar
 
     def _html_filter_bar(self, filters: Dict) -> str:
         """Render a row of filter chips (or empty string if no filters)."""
@@ -458,10 +608,11 @@ class ReportRenderer:
 
     def _html_footer(self, generated_ts: str) -> str:
         return (
-            "<div class=\"footer\">\n"
-            f"  Generated: {_safe(generated_ts)} &nbsp;|&nbsp; "
-            "FORD CAD Reporting System\n"
-            "</div>\n"
+            '<div class="branded-footer">\n'
+            f'  <div class="confidential">Confidential &mdash; Ford Motor Company</div>\n'
+            f'  <div style="margin-top:4px;">Generated: {_safe(generated_ts)} &nbsp;|&nbsp; '
+            'FORD CAD Enterprise Reporting System</div>\n'
+            '</div>\n'
         )
 
     def _html_stat_boxes(self, stats: Dict) -> str:
@@ -672,6 +823,1090 @@ class ReportRenderer:
                 "<p style=\"text-align:center;color:#6b7280;padding:20px;\">"
                 "No compliance data available.</p>"
             )
+        return "\n".join(parts)
+
+    # -- New specialised body builders -----------------------------------
+
+    def _html_body_shift_handoff(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Shift handoff report: open incidents, recent activity, and notes."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        # --- Open Incidents section (card layout) ---
+        open_incidents = data.get("open_incidents") or data.get("incidents") or []
+        parts.append(f'<h2 class="section-title">Open Incidents ({len(open_incidents)})</h2>')
+        if open_incidents:
+            for inc in open_incidents:
+                inc_id = inc.get("incident_number") or inc.get("incident_id") or "N/A"
+                priority = str(inc.get("priority", "")).upper()
+                inc_type = inc.get("type") or inc.get("incident_type") or ""
+                location = inc.get("location") or ""
+                status = inc.get("status") or ""
+                age = inc.get("age") or ""
+                units = inc.get("units") or inc.get("assigned_units") or ""
+                if isinstance(units, list):
+                    units = ", ".join(str(u) for u in units)
+
+                is_high = priority in ("HIGH", "1", "EMERGENCY")
+                border_color = _BRAND_RED if is_high else _GRAY_200
+                bg_color = "#fef2f2" if is_high else "#fff"
+                priority_badge = "badge-red" if is_high else (
+                    "badge-yellow" if priority in ("MEDIUM", "2") else "badge-gray"
+                )
+
+                parts.append(
+                    f'<div class="incident-card" style="border-left:4px solid {border_color};background:{bg_color};">'
+                    f'  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+                    f'    <strong style="color:{_BRAND_BLUE_DARK};font-size:14px;">#{_safe(str(inc_id))}</strong>'
+                    f'    <span class="badge {priority_badge}">{_safe(priority or "N/A")}</span>'
+                    f'  </div>'
+                    f'  <table style="font-size:12px;">'
+                    f'    <tr><td style="width:120px;color:{_GRAY_500};">Type:</td><td>{_safe(inc_type)}</td></tr>'
+                    f'    <tr><td style="color:{_GRAY_500};">Location:</td><td>{_safe(location)}</td></tr>'
+                    f'    <tr><td style="color:{_GRAY_500};">Status:</td><td>{_safe(status)}</td></tr>'
+                    f'    <tr><td style="color:{_GRAY_500};">Age:</td><td>{_safe(str(age))}</td></tr>'
+                    f'    <tr><td style="color:{_GRAY_500};">Units:</td><td>{_safe(str(units))}</td></tr>'
+                    f'  </table>'
+                    f'</div>'
+                )
+        else:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No open incidents at time of handoff.</p>'
+            )
+
+        # --- Recent Activity table ---
+        recent = data.get("recent_activity") or data.get("rows") or []
+        if recent:
+            parts.append(f'<h2 class="section-title">Recent Activity</h2>')
+            parts.append(self._html_data_table(recent))
+
+        # --- Notes / Pending section ---
+        notes = data.get("notes") or data.get("pending") or []
+        if notes:
+            parts.append(f'<h2 class="section-title">Notes / Pending Items</h2>')
+            if isinstance(notes, list) and notes and isinstance(notes[0], dict):
+                parts.append(self._html_data_table(notes))
+            elif isinstance(notes, list):
+                parts.append('<ul style="margin:0;padding-left:20px;">')
+                for note in notes:
+                    parts.append(f'<li style="margin-bottom:4px;">{_safe(str(note))}</li>')
+                parts.append('</ul>')
+            else:
+                parts.append(f'<p>{_safe(str(notes))}</p>')
+
+        return "\n".join(parts)
+
+    def _html_body_incident_detail(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """NFIRS-style printable incident detail report."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        incidents = data.get("incidents") or data.get("rows") or []
+        if not incidents:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No incident detail available.</p>'
+            )
+            return "\n".join(parts)
+
+        for idx, inc in enumerate(incidents):
+            inc_id = inc.get("incident_number") or inc.get("incident_id") or "N/A"
+            inc_type = inc.get("type") or inc.get("incident_type") or ""
+            priority = str(inc.get("priority", "")).upper()
+            status = inc.get("status") or ""
+
+            priority_badge = "badge-red" if priority in ("HIGH", "1", "EMERGENCY") else (
+                "badge-yellow" if priority in ("MEDIUM", "2") else "badge-gray"
+            )
+            status_cls = "badge-green" if status == "CLOSED" else (
+                "badge-yellow" if status in ("ACTIVE", "OPEN", "IN_PROGRESS") else "badge-gray"
+            )
+
+            if idx > 0:
+                parts.append('<div style="border-top:3px solid #1e40af;margin:32px 0;"></div>')
+
+            # --- Incident Header ---
+            parts.append(
+                f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                f'margin-bottom:12px;padding:12px 16px;background:{_GRAY_100};border-radius:8px;">'
+                f'  <div>'
+                f'    <span style="font-size:18px;font-weight:700;color:{_BRAND_BLUE_DARK};">'
+                f'Incident #{_safe(str(inc_id))}</span>'
+                f'    <span class="badge {priority_badge}" style="margin-left:8px;">{_safe(priority or "N/A")}</span>'
+                f'  </div>'
+                f'  <div>'
+                f'    <span style="margin-right:6px;font-weight:600;">{_safe(inc_type)}</span>'
+                f'    <span class="badge {status_cls}">{_safe(status)}</span>'
+                f'  </div>'
+                f'</div>'
+            )
+
+            # --- Location / Caller block ---
+            location = inc.get("location") or inc.get("address") or ""
+            caller_name = inc.get("caller_name") or ""
+            caller_phone = inc.get("caller_phone") or ""
+            cross_street = inc.get("cross_street") or ""
+            district = inc.get("district") or inc.get("zone") or ""
+
+            loc_rows = []
+            if location:
+                loc_rows.append(f'<tr><td style="width:140px;color:{_GRAY_500};font-weight:600;">Location:</td><td>{_safe(location)}</td></tr>')
+            if cross_street:
+                loc_rows.append(f'<tr><td style="color:{_GRAY_500};font-weight:600;">Cross Street:</td><td>{_safe(cross_street)}</td></tr>')
+            if district:
+                loc_rows.append(f'<tr><td style="color:{_GRAY_500};font-weight:600;">District/Zone:</td><td>{_safe(district)}</td></tr>')
+            if caller_name:
+                loc_rows.append(f'<tr><td style="color:{_GRAY_500};font-weight:600;">Caller:</td><td>{_safe(caller_name)}</td></tr>')
+            if caller_phone:
+                loc_rows.append(f'<tr><td style="color:{_GRAY_500};font-weight:600;">Caller Phone:</td><td>{_safe(caller_phone)}</td></tr>')
+
+            if loc_rows:
+                parts.append(f'<h2 class="section-title">Location &amp; Caller</h2>')
+                parts.append(f'<table style="font-size:12px;">{"".join(loc_rows)}</table>')
+
+            # --- Timeline ---
+            timeline_fields = [
+                ("created", "Created"), ("dispatched", "Dispatched"),
+                ("enroute", "En Route"), ("arrived", "Arrived"),
+                ("cleared", "Cleared"), ("closed_at", "Closed"),
+            ]
+            tl_cells = []
+            for field, label in timeline_fields:
+                val = inc.get(field) or ""
+                if val:
+                    tl_cells.append(
+                        f'<div style="text-align:center;padding:8px 14px;border:1px solid {_GRAY_200};'
+                        f'border-radius:6px;background:#fff;min-width:100px;">'
+                        f'<div style="font-size:10px;color:{_GRAY_500};text-transform:uppercase;">{label}</div>'
+                        f'<div style="font-size:12px;font-weight:600;margin-top:2px;">{_safe(str(val))}</div>'
+                        f'</div>'
+                    )
+            if tl_cells:
+                parts.append(f'<h2 class="section-title">Timeline</h2>')
+                parts.append(
+                    f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">'
+                    f'{"".join(tl_cells)}</div>'
+                )
+
+            # --- Unit Assignments table ---
+            units = inc.get("units") or []
+            if units:
+                parts.append(f'<h2 class="section-title">Unit Assignments</h2>')
+                u_cols = ["unit_id", "dispatched", "enroute", "arrived", "cleared", "disposition"]
+                available_u = set()
+                for u in units:
+                    available_u.update(u.keys())
+                u_cols = [c for c in u_cols if c in available_u]
+                # Include any additional unit-level columns
+                for u in units:
+                    for k in u.keys():
+                        if k not in u_cols:
+                            u_cols.append(k)
+                u_ths = "".join(f'<th>{_safe(_humanize_header(c))}</th>' for c in u_cols)
+                u_trs = []
+                for u in units:
+                    u_tds = "".join(f'<td>{_safe(str(u.get(c, "")))}</td>' for c in u_cols)
+                    u_trs.append(f'<tr>{u_tds}</tr>')
+                parts.append(
+                    f'<table><thead><tr>{u_ths}</tr></thead>'
+                    f'<tbody>{"".join(u_trs)}</tbody></table>'
+                )
+
+            # --- Narrative entries ---
+            narratives = inc.get("narratives") or inc.get("narrative") or ""
+            if narratives:
+                parts.append(f'<h2 class="section-title">Narrative</h2>')
+                if isinstance(narratives, list):
+                    for entry in narratives:
+                        if isinstance(entry, dict):
+                            author = entry.get("author") or entry.get("created_by") or ""
+                            ts = entry.get("timestamp") or entry.get("created") or ""
+                            text = entry.get("text") or entry.get("narrative") or ""
+                            parts.append(
+                                f'<div style="border-left:3px solid {_BRAND_BLUE_LIGHT};padding:8px 12px;'
+                                f'margin-bottom:8px;background:#f8fafc;border-radius:0 6px 6px 0;">'
+                                f'<div style="font-size:10px;color:{_GRAY_500};margin-bottom:2px;">'
+                                f'{_safe(str(author))} &mdash; {_safe(str(ts))}</div>'
+                                f'<div style="font-size:12px;">{_safe(str(text))}</div>'
+                                f'</div>'
+                            )
+                        else:
+                            parts.append(f'<p style="font-size:12px;">{_safe(str(entry))}</p>')
+                else:
+                    parts.append(
+                        f'<div style="border-left:3px solid {_BRAND_BLUE_LIGHT};padding:8px 12px;'
+                        f'background:#f8fafc;border-radius:0 6px 6px 0;font-size:12px;">'
+                        f'{_safe(str(narratives))}</div>'
+                    )
+
+            # --- NFIRS fields ---
+            nfirs_fields = [
+                ("fire_origin", "Fire Origin"), ("fire_cause", "Cause"),
+                ("fire_spread", "Fire Spread"), ("injuries", "Injuries"),
+                ("fatalities", "Fatalities"), ("property_loss", "Property Loss"),
+                ("contents_loss", "Contents Loss"), ("aid_given_received", "Aid Given/Received"),
+                ("detector_presence", "Detector Presence"), ("sprinkler_presence", "Sprinkler Presence"),
+                ("structure_type", "Structure Type"), ("construction_type", "Construction Type"),
+            ]
+            nfirs_rows = []
+            for field, label in nfirs_fields:
+                val = inc.get(field)
+                if val is not None and val != "":
+                    nfirs_rows.append(
+                        f'<tr><td style="width:160px;color:{_GRAY_500};font-weight:600;">{label}:</td>'
+                        f'<td>{_safe(str(val))}</td></tr>'
+                    )
+            if nfirs_rows:
+                parts.append(f'<h2 class="section-title">NFIRS Data</h2>')
+                parts.append(f'<table style="font-size:12px;">{"".join(nfirs_rows)}</table>')
+
+        return "\n".join(parts)
+
+    def _html_body_open_incidents(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Table of currently open incidents with status badges and age."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        incidents = data.get("incidents") or data.get("open_incidents") or _flatten_rows(data)
+        if not incidents:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No open incidents.</p>'
+            )
+            return "\n".join(parts)
+
+        parts.append(f'<h2 class="section-title">Open Incidents ({len(incidents)})</h2>')
+
+        # Build table with priority colour coding
+        headers = _dict_keys_union(incidents)
+        ths = "".join(f'<th>{_safe(_humanize_header(h))}</th>' for h in headers)
+        trs = []
+        for inc in incidents:
+            priority = str(inc.get("priority", "")).upper()
+            is_high = priority in ("HIGH", "1", "EMERGENCY")
+            is_medium = priority in ("MEDIUM", "2")
+            row_bg = "#fef2f2" if is_high else ("#fffbeb" if is_medium else "")
+            row_style = f' style="background:{row_bg};"' if row_bg else ""
+
+            tds = []
+            for h in headers:
+                val = inc.get(h, "")
+                cell = _safe(str(val)) if val is not None else ""
+
+                # Status badge rendering
+                if h == "status":
+                    sv = str(val).upper()
+                    badge_cls = "badge-green" if sv in ("CLOSED",) else (
+                        "badge-yellow" if sv in ("ACTIVE", "OPEN", "IN_PROGRESS", "DISPATCHED") else "badge-gray"
+                    )
+                    cell = f'<span class="badge {badge_cls}">{cell}</span>'
+
+                # Priority badge rendering
+                if h == "priority":
+                    p_cls = "badge-red" if is_high else ("badge-yellow" if is_medium else "badge-gray")
+                    cell = f'<span class="badge {p_cls}">{cell}</span>'
+
+                # Age column: bold for old incidents
+                if h == "age":
+                    try:
+                        age_minutes = float(str(val).replace("min", "").replace("m", "").strip()) if val else 0
+                        if age_minutes > 60:
+                            cell = f'<strong style="color:{_BRAND_RED};">{cell}</strong>'
+                    except (ValueError, TypeError):
+                        pass
+
+                tds.append(f'<td>{cell}</td>')
+            trs.append(f'<tr{row_style}>{"".join(tds)}</tr>')
+
+        parts.append(
+            f'<table><thead><tr>{ths}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+        )
+        return "\n".join(parts)
+
+    def _html_body_unit_activity(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Per-unit activity stats table with busiest-unit highlighting."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        rows = _flatten_rows(data)
+        if not rows:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No unit activity data available.</p>'
+            )
+            return "\n".join(parts)
+
+        parts.append(f'<h2 class="section-title">Unit Activity</h2>')
+
+        # Determine the busiest unit by call count
+        count_col = None
+        for candidate in ("call_count", "total_calls", "calls", "count", "incidents"):
+            if any(candidate in r for r in rows):
+                count_col = candidate
+                break
+
+        busiest_val = 0
+        busiest_indices = set()
+        if count_col:
+            for i, row in enumerate(rows):
+                try:
+                    v = int(row.get(count_col, 0))
+                    if v > busiest_val:
+                        busiest_val = v
+                        busiest_indices = {i}
+                    elif v == busiest_val and v > 0:
+                        busiest_indices.add(i)
+                except (ValueError, TypeError):
+                    pass
+
+        headers = _dict_keys_union(rows)
+        ths = "".join(f'<th>{_safe(_humanize_header(h))}</th>' for h in headers)
+        trs = []
+        for i, row in enumerate(rows):
+            is_busiest = i in busiest_indices
+            row_style = f' style="background:#eff6ff;font-weight:600;"' if is_busiest else ""
+            tds = []
+            for h in headers:
+                val = row.get(h, "")
+                cell = _safe(str(val)) if val is not None else ""
+                if is_busiest and h == count_col:
+                    cell = f'<strong style="color:{_BRAND_BLUE_DARK};">{cell}</strong>'
+                tds.append(f'<td>{cell}</td>')
+            trs.append(f'<tr{row_style}>{"".join(tds)}</tr>')
+
+        parts.append(
+            f'<table><thead><tr>{ths}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+        )
+        return "\n".join(parts)
+
+    def _html_body_unit_utilization(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Per-unit utilization with CSS-only progress bars inside table cells."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        rows = _flatten_rows(data)
+        if not rows:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No unit utilization data available.</p>'
+            )
+            return "\n".join(parts)
+
+        parts.append(f'<h2 class="section-title">Unit Utilization</h2>')
+
+        # Detect the utilization/percentage column
+        util_col = None
+        for candidate in ("utilization", "utilization_pct", "percent", "pct", "usage", "busy_pct"):
+            if any(candidate in r for r in rows):
+                util_col = candidate
+                break
+
+        headers = _dict_keys_union(rows)
+        ths = "".join(f'<th>{_safe(_humanize_header(h))}</th>' for h in headers)
+        trs = []
+        for row in rows:
+            tds = []
+            for h in headers:
+                val = row.get(h, "")
+                if h == util_col and val is not None:
+                    # Render as a CSS-only bar
+                    try:
+                        pct = float(str(val).replace("%", "").strip())
+                    except (ValueError, TypeError):
+                        pct = 0
+                    pct = max(0.0, min(100.0, pct))
+                    bar_color = _BRAND_RED if pct >= 85 else (
+                        _BRAND_YELLOW if pct >= 60 else _BRAND_GREEN
+                    )
+                    tds.append(
+                        f'<td style="padding:4px 10px;">'
+                        f'  <div style="display:flex;align-items:center;gap:8px;">'
+                        f'    <div style="flex:1;background:{_GRAY_200};border-radius:4px;height:18px;overflow:hidden;">'
+                        f'      <div style="width:{pct:.1f}%;height:100%;background:{bar_color};'
+                        f'border-radius:4px;transition:width 0.3s;"></div>'
+                        f'    </div>'
+                        f'    <span style="font-size:11px;font-weight:600;min-width:42px;text-align:right;">'
+                        f'{pct:.1f}%</span>'
+                        f'  </div>'
+                        f'</td>'
+                    )
+                else:
+                    cell = _safe(str(val)) if val is not None else ""
+                    tds.append(f'<td>{cell}</td>')
+            trs.append(f'<tr>{"".join(tds)}</tr>')
+
+        parts.append(
+            f'<table><thead><tr>{ths}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+        )
+        return "\n".join(parts)
+
+    def _html_body_response_time_analysis(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Detailed response time table grouped by incident type with colour coding."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        rows = _flatten_rows(data)
+        if not rows:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No response time data available.</p>'
+            )
+            return "\n".join(parts)
+
+        parts.append(f'<h2 class="section-title">Response Time Analysis</h2>')
+
+        # Time columns to colour code
+        time_cols = {
+            "dispatch_time", "enroute_time", "travel_time", "total_response_time",
+            "response_time", "avg_dispatch", "avg_enroute", "avg_travel", "avg_total",
+        }
+        # Group column detection
+        group_col = None
+        for candidate in ("incident_type", "type", "category", "call_type"):
+            if any(candidate in r for r in rows):
+                group_col = candidate
+                break
+
+        # Group rows by incident type
+        grouped: Dict[str, List[Dict]] = {}
+        for row in rows:
+            grp = str(row.get(group_col, "All")) if group_col else "All"
+            grouped.setdefault(grp, []).append(row)
+
+        headers = _dict_keys_union(rows)
+
+        for grp_name, grp_rows in grouped.items():
+            if len(grouped) > 1:
+                parts.append(
+                    f'<h3 style="color:{_GRAY_700};margin:18px 0 8px;font-size:14px;">'
+                    f'{_safe(grp_name)}</h3>'
+                )
+
+            ths = "".join(f'<th>{_safe(_humanize_header(h))}</th>' for h in headers)
+            trs = []
+            for row in grp_rows:
+                tds = []
+                for h in headers:
+                    val = row.get(h, "")
+                    cell = _safe(str(val)) if val is not None else ""
+                    td_style = ""
+                    if h in time_cols and val is not None:
+                        try:
+                            minutes = float(str(val).replace("min", "").replace("m", "").strip())
+                            if minutes < 5:
+                                td_style = f' style="color:{_BRAND_GREEN};font-weight:600;"'
+                            elif minutes <= 8:
+                                td_style = f' style="color:{_BRAND_YELLOW};font-weight:600;"'
+                            else:
+                                td_style = f' style="color:{_BRAND_RED};font-weight:700;"'
+                        except (ValueError, TypeError):
+                            pass
+                    tds.append(f'<td{td_style}>{cell}</td>')
+                trs.append(f'<tr>{"".join(tds)}</tr>')
+
+            # Sub-totals row for group
+            if len(grp_rows) > 1:
+                subtotal_tds = []
+                for h in headers:
+                    if h == headers[0]:
+                        subtotal_tds.append(
+                            f'<td style="font-weight:700;border-top:2px solid {_GRAY_700};">Average</td>'
+                        )
+                    elif h in time_cols:
+                        # Calculate average for time columns
+                        vals = []
+                        for r in grp_rows:
+                            try:
+                                vals.append(float(str(r.get(h, "0")).replace("min", "").replace("m", "").strip()))
+                            except (ValueError, TypeError):
+                                pass
+                        avg = sum(vals) / len(vals) if vals else 0
+                        avg_color = _BRAND_GREEN if avg < 5 else (_BRAND_YELLOW if avg <= 8 else _BRAND_RED)
+                        subtotal_tds.append(
+                            f'<td style="font-weight:700;border-top:2px solid {_GRAY_700};color:{avg_color};">'
+                            f'{avg:.1f}</td>'
+                        )
+                    else:
+                        subtotal_tds.append(
+                            f'<td style="border-top:2px solid {_GRAY_700};"></td>'
+                        )
+                trs.append(f'<tr>{"".join(subtotal_tds)}</tr>')
+
+            parts.append(
+                f'<table><thead><tr>{ths}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+            )
+
+        return "\n".join(parts)
+
+    def _html_body_monthly_summary(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Month-by-month comparison table with totals and trend arrows."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        parts.append(self._html_stat_boxes(stats))
+
+        rows = _flatten_rows(data)
+        if not rows:
+            parts.append(
+                '<p style="text-align:center;color:#6b7280;padding:20px;">'
+                'No monthly summary data available.</p>'
+            )
+            return "\n".join(parts)
+
+        parts.append(f'<h2 class="section-title">Monthly Summary</h2>')
+
+        headers = _dict_keys_union(rows)
+        # Identify numeric columns for totals/averages
+        numeric_cols = set()
+        for h in headers:
+            for row in rows:
+                val = row.get(h)
+                if val is not None:
+                    try:
+                        float(str(val).replace(",", ""))
+                        numeric_cols.add(h)
+                    except (ValueError, TypeError):
+                        pass
+                    break
+
+        # Exclude month/period identifier columns from numeric aggregation
+        label_cols = set()
+        for candidate in ("month", "period", "date", "year", "label"):
+            if candidate in headers:
+                label_cols.add(candidate)
+                numeric_cols.discard(candidate)
+
+        ths = "".join(f'<th>{_safe(_humanize_header(h))}</th>' for h in headers)
+        # Add trend column header
+        ths += '<th style="text-align:center;">Trend</th>'
+
+        trs = []
+        prev_total: Optional[float] = None
+        for row in rows:
+            tds = []
+            row_total = 0.0
+            for h in headers:
+                val = row.get(h, "")
+                cell = _safe(str(val)) if val is not None else ""
+                tds.append(f'<td>{cell}</td>')
+                if h in numeric_cols and val is not None:
+                    try:
+                        row_total += float(str(val).replace(",", ""))
+                    except (ValueError, TypeError):
+                        pass
+
+            # Trend arrow comparing row total to previous row total
+            if prev_total is not None and prev_total != 0:
+                diff_pct = ((row_total - prev_total) / prev_total) * 100
+                if diff_pct > 5:
+                    trend = f'<span style="color:{_BRAND_RED};font-size:14px;font-weight:700;">&#9650; +{diff_pct:.0f}%</span>'
+                elif diff_pct < -5:
+                    trend = f'<span style="color:{_BRAND_GREEN};font-size:14px;font-weight:700;">&#9660; {diff_pct:.0f}%</span>'
+                else:
+                    trend = f'<span style="color:{_GRAY_500};font-size:12px;">&#9644; {diff_pct:+.0f}%</span>'
+            else:
+                trend = '<span style="color:#9ca3af;">--</span>'
+            tds.append(f'<td style="text-align:center;">{trend}</td>')
+            prev_total = row_total
+            trs.append(f'<tr>{"".join(tds)}</tr>')
+
+        # Totals row
+        total_tds = []
+        for h in headers:
+            if h == headers[0]:
+                total_tds.append(
+                    f'<td style="font-weight:700;border-top:2px solid {_GRAY_700};">Total</td>'
+                )
+            elif h in numeric_cols:
+                col_sum = 0.0
+                for row in rows:
+                    try:
+                        col_sum += float(str(row.get(h, "0")).replace(",", ""))
+                    except (ValueError, TypeError):
+                        pass
+                total_tds.append(
+                    f'<td style="font-weight:700;border-top:2px solid {_GRAY_700};">'
+                    f'{col_sum:,.0f}</td>'
+                )
+            else:
+                total_tds.append(f'<td style="border-top:2px solid {_GRAY_700};"></td>')
+        total_tds.append(f'<td style="border-top:2px solid {_GRAY_700};"></td>')
+        trs.append(f'<tr>{"".join(total_tds)}</tr>')
+
+        # Averages row
+        avg_tds = []
+        row_count = len(rows) if rows else 1
+        for h in headers:
+            if h == headers[0]:
+                avg_tds.append(
+                    f'<td style="font-weight:700;color:{_BRAND_BLUE_DARK};">Average</td>'
+                )
+            elif h in numeric_cols:
+                col_sum = 0.0
+                for row in rows:
+                    try:
+                        col_sum += float(str(row.get(h, "0")).replace(",", ""))
+                    except (ValueError, TypeError):
+                        pass
+                avg_val = col_sum / row_count
+                avg_tds.append(
+                    f'<td style="font-weight:700;color:{_BRAND_BLUE_DARK};">'
+                    f'{avg_val:,.1f}</td>'
+                )
+            else:
+                avg_tds.append('<td></td>')
+        avg_tds.append('<td></td>')
+        trs.append(f'<tr>{"".join(avg_tds)}</tr>')
+
+        parts.append(
+            f'<table><thead><tr>{ths}</tr></thead><tbody>{"".join(trs)}</tbody></table>'
+        )
+        return "\n".join(parts)
+
+    # -- Chart + KPI helpers for analytics templates ------------------
+
+    def _chart_img(self, b64: str, title: str = "", narrative: str = "") -> str:
+        """Wrap a base64 chart image in a chart-section div."""
+        if not b64:
+            return ""
+        parts = ['<div class="chart-section">']
+        if title:
+            parts.append(f'<h3>{_safe(title)}</h3>')
+        parts.append(f'<img src="data:image/png;base64,{b64}" alt="{_safe(title)}">')
+        if narrative:
+            parts.append(f'<div class="chart-narrative">{_safe(narrative)}</div>')
+        parts.append('</div>')
+        return "\n".join(parts)
+
+    def _kpi_cards_html(self, stats: Dict, keys: Optional[List] = None,
+                        comparison: Optional[Dict] = None) -> str:
+        """Render a row of branded KPI cards from stats dict."""
+        if not stats:
+            return ""
+        items = keys if keys else list(stats.keys())
+        cards = []
+        for k in items:
+            v = stats.get(k)
+            if v is None or isinstance(v, dict):
+                continue
+            # Format value
+            if isinstance(v, float):
+                display = f"{v:.1f}"
+            else:
+                display = str(v)
+
+            # Units
+            if "pct" in k.lower() or "compliance" in k.lower():
+                display += "%"
+            elif "time" in k.lower() or "response" in k.lower() or "avg" in k.lower():
+                if isinstance(v, (int, float)):
+                    display += " min"
+
+            # Trend arrow
+            trend_html = ""
+            if comparison:
+                delta_key = k.replace("total_", "").replace("avg_", "") + "_delta_pct"
+                # Try common delta naming patterns
+                for try_key in [delta_key, f"incident_delta_pct", f"response_delta_pct"]:
+                    delta = comparison.get(try_key)
+                    if delta is not None:
+                        if delta > 0:
+                            trend_html = f'<div class="kpi-trend up">&#9650; +{delta:.0f}%</div>'
+                        elif delta < 0:
+                            trend_html = f'<div class="kpi-trend down">&#9660; {delta:.0f}%</div>'
+                        else:
+                            trend_html = '<div class="kpi-trend flat">&#9644; 0%</div>'
+                        break
+
+            cards.append(
+                f'<div class="kpi-card">'
+                f'<div class="kpi-value">{_safe(display)}</div>'
+                f'<div class="kpi-label">{_safe(_humanize_header(k))}</div>'
+                f'{trend_html}'
+                f'</div>'
+            )
+        if not cards:
+            return ""
+        return f'<div class="kpi-row">{"".join(cards)}</div>'
+
+    # -- Analytics body builders ----------------------------------------
+
+    def _html_body_executive_summary(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Executive Summary Dashboard: KPI cards + trend + donut + gauge."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        comparison = data.get("comparison") or {}
+        chart_data = data.get("chart_data") or {}
+
+        # KPI cards
+        kpi_keys = ["total_incidents", "avg_response_time", "p90_response_time",
+                     "compliance_pct", "active_units", "issues_found"]
+        parts.append(self._kpi_cards_html(stats, kpi_keys, comparison))
+
+        # Charts
+        if HAS_CHARTS and _charts:
+            # Daily trend line chart
+            dt = chart_data.get("daily_trend", {})
+            if dt.get("labels") and dt.get("values"):
+                b64 = _charts.line_chart(
+                    dt["labels"],
+                    [{"label": "Daily Incidents", "data": dt["values"], "color": _charts.FORD_BLUE}],
+                    title="Incident Trend (Daily)"
+                )
+                parts.append(self._chart_img(b64, "Incident Trend",
+                             f"{sum(dt['values'])} total incidents over {len(dt['labels'])} days"))
+
+            parts.append('<div class="chart-grid">')
+
+            # Incident type donut
+            tb = chart_data.get("type_breakdown", {})
+            if tb.get("labels") and tb.get("values"):
+                b64 = _charts.donut_chart(tb["labels"], tb["values"], "Incident Type Breakdown")
+                parts.append(self._chart_img(b64, "Incident Type Breakdown"))
+
+            # Response time gauge
+            rg = chart_data.get("response_gauge", {})
+            if rg.get("target"):
+                b64 = _charts.gauge_chart(rg["value"], rg["target"],
+                                          "Avg Response Time", " min")
+                parts.append(self._chart_img(b64, "Response Time vs Target"))
+
+            parts.append('</div>')
+
+        # Period comparison table
+        if comparison.get("prev_total_incidents") is not None:
+            parts.append('<h2 class="section-title">Period Comparison</h2>')
+            parts.append('<table>')
+            parts.append('<thead><tr><th>Metric</th><th>Current Period</th>'
+                        '<th>Previous Period</th><th>Change</th></tr></thead><tbody>')
+            rows_data = [
+                ("Total Incidents", stats.get("total_incidents", 0),
+                 comparison.get("prev_total_incidents", 0),
+                 comparison.get("incident_delta_pct", 0)),
+                ("Avg Response Time", f'{stats.get("avg_response_time", 0):.1f} min',
+                 f'{comparison.get("prev_avg_response", 0) or 0:.1f} min',
+                 comparison.get("response_delta_pct", 0)),
+            ]
+            for label, current, prev, delta in rows_data:
+                delta_color = _BRAND_RED if delta > 0 else (_BRAND_GREEN if delta < 0 else _GRAY_500)
+                arrow = "&#9650;" if delta > 0 else ("&#9660;" if delta < 0 else "&#9644;")
+                parts.append(
+                    f'<tr><td>{_safe(label)}</td><td>{_safe(str(current))}</td>'
+                    f'<td>{_safe(str(prev))}</td>'
+                    f'<td style="color:{delta_color};font-weight:700;">'
+                    f'{arrow} {delta:+.1f}%</td></tr>'
+                )
+            parts.append('</tbody></table>')
+
+        return "\n".join(parts)
+
+    def _html_body_response_performance(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Response Performance Analysis: gauge + trend + histogram + heatmap + table."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        chart_data = data.get("chart_data") or {}
+
+        # KPI cards
+        parts.append(self._kpi_cards_html(stats))
+
+        if HAS_CHARTS and _charts:
+            # Compliance gauge
+            cg = chart_data.get("compliance_gauge", {})
+            if cg.get("target"):
+                b64 = _charts.gauge_chart(cg["value"], cg["target"],
+                                          "Response Compliance", "%")
+                parts.append(self._chart_img(b64, "Compliance Rate",
+                             f"{cg['value']:.0f}% of responses meet the {cg['target']}% target"))
+
+            # Daily trend (avg + p90)
+            dt = chart_data.get("daily_trend", {})
+            if dt.get("labels") and dt.get("avg_values"):
+                datasets = [
+                    {"label": "Average", "data": dt["avg_values"], "color": _charts.FORD_BLUE},
+                ]
+                if dt.get("p90_values"):
+                    datasets.append({"label": "90th Percentile", "data": dt["p90_values"],
+                                     "color": _charts.FIRE_RED})
+                b64 = _charts.line_chart(dt["labels"], datasets,
+                                         "Response Time Trend (minutes)")
+                parts.append(self._chart_img(b64, "Response Time Trend"))
+
+            parts.append('<div class="chart-grid">')
+
+            # Distribution histogram
+            dist = chart_data.get("distribution", {})
+            if dist.get("labels") and dist.get("values"):
+                colors = [_charts.GREEN, _charts.GREEN_LIGHT, _charts.AMBER,
+                          _charts.FIRE_RED_LIGHT, _charts.FIRE_RED]
+                b64 = _charts.bar_chart(dist["labels"], dist["values"],
+                                        "Response Time Distribution", colors[:len(dist["labels"])])
+                parts.append(self._chart_img(b64, "Response Time Distribution"))
+
+            # By type
+            bt = chart_data.get("by_type", {})
+            if bt.get("labels") and bt.get("values"):
+                b64 = _charts.bar_chart(bt["labels"], bt["values"],
+                                        "Avg Response by Incident Type")
+                parts.append(self._chart_img(b64, "Response by Incident Type"))
+
+            parts.append('</div>')
+
+            # Heatmap
+            hm = chart_data.get("heatmap", {})
+            if hm.get("data") and hm.get("x_labels"):
+                b64 = _charts.heatmap(hm["data"], hm["x_labels"], hm["y_labels"],
+                                      "Response Time by Hour & Day of Week (minutes)")
+                parts.append(self._chart_img(b64, "Activity Heatmap"))
+
+        # Per-unit table
+        rows = data.get("rows") or []
+        if rows:
+            parts.append('<h2 class="section-title">Per-Unit Response Metrics</h2>')
+            parts.append(self._html_data_table(rows))
+
+        return "\n".join(parts)
+
+    def _html_body_incident_analytics(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Incident Analytics: trend + donut + hourly/DOW bars + hotspots."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        chart_data = data.get("chart_data") or {}
+
+        parts.append(self._kpi_cards_html(stats))
+
+        if HAS_CHARTS and _charts:
+            # Daily trend
+            dt = chart_data.get("daily_trend", {})
+            if dt.get("labels") and dt.get("values"):
+                b64 = _charts.line_chart(
+                    dt["labels"],
+                    [{"label": "Incidents", "data": dt["values"], "color": _charts.FORD_BLUE}],
+                    "Daily Incident Volume"
+                )
+                parts.append(self._chart_img(b64, "Incident Volume Trend"))
+
+            parts.append('<div class="chart-grid">')
+
+            # Type breakdown donut
+            tb = chart_data.get("type_breakdown", {})
+            if tb.get("labels") and tb.get("values"):
+                b64 = _charts.donut_chart(tb["labels"], tb["values"], "Incident Type Breakdown")
+                parts.append(self._chart_img(b64, "Type Breakdown"))
+
+            # Status distribution
+            sd = chart_data.get("status_distribution", {})
+            if sd.get("labels") and sd.get("values"):
+                b64 = _charts.donut_chart(sd["labels"], sd["values"], "Status Distribution")
+                parts.append(self._chart_img(b64, "Status Distribution"))
+
+            parts.append('</div>')
+
+            parts.append('<div class="chart-grid">')
+
+            # Hourly pattern
+            hp = chart_data.get("hourly_pattern", {})
+            if hp.get("labels") and hp.get("values"):
+                b64 = _charts.bar_chart(hp["labels"], hp["values"], "Incidents by Hour of Day")
+                parts.append(self._chart_img(b64, "Hourly Pattern"))
+
+            # Day of week
+            dw = chart_data.get("dow_pattern", {})
+            if dw.get("labels") and dw.get("values"):
+                b64 = _charts.bar_chart(dw["labels"], dw["values"], "Incidents by Day of Week")
+                parts.append(self._chart_img(b64, "Day of Week Pattern"))
+
+            parts.append('</div>')
+
+            # Location hotspots
+            lh = chart_data.get("location_hotspots", {})
+            if lh.get("labels") and lh.get("values"):
+                b64 = _charts.horizontal_bar(lh["labels"], lh["values"],
+                                             "Top 10 Incident Locations", _charts.FIRE_RED)
+                parts.append(self._chart_img(b64, "Location Hotspots"))
+
+        return "\n".join(parts)
+
+    def _html_body_unit_performance(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Unit Performance Dashboard: utilization bars + response comparison + heatmap."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        chart_data = data.get("chart_data") or {}
+
+        parts.append(self._kpi_cards_html(stats))
+
+        if HAS_CHARTS and _charts:
+            # Utilization horizontal bar
+            util = chart_data.get("utilization", {})
+            if util.get("labels") and util.get("values"):
+                b64 = _charts.horizontal_bar(util["labels"], util["values"],
+                                             "Unit Utilization (%)", _charts.FORD_BLUE)
+                parts.append(self._chart_img(b64, "Unit Utilization"))
+
+            parts.append('<div class="chart-grid">')
+
+            # Call volume
+            cv = chart_data.get("call_volume", {})
+            if cv.get("labels") and cv.get("values"):
+                b64 = _charts.bar_chart(cv["labels"], cv["values"], "Calls per Unit")
+                parts.append(self._chart_img(b64, "Call Volume"))
+
+            # Response comparison
+            rc = chart_data.get("response_comparison", {})
+            if rc.get("labels") and rc.get("values"):
+                b64 = _charts.bar_chart(rc["labels"], rc["values"],
+                                        "Avg Response Time per Unit (min)")
+                parts.append(self._chart_img(b64, "Response Time Comparison"))
+
+            parts.append('</div>')
+
+            # Activity heatmap
+            hm = chart_data.get("activity_heatmap", {})
+            if hm.get("data") and hm.get("x_labels"):
+                b64 = _charts.heatmap(hm["data"], hm["x_labels"], hm["y_labels"],
+                                      "Unit Activity by Hour of Day")
+                parts.append(self._chart_img(b64, "Activity Heatmap"))
+
+        # Per-unit table
+        rows = data.get("rows") or []
+        if rows:
+            parts.append('<h2 class="section-title">Unit Detail</h2>')
+            parts.append(self._html_data_table(rows))
+
+        return "\n".join(parts)
+
+    def _html_body_department_overview(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:
+        """Department Overview: multi-section comprehensive report."""
+        parts: List[str] = []
+        stats = data.get("stats") or {}
+        sections = data.get("sections") or {}
+        chart_data = data.get("chart_data") or {}
+        comparison = data.get("comparison") or {}
+        recommendations = data.get("recommendations") or []
+
+        # KPI summary
+        parts.append(self._kpi_cards_html(stats, None, comparison))
+
+        # Section 1: Executive Summary
+        parts.append('<h2 class="section-title">1. Executive Summary</h2>')
+        exec_data = sections.get("executive", {})
+        if exec_data:
+            exec_cd = exec_data.get("chart_data", {})
+            if HAS_CHARTS and _charts:
+                dt = exec_cd.get("daily_trend", {})
+                if dt.get("labels") and dt.get("values"):
+                    b64 = _charts.line_chart(
+                        dt["labels"],
+                        [{"label": "Daily Incidents", "data": dt["values"]}],
+                        "30-Day Incident Trend"
+                    )
+                    parts.append(self._chart_img(b64, "Incident Trend"))
+
+                parts.append('<div class="chart-grid">')
+                tb = exec_cd.get("type_breakdown", {})
+                if tb.get("labels") and tb.get("values"):
+                    b64 = _charts.donut_chart(tb["labels"], tb["values"], "Incident Types")
+                    parts.append(self._chart_img(b64, "Type Breakdown"))
+                rg = exec_cd.get("response_gauge", {})
+                if rg.get("target"):
+                    b64 = _charts.gauge_chart(rg["value"], rg["target"], "Avg Response", " min")
+                    parts.append(self._chart_img(b64, "Response Time"))
+                parts.append('</div>')
+
+        # Section 2: Response Performance
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">2. Response Performance</h2>')
+        resp_data = sections.get("response", {})
+        resp_stats = resp_data.get("stats") or {}
+        if resp_stats:
+            parts.append(self._kpi_cards_html(resp_stats))
+        if HAS_CHARTS and _charts:
+            resp_cd = resp_data.get("chart_data", {})
+            rt = resp_cd.get("daily_trend", {})
+            if rt.get("labels") and rt.get("avg_values"):
+                datasets = [{"label": "Average", "data": rt["avg_values"], "color": _charts.FORD_BLUE}]
+                if rt.get("p90_values"):
+                    datasets.append({"label": "90th Pct", "data": rt["p90_values"], "color": _charts.FIRE_RED})
+                b64 = _charts.line_chart(rt["labels"], datasets, "Response Time Trend")
+                parts.append(self._chart_img(b64, "Response Time Trend"))
+            dist = resp_cd.get("distribution", {})
+            if dist.get("labels") and dist.get("values"):
+                b64 = _charts.bar_chart(dist["labels"], dist["values"], "Response Time Distribution")
+                parts.append(self._chart_img(b64, "Distribution"))
+
+        # Section 3: Incident Analysis
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">3. Incident Analysis</h2>')
+        inc_data = sections.get("incidents", {})
+        inc_stats = inc_data.get("stats") or {}
+        if inc_stats:
+            parts.append(self._kpi_cards_html(inc_stats))
+        if HAS_CHARTS and _charts:
+            inc_cd = inc_data.get("chart_data", {})
+            parts.append('<div class="chart-grid">')
+            hp = inc_cd.get("hourly_pattern", {})
+            if hp.get("labels") and hp.get("values"):
+                b64 = _charts.bar_chart(hp["labels"], hp["values"], "Hourly Pattern")
+                parts.append(self._chart_img(b64, "Hourly Pattern"))
+            dw = inc_cd.get("dow_pattern", {})
+            if dw.get("labels") and dw.get("values"):
+                b64 = _charts.bar_chart(dw["labels"], dw["values"], "Day of Week")
+                parts.append(self._chart_img(b64, "Day of Week"))
+            parts.append('</div>')
+            lh = inc_cd.get("location_hotspots", {})
+            if lh.get("labels") and lh.get("values"):
+                b64 = _charts.horizontal_bar(lh["labels"], lh["values"], "Top Locations", _charts.FIRE_RED)
+                parts.append(self._chart_img(b64, "Location Hotspots"))
+
+        # Section 4: Unit Performance
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">4. Unit Performance</h2>')
+        unit_data = sections.get("units", {})
+        unit_stats = unit_data.get("stats") or {}
+        if unit_stats:
+            parts.append(self._kpi_cards_html(unit_stats))
+        if HAS_CHARTS and _charts:
+            unit_cd = unit_data.get("chart_data", {})
+            util_c = unit_cd.get("utilization", {})
+            if util_c.get("labels") and util_c.get("values"):
+                b64 = _charts.horizontal_bar(util_c["labels"], util_c["values"], "Utilization %")
+                parts.append(self._chart_img(b64, "Unit Utilization"))
+
+        unit_rows = unit_data.get("rows") or []
+        if unit_rows:
+            parts.append(self._html_data_table(unit_rows))
+
+        # Section 5: Personnel Activity
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">5. Personnel Activity</h2>')
+        personnel_data = sections.get("personnel", {})
+        personnel_rows = personnel_data.get("rows") or []
+        if personnel_rows:
+            parts.append(self._html_data_table(personnel_rows[:20]))
+        else:
+            parts.append('<p style="color:#6b7280;text-align:center;padding:16px;">No personnel data available.</p>')
+
+        # Section 6: Issues & Compliance
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">6. Issues &amp; Compliance</h2>')
+        issues_data = sections.get("issues", {})
+        issues_rows = issues_data.get("rows") or []
+        if issues_rows:
+            parts.append(self._html_data_table(issues_rows[:20]))
+        else:
+            parts.append('<p style="color:#16a34a;text-align:center;padding:16px;font-weight:600;">No issues flagged during this period.</p>')
+
+        # Section 7: Recommendations
+        parts.append('<hr class="section-divider">')
+        parts.append('<h2 class="section-title">7. Recommendations</h2>')
+        for rec in recommendations:
+            parts.append(f'<div class="recommendation-box">{_safe(rec)}</div>')
+
         return "\n".join(parts)
 
     def _html_body_generic(self, template_key: str, title: str, data: Dict, filters: Dict) -> str:

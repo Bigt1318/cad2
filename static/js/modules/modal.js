@@ -295,11 +295,19 @@ export const CAD_MODAL = (() => {
         // Lock scroll immediately (prevents “snap after click”)
         _lockScrollStable(true);
 
-        // Fetch + inject HTML (use createContextualFragment to execute inline scripts)
+        // Fetch + inject HTML, then manually execute <script> tags
         const html = await CAD_UTIL.safeFetch(url);
-        _container.innerHTML = "";
-        const frag = document.createRange().createContextualFragment(html);
-        _container.appendChild(frag);
+        _container.innerHTML = html;
+
+        // innerHTML does NOT execute <script> tags — manually clone+replace them
+        _container.querySelectorAll("script").forEach((oldScript) => {
+          const newScript = document.createElement("script");
+          for (const attr of oldScript.attributes) {
+            newScript.setAttribute(attr.name, attr.value);
+          }
+          newScript.textContent = oldScript.textContent;
+          oldScript.parentNode.replaceChild(newScript, oldScript);
+        });
 
         const modal = _container.querySelector(".cad-modal");
         const overlay = _container.querySelector(".cad-modal-overlay");

@@ -84,6 +84,142 @@ BUILTIN_TEMPLATES = [
         "description": "Pass/fail analysis against response time thresholds per incident type.",
         "builtin": True,
     },
+    # --- Shift / Handoff ---
+    {
+        "template_key": "shift_handoff",
+        "name": "Shift Handoff Report",
+        "description": "For incoming shift: open incidents, pending items, recent activity notes.",
+        "builtin": True,
+    },
+    # --- Incident Reports ---
+    {
+        "template_key": "incident_detail",
+        "name": "Incident Detail (NFIRS)",
+        "description": "Full NFIRS-style incident report with units, narrative, timeline, "
+                       "injuries, losses, and fire-specific fields.",
+        "builtin": True,
+    },
+    {
+        "template_key": "open_incidents",
+        "name": "Open / Pending Incidents",
+        "description": "Currently active incidents needing resolution, with unit assignments "
+                       "and age tracking.",
+        "builtin": True,
+    },
+    # --- Unit / Apparatus ---
+    {
+        "template_key": "unit_activity",
+        "name": "Unit Activity Summary",
+        "description": "Call counts and time-on-scene per apparatus for a date range.",
+        "builtin": True,
+    },
+    {
+        "template_key": "unit_utilization",
+        "name": "Unit Utilization Report",
+        "description": "Time dispatched vs available per unit, with utilization percentages.",
+        "builtin": True,
+    },
+    # --- Response Time ---
+    {
+        "template_key": "response_time_analysis",
+        "name": "Response Time Analysis",
+        "description": "Dispatch-to-enroute-to-arrival breakdown per incident, with type "
+                       "comparisons and trend data.",
+        "builtin": True,
+    },
+    # --- Statistical / Management ---
+    {
+        "template_key": "monthly_summary",
+        "name": "Monthly Summary",
+        "description": "Month-by-month totals, trends, and comparisons for management briefings.",
+        "builtin": True,
+    },
+    {
+        "template_key": "personnel_activity",
+        "name": "Personnel Activity",
+        "description": "Incidents and daily log entries per person for a date range.",
+        "builtin": True,
+    },
+    {
+        "template_key": "incident_type_breakdown",
+        "name": "Incident Type Breakdown",
+        "description": "Distribution of incidents by type with counts, percentages, "
+                       "and average response times.",
+        "builtin": True,
+    },
+    {
+        "template_key": "location_hotspot",
+        "name": "Location Hotspot Report",
+        "description": "Identifies locations with the most incidents, sorted by frequency.",
+        "builtin": True,
+    },
+    # --- Special ---
+    {
+        "template_key": "false_alarm",
+        "name": "False Alarm Report",
+        "description": "Track false alarm patterns: frequency, locations, and trends.",
+        "builtin": True,
+    },
+    {
+        "template_key": "mutual_aid",
+        "name": "Mutual Aid Given / Received",
+        "description": "Track external assistance: mutual aid calls given and received.",
+        "builtin": True,
+    },
+    # --- Compliance ---
+    {
+        "template_key": "issue_tracking",
+        "name": "Issue Tracking (OSHA)",
+        "description": "All flagged issues from inspections and incidents for OSHA 1910.156 compliance.",
+        "builtin": True,
+    },
+    {
+        "template_key": "training_log",
+        "name": "Training / Drill Log",
+        "description": "Training hours, drills, exercises, and inspections from the daily log.",
+        "builtin": True,
+    },
+    # --- Analytics Templates ---
+    {
+        "template_key": "executive_summary",
+        "name": "Executive Summary Dashboard",
+        "description": "KPI scorecard with trend charts for leadership. Includes incident "
+                       "trends, type breakdown, response time gauge, and period comparison.",
+        "builtin": True,
+        "category": "analytics",
+    },
+    {
+        "template_key": "response_performance",
+        "name": "Response Performance Analysis",
+        "description": "Response time trends, compliance gauge, distribution histogram, "
+                       "heatmap by hour/day, and per-unit metrics.",
+        "builtin": True,
+        "category": "analytics",
+    },
+    {
+        "template_key": "incident_analytics",
+        "name": "Incident Analytics Report",
+        "description": "Volume trends, type breakdown, hourly patterns, day-of-week analysis, "
+                       "and location hotspot ranking.",
+        "builtin": True,
+        "category": "analytics",
+    },
+    {
+        "template_key": "unit_performance",
+        "name": "Unit Performance Dashboard",
+        "description": "Unit utilization percentages, call volume comparison, response time "
+                       "ranking, and activity heatmap by hour.",
+        "builtin": True,
+        "category": "analytics",
+    },
+    {
+        "template_key": "department_overview",
+        "name": "Department Overview Report",
+        "description": "Comprehensive multi-section report combining executive summary, response "
+                       "performance, incident analysis, unit metrics, personnel, issues, and recommendations.",
+        "builtin": True,
+        "category": "analytics",
+    },
 ]
 
 
@@ -103,6 +239,17 @@ modal_router = APIRouter(tags=["reporting-modals"])
 def _get_user(request: Request) -> str:
     """Extract the acting user from the request (header or session)."""
     return request.headers.get("X-User", "admin")
+
+
+def _is_admin(request: Request) -> bool:
+    """Check if the current session user has admin privileges."""
+    return bool(request.session.get("is_admin") or False)
+
+
+def _require_admin(request: Request):
+    """Raise 403 if the current user is not an admin."""
+    if not _is_admin(request):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
 
 
 def _json_loads_safe(raw: str, fallback: Any = None) -> Any:
@@ -128,9 +275,10 @@ async def reporting_modal(request: Request):
     # Try Jinja2 template rendering first (if the app has templates attached)
     try:
         templates_engine = request.app.state.templates  # type: ignore[attr-defined]
+        is_admin = bool(request.session.get("is_admin") or False)
         return templates_engine.TemplateResponse(
             "modals/reporting_modal.html",
-            {"request": request},
+            {"request": request, "is_admin": is_admin},
         )
     except Exception:
         pass
@@ -346,6 +494,7 @@ async def run_report(request: Request, background_tasks: BackgroundTasks):
         filters["date_end"] = filters.pop("date_to")
 
     # Use the new template-driven engine.run_report()
+    run_id = None
     try:
         engine = get_engine()
         result = engine.run_report(
@@ -373,13 +522,18 @@ async def run_report(request: Request, background_tasks: BackgroundTasks):
             "run_id": run_id,
             "links": links,
             "summary": summary,
+            "message": f"Report completed ({template_key})",
             "status": result.get("status", "completed"),
         }
 
     except Exception as exc:
         error_msg = str(exc)
-        RunRepository.update_status(run_id, "failed", error=error_msg)
-        logger.error("Report run failed: run_id=%d, error=%s", run_id, error_msg, exc_info=True)
+        if run_id:
+            try:
+                RunRepository.update_status(run_id, "failed", error=error_msg)
+            except Exception:
+                pass
+        logger.error("Report run failed: error=%s", error_msg, exc_info=True)
         return {
             "ok": False,
             "run_id": run_id,
@@ -610,7 +764,7 @@ async def list_schedules():
 
 @router.post("/schedule")
 async def create_schedule(request: Request):
-    """Create a new report schedule.
+    """Create a new report schedule (admin only).
 
     Expects JSON body:
     ```json
@@ -626,6 +780,7 @@ async def create_schedule(request: Request):
     }
     ```
     """
+    _require_admin(request)
     data = await request.json()
     user = _get_user(request)
 
@@ -655,17 +810,21 @@ async def create_schedule(request: Request):
         details=f"Created schedule: {name}",
     )
 
+    # Sync with APScheduler
+    get_scheduler().sync_schedule(schedule_id)
+
     logger.info("Schedule created: id=%d, name=%s, user=%s", schedule_id, name, user)
     return {"ok": True, "id": schedule_id}
 
 
 @router.post("/schedule/{schedule_id}/toggle")
 async def toggle_schedule(schedule_id: int, request: Request):
-    """Enable or disable a schedule.
+    """Enable or disable a schedule (admin only).
 
     Expects JSON body: ``{"enabled": true}`` or ``{"enabled": false}``.
     If no body is provided, the schedule's enabled state is flipped.
     """
+    _require_admin(request)
     user = _get_user(request)
     schedule = NewScheduleRepository.get_by_id(schedule_id)
     if not schedule:
@@ -687,25 +846,31 @@ async def toggle_schedule(schedule_id: int, request: Request):
         details=f"Schedule {schedule_id} {'enabled' if enabled else 'disabled'}",
     )
 
+    # Sync with APScheduler
+    get_scheduler().sync_schedule(schedule_id)
+
     logger.info("Schedule %d toggled to %s by %s", schedule_id, enabled, user)
     return {"ok": True, "id": schedule_id, "enabled": enabled}
 
 
 @router.post("/schedule/{schedule_id}/run_now")
 async def run_schedule_now(schedule_id: int, request: Request, background_tasks: BackgroundTasks):
-    """Manually trigger a scheduled report immediately."""
+    """Manually trigger a scheduled report immediately (admin only).
+
+    Uses the v3 scheduler run_now() which calls engine.run_report() + deliver_report().
+    """
+    _require_admin(request)
     user = _get_user(request)
     schedule = NewScheduleRepository.get_by_id(schedule_id)
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found")
 
-    # Run in background
-    engine = get_engine()
+    # Run in background via v3 scheduler
+    scheduler = get_scheduler()
     background_tasks.add_task(
-        engine.send_report,
+        scheduler.run_now,
         schedule_id=schedule_id,
-        triggered_by="manual",
-        triggered_by_user=user,
+        user=user,
     )
 
     AuditRepository.log(
@@ -721,12 +886,15 @@ async def run_schedule_now(schedule_id: int, request: Request, background_tasks:
 
 @router.delete("/schedule/{schedule_id}")
 async def delete_schedule(schedule_id: int, request: Request):
-    """Delete a report schedule."""
+    """Delete a report schedule (admin only)."""
+    _require_admin(request)
     user = _get_user(request)
     schedule = NewScheduleRepository.get_by_id(schedule_id)
     if not schedule:
         raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found")
 
+    # Remove from APScheduler first, then DB
+    get_scheduler().remove_schedule(schedule_id)
     NewScheduleRepository.delete(schedule_id)
 
     AuditRepository.log(
@@ -738,6 +906,115 @@ async def delete_schedule(schedule_id: int, request: Request):
 
     logger.info("Schedule %d deleted by %s", schedule_id, user)
     return {"ok": True, "id": schedule_id}
+
+
+@router.put("/schedule/{schedule_id}")
+async def update_schedule(schedule_id: int, request: Request):
+    """Update a report schedule (admin only).
+
+    Expects JSON body with any subset of schedule fields:
+    ```json
+    {
+        "name": "Updated Name",
+        "template_key": "blotter",
+        "filters": {},
+        "formats": ["pdf"],
+        "delivery": [{"channel": "email", "destination": "admin@example.com"}],
+        "rrule_or_cron": "daily:09:00",
+        "schedule_type": "daily",
+        "enabled": true
+    }
+    ```
+    """
+    _require_admin(request)
+    data = await request.json()
+    user = _get_user(request)
+
+    schedule = NewScheduleRepository.get_by_id(schedule_id)
+    if not schedule:
+        raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found")
+
+    # Update fields that are present in the request
+    if "name" in data:
+        schedule.name = data["name"].strip()
+    if "template_key" in data:
+        schedule.template_key = data["template_key"]
+    if "filters" in data:
+        schedule.filters_json = json.dumps(data["filters"])
+    if "formats" in data:
+        schedule.formats_json = json.dumps(data["formats"])
+    if "delivery" in data:
+        schedule.delivery_json = json.dumps(data["delivery"])
+    if "rrule_or_cron" in data:
+        schedule.rrule_or_cron = data["rrule_or_cron"]
+    if "schedule_type" in data:
+        schedule.schedule_type = data["schedule_type"]
+    if "enabled" in data:
+        schedule.enabled = bool(data["enabled"])
+
+    NewScheduleRepository.update(schedule)
+
+    AuditRepository.log(
+        action="schedule_updated",
+        category="schedules",
+        user_name=user,
+        details=f"Updated schedule {schedule_id}: {schedule.name}",
+    )
+
+    # Sync with APScheduler
+    get_scheduler().sync_schedule(schedule_id)
+
+    logger.info("Schedule %d updated by %s", schedule_id, user)
+    return {"ok": True, "id": schedule_id}
+
+
+# ============================================================================
+# v3 Scheduler control endpoints
+# ============================================================================
+
+@router.get("/scheduler/status")
+async def scheduler_status(request: Request):
+    """Get comprehensive scheduler status (admin only)."""
+    _require_admin(request)
+    scheduler = get_scheduler()
+    return scheduler.get_status()
+
+
+@router.post("/scheduler/start")
+async def scheduler_start(request: Request):
+    """Start the scheduler (admin only)."""
+    _require_admin(request)
+    user = _get_user(request)
+    set_config("scheduler_enabled", True, user=user)
+    scheduler = get_scheduler()
+    success = scheduler.start(user=user)
+    if success:
+        return {"ok": True, "message": "Scheduler started", "status": scheduler.get_status()}
+    return {"ok": False, "error": "Failed to start scheduler"}
+
+
+@router.post("/scheduler/stop")
+async def scheduler_stop(request: Request):
+    """Stop the scheduler (admin only)."""
+    _require_admin(request)
+    user = _get_user(request)
+    scheduler = get_scheduler()
+    success = scheduler.stop(user=user)
+    if success:
+        return {"ok": True, "message": "Scheduler stopped", "status": scheduler.get_status()}
+    return {"ok": False, "error": "Failed to stop scheduler"}
+
+
+@router.post("/scheduler/restart")
+async def scheduler_restart(request: Request):
+    """Restart the scheduler (admin only)."""
+    _require_admin(request)
+    user = _get_user(request)
+    scheduler = get_scheduler()
+    success = scheduler.restart(user=user)
+    if success:
+        return {"ok": True, "message": "Scheduler restarted", "status": scheduler.get_status()}
+    return {"ok": False, "error": "Failed to restart scheduler"}
 
 
 # ============================================================================
@@ -1396,13 +1673,8 @@ def register_reporting_routes(app):
     app.include_router(legacy_router)
     app.include_router(modal_router)
 
-    # Initialize scheduler
+    # Initialize scheduler (v3: scheduler calls engine directly, no callback needed)
     init_scheduler()
-
-    # Wire scheduler -> engine callback
-    scheduler = get_scheduler()
-    engine = get_engine()
-    scheduler.set_report_callback(engine.send_report)
 
     logger.info(
         "Reporting module registered: /api/reporting (new), "

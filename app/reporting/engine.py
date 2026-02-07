@@ -1171,6 +1171,2347 @@ def _extract_custom_template(template_key: str, filters: Dict[str, Any]) -> Dict
 
 
 # ============================================================================
+# Additional template data-extraction functions
+# ============================================================================
+
+def _extract_shift_handoff(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Shift Handoff -- open incidents, recent activity, and pending items for incoming shift."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    # --- Open / active incidents ---------------------------------------------
+    open_incidents = _rows_to_dicts(
+        conn.execute(
+            """
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.status, i.priority, i.created, i.updated, i.shift,
+                   i.narrative, i.final_disposition
+            FROM Incidents i
+            WHERE i.status NOT IN ('CLOSED', 'CANCELLED')
+            ORDER BY i.created ASC
+            """
+        ).fetchall()
+    )
+
+    # --- Recent daily log entries from current shift -------------------------
+    dl_clauses: List[str] = []
+    dl_params: List[Any] = []
+    if filters.get("date_start"):
+        dl_clauses.append("dl.timestamp >= ?")
+        dl_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        dl_clauses.append("dl.timestamp < ?")
+        dl_params.append(filters["date_end"])
+
+    dl_where = " AND ".join(dl_clauses) if dl_clauses else "1=1"
+
+    daily_log = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT dl.id, dl.timestamp, dl.user, dl.incident_id, dl.unit_id,
+                   dl.action, dl.event_type, dl.details, dl.issue_found
+            FROM DailyLog dl
+            WHERE {dl_where}
+            ORDER BY dl.timestamp DESC
+            LIMIT 100
+            """,
+            dl_params,
+        ).fetchall()
+    )
+
+    # --- Unit assignments for open incidents ---------------------------------
+    open_ids = [inc["incident_id"] for inc in open_incidents]
+    ua_map: Dict[int, List[Dict]] = {}
+    if open_ids:
+        placeholders = ",".join("?" * len(open_ids))
+        assignments = _rows_to_dicts(
+            conn.execute(
+                f"""
+                SELECT ua.incident_id, ua.unit_id, ua.assigned, ua.dispatched,
+                       ua.enroute, ua.arrived, ua.cleared, ua.disposition
+                FROM UnitAssignments ua
+                WHERE ua.incident_id IN ({placeholders})
+                ORDER BY ua.dispatched ASC
+                """,
+                open_ids,
+            ).fetchall()
+        )
+        for ua in assignments:
+            ua_map.setdefault(ua["incident_id"], []).append(ua)
+
+    conn.close()
+
+    # Attach unit assignments to open incidents
+    for inc in open_incidents:
+        inc["units"] = ua_map.get(inc["incident_id"], [])
+
+    # --- Pending items: issues flagged + open incidents ----------------------
+    pending_items = []
+    for entry in daily_log:
+        if entry.get("issue_found") == 1:
+            pending_items.append({
+                "source": "daily_log",
+                "id": entry["id"],
+                "timestamp": entry.get("timestamp"),
+                "description": (entry.get("details") or "")[:120],
+            })
+
+    # --- Stats ---------------------------------------------------------------
+    stats = {
+        "open_incidents": len(open_incidents),
+        "pending_items": len(pending_items),
+        "recent_activity_count": len(daily_log),
+    }
+
+    rows: List[Dict[str, Any]] = []
+    for inc in open_incidents:
+        rows.append({
+            "incident_id": inc["incident_id"],
+            "incident_number": inc.get("incident_number"),
+            "type": inc.get("type"),
+            "location": inc.get("location"),
+            "status": inc.get("status"),
+            "priority": inc.get("priority"),
+            "created": inc.get("created"),
+            "units_assigned": len(inc.get("units", [])),
+            "notes": inc.get("narrative", ""),
+        })
+
+    bc_info = BATTALION_CHIEFS.get(shift, {}) if shift else {}
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": f"Shift Handoff Report - {shift or 'All'} Shift",
+            "template_key": "shift_handoff",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+            "battalion_chief": bc_info.get("name", ""),
+        },
+        "incidents": open_incidents,
+        "daily_log": daily_log,
+        "issues_found": pending_items,
+    }
+
+
+def _extract_incident_detail(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Incident Detail -- NFIRS-style full detail for one or more incidents."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    # If a specific incident_id is provided, get just that one
+    if filters.get("incident_id"):
+        incidents = _rows_to_dicts(
+            conn.execute(
+                "SELECT * FROM Incidents WHERE incident_id = ?",
+                (filters["incident_id"],),
+            ).fetchall()
+        )
+    else:
+        # All incidents in date range with FULL detail
+        clauses: List[str] = []
+        params: List[Any] = []
+        if filters.get("date_start"):
+            clauses.append("created >= ?")
+            params.append(filters["date_start"])
+        if filters.get("date_end"):
+            clauses.append("created < ?")
+            params.append(filters["date_end"])
+        if filters.get("shift"):
+            clauses.append("shift = ?")
+            params.append(filters["shift"])
+
+        where = " AND ".join(clauses) if clauses else "1=1"
+
+        incidents = _rows_to_dicts(
+            conn.execute(
+                f"SELECT * FROM Incidents WHERE {where} ORDER BY created ASC",
+                params,
+            ).fetchall()
+        )
+
+    if not incidents:
+        conn.close()
+        return {
+            "rows": [],
+            "stats": {"total_incidents": 0, "total_units_assigned": 0, "total_narratives": 0},
+            "metadata": {
+                "title": "Incident Detail (no incidents found)",
+                "template_key": "incident_detail",
+                "date_range": [start, end],
+                "shift": shift,
+                "generated_at": format_time_for_display(),
+                "timezone": str(get_timezone()),
+            },
+            "incidents": [],
+            "daily_log": [],
+            "issues_found": [],
+        }
+
+    incident_ids = [inc["incident_id"] for inc in incidents]
+    placeholders = ",".join("?" * len(incident_ids))
+
+    # --- Unit Assignments ----------------------------------------------------
+    assignments = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ua.*
+            FROM UnitAssignments ua
+            WHERE ua.incident_id IN ({placeholders})
+            ORDER BY ua.dispatched ASC
+            """,
+            incident_ids,
+        ).fetchall()
+    )
+
+    ua_map: Dict[int, List[Dict]] = {}
+    for ua in assignments:
+        ua_map.setdefault(ua["incident_id"], []).append(ua)
+
+    # --- Narrative entries ----------------------------------------------------
+    narratives = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT n.incident_id, n.timestamp, n.entry_type, n.text,
+                   n.user, n.unit_id
+            FROM Narrative n
+            WHERE n.incident_id IN ({placeholders})
+            ORDER BY n.timestamp ASC
+            """,
+            incident_ids,
+        ).fetchall()
+    )
+
+    narr_map: Dict[int, List[Dict]] = {}
+    for n in narratives:
+        narr_map.setdefault(n["incident_id"], []).append(n)
+
+    # --- IncidentHistory timeline --------------------------------------------
+    timeline = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ih.incident_id, ih.timestamp, ih.user, ih.event_type,
+                   ih.unit_id, ih.details
+            FROM IncidentHistory ih
+            WHERE ih.incident_id IN ({placeholders})
+            ORDER BY ih.timestamp ASC
+            """,
+            incident_ids,
+        ).fetchall()
+    )
+
+    tl_map: Dict[int, List[Dict]] = {}
+    for t in timeline:
+        tl_map.setdefault(t["incident_id"], []).append(t)
+
+    conn.close()
+
+    # --- Assemble full detail rows -------------------------------------------
+    total_units = 0
+    total_narrs = 0
+    issues_found: List[Dict[str, Any]] = []
+    rows: List[Dict[str, Any]] = []
+
+    for inc in incidents:
+        iid = inc["incident_id"]
+        inc["units"] = ua_map.get(iid, [])
+        inc["narrative_entries"] = narr_map.get(iid, [])
+        inc["timeline"] = tl_map.get(iid, [])
+
+        total_units += len(inc["units"])
+        total_narrs += len(inc["narrative_entries"])
+
+        # Calculate response-time metrics per unit
+        for ua in inc["units"]:
+            ua["time_to_dispatch_min"] = _minutes_between(inc.get("created"), ua.get("dispatched"))
+            ua["time_to_arrive_min"] = _minutes_between(ua.get("dispatched"), ua.get("arrived"))
+            ua["total_response_min"] = _minutes_between(inc.get("created"), ua.get("arrived"))
+            ua["on_scene_min"] = _minutes_between(ua.get("arrived"), ua.get("cleared"))
+
+        if inc.get("issue_found") == 1:
+            issues_found.append({
+                "source": "incident",
+                "id": iid,
+                "number": inc.get("incident_number"),
+                "timestamp": inc.get("created"),
+                "description": f"{inc.get('type', '')} at {inc.get('location', '')}",
+            })
+
+        rows.append({
+            **inc,
+            "units_count": len(inc["units"]),
+            "narrative_count": len(inc["narrative_entries"]),
+            "timeline_count": len(inc["timeline"]),
+        })
+
+    stats = {
+        "total_incidents": len(incidents),
+        "total_units_assigned": total_units,
+        "total_narratives": total_narrs,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Incident Detail Report (NFIRS)",
+            "template_key": "incident_detail",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": incidents,
+        "daily_log": [],
+        "issues_found": issues_found,
+    }
+
+
+def _extract_open_incidents(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Open Incidents -- all incidents not CLOSED or CANCELLED with unit assignments."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    incidents = _rows_to_dicts(
+        conn.execute(
+            """
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.status, i.priority, i.created, i.updated, i.shift,
+                   i.final_disposition, i.caller_name, i.narrative
+            FROM Incidents i
+            WHERE i.status NOT IN ('CLOSED', 'CANCELLED')
+            ORDER BY i.created ASC
+            """
+        ).fetchall()
+    )
+
+    # --- Unit assignments for open incidents ---------------------------------
+    incident_ids = [inc["incident_id"] for inc in incidents]
+    ua_map: Dict[int, List[Dict]] = {}
+    if incident_ids:
+        placeholders = ",".join("?" * len(incident_ids))
+        assignments = _rows_to_dicts(
+            conn.execute(
+                f"""
+                SELECT ua.incident_id, ua.unit_id, ua.assigned, ua.dispatched,
+                       ua.enroute, ua.arrived, ua.cleared, ua.disposition
+                FROM UnitAssignments ua
+                WHERE ua.incident_id IN ({placeholders})
+                ORDER BY ua.dispatched ASC
+                """,
+                incident_ids,
+            ).fetchall()
+        )
+        for ua in assignments:
+            ua_map.setdefault(ua["incident_id"], []).append(ua)
+
+    conn.close()
+
+    # --- Build rows ----------------------------------------------------------
+    by_priority: Dict[str, int] = {}
+    by_type: Dict[str, int] = {}
+    oldest_open: Optional[str] = None
+
+    rows: List[Dict[str, Any]] = []
+    for inc in incidents:
+        iid = inc["incident_id"]
+        inc["units"] = ua_map.get(iid, [])
+
+        p = str(inc.get("priority") or "N/A")
+        by_priority[p] = by_priority.get(p, 0) + 1
+
+        t = inc.get("type") or "UNKNOWN"
+        by_type[t] = by_type.get(t, 0) + 1
+
+        if oldest_open is None:
+            oldest_open = inc.get("created")
+
+        rows.append({
+            "incident_id": iid,
+            "incident_number": inc.get("incident_number"),
+            "type": inc.get("type"),
+            "location": inc.get("location"),
+            "status": inc.get("status"),
+            "priority": inc.get("priority"),
+            "created": inc.get("created"),
+            "updated": inc.get("updated"),
+            "units_assigned": len(inc["units"]),
+            "unit_ids": [ua["unit_id"] for ua in inc["units"]],
+        })
+
+    stats = {
+        "total_open": len(incidents),
+        "by_priority": by_priority,
+        "by_type": by_type,
+        "oldest_open": oldest_open,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Open Incidents Report",
+            "template_key": "open_incidents",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_unit_activity(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Unit Activity -- calls/incidents per unit for date range."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    rows_raw = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ua.unit_id, ua.assigned, ua.dispatched, ua.enroute,
+                   ua.arrived, ua.cleared,
+                   i.incident_id, i.type AS incident_type,
+                   i.created AS incident_created
+            FROM UnitAssignments ua
+            JOIN Incidents i ON ua.incident_id = i.incident_id
+            WHERE {where}
+            ORDER BY ua.unit_id, ua.dispatched
+            """,
+            params,
+        ).fetchall()
+    )
+
+    # Fetch unit metadata
+    unit_meta: Dict[str, Dict] = {}
+    for u in _rows_to_dicts(conn.execute("SELECT unit_id, name, unit_type FROM Units").fetchall()):
+        unit_meta[u["unit_id"]] = u
+
+    conn.close()
+
+    # --- Aggregate per unit --------------------------------------------------
+    unit_buckets: Dict[str, List[Dict]] = {}
+    for r in rows_raw:
+        unit_buckets.setdefault(r["unit_id"], []).append(r)
+
+    rows: List[Dict[str, Any]] = []
+    total_responses = 0
+
+    for unit_id in sorted(unit_buckets.keys()):
+        entries = unit_buckets[unit_id]
+        meta = unit_meta.get(unit_id, {})
+
+        on_scene_times = [_minutes_between(e["arrived"], e["cleared"]) for e in entries]
+        time_committed = [_minutes_between(e["assigned"], e["cleared"]) for e in entries]
+
+        total_calls = len(entries)
+        total_responses += total_calls
+
+        total_time = sum(t for t in time_committed if t is not None)
+
+        rows.append({
+            "unit_id": unit_id,
+            "unit_name": meta.get("name", unit_id),
+            "unit_type": meta.get("unit_type", ""),
+            "total_calls": total_calls,
+            "avg_on_scene_time": _safe_avg(on_scene_times),
+            "total_time_committed": round(total_time, 2),
+            "incident_types": {},
+        })
+
+        # Count incident types for this unit
+        for e in entries:
+            itype = e.get("incident_type") or "UNKNOWN"
+            rows[-1]["incident_types"][itype] = rows[-1]["incident_types"].get(itype, 0) + 1
+
+    busiest_unit = max(rows, key=lambda r: r["total_calls"])["unit_id"] if rows else None
+    avg_per_unit = round(total_responses / len(rows), 2) if rows else 0
+
+    stats = {
+        "total_responses": total_responses,
+        "busiest_unit": busiest_unit,
+        "avg_responses_per_unit": avg_per_unit,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Unit Activity Report",
+            "template_key": "unit_activity",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_unit_utilization(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Unit Utilization -- time dispatched vs available per unit."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    rows_raw = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ua.unit_id, ua.assigned, ua.cleared
+            FROM UnitAssignments ua
+            JOIN Incidents i ON ua.incident_id = i.incident_id
+            WHERE {where}
+            ORDER BY ua.unit_id
+            """,
+            params,
+        ).fetchall()
+    )
+
+    # Fetch unit metadata
+    unit_meta: Dict[str, Dict] = {}
+    for u in _rows_to_dicts(conn.execute("SELECT unit_id, name, unit_type FROM Units").fetchall()):
+        unit_meta[u["unit_id"]] = u
+
+    conn.close()
+
+    # --- Calculate total shift window in minutes -----------------------------
+    shift_start = _parse_ts(start)
+    shift_end = _parse_ts(end)
+    total_window_min = ((shift_end - shift_start).total_seconds() / 60.0) if (shift_start and shift_end) else 720.0
+
+    # --- Aggregate per unit --------------------------------------------------
+    unit_buckets: Dict[str, List[Dict]] = {}
+    for r in rows_raw:
+        unit_buckets.setdefault(r["unit_id"], []).append(r)
+
+    rows: List[Dict[str, Any]] = []
+    utilization_pcts: List[float] = []
+
+    for unit_id in sorted(unit_buckets.keys()):
+        entries = unit_buckets[unit_id]
+        meta = unit_meta.get(unit_id, {})
+
+        committed_times = [_minutes_between(e["assigned"], e["cleared"]) for e in entries]
+        total_committed = sum(t for t in committed_times if t is not None)
+        util_pct = round((total_committed / total_window_min) * 100, 2) if total_window_min > 0 else 0
+
+        utilization_pcts.append(util_pct)
+
+        rows.append({
+            "unit_id": unit_id,
+            "unit_name": meta.get("name", unit_id),
+            "unit_type": meta.get("unit_type", ""),
+            "total_committed_min": round(total_committed, 2),
+            "total_available_min": round(total_window_min - total_committed, 2),
+            "utilization_pct": util_pct,
+            "assignment_count": len(entries),
+        })
+
+    most_utilized = max(rows, key=lambda r: r["utilization_pct"])["unit_id"] if rows else None
+    least_utilized = min(rows, key=lambda r: r["utilization_pct"])["unit_id"] if rows else None
+    overall_pct = round(sum(utilization_pcts) / len(utilization_pcts), 2) if utilization_pcts else 0
+
+    stats = {
+        "overall_utilization_pct": overall_pct,
+        "most_utilized_unit": most_utilized,
+        "least_utilized_unit": least_utilized,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Unit Utilization Report",
+            "template_key": "unit_utilization",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_response_time_analysis(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Response Time Analysis -- detailed breakdown of response time components."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+    if filters.get("incident_type"):
+        clauses.append("i.type = ?")
+        params.append(filters["incident_type"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    # For each incident, get the first unit arrival and dispatch details
+    rows_raw = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.priority, i.created, i.shift,
+                   ua.unit_id, ua.dispatched, ua.enroute, ua.arrived, ua.cleared
+            FROM Incidents i
+            JOIN UnitAssignments ua ON ua.incident_id = i.incident_id
+            WHERE {where}
+            ORDER BY i.created ASC, ua.dispatched ASC
+            """,
+            params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    # --- Per-incident first-unit response ------------------------------------
+    # Group by incident and pick the first unit to arrive
+    incident_groups: Dict[int, List[Dict]] = {}
+    incident_info: Dict[int, Dict] = {}
+    for r in rows_raw:
+        iid = r["incident_id"]
+        incident_groups.setdefault(iid, []).append(r)
+        if iid not in incident_info:
+            incident_info[iid] = r
+
+    rows: List[Dict[str, Any]] = []
+    all_totals: List[float] = []
+    by_type_totals: Dict[str, List[float]] = {}
+
+    fastest: Optional[Dict[str, Any]] = None
+    slowest: Optional[Dict[str, Any]] = None
+
+    for iid, units in incident_groups.items():
+        info = incident_info[iid]
+        inc_type = info.get("type") or "UNKNOWN"
+
+        # Find first arrived unit
+        first_unit = None
+        for u in units:
+            if u.get("arrived"):
+                if first_unit is None or u["arrived"] < first_unit["arrived"]:
+                    first_unit = u
+
+        if first_unit is None:
+            first_unit = units[0]
+
+        dispatch_time = _minutes_between(info.get("created"), first_unit.get("dispatched"))
+        enroute_time = _minutes_between(first_unit.get("dispatched"), first_unit.get("enroute"))
+        travel_time = _minutes_between(first_unit.get("enroute"), first_unit.get("arrived"))
+        total_response = _minutes_between(info.get("created"), first_unit.get("arrived"))
+
+        row = {
+            "incident_id": iid,
+            "incident_number": info.get("incident_number"),
+            "type": inc_type,
+            "location": info.get("location"),
+            "priority": info.get("priority"),
+            "created": info.get("created"),
+            "first_unit": first_unit.get("unit_id"),
+            "dispatch_time_min": dispatch_time,
+            "enroute_time_min": enroute_time,
+            "travel_time_min": travel_time,
+            "total_response_min": total_response,
+        }
+        rows.append(row)
+
+        if total_response is not None:
+            all_totals.append(total_response)
+            by_type_totals.setdefault(inc_type, []).append(total_response)
+
+            if fastest is None or total_response < fastest["total_response_min"]:
+                fastest = row
+            if slowest is None or total_response > slowest["total_response_min"]:
+                slowest = row
+
+    by_type_avg: Dict[str, Optional[float]] = {}
+    for itype, vals in by_type_totals.items():
+        by_type_avg[itype] = _safe_avg(vals)
+
+    stats = {
+        "overall_avg": _safe_avg(all_totals),
+        "by_type_avg": by_type_avg,
+        "fastest": {
+            "incident_id": fastest["incident_id"],
+            "response_min": fastest["total_response_min"],
+        } if fastest else None,
+        "slowest": {
+            "incident_id": slowest["incident_id"],
+            "response_min": slowest["total_response_min"],
+        } if slowest else None,
+        "90th_percentile": _safe_percentile(all_totals, 90),
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Response Time Analysis",
+            "template_key": "response_time_analysis",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_monthly_summary(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Monthly Summary -- aggregate monthly totals with month-by-month comparison."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    # Default to last 30 days if shift-based range is too short
+    if start and end:
+        s = _parse_ts(start)
+        e = _parse_ts(end)
+        if s and e and (e - s).days < 2:
+            now = get_local_now()
+            start = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+            end = now.strftime("%Y-%m-%d %H:%M:%S")
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    # --- Incidents in range --------------------------------------------------
+    inc_clauses: List[str] = []
+    inc_params: List[Any] = []
+    if filters.get("date_start"):
+        inc_clauses.append("i.created >= ?")
+        inc_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        inc_clauses.append("i.created < ?")
+        inc_params.append(filters["date_end"])
+
+    inc_where = " AND ".join(inc_clauses) if inc_clauses else "1=1"
+
+    incidents = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.type, i.status, i.priority, i.shift,
+                   i.created, i.closed_at, i.issue_found
+            FROM Incidents i
+            WHERE {inc_where}
+            ORDER BY i.created ASC
+            """,
+            inc_params,
+        ).fetchall()
+    )
+
+    # --- Daily log entries in range ------------------------------------------
+    dl_clauses: List[str] = []
+    dl_params: List[Any] = []
+    if filters.get("date_start"):
+        dl_clauses.append("dl.timestamp >= ?")
+        dl_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        dl_clauses.append("dl.timestamp < ?")
+        dl_params.append(filters["date_end"])
+
+    dl_where = " AND ".join(dl_clauses) if dl_clauses else "1=1"
+
+    daily_log = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT dl.id, dl.timestamp, dl.user, dl.event_type,
+                   dl.action, dl.issue_found
+            FROM DailyLog dl
+            WHERE {dl_where}
+            ORDER BY dl.timestamp ASC
+            """,
+            dl_params,
+        ).fetchall()
+    )
+
+    # --- Prior period for comparison -----------------------------------------
+    prior_count = 0
+    s_dt = _parse_ts(start)
+    e_dt = _parse_ts(end)
+    if s_dt and e_dt:
+        delta = e_dt - s_dt
+        prior_start = (s_dt - delta).strftime("%Y-%m-%d %H:%M:%S")
+        prior_end = s_dt.strftime("%Y-%m-%d %H:%M:%S")
+        row = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM Incidents WHERE created >= ? AND created < ?",
+            (prior_start, prior_end),
+        ).fetchone()
+        prior_count = row["cnt"] if row else 0
+
+    conn.close()
+
+    # --- Group by month (YYYY-MM) --------------------------------------------
+    month_incidents: Dict[str, List[Dict]] = {}
+    for inc in incidents:
+        ts = _parse_ts(inc.get("created"))
+        month_key = ts.strftime("%Y-%m") if ts else "unknown"
+        month_incidents.setdefault(month_key, []).append(inc)
+
+    month_logs: Dict[str, int] = {}
+    for dl in daily_log:
+        ts = _parse_ts(dl.get("timestamp"))
+        month_key = ts.strftime("%Y-%m") if ts else "unknown"
+        month_logs[month_key] = month_logs.get(month_key, 0) + 1
+
+    all_months = sorted(set(list(month_incidents.keys()) + list(month_logs.keys())))
+
+    rows: List[Dict[str, Any]] = []
+    for month in all_months:
+        m_incs = month_incidents.get(month, [])
+        by_type: Dict[str, int] = {}
+        by_shift: Dict[str, int] = {}
+        for inc in m_incs:
+            t = inc.get("type") or "UNKNOWN"
+            by_type[t] = by_type.get(t, 0) + 1
+            s = inc.get("shift") or "UNKNOWN"
+            by_shift[s] = by_shift.get(s, 0) + 1
+
+        rows.append({
+            "month": month,
+            "incident_count": len(m_incs),
+            "daily_log_count": month_logs.get(month, 0),
+            "by_type": by_type,
+            "by_shift": by_shift,
+        })
+
+    # --- Daily counts for busiest day ----------------------------------------
+    day_counts: Dict[str, int] = {}
+    for inc in incidents:
+        ts = _parse_ts(inc.get("created"))
+        if ts:
+            day_key = ts.strftime("%Y-%m-%d")
+            day_counts[day_key] = day_counts.get(day_key, 0) + 1
+
+    busiest_day = max(day_counts, key=day_counts.get) if day_counts else None
+    num_days = len(day_counts) if day_counts else 1
+
+    stats = {
+        "total_incidents": len(incidents),
+        "total_logs": len(daily_log),
+        "avg_per_day": round(len(incidents) / num_days, 2) if num_days > 0 else 0,
+        "busiest_day": busiest_day,
+        "comparison_to_prior": {
+            "current": len(incidents),
+            "prior": prior_count,
+            "change_pct": round(((len(incidents) - prior_count) / prior_count) * 100, 1) if prior_count > 0 else None,
+        },
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Monthly Summary Report",
+            "template_key": "monthly_summary",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": incidents,
+        "daily_log": daily_log,
+        "issues_found": [],
+    }
+
+
+def _extract_personnel_activity(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Personnel Activity -- activity per person from DailyLog and IncidentHistory."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    # --- DailyLog per user ---------------------------------------------------
+    dl_clauses: List[str] = []
+    dl_params: List[Any] = []
+    if filters.get("date_start"):
+        dl_clauses.append("dl.timestamp >= ?")
+        dl_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        dl_clauses.append("dl.timestamp < ?")
+        dl_params.append(filters["date_end"])
+
+    dl_where = " AND ".join(dl_clauses) if dl_clauses else "1=1"
+
+    dl_rows = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT dl.user, COUNT(*) AS entry_count
+            FROM DailyLog dl
+            WHERE {dl_where} AND dl.user IS NOT NULL AND dl.user != ''
+            GROUP BY dl.user
+            ORDER BY entry_count DESC
+            """,
+            dl_params,
+        ).fetchall()
+    )
+
+    # --- IncidentHistory per user --------------------------------------------
+    ih_clauses: List[str] = []
+    ih_params: List[Any] = []
+    if filters.get("date_start"):
+        ih_clauses.append("ih.timestamp >= ?")
+        ih_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        ih_clauses.append("ih.timestamp < ?")
+        ih_params.append(filters["date_end"])
+
+    ih_where = " AND ".join(ih_clauses) if ih_clauses else "1=1"
+
+    ih_rows = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT ih.user, COUNT(*) AS event_count,
+                   COUNT(DISTINCT ih.incident_id) AS incidents_touched
+            FROM IncidentHistory ih
+            WHERE {ih_where} AND ih.user IS NOT NULL AND ih.user != ''
+            GROUP BY ih.user
+            ORDER BY event_count DESC
+            """,
+            ih_params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    # --- Merge per person ----------------------------------------------------
+    dl_map = {r["user"]: r for r in dl_rows}
+    ih_map = {r["user"]: r for r in ih_rows}
+
+    all_users = sorted(set(list(dl_map.keys()) + list(ih_map.keys())))
+
+    rows: List[Dict[str, Any]] = []
+    total_entries = 0
+    for user in all_users:
+        dl_info = dl_map.get(user, {})
+        ih_info = ih_map.get(user, {})
+
+        dl_count = dl_info.get("entry_count", 0)
+        ih_count = ih_info.get("event_count", 0)
+        incidents_touched = ih_info.get("incidents_touched", 0)
+        combined = dl_count + ih_count
+        total_entries += combined
+
+        rows.append({
+            "user": user,
+            "daily_log_entries": dl_count,
+            "incident_history_events": ih_count,
+            "incidents_touched": incidents_touched,
+            "total_activity": combined,
+        })
+
+    # Sort by total_activity descending
+    rows.sort(key=lambda r: r["total_activity"], reverse=True)
+
+    most_active = rows[0]["user"] if rows else None
+    avg_entries = round(total_entries / len(rows), 2) if rows else 0
+
+    stats = {
+        "total_personnel": len(rows),
+        "most_active": most_active,
+        "avg_entries_per_person": avg_entries,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Personnel Activity Report",
+            "template_key": "personnel_activity",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_incident_type_breakdown(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Incident Type Breakdown -- incidents grouped by type with percentages."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    incidents = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.type, i.created, i.status, i.priority
+            FROM Incidents i
+            WHERE {where}
+            ORDER BY i.created ASC
+            """,
+            params,
+        ).fetchall()
+    )
+
+    # --- Average response time per type (first unit arrived) -----------------
+    response_rows = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.type,
+                   i.created AS incident_created,
+                   MIN(ua.arrived) AS first_arrival
+            FROM Incidents i
+            JOIN UnitAssignments ua ON ua.incident_id = i.incident_id
+                AND ua.arrived IS NOT NULL
+            WHERE {where}
+            GROUP BY i.incident_id
+            """,
+            params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    # Build response time map by type
+    type_response_times: Dict[str, List[float]] = {}
+    for r in response_rows:
+        itype = r.get("type") or "UNKNOWN"
+        resp = _minutes_between(r.get("incident_created"), r.get("first_arrival"))
+        if resp is not None:
+            type_response_times.setdefault(itype, []).append(resp)
+
+    # --- Group by type -------------------------------------------------------
+    type_counts: Dict[str, int] = {}
+    for inc in incidents:
+        t = inc.get("type") or "UNKNOWN"
+        type_counts[t] = type_counts.get(t, 0) + 1
+
+    total = len(incidents)
+    most_common = max(type_counts, key=type_counts.get) if type_counts else None
+
+    rows: List[Dict[str, Any]] = []
+    for itype in sorted(type_counts.keys(), key=lambda k: type_counts[k], reverse=True):
+        count = type_counts[itype]
+        pct = round((count / total) * 100, 1) if total > 0 else 0
+        avg_resp = _safe_avg(type_response_times.get(itype, []))
+
+        rows.append({
+            "type": itype,
+            "count": count,
+            "percentage": pct,
+            "avg_response_time_min": avg_resp,
+        })
+
+    stats = {
+        "total_incidents": total,
+        "most_common_type": most_common,
+        "unique_types": len(type_counts),
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Incident Type Breakdown",
+            "template_key": "incident_type_breakdown",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_location_hotspot(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Location Hotspot -- incidents grouped by location/address, sorted desc."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    location_rows = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT COALESCE(i.location, i.address, 'UNKNOWN') AS location,
+                   COUNT(*) AS incident_count,
+                   GROUP_CONCAT(DISTINCT i.type) AS types
+            FROM Incidents i
+            WHERE {where}
+            GROUP BY COALESCE(i.location, i.address, 'UNKNOWN')
+            ORDER BY incident_count DESC
+            """,
+            params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    rows: List[Dict[str, Any]] = []
+    total_locations = len(location_rows)
+    total_incidents = sum(r["incident_count"] for r in location_rows)
+
+    for r in location_rows:
+        rows.append({
+            "location": r["location"],
+            "incident_count": r["incident_count"],
+            "types": r.get("types", ""),
+            "percentage": round((r["incident_count"] / total_incidents) * 100, 1) if total_incidents > 0 else 0,
+        })
+
+    hotspot = rows[0]["location"] if rows else None
+    avg_per_location = round(total_incidents / total_locations, 2) if total_locations > 0 else 0
+
+    stats = {
+        "total_locations": total_locations,
+        "hotspot_location": hotspot,
+        "avg_per_location": avg_per_location,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Location Hotspot Report",
+            "template_key": "location_hotspot",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_false_alarm(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """False Alarm -- incidents flagged as false alarms or cancelled."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    # False alarms: type contains 'FALSE ALARM' or 'FA', or disposition like '%false%' or '%cancel%'
+    false_alarm_incidents = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.status, i.priority, i.created, i.final_disposition,
+                   i.shift, i.caller_name
+            FROM Incidents i
+            WHERE {where}
+              AND (
+                  i.type LIKE '%FALSE ALARM%'
+                  OR i.type LIKE '%FA%'
+                  OR i.final_disposition LIKE '%false%'
+                  OR i.final_disposition LIKE '%cancel%'
+              )
+            ORDER BY i.created ASC
+            """,
+            params,
+        ).fetchall()
+    )
+
+    # Get total incidents for percentage calculation
+    total_row = conn.execute(
+        f"SELECT COUNT(*) AS cnt FROM Incidents i WHERE {where}",
+        params,
+    ).fetchone()
+    total_incidents = total_row["cnt"] if total_row else 0
+
+    conn.close()
+
+    # --- Group by location for most common -----------------------------------
+    location_counts: Dict[str, int] = {}
+    for inc in false_alarm_incidents:
+        loc = inc.get("location") or "UNKNOWN"
+        location_counts[loc] = location_counts.get(loc, 0) + 1
+
+    most_common_location = max(location_counts, key=location_counts.get) if location_counts else None
+
+    rows: List[Dict[str, Any]] = []
+    for inc in false_alarm_incidents:
+        rows.append({
+            "incident_id": inc["incident_id"],
+            "incident_number": inc.get("incident_number"),
+            "type": inc.get("type"),
+            "location": inc.get("location"),
+            "status": inc.get("status"),
+            "created": inc.get("created"),
+            "final_disposition": inc.get("final_disposition"),
+        })
+
+    fa_count = len(false_alarm_incidents)
+    pct = round((fa_count / total_incidents) * 100, 1) if total_incidents > 0 else 0
+
+    stats = {
+        "total_false_alarms": fa_count,
+        "pct_of_total": pct,
+        "most_common_location": most_common_location,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "False Alarm Report",
+            "template_key": "false_alarm",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": false_alarm_incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_mutual_aid(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Mutual Aid -- incidents with aid given/received and mutual aid units."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    clauses: List[str] = []
+    params: List[Any] = []
+    if filters.get("date_start"):
+        clauses.append("i.created >= ?")
+        params.append(filters["date_start"])
+    if filters.get("date_end"):
+        clauses.append("i.created < ?")
+        params.append(filters["date_end"])
+    if filters.get("shift"):
+        clauses.append("i.shift = ?")
+        params.append(filters["shift"])
+
+    where = " AND ".join(clauses) if clauses else "1=1"
+
+    # Incidents with aid_given_received set
+    ma_incidents = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.status, i.priority, i.created, i.aid_given_received,
+                   i.shift, i.final_disposition
+            FROM Incidents i
+            WHERE {where}
+              AND i.aid_given_received IS NOT NULL
+              AND i.aid_given_received != ''
+            ORDER BY i.created ASC
+            """,
+            params,
+        ).fetchall()
+    )
+
+    # Units flagged as mutual aid
+    ma_units = _rows_to_dicts(
+        conn.execute(
+            "SELECT unit_id, name, unit_type FROM Units WHERE is_mutual_aid = 1"
+        ).fetchall()
+    )
+
+    # Unit assignments from mutual aid units in date range
+    ma_unit_ids = [u["unit_id"] for u in ma_units]
+    ma_unit_assignments: List[Dict] = []
+    if ma_unit_ids:
+        ph = ",".join("?" * len(ma_unit_ids))
+        ma_unit_assignments = _rows_to_dicts(
+            conn.execute(
+                f"""
+                SELECT ua.unit_id, ua.incident_id, ua.dispatched, ua.arrived, ua.cleared,
+                       i.type AS incident_type, i.location, i.created AS incident_created
+                FROM UnitAssignments ua
+                JOIN Incidents i ON ua.incident_id = i.incident_id
+                WHERE ua.unit_id IN ({ph}) AND {where}
+                ORDER BY ua.dispatched ASC
+                """,
+                ma_unit_ids + params,
+            ).fetchall()
+        )
+
+    conn.close()
+
+    # --- Classify given vs received ------------------------------------------
+    given_count = 0
+    received_count = 0
+    for inc in ma_incidents:
+        aid = (inc.get("aid_given_received") or "").upper()
+        if "GIVEN" in aid:
+            given_count += 1
+        elif "RECEIVED" in aid or "RECV" in aid:
+            received_count += 1
+
+    rows: List[Dict[str, Any]] = []
+    for inc in ma_incidents:
+        rows.append({
+            "incident_id": inc["incident_id"],
+            "incident_number": inc.get("incident_number"),
+            "type": inc.get("type"),
+            "location": inc.get("location"),
+            "status": inc.get("status"),
+            "created": inc.get("created"),
+            "aid_given_received": inc.get("aid_given_received"),
+        })
+
+    # Add mutual aid unit assignments as additional rows
+    for ua in ma_unit_assignments:
+        rows.append({
+            "incident_id": ua.get("incident_id"),
+            "unit_id": ua.get("unit_id"),
+            "type": ua.get("incident_type"),
+            "location": ua.get("location"),
+            "dispatched": ua.get("dispatched"),
+            "arrived": ua.get("arrived"),
+            "cleared": ua.get("cleared"),
+            "aid_given_received": "MUTUAL_AID_UNIT",
+        })
+
+    stats = {
+        "total_mutual_aid": len(ma_incidents) + len(ma_unit_assignments),
+        "given_count": given_count,
+        "received_count": received_count,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Mutual Aid Report",
+            "template_key": "mutual_aid",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": ma_incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_issue_tracking(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Issue Tracking -- all items with issue_found=1 from DailyLog and Incidents."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    # --- DailyLog issues -----------------------------------------------------
+    dl_clauses: List[str] = []
+    dl_params: List[Any] = []
+    if filters.get("date_start"):
+        dl_clauses.append("dl.timestamp >= ?")
+        dl_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        dl_clauses.append("dl.timestamp < ?")
+        dl_params.append(filters["date_end"])
+
+    dl_where = " AND ".join(dl_clauses) if dl_clauses else "1=1"
+
+    dl_issues = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT dl.id, dl.timestamp, dl.user, dl.incident_id, dl.unit_id,
+                   dl.action, dl.event_type, dl.details, dl.issue_found
+            FROM DailyLog dl
+            WHERE {dl_where} AND dl.issue_found = 1
+            ORDER BY dl.timestamp ASC
+            """,
+            dl_params,
+        ).fetchall()
+    )
+
+    # --- Incident issues -----------------------------------------------------
+    inc_clauses: List[str] = []
+    inc_params: List[Any] = []
+    if filters.get("date_start"):
+        inc_clauses.append("i.created >= ?")
+        inc_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        inc_clauses.append("i.created < ?")
+        inc_params.append(filters["date_end"])
+    if filters.get("shift"):
+        inc_clauses.append("i.shift = ?")
+        inc_params.append(filters["shift"])
+
+    inc_where = " AND ".join(inc_clauses) if inc_clauses else "1=1"
+
+    inc_issues = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT i.incident_id, i.incident_number, i.type, i.location,
+                   i.status, i.priority, i.created, i.final_disposition,
+                   i.issue_found, i.issue_flag
+            FROM Incidents i
+            WHERE {inc_where} AND i.issue_found = 1
+            ORDER BY i.created ASC
+            """,
+            inc_params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    # --- Build combined rows and issues_found --------------------------------
+    rows: List[Dict[str, Any]] = []
+    issues_found: List[Dict[str, Any]] = []
+    by_type: Dict[str, int] = {}
+
+    for entry in dl_issues:
+        source_type = entry.get("event_type") or "daily_log"
+        by_type[source_type] = by_type.get(source_type, 0) + 1
+
+        rows.append({
+            "source": "daily_log",
+            "id": entry["id"],
+            "timestamp": entry.get("timestamp"),
+            "user": entry.get("user"),
+            "event_type": entry.get("event_type"),
+            "description": (entry.get("details") or "")[:200],
+            "status": "flagged",
+        })
+        issues_found.append({
+            "source": "daily_log",
+            "id": entry["id"],
+            "timestamp": entry.get("timestamp"),
+            "description": (entry.get("details") or "")[:120],
+        })
+
+    resolved_count = 0
+    for inc in inc_issues:
+        source_type = inc.get("type") or "incident"
+        by_type[source_type] = by_type.get(source_type, 0) + 1
+
+        is_resolved = inc.get("status") in ("CLOSED", "CANCELLED")
+        if is_resolved:
+            resolved_count += 1
+
+        rows.append({
+            "source": "incident",
+            "id": inc["incident_id"],
+            "incident_number": inc.get("incident_number"),
+            "timestamp": inc.get("created"),
+            "type": inc.get("type"),
+            "location": inc.get("location"),
+            "description": f"{inc.get('type', '')} at {inc.get('location', '')}",
+            "status": "resolved" if is_resolved else "open",
+        })
+        issues_found.append({
+            "source": "incident",
+            "id": inc["incident_id"],
+            "number": inc.get("incident_number"),
+            "timestamp": inc.get("created"),
+            "description": f"{inc.get('type', '')} at {inc.get('location', '')}",
+        })
+
+    total_issues = len(rows)
+
+    stats = {
+        "total_issues": total_issues,
+        "resolved": resolved_count,
+        "unresolved": total_issues - resolved_count,
+        "by_type": by_type,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Issue Tracking Report",
+            "template_key": "issue_tracking",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": inc_issues,
+        "daily_log": dl_issues,
+        "issues_found": issues_found,
+    }
+
+
+def _extract_training_log(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Training Log -- DailyLog entries related to training, drills, exercises, inspections."""
+
+    start, end, shift = _resolve_shift_range(
+        filters.get("date_start"), filters.get("date_end"), filters.get("shift")
+    )
+    filters = {**filters, "date_start": start, "date_end": end, "shift": shift}
+
+    conn = _get_conn()
+
+    dl_clauses: List[str] = []
+    dl_params: List[Any] = []
+    if filters.get("date_start"):
+        dl_clauses.append("dl.timestamp >= ?")
+        dl_params.append(filters["date_start"])
+    if filters.get("date_end"):
+        dl_clauses.append("dl.timestamp < ?")
+        dl_params.append(filters["date_end"])
+
+    dl_where = " AND ".join(dl_clauses) if dl_clauses else "1=1"
+
+    training_entries = _rows_to_dicts(
+        conn.execute(
+            f"""
+            SELECT dl.id, dl.timestamp, dl.user, dl.incident_id, dl.unit_id,
+                   dl.action, dl.event_type, dl.details, dl.issue_found
+            FROM DailyLog dl
+            WHERE {dl_where}
+              AND (
+                  dl.event_type IN ('TRAINING', 'DRILL', 'EXERCISE', 'INSPECTION')
+                  OR dl.action LIKE '%train%'
+                  OR dl.action LIKE '%drill%'
+              )
+            ORDER BY dl.timestamp ASC
+            """,
+            dl_params,
+        ).fetchall()
+    )
+
+    conn.close()
+
+    # --- Build rows and stats ------------------------------------------------
+    by_type: Dict[str, int] = {}
+    participants: set = set()
+
+    rows: List[Dict[str, Any]] = []
+    for entry in training_entries:
+        etype = entry.get("event_type") or entry.get("action") or "TRAINING"
+        by_type[etype] = by_type.get(etype, 0) + 1
+
+        user = entry.get("user")
+        if user:
+            participants.add(user)
+
+        rows.append({
+            "id": entry["id"],
+            "timestamp": entry.get("timestamp"),
+            "user": user,
+            "unit_id": entry.get("unit_id"),
+            "event_type": etype,
+            "action": entry.get("action"),
+            "details": entry.get("details"),
+        })
+
+    stats = {
+        "total_sessions": len(training_entries),
+        "total_participants": len(participants),
+        "by_type": by_type,
+    }
+
+    return {
+        "rows": rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Training Log Report",
+            "template_key": "training_log",
+            "date_range": [start, end],
+            "shift": shift,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "incidents": [],
+        "daily_log": training_entries,
+        "issues_found": [],
+    }
+
+
+# ============================================================================
+# Analytics Report Extractors
+# ============================================================================
+
+def _extract_executive_summary(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Executive Summary Dashboard -- KPIs, trends, and breakdown for leadership."""
+
+    start = filters.get("date_start")
+    end = filters.get("date_end")
+
+    # Default to last 30 days if no range provided
+    now = get_local_now()
+    if not start or not end:
+        end_dt = now
+        start_dt = now - timedelta(days=30)
+        start = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = _get_conn()
+
+    # --- Incidents ---------------------------------------------------------
+    incidents = _rows_to_dicts(conn.execute(
+        """SELECT i.incident_id, i.type, i.status, i.priority, i.created,
+                  i.closed_at, i.shift, i.issue_found, i.final_disposition
+           FROM Incidents i WHERE i.created >= ? AND i.created < ?
+           ORDER BY i.created""",
+        (start, end),
+    ).fetchall())
+
+    # --- Unit assignments for response times --------------------------------
+    ua_rows = _rows_to_dicts(conn.execute(
+        """SELECT ua.unit_id, ua.dispatched, ua.enroute, ua.arrived, ua.cleared,
+                  i.created AS incident_created, i.incident_id
+           FROM UnitAssignments ua
+           JOIN Incidents i ON ua.incident_id = i.incident_id
+           WHERE i.created >= ? AND i.created < ?""",
+        (start, end),
+    ).fetchall())
+
+    # --- Previous period for comparison ------------------------------------
+    start_dt_obj = _parse_ts(start) or now - timedelta(days=30)
+    end_dt_obj = _parse_ts(end) or now
+    period_days = (end_dt_obj - start_dt_obj).days or 30
+    prev_start = (start_dt_obj - timedelta(days=period_days)).strftime("%Y-%m-%d %H:%M:%S")
+    prev_end = start_dt_obj.strftime("%Y-%m-%d %H:%M:%S")
+
+    prev_incidents = _rows_to_dicts(conn.execute(
+        """SELECT i.incident_id, i.type, i.created
+           FROM Incidents i WHERE i.created >= ? AND i.created < ?""",
+        (prev_start, prev_end),
+    ).fetchall())
+
+    prev_ua = _rows_to_dicts(conn.execute(
+        """SELECT ua.unit_id, i.created AS incident_created, ua.arrived
+           FROM UnitAssignments ua
+           JOIN Incidents i ON ua.incident_id = i.incident_id
+           WHERE i.created >= ? AND i.created < ?""",
+        (prev_start, prev_end),
+    ).fetchall())
+
+    # --- Active units count ------------------------------------------------
+    active_units = conn.execute(
+        """SELECT COUNT(DISTINCT ua.unit_id) FROM UnitAssignments ua
+           JOIN Incidents i ON ua.incident_id = i.incident_id
+           WHERE i.created >= ? AND i.created < ?""",
+        (start, end),
+    ).fetchone()[0]
+
+    conn.close()
+
+    # --- Compute KPIs ------------------------------------------------------
+    total_incidents = len(incidents)
+    response_times = [_minutes_between(r["incident_created"], r["arrived"])
+                      for r in ua_rows]
+    response_times_clean = [t for t in response_times if t is not None]
+    avg_response = _safe_avg(response_times_clean)
+    p90_response = _safe_percentile(response_times_clean, 90)
+    target_minutes = 6.0
+    compliant_count = sum(1 for t in response_times_clean if t <= target_minutes)
+    compliance_pct = round(compliant_count / len(response_times_clean) * 100, 1) if response_times_clean else 0
+    issues_count = sum(1 for i in incidents if i.get("issue_found") == 1)
+
+    # Previous period KPIs
+    prev_total = len(prev_incidents)
+    prev_rt = [_minutes_between(r["incident_created"], r["arrived"]) for r in prev_ua]
+    prev_rt_clean = [t for t in prev_rt if t is not None]
+    prev_avg_response = _safe_avg(prev_rt_clean)
+
+    # Deltas
+    inc_delta_pct = round((total_incidents - prev_total) / max(prev_total, 1) * 100, 1)
+    rt_delta_pct = round((avg_response - (prev_avg_response or 0)) / max(prev_avg_response or 1, 0.01) * 100, 1) if avg_response else 0
+
+    # --- Daily trend (incidents per day) -----------------------------------
+    daily_counts: Dict[str, int] = {}
+    for inc in incidents:
+        ts = _parse_ts(inc.get("created"))
+        if ts:
+            day_key = ts.strftime("%Y-%m-%d")
+            daily_counts[day_key] = daily_counts.get(day_key, 0) + 1
+
+    # Fill in zero days
+    day_labels = []
+    day_values = []
+    cur = start_dt_obj
+    while cur < end_dt_obj:
+        dk = cur.strftime("%Y-%m-%d")
+        day_labels.append(cur.strftime("%m/%d"))
+        day_values.append(daily_counts.get(dk, 0))
+        cur += timedelta(days=1)
+
+    # --- Incident type breakdown -------------------------------------------
+    type_counts: Dict[str, int] = {}
+    for inc in incidents:
+        t = inc.get("type") or "Other"
+        type_counts[t] = type_counts.get(t, 0) + 1
+    type_labels = list(type_counts.keys())
+    type_values = list(type_counts.values())
+
+    # --- Disposition breakdown ---------------------------------------------
+    disp_counts: Dict[str, int] = {}
+    for inc in incidents:
+        d = inc.get("final_disposition") or "N/A"
+        disp_counts[d] = disp_counts.get(d, 0) + 1
+
+    stats = {
+        "total_incidents": total_incidents,
+        "avg_response_time": avg_response,
+        "p90_response_time": p90_response,
+        "compliance_pct": compliance_pct,
+        "active_units": active_units,
+        "issues_found": issues_count,
+    }
+
+    return {
+        "rows": incidents,
+        "stats": stats,
+        "metadata": {
+            "title": "Executive Summary Dashboard",
+            "template_key": "executive_summary",
+            "date_range": [start, end],
+            "shift": None,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "chart_data": {
+            "daily_trend": {
+                "labels": day_labels,
+                "values": day_values,
+            },
+            "type_breakdown": {
+                "labels": type_labels,
+                "values": type_values,
+            },
+            "response_gauge": {
+                "value": avg_response or 0,
+                "target": target_minutes,
+            },
+            "disposition_breakdown": {
+                "labels": list(disp_counts.keys()),
+                "values": list(disp_counts.values()),
+            },
+        },
+        "comparison": {
+            "prev_total_incidents": prev_total,
+            "incident_delta_pct": inc_delta_pct,
+            "prev_avg_response": prev_avg_response,
+            "response_delta_pct": rt_delta_pct,
+        },
+        "incidents": incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_response_performance(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Response Performance Analysis -- deep-dive response time metrics."""
+
+    start = filters.get("date_start")
+    end = filters.get("date_end")
+
+    now = get_local_now()
+    if not start or not end:
+        end_dt = now
+        start_dt = now - timedelta(days=30)
+        start = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = _get_conn()
+
+    # All unit assignments with incident data
+    ua_rows = _rows_to_dicts(conn.execute(
+        """SELECT ua.unit_id, ua.dispatched, ua.enroute, ua.arrived, ua.cleared,
+                  i.created AS incident_created, i.incident_id, i.type AS incident_type,
+                  i.shift
+           FROM UnitAssignments ua
+           JOIN Incidents i ON ua.incident_id = i.incident_id
+           WHERE i.created >= ? AND i.created < ?
+           ORDER BY i.created""",
+        (start, end),
+    ).fetchall())
+
+    conn.close()
+
+    # --- Response time calculations ----------------------------------------
+    all_times = []
+    daily_avg: Dict[str, List[float]] = {}
+    daily_p90: Dict[str, List[float]] = {}
+    by_type: Dict[str, List[float]] = {}
+    by_hour_dow: Dict[str, Dict[str, List[float]]] = {}
+
+    target_minutes = 6.0
+    brackets = {"<4min": 0, "4-6min": 0, "6-8min": 0, "8-10min": 0, "10+min": 0}
+
+    for r in ua_rows:
+        total = _minutes_between(r["incident_created"], r["arrived"])
+        if total is None:
+            continue
+        all_times.append(total)
+
+        # Bracket
+        if total < 4:
+            brackets["<4min"] += 1
+        elif total < 6:
+            brackets["4-6min"] += 1
+        elif total < 8:
+            brackets["6-8min"] += 1
+        elif total < 10:
+            brackets["8-10min"] += 1
+        else:
+            brackets["10+min"] += 1
+
+        # Daily
+        ts = _parse_ts(r["incident_created"])
+        if ts:
+            day_key = ts.strftime("%m/%d")
+            daily_avg.setdefault(day_key, []).append(total)
+
+            # Heatmap: hour x day-of-week
+            hour = str(ts.hour)
+            dow = ts.strftime("%a")
+            by_hour_dow.setdefault(dow, {}).setdefault(hour, []).append(total)
+
+        # By type
+        itype = r.get("incident_type") or "Other"
+        by_type.setdefault(itype, []).append(total)
+
+    # Build daily trend
+    day_labels = sorted(daily_avg.keys())
+    daily_avg_vals = [round(sum(daily_avg[d]) / len(daily_avg[d]), 2) for d in day_labels]
+    daily_p90_vals = [_safe_percentile(daily_avg[d], 90) or 0 for d in day_labels]
+
+    # By type summary
+    type_labels = sorted(by_type.keys())
+    type_avg_vals = [round(sum(by_type[t]) / len(by_type[t]), 2) for t in type_labels]
+
+    # Heatmap data
+    dow_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    hour_labels = [str(h) for h in range(24)]
+    heatmap_data = []
+    for dow in dow_order:
+        row = []
+        for h in hour_labels:
+            times = by_hour_dow.get(dow, {}).get(h, [])
+            row.append(round(sum(times) / len(times), 1) if times else 0)
+        heatmap_data.append(row)
+
+    # Per-unit metrics
+    unit_buckets: Dict[str, List[Dict]] = {}
+    for r in ua_rows:
+        unit_buckets.setdefault(r["unit_id"], []).append(r)
+
+    unit_rows = []
+    for uid in sorted(unit_buckets.keys()):
+        entries = unit_buckets[uid]
+        dispatch_t = [_minutes_between(e["incident_created"], e["dispatched"]) for e in entries]
+        enroute_t = [_minutes_between(e["dispatched"], e["enroute"]) for e in entries]
+        travel_t = [_minutes_between(e["enroute"], e["arrived"]) for e in entries]
+        total_t = [_minutes_between(e["incident_created"], e["arrived"]) for e in entries]
+        unit_rows.append({
+            "unit_id": uid,
+            "calls": len(entries),
+            "dispatch_avg": _safe_avg(dispatch_t),
+            "enroute_avg": _safe_avg(enroute_t),
+            "travel_avg": _safe_avg(travel_t),
+            "total_avg": _safe_avg(total_t),
+            "total_p90": _safe_percentile(total_t, 90),
+        })
+
+    compliant = sum(1 for t in all_times if t <= target_minutes)
+    compliance_pct = round(compliant / len(all_times) * 100, 1) if all_times else 0
+
+    stats = {
+        "total_responses": len(all_times),
+        "avg_response": _safe_avg(all_times),
+        "median_response": _safe_median(all_times),
+        "p90_response": _safe_percentile(all_times, 90),
+        "compliance_pct": compliance_pct,
+    }
+
+    return {
+        "rows": unit_rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Response Performance Analysis",
+            "template_key": "response_performance",
+            "date_range": [start, end],
+            "shift": filters.get("shift"),
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "chart_data": {
+            "daily_trend": {
+                "labels": day_labels,
+                "avg_values": daily_avg_vals,
+                "p90_values": daily_p90_vals,
+            },
+            "distribution": {
+                "labels": list(brackets.keys()),
+                "values": list(brackets.values()),
+            },
+            "by_type": {
+                "labels": type_labels,
+                "values": type_avg_vals,
+            },
+            "compliance_gauge": {
+                "value": compliance_pct,
+                "target": 90,
+            },
+            "heatmap": {
+                "data": heatmap_data,
+                "x_labels": hour_labels,
+                "y_labels": dow_order,
+            },
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_incident_analytics(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Incident Analytics -- volume trends, patterns, hotspots."""
+
+    start = filters.get("date_start")
+    end = filters.get("date_end")
+
+    now = get_local_now()
+    if not start or not end:
+        end_dt = now
+        start_dt = now - timedelta(days=30)
+        start = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    start_dt_obj = _parse_ts(start) or now - timedelta(days=30)
+    end_dt_obj = _parse_ts(end) or now
+
+    conn = _get_conn()
+
+    incidents = _rows_to_dicts(conn.execute(
+        """SELECT i.incident_id, i.type, i.status, i.priority, i.location,
+                  i.created, i.closed_at, i.shift, i.issue_found
+           FROM Incidents i WHERE i.created >= ? AND i.created < ?
+           ORDER BY i.created""",
+        (start, end),
+    ).fetchall())
+
+    conn.close()
+
+    # --- Daily/weekly trend ------------------------------------------------
+    daily_counts: Dict[str, int] = {}
+    hourly_counts = [0] * 24
+    dow_counts = [0] * 7  # Mon=0 .. Sun=6
+    type_counts: Dict[str, int] = {}
+    location_counts: Dict[str, int] = {}
+    status_counts: Dict[str, int] = {}
+
+    for inc in incidents:
+        ts = _parse_ts(inc.get("created"))
+        if ts:
+            dk = ts.strftime("%Y-%m-%d")
+            daily_counts[dk] = daily_counts.get(dk, 0) + 1
+            hourly_counts[ts.hour] += 1
+            dow_counts[ts.weekday()] += 1
+
+        t = inc.get("type") or "Other"
+        type_counts[t] = type_counts.get(t, 0) + 1
+
+        loc = inc.get("location") or "Unknown"
+        location_counts[loc] = location_counts.get(loc, 0) + 1
+
+        s = inc.get("status") or "Unknown"
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    # Fill daily labels
+    day_labels = []
+    day_values = []
+    cur = start_dt_obj
+    while cur < end_dt_obj:
+        dk = cur.strftime("%Y-%m-%d")
+        day_labels.append(cur.strftime("%m/%d"))
+        day_values.append(daily_counts.get(dk, 0))
+        cur += timedelta(days=1)
+
+    # Top 10 locations
+    sorted_locs = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    loc_labels = [l[0][:40] for l in sorted_locs]
+    loc_values = [l[1] for l in sorted_locs]
+
+    dow_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    hour_labels = [f"{h}:00" for h in range(24)]
+
+    stats = {
+        "total_incidents": len(incidents),
+        "open_incidents": sum(1 for i in incidents if i.get("status") not in ("CLOSED", "CANCELLED")),
+        "closed_incidents": sum(1 for i in incidents if i.get("status") == "CLOSED"),
+        "issues_flagged": sum(1 for i in incidents if i.get("issue_found") == 1),
+        "unique_locations": len(location_counts),
+        "incident_types": len(type_counts),
+    }
+
+    return {
+        "rows": incidents,
+        "stats": stats,
+        "metadata": {
+            "title": "Incident Analytics Report",
+            "template_key": "incident_analytics",
+            "date_range": [start, end],
+            "shift": filters.get("shift"),
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "chart_data": {
+            "daily_trend": {"labels": day_labels, "values": day_values},
+            "type_breakdown": {"labels": list(type_counts.keys()), "values": list(type_counts.values())},
+            "hourly_pattern": {"labels": hour_labels, "values": hourly_counts},
+            "dow_pattern": {"labels": dow_labels, "values": dow_counts},
+            "location_hotspots": {"labels": loc_labels, "values": loc_values},
+            "status_distribution": {"labels": list(status_counts.keys()), "values": list(status_counts.values())},
+        },
+        "incidents": incidents,
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_unit_performance(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Unit Performance Dashboard -- utilization, response comparison, activity."""
+
+    start = filters.get("date_start")
+    end = filters.get("date_end")
+
+    now = get_local_now()
+    if not start or not end:
+        end_dt = now
+        start_dt = now - timedelta(days=30)
+        start = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    start_dt_obj = _parse_ts(start) or now - timedelta(days=30)
+    end_dt_obj = _parse_ts(end) or now
+    total_hours = max((end_dt_obj - start_dt_obj).total_seconds() / 3600, 1)
+
+    conn = _get_conn()
+
+    ua_rows = _rows_to_dicts(conn.execute(
+        """SELECT ua.unit_id, ua.dispatched, ua.enroute, ua.arrived, ua.cleared,
+                  i.created AS incident_created, i.incident_id, i.type AS incident_type
+           FROM UnitAssignments ua
+           JOIN Incidents i ON ua.incident_id = i.incident_id
+           WHERE i.created >= ? AND i.created < ?
+           ORDER BY ua.unit_id""",
+        (start, end),
+    ).fetchall())
+
+    # Unit metadata
+    unit_meta: Dict[str, Dict] = {}
+    for u in _rows_to_dicts(conn.execute("SELECT unit_id, name, unit_type FROM Units").fetchall()):
+        unit_meta[u["unit_id"]] = u
+
+    conn.close()
+
+    # Aggregate per unit
+    unit_buckets: Dict[str, List[Dict]] = {}
+    for r in ua_rows:
+        unit_buckets.setdefault(r["unit_id"], []).append(r)
+
+    unit_rows = []
+    hourly_activity: Dict[str, List[int]] = {}
+
+    for uid in sorted(unit_buckets.keys()):
+        entries = unit_buckets[uid]
+        meta = unit_meta.get(uid, {})
+
+        total_times = [_minutes_between(e["incident_created"], e["arrived"]) for e in entries]
+        on_scene_times = [_minutes_between(e["arrived"], e["cleared"]) for e in entries]
+        busy_minutes = sum(t for t in on_scene_times if t is not None)
+        utilization_pct = round(busy_minutes / (total_hours * 60) * 100, 1)
+
+        # Hourly activity for heatmap
+        hour_counts = [0] * 24
+        for e in entries:
+            ts = _parse_ts(e.get("incident_created"))
+            if ts:
+                hour_counts[ts.hour] += 1
+        hourly_activity[uid] = hour_counts
+
+        unit_rows.append({
+            "unit_id": uid,
+            "unit_name": meta.get("name", uid),
+            "unit_type": meta.get("unit_type", ""),
+            "call_count": len(entries),
+            "avg_response": _safe_avg(total_times),
+            "p90_response": _safe_percentile(total_times, 90),
+            "avg_on_scene": _safe_avg(on_scene_times),
+            "utilization_pct": utilization_pct,
+        })
+
+    # Sort by call count descending for charts
+    unit_rows.sort(key=lambda r: r["call_count"], reverse=True)
+
+    # Chart data
+    unit_labels = [r["unit_id"] for r in unit_rows]
+    call_counts = [r["call_count"] for r in unit_rows]
+    response_avgs = [r["avg_response"] or 0 for r in unit_rows]
+    on_scene_avgs = [r["avg_on_scene"] or 0 for r in unit_rows]
+    util_pcts = [r["utilization_pct"] for r in unit_rows]
+
+    # Heatmap: units x hour-of-day
+    heatmap_data = [hourly_activity.get(uid, [0]*24) for uid in unit_labels]
+
+    stats = {
+        "units_active": len(unit_rows),
+        "total_calls": sum(call_counts),
+        "avg_utilization": _safe_avg(util_pcts),
+        "overall_avg_response": _safe_avg([r["avg_response"] for r in unit_rows if r["avg_response"]]),
+    }
+
+    return {
+        "rows": unit_rows,
+        "stats": stats,
+        "metadata": {
+            "title": "Unit Performance Dashboard",
+            "template_key": "unit_performance",
+            "date_range": [start, end],
+            "shift": filters.get("shift"),
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "chart_data": {
+            "utilization": {"labels": unit_labels, "values": util_pcts},
+            "call_volume": {"labels": unit_labels, "values": call_counts},
+            "response_comparison": {"labels": unit_labels, "values": response_avgs},
+            "on_scene_time": {"labels": unit_labels, "values": on_scene_avgs},
+            "activity_heatmap": {
+                "data": heatmap_data,
+                "x_labels": [str(h) for h in range(24)],
+                "y_labels": unit_labels,
+            },
+        },
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+def _extract_department_overview(filters: Dict[str, Any]) -> Dict[str, Any]:
+    """Department Overview -- comprehensive multi-section report combining all analytics."""
+
+    start = filters.get("date_start")
+    end = filters.get("date_end")
+
+    now = get_local_now()
+    if not start or not end:
+        end_dt = now
+        start_dt = now - timedelta(days=30)
+        start = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        end = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Pull data from the sub-extractors
+    sub_filters = {**filters, "date_start": start, "date_end": end}
+    exec_data = _extract_executive_summary(sub_filters)
+    response_data = _extract_response_performance(sub_filters)
+    incident_data = _extract_incident_analytics(sub_filters)
+    unit_data = _extract_unit_performance(sub_filters)
+
+    # Personnel data
+    try:
+        personnel_data = _extract_personnel_activity(sub_filters)
+    except Exception:
+        personnel_data = {"rows": [], "stats": {}}
+
+    # Issues data
+    try:
+        issues_data = _extract_issue_tracking(sub_filters)
+    except Exception:
+        issues_data = {"rows": [], "stats": {}}
+
+    # Auto-generated recommendations based on thresholds
+    recommendations = []
+    exec_stats = exec_data.get("stats", {})
+    avg_rt = exec_stats.get("avg_response_time")
+    if avg_rt and avg_rt > 6:
+        recommendations.append(f"Average response time ({avg_rt:.1f} min) exceeds the 6-minute target. Review dispatch procedures and station coverage.")
+    compliance = exec_stats.get("compliance_pct", 100)
+    if compliance < 90:
+        recommendations.append(f"Response compliance is at {compliance:.0f}%, below the 90% threshold. Consider additional staffing during peak hours.")
+    total_inc = exec_stats.get("total_incidents", 0)
+    if total_inc > 100:
+        recommendations.append(f"High incident volume ({total_inc} incidents) in the reporting period. Review call reduction strategies.")
+    issues_ct = exec_stats.get("issues_found", 0)
+    if issues_ct > 0:
+        recommendations.append(f"{issues_ct} issue(s) flagged during the period. Ensure corrective actions are documented.")
+    if not recommendations:
+        recommendations.append("All metrics are within acceptable thresholds. Maintain current operational tempo.")
+
+    stats = {
+        "total_incidents": exec_stats.get("total_incidents", 0),
+        "avg_response_time": avg_rt,
+        "compliance_pct": compliance,
+        "active_units": exec_stats.get("active_units", 0),
+        "issues_found": issues_ct,
+    }
+
+    return {
+        "rows": exec_data.get("rows", []),
+        "stats": stats,
+        "metadata": {
+            "title": "Department Overview Report",
+            "template_key": "department_overview",
+            "date_range": [start, end],
+            "shift": None,
+            "generated_at": format_time_for_display(),
+            "timezone": str(get_timezone()),
+        },
+        "sections": {
+            "executive": exec_data,
+            "response": response_data,
+            "incidents": incident_data,
+            "units": unit_data,
+            "personnel": personnel_data,
+            "issues": issues_data,
+        },
+        "chart_data": {
+            **exec_data.get("chart_data", {}),
+            "response_trend": response_data.get("chart_data", {}).get("daily_trend", {}),
+            "response_distribution": response_data.get("chart_data", {}).get("distribution", {}),
+            "hourly_pattern": incident_data.get("chart_data", {}).get("hourly_pattern", {}),
+            "unit_utilization": unit_data.get("chart_data", {}).get("utilization", {}),
+        },
+        "comparison": exec_data.get("comparison", {}),
+        "recommendations": recommendations,
+        "incidents": [],
+        "daily_log": [],
+        "issues_found": [],
+    }
+
+
+# ============================================================================
 # Template Registry
 # ============================================================================
 
@@ -1181,6 +3522,26 @@ _TEMPLATE_REGISTRY: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "calltaker_stats": _extract_calltaker_stats,
     "shift_workload": _extract_shift_workload,
     "response_compliance": _extract_response_compliance,
+    "shift_handoff": _extract_shift_handoff,
+    "incident_detail": _extract_incident_detail,
+    "open_incidents": _extract_open_incidents,
+    "unit_activity": _extract_unit_activity,
+    "unit_utilization": _extract_unit_utilization,
+    "response_time_analysis": _extract_response_time_analysis,
+    "monthly_summary": _extract_monthly_summary,
+    "personnel_activity": _extract_personnel_activity,
+    "incident_type_breakdown": _extract_incident_type_breakdown,
+    "location_hotspot": _extract_location_hotspot,
+    "false_alarm": _extract_false_alarm,
+    "mutual_aid": _extract_mutual_aid,
+    "issue_tracking": _extract_issue_tracking,
+    "training_log": _extract_training_log,
+    # Analytics templates
+    "executive_summary": _extract_executive_summary,
+    "response_performance": _extract_response_performance,
+    "incident_analytics": _extract_incident_analytics,
+    "unit_performance": _extract_unit_performance,
+    "department_overview": _extract_department_overview,
 }
 
 

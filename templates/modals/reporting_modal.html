@@ -1,3 +1,4 @@
+{% set is_admin = is_admin|default(false) %}
 <!-- Reporting Modal — 4-Tab Production UI for FORD-CAD (v4) -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal reporting-modal" role="dialog" aria-modal="true" aria-label="Reporting">
@@ -20,7 +21,6 @@
             <div class="rpt-tabs" role="tablist">
                 <button class="rpt-tab active" data-tab="run" role="tab" aria-selected="true" aria-controls="rpt-panel-run">Run</button>
                 <button class="rpt-tab" data-tab="builder" role="tab" aria-selected="false" aria-controls="rpt-panel-builder">Builder</button>
-                <button class="rpt-tab" data-tab="scheduled" role="tab" aria-selected="false" aria-controls="rpt-panel-scheduled">Scheduled</button>
                 <button class="rpt-tab" data-tab="history" role="tab" aria-selected="false" aria-controls="rpt-panel-history">History</button>
             </div>
 
@@ -245,125 +245,7 @@
             </div>
 
             <!-- ============================================================ -->
-            <!-- TAB 3: SCHEDULED                                             -->
-            <!-- ============================================================ -->
-            <div class="rpt-panel" id="rpt-panel-scheduled" role="tabpanel">
-                <!-- Existing schedules table -->
-                <div class="rpt-section">
-                    <div class="rpt-section-title">Active Schedules</div>
-                    <div class="rpt-table-wrap">
-                        <table class="rpt-table" id="rpt-schedule-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Template</th>
-                                    <th>Frequency</th>
-                                    <th>Enabled</th>
-                                    <th>Next Run</th>
-                                    <th>Last Run</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rpt-schedule-tbody">
-                                <tr><td colspan="7" class="rpt-empty">Loading schedules...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Create Schedule -->
-                <div class="rpt-section">
-                    <button class="rpt-btn-secondary rpt-expand-btn" onclick="REPORTING.toggleScheduleForm()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Create Schedule
-                    </button>
-                    <div id="rpt-sched-form" class="rpt-sched-form" style="display:none;">
-                        <div class="rpt-filters-grid">
-                            <div class="rpt-field">
-                                <label for="rpt-sched-name">Name</label>
-                                <input type="text" id="rpt-sched-name" class="rpt-input" placeholder="End-of-Shift Blotter">
-                            </div>
-                            <div class="rpt-field">
-                                <label for="rpt-sched-template">Template</label>
-                                <select id="rpt-sched-template" class="rpt-select">
-                                    <option value="">-- Select --</option>
-                                </select>
-                            </div>
-                        </div>
-                        <!-- Schedule-specific filters -->
-                        <div class="rpt-filters-grid" style="margin-top:var(--space-2);">
-                            <div class="rpt-field">
-                                <label for="rpt-sched-shift">Shift</label>
-                                <select id="rpt-sched-shift" class="rpt-select">
-                                    <option value="">All</option>
-                                    <option value="A">A</option>
-                                    <option value="B">B</option>
-                                    <option value="C">C</option>
-                                    <option value="D">D</option>
-                                </select>
-                            </div>
-                            <div class="rpt-field">
-                                <label for="rpt-sched-freq">Frequency</label>
-                                <select id="rpt-sched-freq" class="rpt-select" onchange="REPORTING.onScheduleFreqChange()">
-                                    <option value="once">One-time</option>
-                                    <option value="daily">Daily</option>
-                                    <option value="weekly">Weekly</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="shift_change" selected>Shift Change</option>
-                                </select>
-                            </div>
-                        </div>
-                        <!-- One-time datetime picker -->
-                        <div class="rpt-field rpt-freq-once" style="display:none; margin-top:var(--space-2);">
-                            <label for="rpt-sched-once-dt">Run At</label>
-                            <input type="datetime-local" id="rpt-sched-once-dt" class="rpt-input">
-                        </div>
-                        <!-- Weekly day picker -->
-                        <div class="rpt-field rpt-freq-weekly" style="display:none; margin-top:var(--space-2);">
-                            <label>Days</label>
-                            <div class="rpt-day-picker">
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="mon"> Mon</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="tue"> Tue</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="wed"> Wed</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="thu"> Thu</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="fri"> Fri</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="sat"> Sat</label>
-                                <label class="rpt-check-label"><input type="checkbox" name="rpt-sched-day" value="sun"> Sun</label>
-                            </div>
-                        </div>
-                        <!-- Monthly day-of-month -->
-                        <div class="rpt-field rpt-freq-monthly" style="display:none; margin-top:var(--space-2);">
-                            <label for="rpt-sched-dom">Day of Month</label>
-                            <input type="number" id="rpt-sched-dom" class="rpt-input" min="1" max="28" value="1" style="width:80px;">
-                        </div>
-                        <!-- Delivery channels for schedule -->
-                        <div class="rpt-field" style="margin-top:var(--space-3);">
-                            <label>Delivery Channels</label>
-                            <div class="rpt-delivery-options">
-                                <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-email" checked onchange="REPORTING.toggleSchedInput('rpt-sched-del-email','rpt-sched-del-email-addr')"> Email</label>
-                                    <input type="email" id="rpt-sched-del-email-addr" class="rpt-input rpt-delivery-input" placeholder="recipient@example.com">
-                                </div>
-                                <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-sms" onchange="REPORTING.toggleSchedInput('rpt-sched-del-sms','rpt-sched-del-sms-phone')"> SMS</label>
-                                    <input type="tel" id="rpt-sched-del-sms-phone" class="rpt-input rpt-delivery-input" placeholder="+1 555-123-4567" disabled>
-                                </div>
-                                <div class="rpt-delivery-row">
-                                    <label class="rpt-check-label"><input type="checkbox" id="rpt-sched-del-webhook" onchange="REPORTING.toggleSchedInput('rpt-sched-del-webhook','rpt-sched-del-webhook-url')"> Webhook</label>
-                                    <input type="url" id="rpt-sched-del-webhook-url" class="rpt-input rpt-delivery-input" placeholder="https://..." disabled>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="rpt-actions" style="margin-top:var(--space-3);">
-                            <button class="rpt-btn-primary" onclick="REPORTING.createSchedule()">Create Schedule</button>
-                            <button class="rpt-btn-secondary" onclick="REPORTING.toggleScheduleForm()">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ============================================================ -->
-            <!-- TAB 4: HISTORY                                               -->
+            <!-- TAB 3: HISTORY                                               -->
             <!-- ============================================================ -->
             <div class="rpt-panel" id="rpt-panel-history" role="tabpanel">
                 <!-- Filters -->
@@ -933,22 +815,6 @@
     justify-content: center;
 }
 
-/* ---- Schedule form ---- */
-.reporting-modal .rpt-sched-form {
-    margin-top: var(--space-3);
-    padding: var(--space-3);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background: var(--bg-elevated);
-}
-
-/* ---- Day picker ---- */
-.reporting-modal .rpt-day-picker {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-}
-
 /* ---- History filters ---- */
 .reporting-modal .rpt-history-filters {
     display: flex;
@@ -1138,7 +1004,6 @@ window.REPORTING = {
     _templates: [],
     _historyCache: [],
     _historyLoaded: false,
-    _schedulesLoaded: false,
     _activeDataset: 'dailylog',
     _sortDir: 'asc',
     _blotterMode: 'condensed',
@@ -1196,9 +1061,6 @@ window.REPORTING = {
                 // Lazy-load data
                 if (tab.dataset.tab === 'history' && !this._historyLoaded) {
                     this.loadHistory();
-                }
-                if (tab.dataset.tab === 'scheduled' && !this._schedulesLoaded) {
-                    this.loadSchedules();
                 }
                 if (tab.dataset.tab === 'builder') {
                     this._populateFieldGrid();
@@ -1312,32 +1174,6 @@ window.REPORTING = {
         document.querySelectorAll('#rpt-apparatus-checks input[type="checkbox"]').forEach(cb => { cb.checked = false; });
     },
 
-    // ------------------------------------------------------------------ schedule form helpers
-    toggleScheduleForm() {
-        const form = document.getElementById('rpt-sched-form');
-        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-    },
-
-    toggleSchedInput(cbId, inputId) {
-        const cb = document.getElementById(cbId);
-        const inp = document.getElementById(inputId);
-        if (cb && inp) inp.disabled = !cb.checked;
-    },
-
-    onScheduleFreqChange() {
-        const freq = document.getElementById('rpt-sched-freq')?.value || '';
-        document.querySelectorAll('.rpt-freq-once, .rpt-freq-weekly, .rpt-freq-monthly').forEach(el => {
-            el.style.display = 'none';
-        });
-        if (freq === 'once') {
-            document.querySelector('.rpt-freq-once').style.display = 'block';
-        } else if (freq === 'weekly') {
-            document.querySelector('.rpt-freq-weekly').style.display = 'block';
-        } else if (freq === 'monthly') {
-            document.querySelector('.rpt-freq-monthly').style.display = 'block';
-        }
-    },
-
     // ---- populate builder field grid ----
     _populateFieldGrid() {
         const grid = document.getElementById('rpt-field-grid');
@@ -1439,10 +1275,24 @@ window.REPORTING = {
                 templates = [
                     { template_key: 'blotter', name: 'Blotter / Daily Log', description: 'Chronological list of events for a shift or date range.' },
                     { template_key: 'incident_summary', name: 'Incident Summary', description: 'Full incident details: type, location, timestamps, units.' },
+                    { template_key: 'shift_handoff', name: 'Shift Handoff Report', description: 'Open incidents, pending items, notes for incoming shift.' },
+                    { template_key: 'incident_detail', name: 'Incident Detail (NFIRS)', description: 'Full NFIRS-style report with narrative, units, timeline, losses.' },
+                    { template_key: 'open_incidents', name: 'Open / Pending Incidents', description: 'Currently active incidents needing resolution.' },
+                    { template_key: 'unit_activity', name: 'Unit Activity Summary', description: 'Call counts and time per apparatus.' },
+                    { template_key: 'unit_utilization', name: 'Unit Utilization Report', description: 'Time dispatched vs available per unit.' },
                     { template_key: 'unit_response_stats', name: 'Unit Response Stats', description: 'Response time metrics per unit.' },
-                    { template_key: 'calltaker_stats', name: 'Calltaker Stats', description: 'Call counts and performance per calltaker.' },
-                    { template_key: 'shift_workload', name: 'Shift Workload Summary', description: 'Workload distribution across shifts.' },
+                    { template_key: 'response_time_analysis', name: 'Response Time Analysis', description: 'Dispatch-to-arrival breakdown with trends.' },
                     { template_key: 'response_compliance', name: 'Response-Time Compliance', description: 'Pass/fail against response time thresholds.' },
+                    { template_key: 'monthly_summary', name: 'Monthly Summary', description: 'Month-by-month totals and comparisons.' },
+                    { template_key: 'calltaker_stats', name: 'Calltaker Stats', description: 'Call counts and performance per calltaker.' },
+                    { template_key: 'personnel_activity', name: 'Personnel Activity', description: 'Incidents and log entries per person.' },
+                    { template_key: 'shift_workload', name: 'Shift Workload Summary', description: 'Workload distribution across shifts.' },
+                    { template_key: 'incident_type_breakdown', name: 'Incident Type Breakdown', description: 'Distribution of incidents by type.' },
+                    { template_key: 'location_hotspot', name: 'Location Hotspot Report', description: 'Locations with the most incidents.' },
+                    { template_key: 'false_alarm', name: 'False Alarm Report', description: 'False alarm patterns and frequency.' },
+                    { template_key: 'mutual_aid', name: 'Mutual Aid Given/Received', description: 'External assistance tracking.' },
+                    { template_key: 'issue_tracking', name: 'Issue Tracking (OSHA)', description: 'Flagged issues for OSHA compliance.' },
+                    { template_key: 'training_log', name: 'Training / Drill Log', description: 'Training, drills, exercises from daily log.' },
                 ];
             }
 
@@ -1463,10 +1313,6 @@ window.REPORTING = {
         // Run-tab template select
         const runSel = document.getElementById('rpt-template-select');
         if (runSel) runSel.innerHTML = options;
-
-        // Schedule-tab template select
-        const schedSel = document.getElementById('rpt-sched-template');
-        if (schedSel) schedSel.innerHTML = options;
 
         // History-tab template filter
         const histSel = document.getElementById('rpt-hist-template-filter');
@@ -1861,198 +1707,6 @@ window.REPORTING = {
 
     _jsonParse(str) {
         try { return JSON.parse(str); } catch (_) { return {}; }
-    },
-
-    // ------------------------------------------------------------------ API: schedules
-    async loadSchedules() {
-        const tbody = document.getElementById('rpt-schedule-tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty"><span class="rpt-spinner"></span> Loading...</td></tr>';
-
-        try {
-            let schedules = [];
-            try {
-                const res = await fetch('/api/reporting/schedules');
-                if (res.ok) {
-                    const data = await res.json();
-                    schedules = data.schedules || [];
-                }
-            } catch (_) {}
-
-            // Fallback to legacy
-            if (!schedules.length) {
-                try {
-                    const res2 = await fetch('/api/v2/reports/schedules');
-                    if (res2.ok) {
-                        const d2 = await res2.json();
-                        schedules = d2.schedules || [];
-                    }
-                } catch (_) {}
-            }
-
-            if (!schedules.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No schedules configured.</td></tr>';
-                this._schedulesLoaded = true;
-                return;
-            }
-
-            tbody.innerHTML = schedules.map(s => {
-                const enabled = s.enabled ? true : false;
-                const freq = s.schedule_type || s.rrule_or_cron || '--';
-                const tplName = this._templates.find(t => t.template_key === s.template_key)?.name || s.template_key || s.report_type || '--';
-                const id = s.id || 0;
-
-                return '<tr>' +
-                    '<td>' + this._escHtml(s.name) + '</td>' +
-                    '<td>' + this._escHtml(tplName) + '</td>' +
-                    '<td>' + this._escHtml(freq) + '</td>' +
-                    '<td>' +
-                        '<label class="rpt-toggle-switch">' +
-                            '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="REPORTING.toggleSchedule(' + id + ', this.checked)">' +
-                            '<span class="rpt-toggle-slider"></span>' +
-                        '</label>' +
-                    '</td>' +
-                    '<td>' + this._escHtml(this._fmtDate(s.next_run_at || s.next_run || '')) + '</td>' +
-                    '<td>' + this._escHtml(this._fmtDate(s.last_run_at || s.last_run || '')) + '</td>' +
-                    '<td class="rpt-row-actions">' +
-                        '<button class="rpt-row-btn" onclick="REPORTING.runScheduleNow(' + id + ')" title="Run now">Run</button>' +
-                        '<button class="rpt-btn-danger" onclick="REPORTING.deleteSchedule(' + id + ')" title="Delete">Del</button>' +
-                    '</td>' +
-                '</tr>';
-            }).join('');
-
-            this._schedulesLoaded = true;
-        } catch (e) {
-            console.error('[REPORTING] loadSchedules error:', e);
-            tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty" style="color:var(--danger);">Failed: ' + this._escHtml(e.message) + '</td></tr>';
-        }
-    },
-
-    async runScheduleNow(scheduleId) {
-        window.TOAST?.info?.('Triggering schedule...');
-        try {
-            const res = await fetch('/api/reporting/schedule/' + scheduleId + '/run_now', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: '{}',
-            });
-            const data = await res.json();
-            if (data.ok) {
-                window.TOAST?.success?.(data.message || 'Schedule triggered');
-            } else {
-                window.TOAST?.error?.(data.error || 'Failed to trigger schedule');
-            }
-        } catch (e) {
-            window.TOAST?.error?.('Error: ' + e.message);
-        }
-    },
-
-    async createSchedule() {
-        const name = document.getElementById('rpt-sched-name')?.value?.trim();
-        const templateKey = document.getElementById('rpt-sched-template')?.value;
-        if (!name) { window.TOAST?.error?.('Enter a schedule name'); return; }
-        if (!templateKey) { window.TOAST?.error?.('Select a template'); return; }
-
-        const freq = document.getElementById('rpt-sched-freq')?.value || 'shift_change';
-        let rrule = '';
-
-        if (freq === 'once') {
-            rrule = 'once:' + (document.getElementById('rpt-sched-once-dt')?.value || '');
-        } else if (freq === 'daily') {
-            rrule = 'daily';
-        } else if (freq === 'weekly') {
-            const days = Array.from(document.querySelectorAll('input[name="rpt-sched-day"]:checked'))
-                .map(cb => cb.value);
-            rrule = 'weekly:' + days.join(',');
-        } else if (freq === 'monthly') {
-            rrule = 'monthly:' + (document.getElementById('rpt-sched-dom')?.value || '1');
-        } else {
-            rrule = 'shift_change';
-        }
-
-        const filters = {
-            shift: document.getElementById('rpt-sched-shift')?.value || '',
-        };
-
-        const delivery = [];
-        if (document.getElementById('rpt-sched-del-email')?.checked) {
-            delivery.push({ channel: 'email', destination: document.getElementById('rpt-sched-del-email-addr')?.value || '' });
-        }
-        if (document.getElementById('rpt-sched-del-sms')?.checked) {
-            delivery.push({ channel: 'sms', destination: document.getElementById('rpt-sched-del-sms-phone')?.value || '' });
-        }
-        if (document.getElementById('rpt-sched-del-webhook')?.checked) {
-            delivery.push({ channel: 'webhook', destination: document.getElementById('rpt-sched-del-webhook-url')?.value || '' });
-        }
-
-        const payload = {
-            name: name,
-            template_key: templateKey,
-            filters: filters,
-            formats: ['pdf', 'html'],
-            delivery: delivery,
-            rrule_or_cron: rrule,
-            schedule_type: freq,
-            enabled: true,
-        };
-
-        try {
-            const res = await fetch('/api/reporting/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                window.TOAST?.success?.('Schedule created');
-                this.toggleScheduleForm();
-                this._schedulesLoaded = false;
-                this.loadSchedules();
-            } else {
-                window.TOAST?.error?.(data.error || data.detail || 'Failed to create schedule');
-            }
-        } catch (e) {
-            window.TOAST?.error?.('Error: ' + e.message);
-        }
-    },
-
-    async toggleSchedule(id, enabled) {
-        try {
-            const res = await fetch('/api/reporting/schedule/' + id + '/toggle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ enabled: enabled }),
-            });
-            const data = await res.json();
-            if (data.ok) {
-                window.TOAST?.success?.('Schedule ' + (enabled ? 'enabled' : 'disabled'));
-            } else {
-                window.TOAST?.error?.(data.error || 'Failed');
-                this.loadSchedules();
-            }
-        } catch (e) {
-            window.TOAST?.error?.('Error: ' + e.message);
-            this.loadSchedules();
-        }
-    },
-
-    async deleteSchedule(id) {
-        if (!confirm('Delete this schedule? This cannot be undone.')) return;
-        try {
-            const res = await fetch('/api/reporting/schedule/' + id, {
-                method: 'DELETE',
-            });
-            const data = await res.json();
-            if (data.ok) {
-                window.TOAST?.success?.('Schedule deleted');
-                this._schedulesLoaded = false;
-                this.loadSchedules();
-            } else {
-                window.TOAST?.error?.(data.error || 'Failed to delete');
-            }
-        } catch (e) {
-            window.TOAST?.error?.('Error: ' + e.message);
-        }
     },
 
     // ------------------------------------------------------------------ API: save custom template (builder)

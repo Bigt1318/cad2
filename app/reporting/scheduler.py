@@ -1,13 +1,17 @@
 # ============================================================================
-# FORD CAD - Report Scheduler (APScheduler-based)
+# FORD CAD - Report Scheduler v3 (APScheduler-based)
 # ============================================================================
 # Robust, timezone-aware scheduling using APScheduler.
-# Supports shift-based scheduling and cron expressions.
+# Supports: shift_change, daily, weekly, monthly, once schedule types.
+# Works with the v3 template engine (run_report + deliver_report).
 # ============================================================================
 
+import json
 import logging
+import time
+import traceback
 from datetime import datetime, timedelta
-from typing import Optional, Callable, Dict, List
+from typing import Optional, Dict, List, Any
 import threading
 from zoneinfo import ZoneInfo
 
@@ -24,8 +28,8 @@ except ImportError:
 
 from .config import get_config, set_config, get_timezone, get_local_now, format_time_for_display
 from .models import (
-    ScheduleRepository,
-    Schedule,
+    NewScheduleRepository,
+    ReportScheduleNew,
     AuditRepository,
     get_db,
 )
@@ -50,14 +54,17 @@ EASTERN = ZoneInfo('America/New_York')
 
 class ReportScheduler:
     """
-    Enterprise-grade report scheduler using APScheduler.
+    v3 Report Scheduler using APScheduler.
 
-    Features:
-    - Timezone-aware scheduling (default: America/New_York)
-    - Shift-based scheduling (17:30 day, 05:30 night)
-    - Cron expression support
-    - Proper start/stop control
-    - Audit logging
+    Supports multiple concurrent scheduled reports with different frequencies:
+    - shift_change: fires at day/night shift change times
+    - daily: fires once per day at a specified time
+    - weekly: fires on specified days of the week
+    - monthly: fires on a specified day of the month
+    - once: fires once at a specific datetime
+
+    Each schedule references a v3 template_key and uses engine.run_report()
+    + engine.deliver_report() for execution and delivery.
     """
 
     _instance = None
@@ -78,14 +85,14 @@ class ReportScheduler:
 
         self._initialized = True
         self._scheduler: Optional[BackgroundScheduler] = None
-        self._jobs: Dict[int, str] = {}  # schedule_id -> job_id
+        # schedule_id -> list of APScheduler job IDs
+        self._jobs: Dict[int, List[str]] = {}
         self._running = False
-        self._report_callback: Optional[Callable] = None
 
         if APSCHEDULER_AVAILABLE:
             self._init_scheduler()
         else:
-            logger.warning("APScheduler not available, using fallback scheduler")
+            logger.warning("APScheduler not available, scheduler will be a no-op")
 
     def _init_scheduler(self):
         """Initialize the APScheduler instance."""
@@ -94,8 +101,8 @@ class ReportScheduler:
         self._scheduler = BackgroundScheduler(
             timezone=tz,
             job_defaults={
-                "coalesce": True,  # Combine missed runs
-                "max_instances": 1,  # Only one instance at a time
+                "coalesce": True,       # Combine missed runs
+                "max_instances": 1,     # Only one instance per job at a time
                 "misfire_grace_time": 300,  # 5 minute grace period
             },
         )
@@ -123,16 +130,12 @@ class ReportScheduler:
             details=f"Job {event.job_id} failed: {event.exception}",
         )
 
-    def set_report_callback(self, callback: Callable):
-        """Set the callback function for report generation."""
-        self._report_callback = callback
+    # ------------------------------------------------------------------
+    # Lifecycle: start / stop / restart
+    # ------------------------------------------------------------------
 
     def start(self, user: str = None) -> bool:
-        """
-        Start the scheduler.
-
-        Returns True if started successfully, False if already running or disabled.
-        """
+        """Start the scheduler. Returns True if started successfully."""
         if not get_config("scheduler_enabled", False):
             logger.warning("Cannot start scheduler: scheduler_enabled is False")
             return False
@@ -146,29 +149,31 @@ class ReportScheduler:
             return False
 
         try:
-            # Load schedules from database
+            # Load all enabled schedules from database
             self._load_schedules()
 
-            # Start the scheduler
-            if not self._scheduler.running:
+            # Start or resume APScheduler
+            if self._scheduler.running:
+                self._scheduler.resume()
+            else:
                 self._scheduler.start()
 
             self._running = True
             set_config("scheduler_running", True, user=user)
             set_config("scheduler_was_running", True, user=user)
 
-            logger.info(f"Scheduler started at {format_time_for_display()}")
+            logger.info(f"Scheduler started at {format_time_for_display()} with {len(self._jobs)} schedules")
             AuditRepository.log(
                 action="scheduler_started",
                 category="scheduler",
                 user_name=user,
-                details=f"Scheduler started with {len(self._jobs)} jobs",
+                details=f"Scheduler started with {len(self._jobs)} schedules",
             )
 
             return True
 
         except Exception as e:
-            logger.error(f"Failed to start scheduler: {e}")
+            logger.error(f"Failed to start scheduler: {e}", exc_info=True)
             return False
 
     def stop(self, user: str = None) -> bool:
@@ -209,171 +214,519 @@ class ReportScheduler:
             self._scheduler is not None and self._scheduler.running
         )
 
+    # ------------------------------------------------------------------
+    # Schedule loading
+    # ------------------------------------------------------------------
+
     def _load_schedules(self):
-        """Load all enabled schedules from database."""
-        schedules = ScheduleRepository.get_enabled()
+        """Load all enabled schedules from the database."""
+        schedules = NewScheduleRepository.get_enabled()
 
         for schedule in schedules:
-            self._add_schedule_job(schedule)
+            try:
+                self._add_schedule_jobs(schedule)
+            except Exception as e:
+                logger.error(f"Failed to load schedule {schedule.id} ({schedule.name}): {e}")
 
-        logger.info(f"Loaded {len(schedules)} enabled schedules")
+        logger.info(f"Loaded {len(self._jobs)} enabled schedules")
 
-    def _add_schedule_job(self, schedule: Schedule):
-        """Add a job for a schedule."""
+    def _add_schedule_jobs(self, schedule: ReportScheduleNew):
+        """Add APScheduler jobs for a schedule based on its type."""
         if not self._scheduler:
             return
 
-        # Remove existing job if any
-        if schedule.id in self._jobs:
-            self._remove_schedule_job(schedule.id)
+        # Remove existing jobs for this schedule first
+        self._remove_schedule_jobs(schedule.id)
 
-        job_id = f"schedule_{schedule.id}"
+        job_ids = []
+        triggers = self._build_triggers(schedule)
 
-        if schedule.schedule_type == "shift_based":
-            # Add two jobs: one for day shift, one for night shift
-            day_time = schedule.day_time.split(":")
-            night_time = schedule.night_time.split(":")
-
-            # Day shift report job
-            day_trigger = CronTrigger(
-                hour=int(day_time[0]),
-                minute=int(day_time[1]),
-                timezone=get_timezone(),
-            )
+        for suffix, trigger, kwargs in triggers:
+            job_id = f"sched_{schedule.id}_{suffix}"
             self._scheduler.add_job(
-                self._run_shift_report,
-                trigger=day_trigger,
-                id=f"{job_id}_day",
-                args=[schedule.id, "day"],
-                replace_existing=True,
-            )
-
-            # Night shift report job
-            night_trigger = CronTrigger(
-                hour=int(night_time[0]),
-                minute=int(night_time[1]),
-                timezone=get_timezone(),
-            )
-            self._scheduler.add_job(
-                self._run_shift_report,
-                trigger=night_trigger,
-                id=f"{job_id}_night",
-                args=[schedule.id, "night"],
-                replace_existing=True,
-            )
-
-            self._jobs[schedule.id] = job_id
-            logger.info(
-                f"Added shift-based schedule {schedule.id}: "
-                f"day@{schedule.day_time}, night@{schedule.night_time}"
-            )
-
-        elif schedule.schedule_type == "cron" and schedule.cron_expression:
-            trigger = CronTrigger.from_crontab(
-                schedule.cron_expression,
-                timezone=get_timezone(),
-            )
-            self._scheduler.add_job(
-                self._run_scheduled_report,
+                self._execute_scheduled_job,
                 trigger=trigger,
                 id=job_id,
                 args=[schedule.id],
+                kwargs=kwargs,
                 replace_existing=True,
             )
-            self._jobs[schedule.id] = job_id
-            logger.info(f"Added cron schedule {schedule.id}: {schedule.cron_expression}")
+            job_ids.append(job_id)
+            logger.info(
+                f"Added job {job_id} for schedule {schedule.id} ({schedule.name})"
+            )
 
-    def _remove_schedule_job(self, schedule_id: int):
-        """Remove jobs for a schedule."""
+        if job_ids:
+            self._jobs[schedule.id] = job_ids
+
+    def _remove_schedule_jobs(self, schedule_id: int):
+        """Remove all APScheduler jobs for a schedule."""
         if not self._scheduler:
             return
 
-        job_id = self._jobs.get(schedule_id)
-        if not job_id:
-            return
+        job_ids = self._jobs.pop(schedule_id, [])
+        for job_id in job_ids:
+            try:
+                self._scheduler.remove_job(job_id)
+            except Exception:
+                pass  # Job may already have been removed
 
-        try:
-            # Remove both day and night jobs for shift-based
-            self._scheduler.remove_job(f"{job_id}_day")
-        except:
-            pass
+    # ------------------------------------------------------------------
+    # Trigger builder
+    # ------------------------------------------------------------------
 
-        try:
-            self._scheduler.remove_job(f"{job_id}_night")
-        except:
-            pass
+    def _build_triggers(self, schedule: ReportScheduleNew) -> List[tuple]:
+        """Build APScheduler triggers for a schedule.
 
-        try:
-            self._scheduler.remove_job(job_id)
-        except:
-            pass
+        Returns list of (suffix, trigger, extra_kwargs) tuples.
+        One schedule can produce multiple triggers (e.g., shift_change -> day + night).
 
-        del self._jobs[schedule_id]
+        schedule_type | rrule_or_cron example         | Result
+        ------------- | ----------------------------- | ------
+        shift_change  | "shift_change"                | Two CronTriggers at day/night times
+        daily         | "daily" or "daily:08:00"      | CronTrigger(hour, minute)
+        weekly        | "weekly:mon,wed,fri" or       | CronTrigger(day_of_week, hour, minute)
+                      | "weekly:mon,wed,fri:09:00"    |
+        monthly       | "monthly:15" or               | CronTrigger(day, hour, minute)
+                      | "monthly:15:08:00"            |
+        once          | "once:2026-02-10T09:00"       | DateTrigger(run_date)
+        cron          | "0 17 * * *"                  | CronTrigger.from_crontab()
+        """
+        tz = get_timezone()
+        stype = schedule.schedule_type
+        rrule = schedule.rrule_or_cron or ""
 
-    def _run_shift_report(self, schedule_id: int, shift_type: str):
-        """Execute a shift-based report."""
-        now = get_local_now()
-        current_shift = get_current_shift(now)
+        if stype == "shift_change":
+            return self._build_shift_change_triggers(tz)
 
-        logger.info(
-            f"Shift report triggered: schedule={schedule_id}, "
-            f"shift_type={shift_type}, current_shift={current_shift}"
+        elif stype == "daily":
+            return self._build_daily_trigger(rrule, tz)
+
+        elif stype == "weekly":
+            return self._build_weekly_trigger(rrule, tz)
+
+        elif stype == "monthly":
+            return self._build_monthly_trigger(rrule, tz)
+
+        elif stype == "once":
+            return self._build_once_trigger(rrule, tz)
+
+        elif stype == "cron":
+            # Raw crontab expression
+            if rrule:
+                trigger = CronTrigger.from_crontab(rrule, timezone=tz)
+                return [("cron", trigger, {})]
+            else:
+                logger.warning(f"Cron schedule {schedule.id} has no cron expression")
+                return []
+
+        else:
+            logger.warning(f"Unknown schedule_type '{stype}' for schedule {schedule.id}")
+            return []
+
+    def _build_shift_change_triggers(self, tz) -> List[tuple]:
+        """Build two triggers for shift change: day report + night report."""
+        day_time_str = get_config("day_shift_report_time", "17:30")
+        night_time_str = get_config("night_shift_report_time", "05:30")
+
+        day_parts = day_time_str.split(":")
+        night_parts = night_time_str.split(":")
+
+        day_trigger = CronTrigger(
+            hour=int(day_parts[0]),
+            minute=int(day_parts[1]),
+            timezone=tz,
+        )
+        night_trigger = CronTrigger(
+            hour=int(night_parts[0]),
+            minute=int(night_parts[1]),
+            timezone=tz,
         )
 
-        if self._report_callback:
-            try:
-                self._report_callback(
-                    schedule_id=schedule_id,
-                    shift=current_shift,
-                    triggered_by="scheduler",
+        return [
+            ("day", day_trigger, {"shift_hint": "day"}),
+            ("night", night_trigger, {"shift_hint": "night"}),
+        ]
+
+    def _build_daily_trigger(self, rrule: str, tz) -> List[tuple]:
+        """Build a daily trigger. Format: 'daily' or 'daily:HH:MM'."""
+        hour, minute = 8, 0  # default 08:00
+        if ":" in rrule:
+            parts = rrule.split(":")
+            # "daily:08:00" -> parts = ["daily", "08", "00"]
+            if len(parts) >= 3:
+                hour, minute = int(parts[1]), int(parts[2])
+            elif len(parts) == 2 and parts[1].isdigit():
+                hour = int(parts[1])
+
+        trigger = CronTrigger(hour=hour, minute=minute, timezone=tz)
+        return [("daily", trigger, {})]
+
+    def _build_weekly_trigger(self, rrule: str, tz) -> List[tuple]:
+        """Build a weekly trigger. Format: 'weekly:mon,wed,fri' or 'weekly:mon,wed,fri:09:00'."""
+        hour, minute = 8, 0
+        days = "mon"  # default
+
+        if ":" in rrule:
+            parts = rrule.split(":")
+            # "weekly:mon,wed,fri:09:00"
+            if len(parts) >= 2:
+                days = parts[1]
+            if len(parts) >= 4:
+                hour, minute = int(parts[2]), int(parts[3])
+            elif len(parts) == 3:
+                # Could be "weekly:mon,wed:09" or just "weekly:mon:09"
+                try:
+                    hour = int(parts[2])
+                except ValueError:
+                    pass
+
+        trigger = CronTrigger(day_of_week=days, hour=hour, minute=minute, timezone=tz)
+        return [("weekly", trigger, {})]
+
+    def _build_monthly_trigger(self, rrule: str, tz) -> List[tuple]:
+        """Build a monthly trigger. Format: 'monthly:15' or 'monthly:15:08:00'."""
+        day = 1
+        hour, minute = 8, 0
+
+        if ":" in rrule:
+            parts = rrule.split(":")
+            if len(parts) >= 2:
+                day = int(parts[1])
+            if len(parts) >= 4:
+                hour, minute = int(parts[2]), int(parts[3])
+            elif len(parts) == 3:
+                try:
+                    hour = int(parts[2])
+                except ValueError:
+                    pass
+
+        trigger = CronTrigger(day=day, hour=hour, minute=minute, timezone=tz)
+        return [("monthly", trigger, {})]
+
+    def _build_once_trigger(self, rrule: str, tz) -> List[tuple]:
+        """Build a one-time trigger. Format: 'once:2026-02-10T09:00'."""
+        if ":" in rrule:
+            datestr = rrule.split(":", 1)[1]  # everything after "once:"
+        else:
+            datestr = rrule
+
+        try:
+            run_date = datetime.fromisoformat(datestr)
+            if run_date.tzinfo is None:
+                run_date = run_date.replace(tzinfo=tz)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid once date: {datestr}")
+            return []
+
+        trigger = DateTrigger(run_date=run_date, timezone=tz)
+        return [("once", trigger, {})]
+
+    # ------------------------------------------------------------------
+    # Job execution
+    # ------------------------------------------------------------------
+
+    def _execute_scheduled_job(self, schedule_id: int, shift_hint: str = None):
+        """Execute a scheduled report job.
+
+        1. Reload schedule from DB (gets latest config)
+        2. Skip if disabled/deleted
+        3. Parse filters/formats/channels from JSON fields
+        4. Inject shift into filters for shift_change type
+        5. Call engine.run_report(template_key, filters, formats)
+        6. Call engine.deliver_report(run_id, channels) with retry
+        7. Update last_run_at / next_run_at
+        8. Audit log
+        """
+        logger.info(f"Executing scheduled job: schedule_id={schedule_id}, shift_hint={shift_hint}")
+
+        # 1. Reload from DB
+        schedule = NewScheduleRepository.get_by_id(schedule_id)
+        if not schedule:
+            logger.warning(f"Schedule {schedule_id} not found, skipping")
+            return
+
+        # 2. Skip if disabled
+        if not schedule.enabled:
+            logger.info(f"Schedule {schedule_id} is disabled, skipping")
+            return
+
+        # 3. Parse JSON fields
+        try:
+            filters = json.loads(schedule.filters_json) if schedule.filters_json else {}
+        except (json.JSONDecodeError, TypeError):
+            filters = {}
+
+        try:
+            formats = json.loads(schedule.formats_json) if schedule.formats_json else ["html"]
+        except (json.JSONDecodeError, TypeError):
+            formats = ["html"]
+
+        try:
+            channels = json.loads(schedule.delivery_json) if schedule.delivery_json else []
+        except (json.JSONDecodeError, TypeError):
+            channels = []
+
+        # 4. Inject shift for shift_change schedules
+        if schedule.schedule_type == "shift_change" and shift_hint:
+            current_shift = get_current_shift(get_local_now())
+            filters["shift"] = current_shift
+
+        # 5. Run the report via the v3 engine
+        try:
+            from .engine import get_engine
+            engine = get_engine()
+
+            result = engine.run_report(
+                template_key=schedule.template_key,
+                filters=filters,
+                formats=formats,
+                created_by=f"scheduler:{schedule.name}",
+                title=f"Scheduled: {schedule.name}",
+            )
+
+            if not result.get("ok"):
+                logger.error(
+                    f"Schedule {schedule_id} run_report failed: {result.get('error', 'unknown')}"
                 )
-            except Exception as e:
-                logger.error(f"Report callback failed: {e}")
-
-        # Update last run time
-        next_run = self._calculate_next_run(schedule_id)
-        ScheduleRepository.update_last_run(schedule_id, next_run)
-
-    def _run_scheduled_report(self, schedule_id: int):
-        """Execute a scheduled report."""
-        logger.info(f"Scheduled report triggered: schedule={schedule_id}")
-
-        if self._report_callback:
-            try:
-                self._report_callback(
-                    schedule_id=schedule_id,
-                    triggered_by="scheduler",
+                AuditRepository.log(
+                    action="scheduled_report_failed",
+                    category="scheduler",
+                    details=f"Schedule {schedule_id} ({schedule.name}) run failed: {result.get('error')}",
                 )
-            except Exception as e:
-                logger.error(f"Report callback failed: {e}")
+                self._update_run_times(schedule_id)
+                return
 
-        # Update last run time
+            run_id = result["run_id"]
+            logger.info(f"Schedule {schedule_id} generated run_id={run_id}")
+
+            # 6. Deliver with retry
+            if channels:
+                self._deliver_with_retry(engine, run_id, channels, schedule)
+
+            # 7. Update last_run_at / next_run_at
+            self._update_run_times(schedule_id)
+
+            # 8. Audit log
+            AuditRepository.log(
+                action="scheduled_report_completed",
+                category="scheduler",
+                details=(
+                    f"Schedule {schedule_id} ({schedule.name}) completed: "
+                    f"run_id={run_id}, template={schedule.template_key}, "
+                    f"formats={formats}, channels={len(channels)}"
+                ),
+            )
+
+        except Exception as e:
+            logger.error(f"Schedule {schedule_id} execution failed: {e}\n{traceback.format_exc()}")
+            AuditRepository.log(
+                action="scheduled_report_error",
+                category="scheduler",
+                details=f"Schedule {schedule_id} ({schedule.name}) error: {e}",
+            )
+            self._update_run_times(schedule_id)
+
+    def _deliver_with_retry(
+        self,
+        engine,
+        run_id: int,
+        channels: List[Dict[str, str]],
+        schedule: ReportScheduleNew,
+        max_retries: int = 2,
+        retry_delay: float = 30.0,
+    ):
+        """Deliver a report with retry logic.
+
+        Retries only the channels that failed, up to max_retries times.
+        """
+        remaining_channels = list(channels)
+
+        for attempt in range(max_retries + 1):
+            if not remaining_channels:
+                break
+
+            if attempt > 0:
+                logger.info(
+                    f"Delivery retry {attempt}/{max_retries} for run {run_id}, "
+                    f"{len(remaining_channels)} channels remaining"
+                )
+                time.sleep(retry_delay)
+
+            try:
+                result = engine.deliver_report(
+                    run_id=run_id,
+                    channels=remaining_channels,
+                    triggered_by=f"scheduler:{schedule.name}",
+                )
+
+                # Check which channels failed
+                failed = []
+                for delivery in result.get("deliveries", []):
+                    if delivery.get("status") == "failed":
+                        # Find the original channel config
+                        for ch in remaining_channels:
+                            if ch.get("destination") == delivery.get("destination"):
+                                failed.append(ch)
+                                break
+
+                if not failed:
+                    logger.info(f"All deliveries succeeded for run {run_id}")
+                    return
+
+                remaining_channels = failed
+
+            except Exception as e:
+                logger.error(f"Delivery attempt {attempt} failed for run {run_id}: {e}")
+
+        if remaining_channels:
+            logger.error(
+                f"Delivery exhausted retries for run {run_id}: "
+                f"{len(remaining_channels)} channels still failed"
+            )
+
+    def _update_run_times(self, schedule_id: int):
+        """Update last_run_at and next_run_at in the database."""
         next_run = self._calculate_next_run(schedule_id)
-        ScheduleRepository.update_last_run(schedule_id, next_run)
+        NewScheduleRepository.update_last_run(schedule_id, next_run)
 
     def _calculate_next_run(self, schedule_id: int) -> Optional[str]:
-        """Calculate the next run time for a schedule."""
-        job_id = self._jobs.get(schedule_id)
-        if not job_id or not self._scheduler:
+        """Calculate the next run time for a schedule from APScheduler."""
+        job_ids = self._jobs.get(schedule_id, [])
+        if not job_ids or not self._scheduler:
             return None
 
-        # Try to get next run from day job
-        try:
-            job = self._scheduler.get_job(f"{job_id}_day")
-            if job and job.next_run_time:
-                return format_time_for_display(job.next_run_time)
-        except:
-            pass
+        next_times = []
+        for job_id in job_ids:
+            try:
+                job = self._scheduler.get_job(job_id)
+                if job and job.next_run_time:
+                    next_times.append(job.next_run_time)
+            except Exception:
+                pass
 
-        # Try night job
-        try:
-            job = self._scheduler.get_job(f"{job_id}_night")
-            if job and job.next_run_time:
-                return format_time_for_display(job.next_run_time)
-        except:
-            pass
+        if next_times:
+            # Return the soonest next run
+            soonest = min(next_times)
+            return format_time_for_display(soonest)
 
         return None
+
+    # ------------------------------------------------------------------
+    # Granular sync (called by routes after CRUD)
+    # ------------------------------------------------------------------
+
+    def sync_schedule(self, schedule_id: int):
+        """Sync a single schedule with APScheduler after a CRUD operation.
+
+        Reloads the schedule from the DB. If enabled, adds/updates jobs.
+        If disabled or deleted, removes jobs.
+        """
+        if not self._scheduler or not self._running:
+            return
+
+        schedule = NewScheduleRepository.get_by_id(schedule_id)
+
+        if not schedule or not schedule.enabled:
+            # Schedule deleted or disabled — remove jobs
+            self._remove_schedule_jobs(schedule_id)
+            logger.info(f"Removed jobs for schedule {schedule_id}")
+        else:
+            # Schedule exists and is enabled — add/update jobs
+            try:
+                self._add_schedule_jobs(schedule)
+                # Update next_run_at in DB
+                next_run = self._calculate_next_run(schedule_id)
+                if next_run:
+                    NewScheduleRepository.update_last_run(schedule_id, next_run)
+                logger.info(f"Synced schedule {schedule_id} ({schedule.name})")
+            except Exception as e:
+                logger.error(f"Failed to sync schedule {schedule_id}: {e}")
+
+    def remove_schedule(self, schedule_id: int):
+        """Remove all jobs for a deleted schedule."""
+        self._remove_schedule_jobs(schedule_id)
+        logger.info(f"Removed jobs for deleted schedule {schedule_id}")
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def refresh_schedules(self):
+        """Reload all schedules from database (full refresh)."""
+        if not self._scheduler:
+            return
+
+        # Remove all current jobs
+        for schedule_id in list(self._jobs.keys()):
+            self._remove_schedule_jobs(schedule_id)
+
+        # Reload enabled schedules
+        self._load_schedules()
+
+    def run_now(self, schedule_id: int, user: str = None) -> Dict[str, Any]:
+        """Manually trigger a report for a schedule immediately.
+
+        Runs synchronously and returns the result.
+        """
+        logger.info(f"Manual report trigger: schedule={schedule_id}, user={user}")
+
+        schedule = NewScheduleRepository.get_by_id(schedule_id)
+        if not schedule:
+            return {"ok": False, "error": f"Schedule {schedule_id} not found"}
+
+        AuditRepository.log(
+            action="report_manual_trigger",
+            category="scheduler",
+            user_name=user,
+            details=f"Manual trigger for schedule {schedule_id} ({schedule.name})",
+        )
+
+        # Parse the schedule fields
+        try:
+            filters = json.loads(schedule.filters_json) if schedule.filters_json else {}
+        except (json.JSONDecodeError, TypeError):
+            filters = {}
+
+        try:
+            formats = json.loads(schedule.formats_json) if schedule.formats_json else ["html"]
+        except (json.JSONDecodeError, TypeError):
+            formats = ["html"]
+
+        try:
+            channels = json.loads(schedule.delivery_json) if schedule.delivery_json else []
+        except (json.JSONDecodeError, TypeError):
+            channels = []
+
+        # Inject shift for shift_change type
+        if schedule.schedule_type == "shift_change":
+            current_shift = get_current_shift(get_local_now())
+            filters["shift"] = current_shift
+
+        try:
+            from .engine import get_engine
+            engine = get_engine()
+
+            result = engine.run_report(
+                template_key=schedule.template_key,
+                filters=filters,
+                formats=formats,
+                created_by=user or f"manual:{schedule.name}",
+                title=f"Manual: {schedule.name}",
+            )
+
+            if result.get("ok") and channels:
+                engine.deliver_report(
+                    run_id=result["run_id"],
+                    channels=channels,
+                    triggered_by=f"manual:{user or 'unknown'}",
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Manual report failed: {e}")
+            return {"ok": False, "error": str(e)}
 
     def get_status(self) -> Dict:
         """Get comprehensive scheduler status."""
@@ -385,11 +738,37 @@ class ReportScheduler:
             "current_time": format_time_for_display(now),
             "timezone": str(get_timezone()),
             "current_shift": get_current_shift(now),
-            "jobs_count": len(self._jobs),
+            "schedules_count": len(self._jobs),
+            "jobs_count": sum(len(ids) for ids in self._jobs.values()),
+            "schedules": [],
             "next_reports": [],
         }
 
-        # Get next scheduled reports
+        # Get all schedules with their APScheduler status
+        all_schedules = NewScheduleRepository.get_all()
+        for sched in all_schedules:
+            sched_info = sched.to_dict()
+            job_ids = self._jobs.get(sched.id, [])
+            sched_info["active_jobs"] = len(job_ids)
+
+            # Get next run from APScheduler
+            if self._scheduler and job_ids:
+                next_times = []
+                for jid in job_ids:
+                    try:
+                        job = self._scheduler.get_job(jid)
+                        if job and job.next_run_time:
+                            next_times.append(job.next_run_time)
+                    except Exception:
+                        pass
+                if next_times:
+                    soonest = min(next_times)
+                    sched_info["next_run_live"] = format_time_for_display(soonest)
+                    sched_info["next_run_iso"] = soonest.isoformat()
+
+            status["schedules"].append(sched_info)
+
+        # Get upcoming jobs
         if self._scheduler and self.is_running():
             jobs = self._scheduler.get_jobs()
             for job in jobs:
@@ -400,7 +779,6 @@ class ReportScheduler:
                         "next_run_iso": job.next_run_time.isoformat(),
                     })
 
-            # Sort by next run time
             status["next_reports"].sort(key=lambda x: x["next_run_iso"])
 
         # Get the soonest next report
@@ -416,47 +794,11 @@ class ReportScheduler:
         status = self.get_status()
         return status.get("next_report")
 
-    def run_now(self, schedule_id: int, user: str = None) -> bool:
-        """Manually trigger a report for testing."""
-        logger.info(f"Manual report trigger: schedule={schedule_id}, user={user}")
 
-        AuditRepository.log(
-            action="report_manual_trigger",
-            category="scheduler",
-            user_name=user,
-            details=f"Manual trigger for schedule {schedule_id}",
-        )
+# ============================================================================
+# Singleton access + initialization
+# ============================================================================
 
-        if self._report_callback:
-            try:
-                current_shift = get_current_shift(get_local_now())
-                self._report_callback(
-                    schedule_id=schedule_id,
-                    shift=current_shift,
-                    triggered_by="manual",
-                    triggered_by_user=user,
-                )
-                return True
-            except Exception as e:
-                logger.error(f"Manual report failed: {e}")
-                return False
-
-        return False
-
-    def refresh_schedules(self):
-        """Reload schedules from database."""
-        if not self._scheduler:
-            return
-
-        # Remove all current jobs
-        for schedule_id in list(self._jobs.keys()):
-            self._remove_schedule_job(schedule_id)
-
-        # Reload enabled schedules
-        self._load_schedules()
-
-
-# Singleton instance
 _scheduler_instance: Optional[ReportScheduler] = None
 
 
