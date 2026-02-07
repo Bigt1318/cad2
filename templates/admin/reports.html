@@ -4,47 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports Administration - FORD CAD</title>
-    <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --ford-blue: #1e40af;
-            --ford-blue-dark: #1e3a8a;
-            --success: #16a34a;
+            --ford-blue: #003478;
+            --ford-blue-dark: #002a6b;
+            --ford-blue-light: #e9f0fb;
+            --success: #2e7d32;
+            --success-light: #e8f5e9;
             --danger: #dc2626;
-            --warning: #ca8a04;
-            --bg-main: #f8fafc;
+            --danger-light: #fee2e2;
+            --warning: #f57c00;
+            --warning-light: #fff3e0;
+            --bg-main: #eef2f7;
             --bg-card: #ffffff;
-            --border: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
+            --border: #cfd9e6;
+            --text-primary: #1e2a36;
+            --text-secondary: #5f6f82;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
             background: var(--bg-main);
             color: var(--text-primary);
             line-height: 1.5;
         }
 
         .admin-header {
-            background: linear-gradient(135deg, var(--ford-blue), var(--ford-blue-dark));
+            background: linear-gradient(to right, var(--ford-blue-dark), var(--ford-blue));
             color: white;
-            padding: 20px 32px;
+            padding: 16px 28px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .admin-header h1 {
-            font-size: 24px;
-            font-weight: 700;
-        }
+        .admin-header h1 { font-size: 22px; font-weight: 700; }
 
         .admin-header .back-link {
             color: white;
@@ -53,475 +50,326 @@
             align-items: center;
             gap: 8px;
             opacity: 0.9;
+            font-size: 13px;
         }
 
-        .admin-header .back-link:hover {
-            opacity: 1;
-        }
+        .admin-header .back-link:hover { opacity: 1; }
 
         .admin-container {
-            max-width: 1400px;
+            max-width: 1440px;
             margin: 0 auto;
             padding: 24px;
         }
 
-        /* Status Cards */
+        /* Tab Navigation */
+        .main-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-card);
+            padding: 0 24px;
+            border-bottom: 2px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .main-tab {
+            padding: 14px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .main-tab:hover { color: var(--ford-blue); }
+        .main-tab.active { color: var(--ford-blue); border-bottom-color: var(--ford-blue); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .card h3 {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Status Cards Row */
         .status-cards {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 32px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
         .status-card {
             background: var(--bg-card);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid var(--border);
         }
 
-        .status-card h3 {
-            font-size: 13px;
+        .status-card h4 {
+            font-size: 12px;
             text-transform: uppercase;
             color: var(--text-secondary);
-            margin-bottom: 12px;
+            margin-bottom: 10px;
+            font-weight: 600;
         }
 
         .status-indicator {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
         }
 
         .status-indicator .dot {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
         }
 
-        .status-indicator.running .dot {
-            background: var(--success);
-            animation: pulse 2s infinite;
+        .status-indicator.running .dot { background: var(--success); animation: pulse 2s infinite; }
+        .status-indicator.stopped .dot { background: var(--danger); }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* Template Grid */
+        .tpl-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
         }
 
-        .status-indicator.stopped .dot {
-            background: var(--danger);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .next-report {
-            font-size: 16px;
-        }
-
-        .next-report .time {
-            font-weight: 700;
-            color: var(--ford-blue);
-        }
-
-        .next-report .type {
-            font-size: 13px;
-            color: var(--text-secondary);
-            display: block;
-            margin-top: 4px;
-        }
-
-        /* Sections */
-        .admin-section {
-            background: var(--bg-card);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .section-header h2 {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        /* Master Toggle */
-        .master-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 24px;
-            background: #f1f5f9;
-            border-radius: 12px;
-            margin-bottom: 24px;
-        }
-
-        .toggle-info h3 {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .toggle-info p {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-
-        .big-toggle {
-            position: relative;
-            width: 100px;
-            height: 50px;
+        .tpl-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
             cursor: pointer;
+            transition: all 0.15s;
         }
 
-        .big-toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
+        .tpl-card:hover { border-color: var(--ford-blue); box-shadow: 0 2px 8px rgba(0,52,120,0.1); }
+        .tpl-card.analytics { border-left: 4px solid var(--ford-blue); }
+        .tpl-card .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+        .tpl-card .desc { font-size: 12px; color: var(--text-secondary); }
+        .tpl-card .cat { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--ford-blue); margin-top: 6px; }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
         }
 
-        .toggle-track {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--danger);
-            border-radius: 25px;
-            transition: 0.3s;
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
         }
 
-        .toggle-thumb {
-            position: absolute;
-            width: 42px;
-            height: 42px;
-            left: 4px;
-            bottom: 4px;
+        .kpi-card .value { font-size: 28px; font-weight: 700; color: var(--ford-blue); }
+        .kpi-card .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; font-weight: 600; }
+        .kpi-card .sub { font-size: 11px; color: var(--text-secondary); }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .chart-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .chart-box h4 { font-size: 14px; margin-bottom: 12px; }
+        .chart-box canvas { width: 100% !important; max-height: 260px; }
+
+        /* Date Presets */
+        .date-presets { display: flex; gap: 6px; margin-bottom: 12px; }
+        .date-presets button {
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
             background: white;
-            border-radius: 50%;
-            transition: 0.3s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .big-toggle input:checked + .toggle-track {
-            background: var(--success);
-        }
-
-        .big-toggle input:checked + .toggle-track .toggle-thumb {
-            transform: translateX(50px);
-        }
-
-        .toggle-label {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
+            cursor: pointer;
             font-size: 12px;
-            font-weight: 700;
-            color: white;
+            font-weight: 600;
+            color: var(--text-secondary);
         }
-
-        .toggle-label.on {
-            left: 14px;
-            opacity: 0;
-        }
-
-        .toggle-label.off {
-            right: 14px;
-        }
-
-        .big-toggle input:checked + .toggle-track .toggle-label.on {
-            opacity: 1;
-        }
-
-        .big-toggle input:checked + .toggle-track .toggle-label.off {
-            opacity: 0;
-        }
+        .date-presets button.active { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
 
         /* Tables */
         .data-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 13px;
         }
 
         .data-table th {
             text-align: left;
-            padding: 12px 16px;
-            background: #f8fafc;
-            font-size: 12px;
+            padding: 10px 12px;
+            background: var(--bg-main);
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             color: var(--text-secondary);
             border-bottom: 2px solid var(--border);
         }
 
-        .data-table td {
-            padding: 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .data-table tr:hover {
-            background: #f8fafc;
-        }
-
-        /* BC Cards */
-        .bc-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-
-        .bc-card {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-        }
-
-        .bc-card .shift-badge {
-            width: 48px;
-            height: 48px;
-            background: var(--ford-blue);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: 700;
-            border-radius: 10px;
-            margin-bottom: 12px;
-        }
-
-        .bc-card .name {
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        .bc-card input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .bc-card input:focus {
-            outline: none;
-            border-color: var(--ford-blue);
-            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
-        }
+        .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        .data-table tr:hover { background: #f8fafc; }
 
         /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-            border: none;
-        }
-
-        .btn-primary {
-            background: var(--ford-blue);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--ford-blue-dark);
-        }
-
-        .btn-secondary {
-            background: #f1f5f9;
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            background: #e2e8f0;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 6px;
             font-size: 13px;
             font-weight: 600;
-            margin-bottom: 6px;
-            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
         }
 
+        .btn-primary { background: var(--ford-blue); color: white; }
+        .btn-primary:hover { background: var(--ford-blue-dark); }
+        .btn-secondary { background: #f1f5f9; color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
         .form-control {
             width: 100%;
-            padding: 10px 12px;
+            padding: 8px 10px;
             border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 13px;
         }
+        .form-control:focus { outline: none; border-color: var(--ford-blue); box-shadow: 0 0 0 2px rgba(0,52,120,0.1); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
 
-        .form-control:focus {
-            outline: none;
-            border-color: var(--ford-blue);
-            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        /* Status badges */
+        /* Badges */
         .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
+            display: inline-block;
+            padding: 3px 10px;
             border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: var(--success-light); color: var(--success); }
+        .badge-danger { background: var(--danger-light); color: var(--danger); }
+        .badge-warning { background: var(--warning-light); color: var(--warning); }
+        .badge-info { background: var(--ford-blue-light); color: var(--ford-blue); }
+
+        /* Format Pills */
+        .format-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+        .format-pill {
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
             font-size: 12px;
             font-weight: 600;
         }
+        .format-pill.active { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
 
-        .badge-success {
-            background: #dcfce7;
-            color: #166534;
-        }
+        /* Channel checkboxes */
+        .channel-checks { display: flex; gap: 16px; flex-wrap: wrap; }
+        .channel-checks label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
 
-        .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
-        }
-
-        /* Tabs */
-        .tabs {
+        /* Master toggle */
+        .master-toggle-bar {
             display: flex;
-            gap: 4px;
-            border-bottom: 2px solid var(--border);
-            margin-bottom: 24px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin-bottom: 20px;
         }
 
-        .tab {
-            padding: 12px 20px;
-            background: none;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: all 0.15s;
+        .toggle-switch { position: relative; width: 80px; height: 40px; cursor: pointer; display: inline-block; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-track {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--danger); border-radius: 20px; transition: 0.3s;
+        }
+        .toggle-thumb {
+            position: absolute; width: 34px; height: 34px; left: 3px; bottom: 3px;
+            background: white; border-radius: 50%; transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .toggle-switch input:checked + .toggle-track { background: var(--success); }
+        .toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(40px); }
+
+        .settings-section { margin-bottom: 20px; }
+        .settings-section h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--ford-blue); }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
         }
 
-        .tab:hover {
-            color: var(--ford-blue);
-        }
+        .setting-label { font-size: 14px; font-weight: 600; }
+        .setting-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 
-        .tab.active {
-            color: var(--ford-blue);
-            border-bottom-color: var(--ford-blue);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* History table */
-        .history-table .status-sent {
-            color: var(--success);
-        }
-
-        .history-table .status-failed {
-            color: var(--danger);
-        }
-
-        .history-table .status-partial {
-            color: var(--warning);
-        }
-
-        /* Toast notifications */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-        }
-
+        /* Toast */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; }
         .toast {
-            background: var(--text-primary);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: var(--text-primary); color: white;
+            padding: 12px 20px; border-radius: 8px;
+            margin-bottom: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             animation: slideIn 0.3s ease;
         }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        .toast.success {
-            background: var(--success);
-        }
+        .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+        .empty { text-align: center; padding: 30px; color: var(--text-secondary); font-size: 13px; }
 
-        .toast.error {
-            background: var(--danger);
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        /* Responsive */
-        @media (max-width: 1200px) {
-            .status-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .bc-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
+        @media (max-width: 1200px) { .charts-grid { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
-            .status-cards, .bc-grid {
-                grid-template-columns: 1fr;
-            }
+            .status-cards { grid-template-columns: 1fr 1fr; }
+            .tpl-grid { grid-template-columns: 1fr; }
+            .form-row, .form-row.three { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -530,80 +378,224 @@
         <div>
             <h1>Reports Administration</h1>
         </div>
-        <a href="/" class="back-link">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            Back to CAD
-        </a>
+        <div style="display: flex; gap: 16px; align-items: center;">
+            <a href="/admin" class="back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Admin Dashboard
+            </a>
+            <a href="/" class="back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                Back to CAD
+            </a>
+        </div>
     </header>
 
+    <!-- Status Cards -->
     <div class="admin-container">
-        <!-- Status Cards -->
         <div class="status-cards">
             <div class="status-card">
-                <h3>Scheduler Status</h3>
-                <div class="status-indicator" id="scheduler-status">
+                <h4>Scheduler Status</h4>
+                <div class="status-indicator" id="sched-status">
                     <span class="dot"></span>
                     <span class="text">Loading...</span>
                 </div>
             </div>
             <div class="status-card">
-                <h3>Next Scheduled Report</h3>
-                <div class="next-report" id="next-report">
-                    <span class="time">--</span>
-                    <span class="type">--</span>
-                </div>
+                <h4>Active Schedules</h4>
+                <div id="active-schedules" style="font-size: 22px; font-weight: 700; color: var(--ford-blue);">--</div>
             </div>
             <div class="status-card">
-                <h3>Current Time</h3>
-                <div id="current-time" style="font-size:16px;font-weight:600;">--</div>
-                <div id="current-timezone" style="font-size:13px;color:var(--text-secondary);">--</div>
+                <h4>Reports Today</h4>
+                <div id="reports-today" style="font-size: 22px; font-weight: 700; color: var(--ford-blue);">--</div>
             </div>
             <div class="status-card">
-                <h3>Last 24 Hours</h3>
-                <div id="stats-24h" style="font-size:14px;">
-                    <div>Reports sent: <strong>--</strong></div>
-                    <div>Failures: <strong>--</strong></div>
-                </div>
+                <h4>Templates Available</h4>
+                <div style="font-size: 22px; font-weight: 700; color: var(--ford-blue);">25</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">20 operational + 5 analytics</div>
             </div>
         </div>
 
         <!-- Master Toggle -->
-        <div class="master-toggle">
-            <div class="toggle-info">
-                <h3>Automatic Reports</h3>
-                <p>When enabled, reports are sent automatically at scheduled times</p>
+        <div class="master-toggle-bar">
+            <div>
+                <div style="font-size: 16px; font-weight: 700;">Automatic Report Scheduler</div>
+                <div style="font-size: 13px; color: var(--text-secondary);">When enabled, reports are generated and delivered automatically on schedule</div>
             </div>
-            <label class="big-toggle">
+            <label class="toggle-switch">
                 <input type="checkbox" id="master-toggle" onchange="toggleScheduler(this.checked)">
                 <div class="toggle-track">
-                    <span class="toggle-label on">ON</span>
-                    <span class="toggle-label off">OFF</span>
                     <div class="toggle-thumb"></div>
                 </div>
             </label>
         </div>
+    </div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" data-tab="schedules">Schedules</button>
-            <button class="tab" data-tab="recipients">Recipients</button>
-            <button class="tab" data-tab="email">Email Settings</button>
-            <button class="tab" data-tab="history">History</button>
+    <!-- Tab Navigation -->
+    <div class="main-tabs">
+        <button class="main-tab active" data-tab="templates">Templates</button>
+        <button class="main-tab" data-tab="analytics">Analytics</button>
+        <button class="main-tab" data-tab="generate">Generate</button>
+        <button class="main-tab" data-tab="schedules">Schedules</button>
+        <button class="main-tab" data-tab="delivery">Delivery</button>
+        <button class="main-tab" data-tab="history">History</button>
+    </div>
+
+    <div class="admin-container">
+
+        <!-- ============================================ -->
+        <!-- TEMPLATES TAB                                -->
+        <!-- ============================================ -->
+        <div class="tab-panel active" id="tab-templates">
+            <div class="card">
+                <h3>Operational Reports <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">(20 templates)</span></h3>
+                <div class="tpl-grid" id="tpl-operational"></div>
+            </div>
+            <div class="card">
+                <h3>Analytics Reports <span style="font-size: 12px; font-weight: 400; color: var(--text-secondary);">(5 templates)</span></h3>
+                <div class="tpl-grid" id="tpl-analytics"></div>
+            </div>
         </div>
 
-        <!-- Schedules Tab -->
-        <div class="tab-content active" id="tab-schedules">
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Report Schedules</h2>
-                    <button class="btn btn-primary" onclick="sendReportNow()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                        </svg>
-                        Send Report Now
-                    </button>
+        <!-- ============================================ -->
+        <!-- ANALYTICS TAB                                -->
+        <!-- ============================================ -->
+        <div class="tab-panel" id="tab-analytics">
+            <div class="card">
+                <h3>Department Analytics</h3>
+
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <div class="date-presets" id="date-presets">
+                        <button data-days="7" class="active">7 Days</button>
+                        <button data-days="30">30 Days</button>
+                        <button data-days="90">90 Days</button>
+                        <button data-preset="mtd">MTD</button>
+                        <button data-preset="ytd">YTD</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="date" id="analytics-from" class="form-control" style="width: auto; padding: 5px 8px; font-size: 12px;">
+                        <span style="color: var(--text-secondary);">to</span>
+                        <input type="date" id="analytics-to" class="form-control" style="width: auto; padding: 5px 8px; font-size: 12px;">
+                        <button class="btn btn-sm btn-primary" onclick="loadAnalytics()">Update</button>
+                    </div>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="value" id="kpi-incidents">--</div>
+                        <div class="label">Total Incidents</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="value" id="kpi-avg-response">--</div>
+                        <div class="label">Avg Response</div>
+                        <div class="sub">minutes</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="value" id="kpi-p90">--</div>
+                        <div class="label">90th Percentile</div>
+                        <div class="sub">minutes</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="value" id="kpi-compliance">--</div>
+                        <div class="label">Compliance %</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="value" id="kpi-units">--</div>
+                        <div class="label">Active Units</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-box">
+                        <h4>Incident Trend</h4>
+                        <canvas id="chart-trend"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h4>Type Breakdown</h4>
+                        <canvas id="chart-types"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h4>Hourly Pattern</h4>
+                        <canvas id="chart-hourly"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h4>Unit Utilization</h4>
+                        <canvas id="chart-units"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- GENERATE TAB                                 -->
+        <!-- ============================================ -->
+        <div class="tab-panel" id="tab-generate">
+            <div class="card">
+                <h3>Generate Report</h3>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Report Template</label>
+                        <select id="gen-template" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Report Title (optional)</label>
+                        <input type="text" id="gen-title" class="form-control" placeholder="Leave blank for auto-title">
+                    </div>
+                </div>
+
+                <div class="form-row three">
+                    <div class="form-group">
+                        <label>Date From</label>
+                        <input type="date" id="gen-from" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Date To</label>
+                        <input type="date" id="gen-to" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Shift (optional)</label>
+                        <select id="gen-shift" class="form-control">
+                            <option value="">All Shifts</option>
+                            <option value="A">A Shift</option>
+                            <option value="B">B Shift</option>
+                            <option value="C">C Shift</option>
+                            <option value="D">D Shift</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Output Formats</label>
+                    <div class="format-pills" id="gen-formats">
+                        <button class="format-pill active" data-fmt="html">HTML</button>
+                        <button class="format-pill" data-fmt="pdf">PDF</button>
+                        <button class="format-pill" data-fmt="csv">CSV</button>
+                        <button class="format-pill" data-fmt="xlsx">XLSX</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+                    <button class="btn btn-secondary" onclick="previewReport()">Preview in New Tab</button>
+                </div>
+
+                <div id="gen-result" style="display: none; margin-top: 16px; padding: 14px; border-radius: 8px; background: var(--success-light); border: 1px solid var(--success);">
+                    <strong>Report Generated Successfully</strong>
+                    <div id="gen-links" style="margin-top: 8px;"></div>
+                </div>
+                <div id="gen-error" style="display: none; margin-top: 16px; padding: 14px; border-radius: 8px; background: var(--danger-light); border: 1px solid var(--danger); color: var(--danger);"></div>
+                <div id="gen-loading" style="display: none;" class="loading">Generating report...</div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SCHEDULES TAB                                -->
+        <!-- ============================================ -->
+        <div class="tab-panel" id="tab-schedules">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin-bottom: 0; padding-bottom: 0; border: none;">Report Schedules</h3>
+                    <button class="btn btn-primary btn-sm" onclick="showAddSchedule()">+ Add Schedule</button>
                 </div>
 
                 <table class="data-table">
@@ -611,133 +603,138 @@
                         <tr>
                             <th>Enabled</th>
                             <th>Name</th>
-                            <th>Type</th>
+                            <th>Template</th>
                             <th>Schedule</th>
+                            <th>Format</th>
+                            <th>Channels</th>
                             <th>Last Run</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="schedules-table">
-                        <tr>
-                            <td colspan="6" style="text-align:center;color:var(--text-secondary);">Loading...</td>
-                        </tr>
+                    <tbody id="sched-tbody">
+                        <tr><td colspan="8" class="loading">Loading schedules...</td></tr>
                     </tbody>
                 </table>
             </div>
 
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Report Times</h2>
-                </div>
+            <!-- Add/Edit Schedule Form -->
+            <div class="card" id="sched-form-card" style="display: none;">
+                <h3 id="sched-form-title">Add New Schedule</h3>
+                <input type="hidden" id="sched-edit-id">
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Day Shift Report Time (A/C)</label>
-                        <input type="time" class="form-control" id="day-time" value="17:30">
+                        <label>Schedule Name</label>
+                        <input type="text" id="sched-name" class="form-control" placeholder="Daily Shift Report">
                     </div>
                     <div class="form-group">
-                        <label>Night Shift Report Time (B/D)</label>
-                        <input type="time" class="form-control" id="night-time" value="05:30">
+                        <label>Report Template</label>
+                        <select id="sched-template" class="form-control"></select>
+                    </div>
+                </div>
+
+                <div class="form-row three">
+                    <div class="form-group">
+                        <label>Schedule Type</label>
+                        <select id="sched-type" class="form-control" onchange="document.getElementById('sched-cron-group').style.display = this.value === 'cron' ? 'block' : 'none';">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="shift_change">Shift Change</option>
+                            <option value="once">One-Time</option>
+                            <option value="cron">Custom Cron</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Time</label>
+                        <input type="time" id="sched-time" class="form-control" value="06:00">
+                    </div>
+                    <div class="form-group" id="sched-cron-group" style="display: none;">
+                        <label>Cron Expression</label>
+                        <input type="text" id="sched-cron" class="form-control" placeholder="0 6 * * *">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Timezone</label>
-                    <select class="form-control" id="timezone-select">
-                        <option value="America/New_York">Eastern Time (ET)</option>
-                        <option value="America/Chicago">Central Time (CT)</option>
-                        <option value="America/Denver">Mountain Time (MT)</option>
-                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                        <option value="UTC">UTC</option>
-                    </select>
-                </div>
-
-                <button class="btn btn-primary" onclick="saveReportTimes()">Save Report Times</button>
-            </div>
-        </div>
-
-        <!-- Recipients Tab -->
-        <div class="tab-content" id="tab-recipients">
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Battalion Chiefs</h2>
-                </div>
-
-                <div class="bc-grid" id="bc-grid">
-                    <!-- Populated by JS -->
-                </div>
-
-                <div style="margin-top: 16px;">
-                    <button class="btn btn-primary" onclick="saveBattalionChiefs()">Save All BC Contacts</button>
-                </div>
-            </div>
-
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Additional Recipients</h2>
-                    <button class="btn btn-secondary btn-sm" onclick="addRecipient()">+ Add Recipient</button>
-                </div>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Type</th>
-                            <th>Shift</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="recipients-table">
-                        <tr>
-                            <td colspan="5" style="text-align:center;color:var(--text-secondary);">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Email Settings Tab -->
-        <div class="tab-content" id="tab-email">
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Email Provider</h2>
+                    <label>Output Format</label>
+                    <div class="format-pills" id="sched-formats">
+                        <button class="format-pill active" data-fmt="html">HTML</button>
+                        <button class="format-pill" data-fmt="pdf">PDF</button>
+                        <button class="format-pill" data-fmt="csv">CSV</button>
+                        <button class="format-pill" data-fmt="xlsx">XLSX</button>
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Provider</label>
-                    <select class="form-control" id="email-provider">
-                        <option value="sendgrid">SendGrid (Recommended)</option>
-                        <option value="smtp">SMTP (Gmail/Custom)</option>
-                    </select>
+                    <label>Delivery Channels</label>
+                    <div class="channel-checks" id="sched-channels">
+                        <label><input type="checkbox" value="email" checked> Email</label>
+                        <label><input type="checkbox" value="sms"> SMS</label>
+                        <label><input type="checkbox" value="webhook"> Webhook</label>
+                        <label><input type="checkbox" value="signal"> Signal</label>
+                        <label><input type="checkbox" value="webex"> Webex</label>
+                    </div>
                 </div>
 
-                <div id="sendgrid-config">
+                <div class="form-group">
+                    <label>Recipients (comma-separated emails)</label>
+                    <input type="text" id="sched-recipients" class="form-control" placeholder="chief@dept.com, captain@dept.com">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="saveSchedule()">Save Schedule</button>
+                    <button class="btn btn-secondary" onclick="cancelSchedule()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- DELIVERY TAB                                 -->
+        <!-- ============================================ -->
+        <div class="tab-panel" id="tab-delivery">
+            <div class="card">
+                <h3>Email Configuration</h3>
+                <div class="settings-section">
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Email Provider</div>
+                            <div class="setting-desc">SendGrid or SMTP gateway</div>
+                        </div>
+                        <div>
+                            <select id="dlv-email-provider" class="form-control" style="width: 200px;" onchange="document.getElementById('dlv-smtp-config').style.display = this.value === 'smtp' ? 'block' : 'none'; document.getElementById('dlv-sendgrid-config').style.display = this.value === 'sendgrid' ? 'block' : 'none';">
+                                <option value="sendgrid">SendGrid</option>
+                                <option value="smtp">SMTP</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="dlv-sendgrid-config">
                     <div class="form-group">
                         <label>SendGrid API Key</label>
-                        <input type="password" class="form-control" id="sendgrid-key" placeholder="SG.xxxxxxxxxx">
+                        <input type="password" id="dlv-sendgrid-key" class="form-control" placeholder="SG.xxxxxxxxxx">
                     </div>
                 </div>
 
-                <div id="smtp-config" style="display:none;">
+                <div id="dlv-smtp-config" style="display: none;">
                     <div class="form-row">
                         <div class="form-group">
                             <label>SMTP Host</label>
-                            <input type="text" class="form-control" id="smtp-host" value="smtp.gmail.com">
+                            <input type="text" id="dlv-smtp-host" class="form-control" value="smtp.gmail.com">
                         </div>
                         <div class="form-group">
                             <label>SMTP Port</label>
-                            <input type="number" class="form-control" id="smtp-port" value="587">
+                            <input type="number" id="dlv-smtp-port" class="form-control" value="587">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Username</label>
-                            <input type="text" class="form-control" id="smtp-user">
+                            <input type="text" id="dlv-smtp-user" class="form-control">
                         </div>
                         <div class="form-group">
                             <label>Password</label>
-                            <input type="password" class="form-control" id="smtp-pass">
+                            <input type="password" id="dlv-smtp-pass" class="form-control">
                         </div>
                     </div>
                 </div>
@@ -745,59 +742,92 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>From Name</label>
-                        <input type="text" class="form-control" id="from-name" value="FORD CAD System">
+                        <input type="text" id="dlv-from-name" class="form-control" value="FORD CAD System">
                     </div>
                     <div class="form-group">
                         <label>From Email</label>
-                        <input type="email" class="form-control" id="from-email" placeholder="cad@blueovalsk.com">
+                        <input type="email" id="dlv-from-email" class="form-control" placeholder="cad@blueovalsk.com">
                     </div>
                 </div>
 
-                <div style="display:flex;gap:12px;margin-top:16px;">
+                <div style="display: flex; gap: 12px; margin-top: 12px;">
                     <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Settings</button>
-                    <button class="btn btn-secondary" onclick="testEmailConfig()">Test Connection</button>
+                    <button class="btn btn-secondary" onclick="testEmail()">Send Test Email</button>
                 </div>
             </div>
 
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Send Test Email</h2>
-                </div>
-
-                <div class="form-group">
-                    <label>Test Email Address</label>
-                    <div style="display:flex;gap:12px;">
-                        <input type="email" class="form-control" id="test-email" placeholder="your@email.com" style="flex:1;">
-                        <button class="btn btn-secondary" onclick="sendTestEmail()">Send Test</button>
+            <div class="card">
+                <h3>SMS Configuration</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SMS Provider</label>
+                        <select id="dlv-sms-provider" class="form-control">
+                            <option value="twilio">Twilio</option>
+                            <option value="none">Not Configured</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Default SMS Recipients</label>
+                        <input type="text" id="dlv-sms-recipients" class="form-control" placeholder="+15551234567">
                     </div>
                 </div>
+            </div>
+
+            <div class="card">
+                <h3>Signal / Webex / Webhook</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Signal API Endpoint</label>
+                        <input type="url" id="dlv-signal-url" class="form-control" placeholder="https://signal-api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Webex Bot Token</label>
+                        <input type="password" id="dlv-webex-token" class="form-control" placeholder="Bearer token">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Webex Room ID</label>
+                        <input type="text" id="dlv-webex-room" class="form-control" placeholder="Room ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Webhook URL</label>
+                        <input type="url" id="dlv-webhook-url" class="form-control" placeholder="https://hooks.example.com/reports">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Webhook Secret (HMAC signing key)</label>
+                    <input type="password" id="dlv-webhook-secret" class="form-control" placeholder="Secret key">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveDeliveryConfig()" style="margin-top: 12px;">Save All Delivery Settings</button>
             </div>
         </div>
 
-        <!-- History Tab -->
-        <div class="tab-content" id="tab-history">
-            <div class="admin-section">
-                <div class="section-header">
-                    <h2>Report History</h2>
+        <!-- ============================================ -->
+        <!-- HISTORY TAB                                  -->
+        <!-- ============================================ -->
+        <div class="tab-panel" id="tab-history">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin-bottom: 0; padding-bottom: 0; border: none;">Report History</h3>
                     <button class="btn btn-secondary btn-sm" onclick="loadHistory()">Refresh</button>
                 </div>
 
-                <table class="data-table history-table">
+                <table class="data-table">
                     <thead>
                         <tr>
                             <th>Date/Time</th>
-                            <th>Type</th>
-                            <th>Shift</th>
+                            <th>Template</th>
+                            <th>Title</th>
                             <th>Status</th>
-                            <th>Recipients</th>
-                            <th>Triggered By</th>
-                            <th>Details</th>
+                            <th>Formats</th>
+                            <th>Created By</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="history-table">
-                        <tr>
-                            <td colspan="7" style="text-align:center;color:var(--text-secondary);">Loading...</td>
-                        </tr>
+                    <tbody id="history-tbody">
+                        <tr><td colspan="7" class="loading">Loading history...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -807,76 +837,147 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
-        // Toast notifications
-        function showToast(message, type = 'info') {
+    (function() {
+        'use strict';
+
+        const API = '/api/reporting';
+
+        const TEMPLATE_META = {
+            blotter:              { name: 'Daily Blotter',             desc: 'Chronological DailyLog with incidents and actions', category: 'operational' },
+            incident_summary:     { name: 'Incident Summary',         desc: 'Detailed incident information with units, narrative, timeline', category: 'operational' },
+            unit_response_stats:  { name: 'Unit Response Stats',      desc: 'Response-time metrics broken down by unit', category: 'operational' },
+            calltaker_stats:      { name: 'Calltaker Statistics',     desc: 'Call-taking performance and workload metrics', category: 'operational' },
+            shift_workload:       { name: 'Shift Workload',           desc: 'Workload distribution and balance across shifts', category: 'operational' },
+            response_compliance:  { name: 'Response Compliance',      desc: 'Pass/fail analysis against response time thresholds', category: 'operational' },
+            shift_handoff:        { name: 'Shift Handoff',            desc: 'End-of-shift summary for handoff briefing', category: 'operational' },
+            incident_detail:      { name: 'Incident Detail',          desc: 'Full detail view for a single incident', category: 'operational' },
+            open_incidents:       { name: 'Open Incidents',           desc: 'All currently open/active incidents', category: 'operational' },
+            unit_activity:        { name: 'Unit Activity',            desc: 'Activity log for specific units over a time period', category: 'operational' },
+            unit_utilization:     { name: 'Unit Utilization',         desc: 'How busy each unit is: committed time vs available', category: 'operational' },
+            response_time_analysis: { name: 'Response Time Analysis', desc: 'Detailed response time breakdowns with percentiles', category: 'operational' },
+            monthly_summary:      { name: 'Monthly Summary',         desc: 'Month-over-month summary of department activity', category: 'operational' },
+            personnel_activity:   { name: 'Personnel Activity',      desc: 'Personnel actions and activity tracking', category: 'operational' },
+            incident_type_breakdown: { name: 'Incident Type Breakdown', desc: 'Breakdown of incidents by NFIRS type code', category: 'operational' },
+            location_hotspot:     { name: 'Location Hotspot',         desc: 'Geographic clustering of incident locations', category: 'operational' },
+            false_alarm:          { name: 'False Alarm Analysis',     desc: 'False alarm rates, repeat offenders, and trends', category: 'operational' },
+            mutual_aid:           { name: 'Mutual Aid',               desc: 'Mutual aid given/received tracking and stats', category: 'operational' },
+            issue_tracking:       { name: 'Issue Tracking',           desc: 'Operational issues, follow-ups, and resolutions', category: 'operational' },
+            training_log:         { name: 'Training Log',             desc: 'Training events, attendance, and hours tracking', category: 'operational' },
+            executive_summary:    { name: 'Executive Summary',        desc: 'High-level KPIs and department performance overview', category: 'analytics' },
+            response_performance: { name: 'Response Performance',     desc: 'Comprehensive response time analytics with trends', category: 'analytics' },
+            incident_analytics:   { name: 'Incident Analytics',       desc: 'Deep-dive incident patterns, types, and trends', category: 'analytics' },
+            unit_performance:     { name: 'Unit Performance',         desc: 'Per-unit performance scorecards and rankings', category: 'analytics' },
+            department_overview:  { name: 'Department Overview',       desc: 'Full department operational overview with all KPIs', category: 'analytics' },
+        };
+
+        let charts = {};
+
+        // ---- Toast ----
+        function showToast(message, type) {
+            type = type || 'info';
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
+            toast.className = 'toast ' + type;
             toast.textContent = message;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
+            setTimeout(function() { toast.remove(); }, 4000);
         }
+        window.showToast = showToast;
 
-        // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        // ---- Tab switching ----
+        document.querySelectorAll('.main-tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.main-tab').forEach(function(t) { t.classList.remove('active'); });
+                document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
                 tab.classList.add('active');
                 document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+                if (tab.dataset.tab === 'analytics') loadAnalytics();
+                if (tab.dataset.tab === 'schedules') loadSchedules();
+                if (tab.dataset.tab === 'history') loadHistory();
             });
         });
 
-        // Email provider toggle
-        document.getElementById('email-provider').addEventListener('change', function() {
-            document.getElementById('sendgrid-config').style.display = this.value === 'sendgrid' ? 'block' : 'none';
-            document.getElementById('smtp-config').style.display = this.value === 'smtp' ? 'block' : 'none';
+        // ---- Format pill toggling ----
+        document.querySelectorAll('.format-pills').forEach(function(container) {
+            container.addEventListener('click', function(e) {
+                var pill = e.target.closest('.format-pill');
+                if (pill) pill.classList.toggle('active');
+            });
         });
 
-        // Load initial data
+        // ---- TEMPLATES ----
+        function renderTemplates() {
+            var opGrid = document.getElementById('tpl-operational');
+            var anGrid = document.getElementById('tpl-analytics');
+            opGrid.innerHTML = '';
+            anGrid.innerHTML = '';
+
+            Object.entries(TEMPLATE_META).forEach(function(entry) {
+                var key = entry[0], meta = entry[1];
+                var card = document.createElement('div');
+                card.className = 'tpl-card' + (meta.category === 'analytics' ? ' analytics' : '');
+                card.innerHTML = '<div class="name">' + meta.name + '</div><div class="desc">' + meta.desc + '</div><div class="cat">' + meta.category + '</div>';
+                card.onclick = function() {
+                    document.querySelectorAll('.main-tab').forEach(function(t) { t.classList.remove('active'); });
+                    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+                    document.querySelector('[data-tab="generate"]').classList.add('active');
+                    document.getElementById('tab-generate').classList.add('active');
+                    document.getElementById('gen-template').value = key;
+                };
+                if (meta.category === 'analytics') anGrid.appendChild(card);
+                else opGrid.appendChild(card);
+            });
+        }
+
+        function populateSelectors() {
+            ['gen-template', 'sched-template'].forEach(function(id) {
+                var sel = document.getElementById(id);
+                if (!sel) return;
+                sel.innerHTML = '';
+                var opGroup = document.createElement('optgroup');
+                opGroup.label = 'Operational';
+                var anGroup = document.createElement('optgroup');
+                anGroup.label = 'Analytics';
+                Object.entries(TEMPLATE_META).forEach(function(entry) {
+                    var key = entry[0], meta = entry[1];
+                    var opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = meta.name;
+                    if (meta.category === 'analytics') anGroup.appendChild(opt);
+                    else opGroup.appendChild(opt);
+                });
+                sel.appendChild(opGroup);
+                sel.appendChild(anGroup);
+            });
+        }
+
+        // ---- STATUS ----
         async function loadStatus() {
             try {
-                const res = await fetch('/api/v2/reports/scheduler/status');
-                const data = await res.json();
-
-                // Update scheduler status
-                const statusEl = document.getElementById('scheduler-status');
+                var res = await fetch(API + '/scheduler/status');
+                var data = await res.json();
+                var el = document.getElementById('sched-status');
                 if (data.running) {
-                    statusEl.className = 'status-indicator running';
-                    statusEl.innerHTML = '<span class="dot"></span><span class="text">RUNNING</span>';
+                    el.className = 'status-indicator running';
+                    el.innerHTML = '<span class="dot"></span><span class="text">RUNNING</span>';
                 } else {
-                    statusEl.className = 'status-indicator stopped';
-                    statusEl.innerHTML = '<span class="dot"></span><span class="text">STOPPED</span>';
+                    el.className = 'status-indicator stopped';
+                    el.innerHTML = '<span class="dot"></span><span class="text">STOPPED</span>';
                 }
-
-                // Update master toggle
-                document.getElementById('master-toggle').checked = data.enabled;
-
-                // Update next report
-                const nextEl = document.getElementById('next-report');
-                if (data.next_report) {
-                    nextEl.innerHTML = `<span class="time">${data.next_report}</span><span class="type">${data.current_shift} Shift End Report</span>`;
-                } else {
-                    nextEl.innerHTML = '<span class="time">Not scheduled</span>';
-                }
-
-                // Update current time
-                document.getElementById('current-time').textContent = data.current_time;
-                document.getElementById('current-timezone').textContent = data.timezone;
-
+                document.getElementById('master-toggle').checked = data.running || data.enabled;
             } catch (e) {
-                console.error('Failed to load status:', e);
+                console.error('loadStatus:', e);
             }
         }
 
-        async function toggleScheduler(enabled) {
+        window.toggleScheduler = async function(enabled) {
             try {
-                const endpoint = enabled ? '/api/v2/reports/scheduler/enable' : '/api/v2/reports/scheduler/disable';
-                const res = await fetch(endpoint, { method: 'POST' });
-                const data = await res.json();
-
-                if (data.ok) {
-                    showToast(enabled ? 'Scheduler enabled' : 'Scheduler disabled', 'success');
+                var endpoint = enabled ? API + '/scheduler/start' : API + '/scheduler/stop';
+                var res = await fetch(endpoint, { method: 'POST' });
+                var data = await res.json();
+                if (data.ok !== false) {
+                    showToast(enabled ? 'Scheduler started' : 'Scheduler stopped', 'success');
                     loadStatus();
                 } else {
                     showToast(data.error || 'Failed', 'error');
@@ -886,296 +987,487 @@
                 showToast('Error: ' + e.message, 'error');
                 document.getElementById('master-toggle').checked = !enabled;
             }
+        };
+
+        // ---- ANALYTICS ----
+        document.getElementById('date-presets').addEventListener('click', function(e) {
+            var btn = e.target.closest('button');
+            if (!btn) return;
+            this.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+
+            var today = new Date();
+            var from;
+            if (btn.dataset.days) {
+                from = new Date(today.getTime() - parseInt(btn.dataset.days) * 86400000);
+            } else if (btn.dataset.preset === 'mtd') {
+                from = new Date(today.getFullYear(), today.getMonth(), 1);
+            } else if (btn.dataset.preset === 'ytd') {
+                from = new Date(today.getFullYear(), 0, 1);
+            }
+            document.getElementById('analytics-from').value = from.toISOString().split('T')[0];
+            document.getElementById('analytics-to').value = today.toISOString().split('T')[0];
+            loadAnalytics();
+        });
+
+        window.loadAnalytics = async function() {
+            var dateFrom = document.getElementById('analytics-from').value;
+            var dateTo = document.getElementById('analytics-to').value;
+
+            try {
+                var res = await fetch(API + '/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        template_key: 'department_overview',
+                        filters: { date_from: dateFrom, date_to: dateTo },
+                        formats: [],
+                        created_by: 'admin_reports_page'
+                    })
+                });
+                var data = await res.json();
+                updateKPIs(data.kpis || data.data?.stats || {});
+                updateCharts(data.chart_data || data.data?.chart_data || {});
+            } catch (e) {
+                console.error('Analytics load failed:', e);
+            }
+        };
+
+        function updateKPIs(kpis) {
+            document.getElementById('kpi-incidents').textContent = (kpis.total_incidents ?? kpis.total ?? '--').toLocaleString?.() || kpis.total_incidents || '--';
+            document.getElementById('kpi-avg-response').textContent = kpis.avg_response_time != null ? parseFloat(kpis.avg_response_time).toFixed(1) : '--';
+            document.getElementById('kpi-p90').textContent = kpis.p90_response_time != null ? parseFloat(kpis.p90_response_time).toFixed(1) : (kpis.percentile_90 != null ? parseFloat(kpis.percentile_90).toFixed(1) : '--');
+            document.getElementById('kpi-compliance').textContent = kpis.compliance_pct != null ? kpis.compliance_pct + '%' : (kpis.compliance_rate != null ? parseFloat(kpis.compliance_rate).toFixed(1) + '%' : '--');
+            document.getElementById('kpi-units').textContent = kpis.active_units ?? kpis.units_count ?? '--';
         }
 
-        async function loadSchedules() {
-            try {
-                const res = await fetch('/api/v2/reports/schedules');
-                const data = await res.json();
+        function updateCharts(chartData) {
+            var colors = ['#003478','#1e5bb8','#4a8fe7','#7ab8ff','#a8d4ff','#002a6b','#dc2626','#f59e0b','#10b981','#6366f1'];
 
-                const tbody = document.getElementById('schedules-table');
-                if (!data.schedules || data.schedules.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No schedules configured</td></tr>';
+            // Incident Trend (line)
+            if (charts.trend) charts.trend.destroy();
+            var trendData = chartData.daily_trend || chartData.incident_trend || chartData.trend || [];
+            var trendCtx = document.getElementById('chart-trend');
+            if (trendCtx) {
+                charts.trend = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: trendData.map(function(d) { return d.date || d.label || d.day || ''; }),
+                        datasets: [{ label: 'Incidents', data: trendData.map(function(d) { return d.count || d.value || d.incidents || 0; }), borderColor: '#003478', backgroundColor: 'rgba(0,52,120,0.1)', fill: true, tension: 0.3 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+
+            // Type Breakdown (doughnut)
+            if (charts.types) charts.types.destroy();
+            var typeData = chartData.type_breakdown || chartData.incident_types || chartData.types || [];
+            var typeCtx = document.getElementById('chart-types');
+            if (typeCtx) {
+                charts.types = new Chart(typeCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: typeData.map(function(d) { return d.type || d.label || d.name || ''; }),
+                        datasets: [{ data: typeData.map(function(d) { return d.count || d.value || 0; }), backgroundColor: colors }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+                });
+            }
+
+            // Hourly Pattern (bar)
+            if (charts.hourly) charts.hourly.destroy();
+            var hourlyData = chartData.hourly_pattern || chartData.hourly || chartData.by_hour || [];
+            var hourlyLabels = hourlyData.length ? hourlyData.map(function(d) { return d.hour != null ? String(d.hour).padStart(2,'0') + ':00' : d.label || ''; }) : Array.from({length:24}, function(_, i) { return String(i).padStart(2,'0') + ':00'; });
+            var hourlyValues = hourlyData.length ? hourlyData.map(function(d) { return d.count || d.value || 0; }) : new Array(24).fill(0);
+            var hourlyCtx = document.getElementById('chart-hourly');
+            if (hourlyCtx) {
+                charts.hourly = new Chart(hourlyCtx, {
+                    type: 'bar',
+                    data: { labels: hourlyLabels, datasets: [{ label: 'Incidents', data: hourlyValues, backgroundColor: '#003478' }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+
+            // Unit Utilization (horizontal bar)
+            if (charts.units) charts.units.destroy();
+            var unitData = chartData.unit_utilization || chartData.units || chartData.by_unit || [];
+            var unitCtx = document.getElementById('chart-units');
+            if (unitCtx) {
+                charts.units = new Chart(unitCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: unitData.map(function(d) { return d.unit || d.label || d.name || ''; }),
+                        datasets: [{ label: 'Utilization %', data: unitData.map(function(d) { return d.utilization || d.pct || d.value || d.count || 0; }), backgroundColor: '#1e5bb8' }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+                });
+            }
+        }
+
+        // ---- REPORT GENERATION ----
+        window.generateReport = async function() {
+            var templateKey = document.getElementById('gen-template').value;
+            var title = document.getElementById('gen-title').value;
+            var dateFrom = document.getElementById('gen-from').value;
+            var dateTo = document.getElementById('gen-to').value;
+            var shift = document.getElementById('gen-shift').value;
+            var formats = Array.from(document.querySelectorAll('#gen-formats .format-pill.active')).map(function(p) { return p.dataset.fmt; });
+
+            document.getElementById('gen-result').style.display = 'none';
+            document.getElementById('gen-error').style.display = 'none';
+            document.getElementById('gen-loading').style.display = 'block';
+
+            try {
+                var body = {
+                    template_key: templateKey,
+                    filters: { date_from: dateFrom, date_to: dateTo },
+                    formats: formats,
+                    created_by: 'admin'
+                };
+                if (title) body.title = title;
+                if (shift) body.filters.shift = shift;
+
+                var res = await fetch(API + '/run', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                var data = await res.json();
+                document.getElementById('gen-loading').style.display = 'none';
+
+                if (data.ok) {
+                    document.getElementById('gen-result').style.display = 'block';
+                    var linksDiv = document.getElementById('gen-links');
+                    if (data.links && Object.keys(data.links).length) {
+                        linksDiv.innerHTML = Object.entries(data.links).map(function(entry) {
+                            return '<a href="' + entry[1] + '" target="_blank" class="btn btn-sm btn-secondary" style="margin-right: 6px;">Download ' + entry[0].toUpperCase() + '</a>';
+                        }).join('');
+                    } else {
+                        linksDiv.innerHTML = '<span style="font-size: 13px; color: var(--text-secondary);">Run ID: ' + (data.run_id || '--') + '</span>';
+                    }
+                    showToast('Report generated successfully', 'success');
+                } else {
+                    document.getElementById('gen-error').style.display = 'block';
+                    document.getElementById('gen-error').textContent = data.error || 'Report generation failed';
+                }
+            } catch (e) {
+                document.getElementById('gen-loading').style.display = 'none';
+                document.getElementById('gen-error').style.display = 'block';
+                document.getElementById('gen-error').textContent = 'Error: ' + e.message;
+            }
+        };
+
+        window.previewReport = function() {
+            var templateKey = document.getElementById('gen-template').value;
+            var dateFrom = document.getElementById('gen-from').value;
+            var dateTo = document.getElementById('gen-to').value;
+            var shift = document.getElementById('gen-shift').value;
+            var url = API + '/preview?template_key=' + encodeURIComponent(templateKey);
+            if (dateFrom) url += '&date_from=' + dateFrom;
+            if (dateTo) url += '&date_to=' + dateTo;
+            if (shift) url += '&shift=' + shift;
+            window.open(url, '_blank');
+        };
+
+        // ---- SCHEDULES ----
+        window.loadSchedules = async function() {
+            try {
+                var res = await fetch(API + '/schedules');
+                var data = await res.json();
+                var tbody = document.getElementById('sched-tbody');
+                var schedules = data.schedules || data || [];
+
+                if (!schedules.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty">No schedules configured. Click "Add Schedule" to create one.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = data.schedules.map(s => `
-                    <tr>
-                        <td>
-                            <input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSchedule(${s.id}, this.checked)">
-                        </td>
-                        <td><strong>${s.name}</strong></td>
-                        <td>${s.report_type}</td>
-                        <td>${s.schedule_type === 'shift_based' ? `${s.day_time} / ${s.night_time}` : s.cron_expression}</td>
-                        <td>${s.last_run || 'Never'}</td>
-                        <td>
-                            <button class="btn btn-secondary btn-sm" onclick="runScheduleNow(${s.id})">Run Now</button>
-                        </td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = schedules.map(function(s) {
+                    var enabledClass = s.enabled ? 'badge-success' : 'badge-warning';
+                    var enabledText = s.enabled ? 'Active' : 'Paused';
+                    var channels = (s.channels || s.delivery_channels || []).join(', ') || 'email';
+                    var schedInfo = s.schedule_type === 'cron' ? (s.cron_expression || '--') : (s.schedule_type + (s.time ? ' @ ' + s.time : ''));
+                    return '<tr>' +
+                        '<td><span class="badge ' + enabledClass + '">' + enabledText + '</span></td>' +
+                        '<td><strong>' + (s.name || s.schedule_name || '--') + '</strong></td>' +
+                        '<td>' + (TEMPLATE_META[s.template_key]?.name || s.template_key || s.report_type || '--') + '</td>' +
+                        '<td>' + schedInfo + '</td>' +
+                        '<td>' + (s.formats || s.format || ['html']).join(', ').toUpperCase() + '</td>' +
+                        '<td>' + channels + '</td>' +
+                        '<td>' + (s.last_run || s.last_run_at || 'Never') + '</td>' +
+                        '<td style="white-space:nowrap;">' +
+                            '<button class="btn btn-sm btn-secondary" onclick="toggleSchedule(' + s.id + ',' + !s.enabled + ')">' + (s.enabled ? 'Pause' : 'Enable') + '</button> ' +
+                            '<button class="btn btn-sm btn-secondary" onclick="runScheduleNow(' + s.id + ')">Run</button> ' +
+                            '<button class="btn btn-sm btn-secondary" onclick="editSchedule(' + s.id + ')">Edit</button> ' +
+                            '<button class="btn btn-sm" style="color:var(--danger);" onclick="deleteSchedule(' + s.id + ')">Delete</button>' +
+                        '</td></tr>';
+                }).join('');
             } catch (e) {
-                console.error('Failed to load schedules:', e);
+                console.error('loadSchedules:', e);
+                document.getElementById('sched-tbody').innerHTML = '<tr><td colspan="8" class="empty">Failed to load schedules</td></tr>';
             }
-        }
+        };
 
-        async function toggleSchedule(id, enabled) {
-            const endpoint = enabled ? `/api/v2/reports/schedules/${id}/enable` : `/api/v2/reports/schedules/${id}/disable`;
-            await fetch(endpoint, { method: 'POST' });
-            showToast(enabled ? 'Schedule enabled' : 'Schedule disabled', 'success');
-        }
+        window.toggleSchedule = async function(id, enable) {
+            try {
+                await fetch(API + '/schedule/' + id + '/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ enabled: enable })
+                });
+                showToast(enable ? 'Schedule enabled' : 'Schedule paused', 'success');
+                loadSchedules();
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
 
-        async function runScheduleNow(id) {
-            if (!confirm('Send report now?')) return;
-            await fetch(`/api/v2/reports/schedules/${id}/run`, { method: 'POST' });
-            showToast('Report generation started', 'success');
-        }
+        window.runScheduleNow = async function(id) {
+            if (!confirm('Run this schedule immediately?')) return;
+            try {
+                await fetch(API + '/schedule/' + id + '/run_now', { method: 'POST' });
+                showToast('Report generation started', 'success');
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
 
-        async function sendReportNow() {
-            if (!confirm('Send the current shift report to all recipients?')) return;
-            await fetch('/api/v2/reports/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+        window.deleteSchedule = async function(id) {
+            if (!confirm('Delete this schedule permanently?')) return;
+            try {
+                await fetch(API + '/schedule/' + id, { method: 'DELETE' });
+                showToast('Schedule deleted', 'success');
+                loadSchedules();
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        window.editSchedule = async function(id) {
+            try {
+                var res = await fetch(API + '/schedules');
+                var data = await res.json();
+                var sched = (data.schedules || data || []).find(function(s) { return s.id === id; });
+                if (!sched) return;
+
+                document.getElementById('sched-form-card').style.display = 'block';
+                document.getElementById('sched-form-title').textContent = 'Edit Schedule';
+                document.getElementById('sched-edit-id').value = id;
+                document.getElementById('sched-name').value = sched.name || sched.schedule_name || '';
+                document.getElementById('sched-template').value = sched.template_key || '';
+                document.getElementById('sched-type').value = sched.schedule_type || 'daily';
+                document.getElementById('sched-time').value = sched.time || '06:00';
+                document.getElementById('sched-recipients').value = (sched.recipients || []).join(', ');
+
+                var formats = sched.formats || sched.format || ['html'];
+                document.querySelectorAll('#sched-formats .format-pill').forEach(function(p) {
+                    p.classList.toggle('active', formats.includes(p.dataset.fmt));
+                });
+
+                var channels = sched.channels || sched.delivery_channels || ['email'];
+                document.querySelectorAll('#sched-channels input').forEach(function(cb) {
+                    cb.checked = channels.includes(cb.value);
+                });
+            } catch (e) { console.error('editSchedule:', e); }
+        };
+
+        window.showAddSchedule = function() {
+            document.getElementById('sched-form-card').style.display = 'block';
+            document.getElementById('sched-form-title').textContent = 'Add New Schedule';
+            document.getElementById('sched-edit-id').value = '';
+            document.getElementById('sched-name').value = '';
+            document.getElementById('sched-type').value = 'daily';
+            document.getElementById('sched-time').value = '06:00';
+            document.getElementById('sched-recipients').value = '';
+            document.getElementById('sched-cron').value = '';
+            document.querySelectorAll('#sched-formats .format-pill').forEach(function(p) {
+                p.classList.toggle('active', p.dataset.fmt === 'html');
             });
-            showToast('Report generation started', 'success');
-        }
-
-        async function loadBattalionChiefs() {
-            try {
-                const res = await fetch('/api/v2/reports/recipients/battalion');
-                const data = await res.json();
-
-                const grid = document.getElementById('bc-grid');
-                grid.innerHTML = Object.entries(data.battalion_chiefs).map(([shift, bc]) => `
-                    <div class="bc-card" data-shift="${shift}">
-                        <div class="shift-badge">${shift}</div>
-                        <div class="name">${bc.name || `Shift ${shift} BC`}</div>
-                        <input type="text" id="bc-name-${shift}" placeholder="Name" value="${bc.name || ''}">
-                        <input type="email" id="bc-email-${shift}" placeholder="Email" value="${bc.email || bc.destination || ''}">
-                    </div>
-                `).join('');
-            } catch (e) {
-                console.error('Failed to load BCs:', e);
-            }
-        }
-
-        async function saveBattalionChiefs() {
-            for (const shift of ['A', 'B', 'C', 'D']) {
-                const name = document.getElementById(`bc-name-${shift}`).value;
-                const email = document.getElementById(`bc-email-${shift}`).value;
-
-                if (email) {
-                    await fetch(`/api/v2/reports/recipients/battalion/${shift}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, email })
-                    });
-                }
-            }
-            showToast('Battalion Chief contacts saved', 'success');
-        }
-
-        async function loadRecipients() {
-            try {
-                const res = await fetch('/api/v2/reports/recipients');
-                const data = await res.json();
-
-                const tbody = document.getElementById('recipients-table');
-                const customRecipients = data.recipients.filter(r => r.role !== 'battalion_chief');
-
-                if (customRecipients.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);">No additional recipients</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = customRecipients.map(r => `
-                    <tr>
-                        <td>${r.name || '-'}</td>
-                        <td>${r.destination}</td>
-                        <td>${r.recipient_type}</td>
-                        <td>${r.shift || 'All'}</td>
-                        <td>
-                            <button class="btn btn-secondary btn-sm" onclick="testRecipient(${r.id})">Test</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteRecipient(${r.id})">Delete</button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error('Failed to load recipients:', e);
-            }
-        }
-
-        async function testRecipient(id) {
-            await fetch(`/api/v2/reports/recipients/${id}/test`, { method: 'POST' });
-            showToast('Test email sent', 'success');
-        }
-
-        async function deleteRecipient(id) {
-            if (!confirm('Delete this recipient?')) return;
-            await fetch(`/api/v2/reports/recipients/${id}`, { method: 'DELETE' });
-            showToast('Recipient deleted', 'success');
-            loadRecipients();
-        }
-
-        async function addRecipient() {
-            const email = prompt('Enter email address:');
-            if (!email) return;
-
-            const name = prompt('Enter name (optional):');
-
-            await fetch('/api/v2/reports/recipients', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    recipient_type: 'email',
-                    destination: email,
-                    name: name || '',
-                    role: 'custom'
-                })
+            document.querySelectorAll('#sched-channels input').forEach(function(cb) {
+                cb.checked = cb.value === 'email';
             });
-            showToast('Recipient added', 'success');
-            loadRecipients();
-        }
+        };
 
-        async function loadConfig() {
-            try {
-                const res = await fetch('/api/v2/reports/config');
-                const config = await res.json();
+        window.cancelSchedule = function() {
+            document.getElementById('sched-form-card').style.display = 'none';
+        };
 
-                document.getElementById('timezone-select').value = config.timezone || 'America/New_York';
-                document.getElementById('day-time').value = config.day_shift_report_time || '17:30';
-                document.getElementById('night-time').value = config.night_shift_report_time || '05:30';
-                document.getElementById('email-provider').value = config.email_provider || 'sendgrid';
-                document.getElementById('from-name').value = config.from_name || '';
-                document.getElementById('from-email').value = config.from_email || '';
-
-            } catch (e) {
-                console.error('Failed to load config:', e);
-            }
-        }
-
-        async function saveReportTimes() {
-            const data = {
-                timezone: document.getElementById('timezone-select').value,
-                day_shift_report_time: document.getElementById('day-time').value,
-                night_shift_report_time: document.getElementById('night-time').value
+        window.saveSchedule = async function() {
+            var editId = document.getElementById('sched-edit-id').value;
+            var body = {
+                name: document.getElementById('sched-name').value,
+                template_key: document.getElementById('sched-template').value,
+                schedule_type: document.getElementById('sched-type').value,
+                time: document.getElementById('sched-time').value,
+                formats: Array.from(document.querySelectorAll('#sched-formats .format-pill.active')).map(function(p) { return p.dataset.fmt; }),
+                channels: Array.from(document.querySelectorAll('#sched-channels input:checked')).map(function(cb) { return cb.value; }),
+                recipients: document.getElementById('sched-recipients').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+                enabled: true
             };
+            if (body.schedule_type === 'cron') {
+                body.cron_expression = document.getElementById('sched-cron').value;
+            }
 
-            await fetch('/api/v2/reports/config', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            showToast('Report times saved', 'success');
-            loadStatus();
-        }
+            try {
+                var url = editId ? API + '/schedule/' + editId : API + '/schedule';
+                var method = editId ? 'PUT' : 'POST';
+                var res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                var data = await res.json();
+                if (data.ok !== false) {
+                    showToast(editId ? 'Schedule updated' : 'Schedule created', 'success');
+                    document.getElementById('sched-form-card').style.display = 'none';
+                    loadSchedules();
+                } else {
+                    showToast(data.error || 'Failed to save', 'error');
+                }
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
 
-        async function saveEmailConfig() {
-            const provider = document.getElementById('email-provider').value;
-            const data = {
-                provider,
-                from_name: document.getElementById('from-name').value,
-                from_email: document.getElementById('from-email').value
+        // ---- DELIVERY CONFIG ----
+        window.saveEmailConfig = async function() {
+            var provider = document.getElementById('dlv-email-provider').value;
+            var data = {
+                provider: provider,
+                from_name: document.getElementById('dlv-from-name').value,
+                from_email: document.getElementById('dlv-from-email').value
             };
-
             if (provider === 'sendgrid') {
-                const key = document.getElementById('sendgrid-key').value;
-                if (key && !key.includes('***')) {
-                    data.sendgrid_api_key = key;
-                }
+                var key = document.getElementById('dlv-sendgrid-key').value;
+                if (key && !key.includes('***')) data.sendgrid_api_key = key;
             } else {
-                data.smtp_host = document.getElementById('smtp-host').value;
-                data.smtp_port = document.getElementById('smtp-port').value;
-                data.smtp_user = document.getElementById('smtp-user').value;
-                const pass = document.getElementById('smtp-pass').value;
+                data.smtp_host = document.getElementById('dlv-smtp-host').value;
+                data.smtp_port = document.getElementById('dlv-smtp-port').value;
+                data.smtp_user = document.getElementById('dlv-smtp-user').value;
+                var pass = document.getElementById('dlv-smtp-pass').value;
                 if (pass) data.smtp_pass = pass;
             }
 
-            await fetch('/api/v2/reports/config/email', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            showToast('Email configuration saved', 'success');
-        }
-
-        async function testEmailConfig() {
-            const res = await fetch('/api/v2/reports/config/email/test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: document.getElementById('test-email').value || 'test@test.com' })
-            });
-            const data = await res.json();
-            if (data.ok) {
-                showToast('Connection successful!', 'success');
-            } else {
-                showToast(data.error || 'Connection failed', 'error');
-            }
-        }
-
-        async function sendTestEmail() {
-            const email = document.getElementById('test-email').value;
-            if (!email) {
-                showToast('Enter an email address', 'error');
-                return;
-            }
-
-            const res = await fetch('/api/v2/reports/config/email/test', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const data = await res.json();
-            if (data.ok) {
-                showToast('Test email sent!', 'success');
-            } else {
-                showToast(data.error || 'Failed to send', 'error');
-            }
-        }
-
-        async function loadHistory() {
             try {
-                const res = await fetch('/api/v2/reports/history');
-                const data = await res.json();
+                await fetch('/api/v2/reports/config/email', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                showToast('Email configuration saved', 'success');
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
 
-                const tbody = document.getElementById('history-table');
-                if (!data.history || data.history.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No report history</td></tr>';
+        window.testEmail = async function() {
+            var email = prompt('Enter test email address:');
+            if (!email) return;
+            try {
+                var res = await fetch('/api/v2/reports/config/email/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email: email })
+                });
+                var data = await res.json();
+                if (data.ok) showToast('Test email sent!', 'success');
+                else showToast(data.error || 'Failed to send', 'error');
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        window.saveDeliveryConfig = async function() {
+            var config = {
+                sms_provider: document.getElementById('dlv-sms-provider').value,
+                sms_recipients: document.getElementById('dlv-sms-recipients').value,
+                signal_url: document.getElementById('dlv-signal-url').value,
+                webex_token: document.getElementById('dlv-webex-token').value,
+                webex_room: document.getElementById('dlv-webex-room').value,
+                webhook_url: document.getElementById('dlv-webhook-url').value,
+                webhook_secret: document.getElementById('dlv-webhook-secret').value,
+            };
+            for (var key in config) {
+                if (config[key]) {
+                    try {
+                        await fetch('/api/admin/settings', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ key: 'reporting_' + key, value: config[key], user: 'admin' })
+                        });
+                    } catch (e) { /* ignore individual failures */ }
+                }
+            }
+            showToast('Delivery configuration saved', 'success');
+        };
+
+        // ---- HISTORY ----
+        window.loadHistory = async function() {
+            try {
+                var res = await fetch(API + '/history?limit=50');
+                var data = await res.json();
+                var tbody = document.getElementById('history-tbody');
+                var history = data.history || [];
+
+                if (!history.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty">No report history available</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = data.history.map(h => `
-                    <tr>
-                        <td>${h.started_at || '-'}</td>
-                        <td>${h.report_type}</td>
-                        <td>${h.shift || '-'}</td>
-                        <td><span class="badge badge-${h.status === 'sent' ? 'success' : h.status === 'failed' ? 'danger' : 'warning'}">${h.status}</span></td>
-                        <td>${h.successful_count}/${h.recipients_count}</td>
-                        <td>${h.triggered_by}</td>
-                        <td><button class="btn btn-secondary btn-sm" onclick="viewHistoryDetail(${h.id})">View</button></td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = history.map(function(h) {
+                    var statusClass = (h.status === 'completed' || h.status === 'sent') ? 'badge-success' : h.status === 'failed' ? 'badge-danger' : 'badge-info';
+                    var formats = (h.formats || []).map(function(f) { return f.toUpperCase(); }).join(', ') || '--';
+                    var links = h.links || h.download_links || {};
+                    var downloadBtns = Object.entries(links).map(function(entry) {
+                        return '<a href="' + entry[1] + '" target="_blank" class="btn btn-sm btn-secondary" style="margin:2px;">' + entry[0].toUpperCase() + '</a>';
+                    }).join('');
+                    var resendBtn = h.run_id ? '<button class="btn btn-sm btn-secondary" onclick="resendReport(\'' + h.run_id + '\')">Re-send</button>' : '';
+
+                    return '<tr>' +
+                        '<td>' + (h.started_at || h.created_at || h.timestamp || '--') + '</td>' +
+                        '<td>' + (TEMPLATE_META[h.template_key]?.name || h.template_key || h.report_type || '--') + '</td>' +
+                        '<td>' + (h.title || '--') + '</td>' +
+                        '<td><span class="badge ' + statusClass + '">' + (h.status || '--') + '</span></td>' +
+                        '<td>' + formats + '</td>' +
+                        '<td>' + (h.created_by || h.triggered_by || '--') + '</td>' +
+                        '<td style="white-space:nowrap;">' + downloadBtns + ' ' + resendBtn + '</td>' +
+                    '</tr>';
+                }).join('');
             } catch (e) {
-                console.error('Failed to load history:', e);
+                console.error('loadHistory:', e);
+                document.getElementById('history-tbody').innerHTML = '<tr><td colspan="7" class="empty">Failed to load history</td></tr>';
             }
+        };
+
+        window.resendReport = async function(runId) {
+            var channels = prompt('Delivery channels (comma-separated: email, sms, webhook, signal, webex):', 'email');
+            if (!channels) return;
+            try {
+                await fetch(API + '/deliver', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        run_id: runId,
+                        channels: channels.split(',').map(function(s) { return s.trim(); }),
+                        triggered_by: 'admin_resend'
+                    })
+                });
+                showToast('Report re-sent successfully', 'success');
+            } catch (e) { showToast('Error: ' + e.message, 'error'); }
+        };
+
+        // ---- INIT ----
+        function init() {
+            var today = new Date();
+            var weekAgo = new Date(today.getTime() - 7 * 86400000);
+            document.getElementById('analytics-from').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('analytics-to').value = today.toISOString().split('T')[0];
+            document.getElementById('gen-from').value = weekAgo.toISOString().split('T')[0];
+            document.getElementById('gen-to').value = today.toISOString().split('T')[0];
+
+            renderTemplates();
+            populateSelectors();
+            loadStatus();
+            loadSchedules();
+            loadHistory();
+
+            setInterval(loadStatus, 30000);
         }
 
-        async function viewHistoryDetail(id) {
-            const res = await fetch(`/api/v2/reports/history/${id}`);
-            const data = await res.json();
-            alert(JSON.stringify(data, null, 2));
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
         }
-
-        // Initialize
-        loadStatus();
-        loadSchedules();
-        loadBattalionChiefs();
-        loadRecipients();
-        loadConfig();
-        loadHistory();
-
-        // Refresh status every 30 seconds
-        setInterval(loadStatus, 30000);
+    })();
     </script>
 </body>
 </html>

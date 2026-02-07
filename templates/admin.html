@@ -462,6 +462,7 @@
         .warning-banner .icon { font-size: 20px; }
         .warning-banner .text { font-size: 13px; color: #e65100; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -973,193 +974,1029 @@
 
     <!-- REPORTING TAB -->
     <div class="tab-panel" id="tab-reporting">
-        <div class="card">
-            <h3>Reporting Configuration</h3>
+        <style>
+            /* Reporting Tab Styles */
+            .rpt-sub-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--panel-border); }
+            .rpt-sub-tab { padding: 10px 18px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.2s; }
+            .rpt-sub-tab:hover { color: var(--ford-blue); }
+            .rpt-sub-tab.active { color: var(--ford-blue); border-bottom-color: var(--ford-blue); }
+            .rpt-sub-panel { display: none; }
+            .rpt-sub-panel.active { display: block; }
+            .rpt-tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+            .rpt-tpl-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; }
+            .rpt-tpl-card:hover { border-color: var(--ford-blue); box-shadow: 0 2px 8px rgba(0,52,120,0.1); }
+            .rpt-tpl-card.analytics { border-left: 4px solid #003478; }
+            .rpt-tpl-card .tpl-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+            .rpt-tpl-card .tpl-desc { font-size: 12px; color: var(--text-muted); }
+            .rpt-tpl-card .tpl-cat { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--ford-blue); margin-top: 6px; }
+            .rpt-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+            .rpt-kpi-card { background: white; border: 1px solid var(--panel-border); border-radius: 10px; padding: 16px; text-align: center; }
+            .rpt-kpi-card .kpi-value { font-size: 28px; font-weight: 700; color: var(--ford-blue); }
+            .rpt-kpi-card .kpi-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; font-weight: 600; }
+            .rpt-kpi-card .kpi-sub { font-size: 11px; color: var(--text-muted); }
+            .rpt-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+            .rpt-chart-box { background: white; border: 1px solid var(--panel-border); border-radius: 10px; padding: 16px; }
+            .rpt-chart-box h4 { font-size: 14px; margin-bottom: 12px; color: var(--text-main); }
+            .rpt-chart-box canvas { width: 100% !important; max-height: 260px; }
+            .rpt-date-presets { display: flex; gap: 6px; margin-bottom: 12px; }
+            .rpt-date-presets button { padding: 5px 12px; border: 1px solid var(--panel-border); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+            .rpt-date-presets button.active { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
+            .rpt-sched-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            .rpt-sched-table th { text-align: left; padding: 10px 12px; background: var(--panel-bg); font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--panel-border); }
+            .rpt-sched-table td { padding: 10px 12px; border-bottom: 1px solid var(--panel-border); }
+            .rpt-sched-table tr:hover { background: var(--panel-bg); }
+            .rpt-status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+            .rpt-status-badge.success { background: var(--success-light); color: var(--success); }
+            .rpt-status-badge.error { background: var(--danger-light); color: var(--danger); }
+            .rpt-status-badge.warning { background: var(--warning-light); color: var(--warning); }
+            .rpt-status-badge.info { background: var(--ford-blue-light); color: var(--ford-blue); }
+            .rpt-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+            .rpt-form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+            .rpt-form-group { margin-bottom: 12px; }
+            .rpt-form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+            .rpt-form-group select, .rpt-form-group input { width: 100%; padding: 8px 10px; border: 1px solid var(--panel-border); border-radius: 6px; font-size: 13px; }
+            .rpt-form-group select:focus, .rpt-form-group input:focus { outline: none; border-color: var(--ford-blue); box-shadow: 0 0 0 2px rgba(0,52,120,0.1); }
+            .rpt-format-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+            .rpt-format-pill { padding: 5px 12px; border: 1px solid var(--panel-border); border-radius: 6px; background: white; cursor: pointer; font-size: 12px; font-weight: 600; }
+            .rpt-format-pill.active { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
+            .rpt-channel-checks { display: flex; gap: 16px; flex-wrap: wrap; }
+            .rpt-channel-checks label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+            .rpt-loading { text-align: center; padding: 40px; color: var(--text-muted); }
+            .rpt-empty { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
+            @media (max-width: 900px) { .rpt-charts-grid { grid-template-columns: 1fr; } .rpt-tpl-grid { grid-template-columns: 1fr; } }
+        </style>
 
-            <div class="settings-section">
-                <h4>Automatic Reports</h4>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Enable Auto-Reports</div>
-                        <div class="setting-desc">Automatically generate and send scheduled reports</div>
-                    </div>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="cfg-auto-reports">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Daily Report Time</div>
-                        <div class="setting-desc">Time to generate daily activity report</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="time" id="cfg-daily-report-time" value="06:00">
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Report Recipients</div>
-                        <div class="setting-desc">Email addresses (comma-separated)</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="text" id="cfg-report-emails" placeholder="chief@dept.com">
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4>NFIRS Configuration</h4>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Enable NFIRS</div>
-                        <div class="setting-desc">National Fire Incident Reporting System</div>
-                    </div>
-                    <div class="setting-control">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="cfg-nfirs-enabled" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">NFIRS Version</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="cfg-nfirs-version">
-                            <option value="5.0" selected>NFIRS 5.0</option>
-                            <option value="NERIS">NERIS (Future)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Auto-Close Incidents</div>
-                        <div class="setting-desc">Auto-close incidents after X hours of inactivity</div>
-                    </div>
-                    <div class="setting-control">
-                        <input type="number" id="cfg-auto-close-hours" value="24" min="0" style="width: 80px;"> hours
-                    </div>
-                </div>
-            </div>
-
-            <div class="settings-section">
-                <h4>Data Export</h4>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Export Format</div>
-                    </div>
-                    <div class="setting-control">
-                        <select id="cfg-export-format">
-                            <option value="CSV">CSV</option>
-                            <option value="JSON">JSON</option>
-                            <option value="XML">XML</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn btn-primary" onclick="saveReportingConfig()">Save Reporting Configuration</button>
+        <!-- Sub-tab Navigation -->
+        <div class="rpt-sub-tabs" id="rpt-sub-tabs">
+            <button class="rpt-sub-tab active" data-rpt-tab="templates">Report Templates</button>
+            <button class="rpt-sub-tab" data-rpt-tab="analytics">Analytics Dashboard</button>
+            <button class="rpt-sub-tab" data-rpt-tab="generate">Generate Report</button>
+            <button class="rpt-sub-tab" data-rpt-tab="schedules">Schedule Management</button>
+            <button class="rpt-sub-tab" data-rpt-tab="delivery">Delivery Channels</button>
+            <button class="rpt-sub-tab" data-rpt-tab="history">Report History</button>
         </div>
 
-        <div class="card">
-            <h3>Export Data Now</h3>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                <button class="btn btn-success" onclick="exportIncidents()">Export Incidents</button>
-                <button class="btn btn-success" onclick="exportLogs('masterlog')">Export MasterLog</button>
-                <button class="btn btn-success" onclick="exportLogs('dailylog')">Export DailyLog</button>
+        <!-- ============================================ -->
+        <!-- 1. REPORT TEMPLATES                          -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel active" id="rpt-panel-templates">
+            <div class="card">
+                <h3>Report Templates <span style="font-size: 13px; font-weight: 400; color: var(--text-muted);">(25 built-in)</span></h3>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Click any template to generate a report. Analytics templates are highlighted with a blue accent.</p>
+
+                <h4 style="margin-bottom: 10px; font-size: 14px; color: var(--ford-blue);">Operational Reports</h4>
+                <div class="rpt-tpl-grid" id="rpt-tpl-operational"></div>
+
+                <h4 style="margin: 20px 0 10px; font-size: 14px; color: #003478;">Analytics Reports</h4>
+                <div class="rpt-tpl-grid" id="rpt-tpl-analytics"></div>
             </div>
         </div>
 
-        <!-- NFIRS Compliance Dashboard -->
-        <div class="card">
-            <h3>NFIRS Compliance Dashboard</h3>
+        <!-- ============================================ -->
+        <!-- 2. ANALYTICS DASHBOARD                       -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel" id="rpt-panel-analytics">
+            <div class="card">
+                <h3>Analytics Dashboard</h3>
 
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="margin-bottom: 20px;">
-                <div class="stat-card">
-                    <div class="label">Compliance Rate</div>
-                    <div class="value" id="nfirs-compliance-pct">--</div>
-                    <div class="subvalue">of closed incidents</div>
+                <!-- Date Range Presets -->
+                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <div class="rpt-date-presets" id="rpt-analytics-presets">
+                        <button data-days="7" class="active">7 Days</button>
+                        <button data-days="30">30 Days</button>
+                        <button data-days="90">90 Days</button>
+                        <button data-preset="mtd">MTD</button>
+                        <button data-preset="ytd">YTD</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="date" id="rpt-analytics-from" class="form-control" style="width: auto; padding: 5px 8px; font-size: 12px;">
+                        <span style="color: var(--text-muted);">to</span>
+                        <input type="date" id="rpt-analytics-to" class="form-control" style="width: auto; padding: 5px 8px; font-size: 12px;">
+                        <button class="btn btn-sm btn-primary" onclick="rptLoadAnalytics()">Update</button>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="label">Incidents with NFIRS</div>
-                    <div class="value" id="nfirs-total-with">--</div>
-                    <div class="subvalue">have NFIRS type code</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Missing Required Data</div>
-                    <div class="value" id="nfirs-total-incomplete" style="color: var(--danger);">--</div>
-                    <div class="subvalue">closed incidents</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Total Closed</div>
-                    <div class="value" id="nfirs-total-closed">--</div>
-                    <div class="subvalue">incidents</div>
-                </div>
-            </div>
 
-            <!-- Detail Breakdown -->
-            <div class="settings-section">
-                <h4>Compliance Issues</h4>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Missing NFIRS Type Code</div>
-                        <div class="setting-desc">Closed incidents without incident type classification</div>
+                <!-- KPI Cards -->
+                <div class="rpt-kpi-grid" id="rpt-kpi-grid">
+                    <div class="rpt-kpi-card">
+                        <div class="kpi-value" id="rpt-kpi-incidents">--</div>
+                        <div class="kpi-label">Total Incidents</div>
                     </div>
-                    <div class="setting-control">
-                        <span id="nfirs-missing-type" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    <div class="rpt-kpi-card">
+                        <div class="kpi-value" id="rpt-kpi-avg-response">--</div>
+                        <div class="kpi-label">Avg Response Time</div>
+                        <div class="kpi-sub">minutes</div>
                     </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">Fire Incidents Missing Data</div>
-                        <div class="setting-desc">Missing fire cause or spread (required for 100-173)</div>
+                    <div class="rpt-kpi-card">
+                        <div class="kpi-value" id="rpt-kpi-p90">--</div>
+                        <div class="kpi-label">90th Percentile</div>
+                        <div class="kpi-sub">minutes</div>
                     </div>
-                    <div class="setting-control">
-                        <span id="nfirs-missing-fire" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    <div class="rpt-kpi-card">
+                        <div class="kpi-value" id="rpt-kpi-compliance">--</div>
+                        <div class="kpi-label">Compliance %</div>
                     </div>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-info">
-                        <div class="setting-label">EMS Incidents Missing Data</div>
-                        <div class="setting-desc">Missing patient disposition (required for 300-381)</div>
-                    </div>
-                    <div class="setting-control">
-                        <span id="nfirs-missing-ems" class="admin-badge" style="background: var(--warning-light); color: var(--warning);">--</span>
+                    <div class="rpt-kpi-card">
+                        <div class="kpi-value" id="rpt-kpi-units">--</div>
+                        <div class="kpi-label">Active Units</div>
                     </div>
                 </div>
-            </div>
 
-            <!-- NFIRS Export Section -->
-            <div class="settings-section">
-                <h4>Export NFIRS Data (State Submission)</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>Start Date</label>
-                        <input type="date" id="nfirs-export-start" class="form-control">
+                <!-- Charts -->
+                <div class="rpt-charts-grid">
+                    <div class="rpt-chart-box">
+                        <h4>Incident Trend</h4>
+                        <canvas id="rpt-chart-trend"></canvas>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>End Date</label>
-                        <input type="date" id="nfirs-export-end" class="form-control">
+                    <div class="rpt-chart-box">
+                        <h4>Type Breakdown</h4>
+                        <canvas id="rpt-chart-types"></canvas>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>Status</label>
-                        <select id="nfirs-export-status" class="form-control">
-                            <option value="CLOSED" selected>Closed Only</option>
-                            <option value="">All Statuses</option>
-                        </select>
+                    <div class="rpt-chart-box">
+                        <h4>Hourly Pattern</h4>
+                        <canvas id="rpt-chart-hourly"></canvas>
                     </div>
-                    <button class="btn btn-primary" onclick="exportNfirsCSV()">Export CSV</button>
+                    <div class="rpt-chart-box">
+                        <h4>Unit Utilization</h4>
+                        <canvas id="rpt-chart-units"></canvas>
+                    </div>
                 </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
-                    Exports NFIRS-compliant CSV file suitable for state submission. Only incidents with NFIRS type codes are included.
-                </p>
             </div>
         </div>
+
+        <!-- ============================================ -->
+        <!-- 3. REPORT GENERATION                         -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel" id="rpt-panel-generate">
+            <div class="card">
+                <h3>Generate Report</h3>
+
+                <div class="rpt-form-row">
+                    <div class="rpt-form-group">
+                        <label>Report Template</label>
+                        <select id="rpt-gen-template"></select>
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Report Title (optional)</label>
+                        <input type="text" id="rpt-gen-title" placeholder="Leave blank for auto-title">
+                    </div>
+                </div>
+
+                <div class="rpt-form-row three">
+                    <div class="rpt-form-group">
+                        <label>Date From</label>
+                        <input type="date" id="rpt-gen-from">
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Date To</label>
+                        <input type="date" id="rpt-gen-to">
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Shift (optional)</label>
+                        <select id="rpt-gen-shift">
+                            <option value="">All Shifts</option>
+                            <option value="A">A Shift</option>
+                            <option value="B">B Shift</option>
+                            <option value="C">C Shift</option>
+                            <option value="D">D Shift</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rpt-form-group">
+                    <label>Output Formats</label>
+                    <div class="rpt-format-pills" id="rpt-gen-formats">
+                        <button class="rpt-format-pill active" data-fmt="html">HTML</button>
+                        <button class="rpt-format-pill" data-fmt="pdf">PDF</button>
+                        <button class="rpt-format-pill" data-fmt="csv">CSV</button>
+                        <button class="rpt-format-pill" data-fmt="xlsx">XLSX</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="rptGenerateReport()">Generate Report</button>
+                    <button class="btn btn-secondary" onclick="rptPreviewReport()">Preview in New Tab</button>
+                </div>
+
+                <!-- Generation Result -->
+                <div id="rpt-gen-result" style="display: none; margin-top: 16px; padding: 14px; border-radius: 8px; background: var(--success-light); border: 1px solid var(--success);">
+                    <strong>Report Generated Successfully</strong>
+                    <div id="rpt-gen-links" style="margin-top: 8px;"></div>
+                </div>
+                <div id="rpt-gen-error" style="display: none; margin-top: 16px; padding: 14px; border-radius: 8px; background: var(--danger-light); border: 1px solid var(--danger); color: var(--danger);"></div>
+                <div id="rpt-gen-loading" style="display: none;" class="rpt-loading">Generating report...</div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- 4. SCHEDULE MANAGEMENT                       -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel" id="rpt-panel-schedules">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3>Report Schedules</h3>
+                    <button class="btn btn-primary btn-sm" onclick="rptShowAddSchedule()">+ Add Schedule</button>
+                </div>
+
+                <table class="rpt-sched-table">
+                    <thead>
+                        <tr>
+                            <th>Enabled</th>
+                            <th>Name</th>
+                            <th>Template</th>
+                            <th>Schedule</th>
+                            <th>Format</th>
+                            <th>Channels</th>
+                            <th>Last Run</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt-sched-tbody">
+                        <tr><td colspan="8" class="rpt-loading">Loading schedules...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Add/Edit Schedule Form -->
+            <div class="card" id="rpt-sched-form-card" style="display: none;">
+                <h3 id="rpt-sched-form-title">Add New Schedule</h3>
+                <input type="hidden" id="rpt-sched-edit-id">
+
+                <div class="rpt-form-row">
+                    <div class="rpt-form-group">
+                        <label>Schedule Name</label>
+                        <input type="text" id="rpt-sched-name" placeholder="Daily Shift Report">
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Report Template</label>
+                        <select id="rpt-sched-template"></select>
+                    </div>
+                </div>
+
+                <div class="rpt-form-row three">
+                    <div class="rpt-form-group">
+                        <label>Schedule Type</label>
+                        <select id="rpt-sched-type">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="shift_change">Shift Change</option>
+                            <option value="once">One-Time</option>
+                            <option value="cron">Custom Cron</option>
+                        </select>
+                    </div>
+                    <div class="rpt-form-group">
+                        <label>Time</label>
+                        <input type="time" id="rpt-sched-time" value="06:00">
+                    </div>
+                    <div class="rpt-form-group" id="rpt-sched-cron-group" style="display: none;">
+                        <label>Cron Expression</label>
+                        <input type="text" id="rpt-sched-cron" placeholder="0 6 * * *">
+                    </div>
+                </div>
+
+                <div class="rpt-form-group">
+                    <label>Output Format</label>
+                    <div class="rpt-format-pills" id="rpt-sched-formats">
+                        <button class="rpt-format-pill active" data-fmt="html">HTML</button>
+                        <button class="rpt-format-pill" data-fmt="pdf">PDF</button>
+                        <button class="rpt-format-pill" data-fmt="csv">CSV</button>
+                        <button class="rpt-format-pill" data-fmt="xlsx">XLSX</button>
+                    </div>
+                </div>
+
+                <div class="rpt-form-group">
+                    <label>Delivery Channels</label>
+                    <div class="rpt-channel-checks">
+                        <label><input type="checkbox" value="email" checked> Email</label>
+                        <label><input type="checkbox" value="sms"> SMS</label>
+                        <label><input type="checkbox" value="webhook"> Webhook</label>
+                        <label><input type="checkbox" value="signal"> Signal</label>
+                        <label><input type="checkbox" value="webex"> Webex</label>
+                    </div>
+                </div>
+
+                <div class="rpt-form-group">
+                    <label>Recipients (comma-separated emails)</label>
+                    <input type="text" id="rpt-sched-recipients" placeholder="chief@dept.com, captain@dept.com">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="rptSaveSchedule()">Save Schedule</button>
+                    <button class="btn btn-secondary" onclick="rptCancelSchedule()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- 5. DELIVERY CHANNELS CONFIG                  -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel" id="rpt-panel-delivery">
+            <div class="card">
+                <h3>Delivery Channel Configuration</h3>
+
+                <div class="settings-section">
+                    <h4>Email</h4>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Default From Address</div>
+                            <div class="setting-desc">Sender email for report delivery</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="email" id="rpt-dlv-email-from" placeholder="cad@blueovalsk.com" style="width: 260px;">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Default Recipients</div>
+                            <div class="setting-desc">Default email recipients (comma-separated)</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="text" id="rpt-dlv-email-recipients" placeholder="chief@dept.com" style="width: 300px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>SMS</h4>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">SMS Provider</div>
+                            <div class="setting-desc">Twilio or compatible SMS gateway</div>
+                        </div>
+                        <div class="setting-control">
+                            <select id="rpt-dlv-sms-provider" style="width: 200px;">
+                                <option value="twilio">Twilio</option>
+                                <option value="none">Not Configured</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">SMS Recipients</div>
+                            <div class="setting-desc">Phone numbers (comma-separated, E.164 format)</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="text" id="rpt-dlv-sms-recipients" placeholder="+15551234567" style="width: 300px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Signal</h4>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Signal API Endpoint</div>
+                            <div class="setting-desc">Signal REST API URL for message delivery</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="url" id="rpt-dlv-signal-url" placeholder="https://signal-api.example.com" style="width: 300px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Webex</h4>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Webex Bot Token</div>
+                            <div class="setting-desc">Webex Teams bot access token</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="password" id="rpt-dlv-webex-token" placeholder="Bearer token" style="width: 300px;">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Webex Room ID</div>
+                            <div class="setting-desc">Target room/space for report delivery</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="text" id="rpt-dlv-webex-room" placeholder="Room ID" style="width: 300px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h4>Webhook</h4>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Webhook URL</div>
+                            <div class="setting-desc">POST reports to this endpoint</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="url" id="rpt-dlv-webhook-url" placeholder="https://hooks.example.com/reports" style="width: 300px;">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-label">Webhook Secret</div>
+                            <div class="setting-desc">HMAC signing key for webhook payloads</div>
+                        </div>
+                        <div class="setting-control">
+                            <input type="password" id="rpt-dlv-webhook-secret" placeholder="Secret key" style="width: 300px;">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="rptSaveDeliveryConfig()">Save Delivery Configuration</button>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- 6. REPORT HISTORY                            -->
+        <!-- ============================================ -->
+        <div class="rpt-sub-panel" id="rpt-panel-history">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3>Report History</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="rptLoadHistory()">Refresh</button>
+                </div>
+
+                <table class="rpt-sched-table">
+                    <thead>
+                        <tr>
+                            <th>Date/Time</th>
+                            <th>Template</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Formats</th>
+                            <th>Created By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpt-history-tbody">
+                        <tr><td colspan="7" class="rpt-loading">Loading history...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- REPORTING TAB JAVASCRIPT                     -->
+        <!-- ============================================ -->
+        <script>
+        (function() {
+            'use strict';
+
+            // ----- Constants -----
+            const API = '/api/reporting';
+            const ANALYTICS_TEMPLATES = ['executive_summary','response_performance','incident_analytics','unit_performance','department_overview'];
+            const TEMPLATE_META = {
+                blotter:              { name: 'Daily Blotter',             desc: 'Chronological DailyLog with incidents and actions', category: 'operational' },
+                incident_summary:     { name: 'Incident Summary',         desc: 'Detailed incident information with units, narrative, timeline', category: 'operational' },
+                unit_response_stats:  { name: 'Unit Response Stats',      desc: 'Response-time metrics broken down by unit', category: 'operational' },
+                calltaker_stats:      { name: 'Calltaker Statistics',     desc: 'Call-taking performance and workload metrics', category: 'operational' },
+                shift_workload:       { name: 'Shift Workload',           desc: 'Workload distribution and balance across shifts', category: 'operational' },
+                response_compliance:  { name: 'Response Compliance',      desc: 'Pass/fail analysis against response time thresholds', category: 'operational' },
+                shift_handoff:        { name: 'Shift Handoff',            desc: 'End-of-shift summary for handoff briefing', category: 'operational' },
+                incident_detail:      { name: 'Incident Detail',          desc: 'Full detail view for a single incident', category: 'operational' },
+                open_incidents:       { name: 'Open Incidents',           desc: 'All currently open/active incidents', category: 'operational' },
+                unit_activity:        { name: 'Unit Activity',            desc: 'Activity log for specific units over a time period', category: 'operational' },
+                unit_utilization:     { name: 'Unit Utilization',         desc: 'How busy each unit is: committed time vs available', category: 'operational' },
+                response_time_analysis: { name: 'Response Time Analysis', desc: 'Detailed response time breakdowns with percentiles', category: 'operational' },
+                monthly_summary:      { name: 'Monthly Summary',         desc: 'Month-over-month summary of department activity', category: 'operational' },
+                personnel_activity:   { name: 'Personnel Activity',      desc: 'Personnel actions and activity tracking', category: 'operational' },
+                incident_type_breakdown: { name: 'Incident Type Breakdown', desc: 'Breakdown of incidents by NFIRS type code', category: 'operational' },
+                location_hotspot:     { name: 'Location Hotspot',         desc: 'Geographic clustering of incident locations', category: 'operational' },
+                false_alarm:          { name: 'False Alarm Analysis',     desc: 'False alarm rates, repeat offenders, and trends', category: 'operational' },
+                mutual_aid:           { name: 'Mutual Aid',               desc: 'Mutual aid given/received tracking and stats', category: 'operational' },
+                issue_tracking:       { name: 'Issue Tracking',           desc: 'Operational issues, follow-ups, and resolutions', category: 'operational' },
+                training_log:         { name: 'Training Log',             desc: 'Training events, attendance, and hours tracking', category: 'operational' },
+                executive_summary:    { name: 'Executive Summary',        desc: 'High-level KPIs and department performance overview', category: 'analytics' },
+                response_performance: { name: 'Response Performance',     desc: 'Comprehensive response time analytics with trends', category: 'analytics' },
+                incident_analytics:   { name: 'Incident Analytics',       desc: 'Deep-dive incident patterns, types, and trends', category: 'analytics' },
+                unit_performance:     { name: 'Unit Performance',         desc: 'Per-unit performance scorecards and rankings', category: 'analytics' },
+                department_overview:  { name: 'Department Overview',       desc: 'Full department operational overview with all KPIs', category: 'analytics' },
+            };
+
+            let rptCharts = {};
+            let rptTemplatesCache = [];
+
+            // ----- Sub-tab Switching -----
+            document.getElementById('rpt-sub-tabs').addEventListener('click', function(e) {
+                const btn = e.target.closest('.rpt-sub-tab');
+                if (!btn) return;
+                document.querySelectorAll('.rpt-sub-tab').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.rpt-sub-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('rpt-panel-' + btn.dataset.rptTab).classList.add('active');
+
+                // Lazy-load data
+                if (btn.dataset.rptTab === 'analytics') rptLoadAnalytics();
+                if (btn.dataset.rptTab === 'schedules') rptLoadSchedules();
+                if (btn.dataset.rptTab === 'history') rptLoadHistory();
+            });
+
+            // ----- 1. TEMPLATES -----
+            function rptRenderTemplates() {
+                const opGrid = document.getElementById('rpt-tpl-operational');
+                const anGrid = document.getElementById('rpt-tpl-analytics');
+                opGrid.innerHTML = '';
+                anGrid.innerHTML = '';
+
+                Object.entries(TEMPLATE_META).forEach(([key, meta]) => {
+                    const card = document.createElement('div');
+                    card.className = 'rpt-tpl-card' + (meta.category === 'analytics' ? ' analytics' : '');
+                    card.innerHTML = `<div class="tpl-name">${meta.name}</div><div class="tpl-desc">${meta.desc}</div><div class="tpl-cat">${meta.category}</div>`;
+                    card.onclick = function() {
+                        // Switch to generate tab and pre-select this template
+                        document.querySelectorAll('.rpt-sub-tab').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('.rpt-sub-panel').forEach(p => p.classList.remove('active'));
+                        document.querySelector('[data-rpt-tab="generate"]').classList.add('active');
+                        document.getElementById('rpt-panel-generate').classList.add('active');
+                        document.getElementById('rpt-gen-template').value = key;
+                    };
+                    if (meta.category === 'analytics') anGrid.appendChild(card);
+                    else opGrid.appendChild(card);
+                });
+            }
+
+            function rptPopulateTemplateSelectors() {
+                const selects = [document.getElementById('rpt-gen-template'), document.getElementById('rpt-sched-template')];
+                selects.forEach(sel => {
+                    if (!sel) return;
+                    sel.innerHTML = '';
+                    const opGroup = document.createElement('optgroup');
+                    opGroup.label = 'Operational';
+                    const anGroup = document.createElement('optgroup');
+                    anGroup.label = 'Analytics';
+                    Object.entries(TEMPLATE_META).forEach(([key, meta]) => {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        opt.textContent = meta.name;
+                        if (meta.category === 'analytics') anGroup.appendChild(opt);
+                        else opGroup.appendChild(opt);
+                    });
+                    sel.appendChild(opGroup);
+                    sel.appendChild(anGroup);
+                });
+            }
+
+            // ----- 2. ANALYTICS DASHBOARD -----
+            // Date preset handling
+            document.getElementById('rpt-analytics-presets').addEventListener('click', function(e) {
+                const btn = e.target.closest('button');
+                if (!btn) return;
+                this.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const today = new Date();
+                let from;
+                if (btn.dataset.days) {
+                    from = new Date(today.getTime() - parseInt(btn.dataset.days) * 86400000);
+                } else if (btn.dataset.preset === 'mtd') {
+                    from = new Date(today.getFullYear(), today.getMonth(), 1);
+                } else if (btn.dataset.preset === 'ytd') {
+                    from = new Date(today.getFullYear(), 0, 1);
+                }
+                document.getElementById('rpt-analytics-from').value = from.toISOString().split('T')[0];
+                document.getElementById('rpt-analytics-to').value = today.toISOString().split('T')[0];
+                rptLoadAnalytics();
+            });
+
+            window.rptLoadAnalytics = async function() {
+                const dateFrom = document.getElementById('rpt-analytics-from').value;
+                const dateTo = document.getElementById('rpt-analytics-to').value;
+
+                try {
+                    const res = await fetch(API + '/run', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            template_key: 'department_overview',
+                            filters: { date_from: dateFrom, date_to: dateTo },
+                            formats: [],
+                            created_by: 'admin_dashboard'
+                        })
+                    });
+                    const data = await res.json();
+                    rptUpdateKPIs(data.kpis || data.data?.stats || {});
+                    rptUpdateCharts(data.chart_data || data.data?.chart_data || {});
+                } catch (e) {
+                    console.error('Analytics load failed:', e);
+                }
+            };
+
+            function rptUpdateKPIs(kpis) {
+                document.getElementById('rpt-kpi-incidents').textContent = (kpis.total_incidents ?? kpis.total ?? '--').toLocaleString?.() || kpis.total_incidents || '--';
+                document.getElementById('rpt-kpi-avg-response').textContent = kpis.avg_response_time != null ? parseFloat(kpis.avg_response_time).toFixed(1) : '--';
+                document.getElementById('rpt-kpi-p90').textContent = kpis.p90_response_time != null ? parseFloat(kpis.p90_response_time).toFixed(1) : (kpis.percentile_90 != null ? parseFloat(kpis.percentile_90).toFixed(1) : '--');
+                document.getElementById('rpt-kpi-compliance').textContent = kpis.compliance_pct != null ? kpis.compliance_pct + '%' : (kpis.compliance_rate != null ? parseFloat(kpis.compliance_rate).toFixed(1) + '%' : '--');
+                document.getElementById('rpt-kpi-units').textContent = kpis.active_units ?? kpis.units_count ?? '--';
+            }
+
+            function rptUpdateCharts(chartData) {
+                const colors = ['#003478','#1e5bb8','#4a8fe7','#7ab8ff','#a8d4ff','#002a6b','#dc2626','#f59e0b','#10b981','#6366f1'];
+
+                // Incident Trend (line)
+                if (rptCharts.trend) rptCharts.trend.destroy();
+                const trendData = chartData.daily_trend || chartData.incident_trend || chartData.trend || [];
+                const trendLabels = trendData.map(d => d.date || d.label || d.day || '');
+                const trendValues = trendData.map(d => d.count || d.value || d.incidents || 0);
+                const trendCtx = document.getElementById('rpt-chart-trend');
+                if (trendCtx) {
+                    rptCharts.trend = new Chart(trendCtx, {
+                        type: 'line',
+                        data: { labels: trendLabels, datasets: [{ label: 'Incidents', data: trendValues, borderColor: '#003478', backgroundColor: 'rgba(0,52,120,0.1)', fill: true, tension: 0.3 }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    });
+                }
+
+                // Type Breakdown (doughnut)
+                if (rptCharts.types) rptCharts.types.destroy();
+                const typeData = chartData.type_breakdown || chartData.incident_types || chartData.types || [];
+                const typeLabels = typeData.map(d => d.type || d.label || d.name || '');
+                const typeValues = typeData.map(d => d.count || d.value || 0);
+                const typeCtx = document.getElementById('rpt-chart-types');
+                if (typeCtx) {
+                    rptCharts.types = new Chart(typeCtx, {
+                        type: 'doughnut',
+                        data: { labels: typeLabels, datasets: [{ data: typeValues, backgroundColor: colors }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+                    });
+                }
+
+                // Hourly Pattern (bar)
+                if (rptCharts.hourly) rptCharts.hourly.destroy();
+                const hourlyData = chartData.hourly_pattern || chartData.hourly || chartData.by_hour || [];
+                const hourlyLabels = hourlyData.length ? hourlyData.map(d => d.hour != null ? String(d.hour).padStart(2,'0') + ':00' : d.label || '') : Array.from({length:24}, (_, i) => String(i).padStart(2,'0') + ':00');
+                const hourlyValues = hourlyData.length ? hourlyData.map(d => d.count || d.value || 0) : new Array(24).fill(0);
+                const hourlyCtx = document.getElementById('rpt-chart-hourly');
+                if (hourlyCtx) {
+                    rptCharts.hourly = new Chart(hourlyCtx, {
+                        type: 'bar',
+                        data: { labels: hourlyLabels, datasets: [{ label: 'Incidents', data: hourlyValues, backgroundColor: '#003478' }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    });
+                }
+
+                // Unit Utilization (horizontal bar)
+                if (rptCharts.units) rptCharts.units.destroy();
+                const unitData = chartData.unit_utilization || chartData.units || chartData.by_unit || [];
+                const unitLabels = unitData.map(d => d.unit || d.label || d.name || '');
+                const unitValues = unitData.map(d => d.utilization || d.pct || d.value || d.count || 0);
+                const unitCtx = document.getElementById('rpt-chart-units');
+                if (unitCtx) {
+                    rptCharts.units = new Chart(unitCtx, {
+                        type: 'bar',
+                        data: { labels: unitLabels, datasets: [{ label: 'Utilization %', data: unitValues, backgroundColor: '#1e5bb8' }] },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+                    });
+                }
+            }
+
+            // ----- 3. REPORT GENERATION -----
+            // Format pill toggling
+            document.querySelectorAll('.rpt-format-pills').forEach(container => {
+                container.addEventListener('click', function(e) {
+                    const pill = e.target.closest('.rpt-format-pill');
+                    if (!pill) return;
+                    pill.classList.toggle('active');
+                });
+            });
+
+            window.rptGenerateReport = async function() {
+                const templateKey = document.getElementById('rpt-gen-template').value;
+                const title = document.getElementById('rpt-gen-title').value;
+                const dateFrom = document.getElementById('rpt-gen-from').value;
+                const dateTo = document.getElementById('rpt-gen-to').value;
+                const shift = document.getElementById('rpt-gen-shift').value;
+                const formats = Array.from(document.querySelectorAll('#rpt-gen-formats .rpt-format-pill.active')).map(p => p.dataset.fmt);
+
+                document.getElementById('rpt-gen-result').style.display = 'none';
+                document.getElementById('rpt-gen-error').style.display = 'none';
+                document.getElementById('rpt-gen-loading').style.display = 'block';
+
+                try {
+                    const body = {
+                        template_key: templateKey,
+                        filters: { date_from: dateFrom, date_to: dateTo },
+                        formats: formats,
+                        created_by: 'admin'
+                    };
+                    if (title) body.title = title;
+                    if (shift) body.filters.shift = shift;
+
+                    const res = await fetch(API + '/run', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    document.getElementById('rpt-gen-loading').style.display = 'none';
+
+                    if (data.ok) {
+                        document.getElementById('rpt-gen-result').style.display = 'block';
+                        const linksDiv = document.getElementById('rpt-gen-links');
+                        if (data.links && Object.keys(data.links).length) {
+                            linksDiv.innerHTML = Object.entries(data.links).map(([fmt, url]) =>
+                                `<a href="${url}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right: 6px;">Download ${fmt.toUpperCase()}</a>`
+                            ).join('');
+                        } else {
+                            linksDiv.innerHTML = '<span style="font-size: 13px; color: var(--text-muted);">Run ID: ' + (data.run_id || '--') + '</span>';
+                        }
+                        if (typeof showToast === 'function') showToast('Report generated successfully');
+                    } else {
+                        document.getElementById('rpt-gen-error').style.display = 'block';
+                        document.getElementById('rpt-gen-error').textContent = data.error || 'Report generation failed';
+                    }
+                } catch (e) {
+                    document.getElementById('rpt-gen-loading').style.display = 'none';
+                    document.getElementById('rpt-gen-error').style.display = 'block';
+                    document.getElementById('rpt-gen-error').textContent = 'Error: ' + e.message;
+                }
+            };
+
+            window.rptPreviewReport = function() {
+                const templateKey = document.getElementById('rpt-gen-template').value;
+                const dateFrom = document.getElementById('rpt-gen-from').value;
+                const dateTo = document.getElementById('rpt-gen-to').value;
+                const shift = document.getElementById('rpt-gen-shift').value;
+                let url = API + '/preview?template_key=' + encodeURIComponent(templateKey);
+                if (dateFrom) url += '&date_from=' + dateFrom;
+                if (dateTo) url += '&date_to=' + dateTo;
+                if (shift) url += '&shift=' + shift;
+                window.open(url, '_blank');
+            };
+
+            // ----- 4. SCHEDULE MANAGEMENT -----
+            window.rptLoadSchedules = async function() {
+                try {
+                    const res = await fetch(API + '/schedules');
+                    const data = await res.json();
+                    const tbody = document.getElementById('rpt-sched-tbody');
+                    const schedules = data.schedules || data || [];
+
+                    if (!schedules.length) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="rpt-empty">No schedules configured. Click "Add Schedule" to create one.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = schedules.map(s => {
+                        const enabledClass = s.enabled ? 'success' : 'warning';
+                        const enabledText = s.enabled ? 'Active' : 'Paused';
+                        const channels = (s.channels || s.delivery_channels || []).join(', ') || 'email';
+                        const schedInfo = s.schedule_type === 'cron' ? (s.cron_expression || '--') : (s.schedule_type + (s.time ? ' @ ' + s.time : ''));
+                        return `<tr>
+                            <td><span class="rpt-status-badge ${enabledClass}">${enabledText}</span></td>
+                            <td><strong>${s.name || s.schedule_name || '--'}</strong></td>
+                            <td>${TEMPLATE_META[s.template_key]?.name || s.template_key || s.report_type || '--'}</td>
+                            <td>${schedInfo}</td>
+                            <td>${(s.formats || s.format || ['html']).join(', ').toUpperCase()}</td>
+                            <td>${channels}</td>
+                            <td>${s.last_run || s.last_run_at || 'Never'}</td>
+                            <td style="white-space: nowrap;">
+                                <button class="btn btn-sm btn-secondary" onclick="rptToggleSchedule(${s.id}, ${!s.enabled})">${s.enabled ? 'Pause' : 'Enable'}</button>
+                                <button class="btn btn-sm btn-secondary" onclick="rptRunScheduleNow(${s.id})">Run</button>
+                                <button class="btn btn-sm btn-secondary" onclick="rptEditSchedule(${s.id})">Edit</button>
+                                <button class="btn btn-sm" style="color: var(--danger);" onclick="rptDeleteSchedule(${s.id})">Delete</button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                } catch (e) {
+                    console.error('Load schedules failed:', e);
+                    document.getElementById('rpt-sched-tbody').innerHTML = '<tr><td colspan="8" class="rpt-empty">Failed to load schedules</td></tr>';
+                }
+            };
+
+            window.rptToggleSchedule = async function(id, enable) {
+                try {
+                    await fetch(API + '/schedule/' + id + '/toggle', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ enabled: enable })
+                    });
+                    if (typeof showToast === 'function') showToast(enable ? 'Schedule enabled' : 'Schedule paused');
+                    rptLoadSchedules();
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            window.rptRunScheduleNow = async function(id) {
+                if (!confirm('Run this schedule immediately?')) return;
+                try {
+                    await fetch(API + '/schedule/' + id + '/run_now', { method: 'POST' });
+                    if (typeof showToast === 'function') showToast('Report generation started');
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            window.rptDeleteSchedule = async function(id) {
+                if (!confirm('Delete this schedule permanently?')) return;
+                try {
+                    await fetch(API + '/schedule/' + id, { method: 'DELETE' });
+                    if (typeof showToast === 'function') showToast('Schedule deleted');
+                    rptLoadSchedules();
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            window.rptEditSchedule = async function(id) {
+                try {
+                    const res = await fetch(API + '/schedules');
+                    const data = await res.json();
+                    const sched = (data.schedules || data || []).find(s => s.id === id);
+                    if (!sched) return;
+
+                    document.getElementById('rpt-sched-form-card').style.display = 'block';
+                    document.getElementById('rpt-sched-form-title').textContent = 'Edit Schedule';
+                    document.getElementById('rpt-sched-edit-id').value = id;
+                    document.getElementById('rpt-sched-name').value = sched.name || sched.schedule_name || '';
+                    document.getElementById('rpt-sched-template').value = sched.template_key || '';
+                    document.getElementById('rpt-sched-type').value = sched.schedule_type || 'daily';
+                    document.getElementById('rpt-sched-time').value = sched.time || '06:00';
+                    document.getElementById('rpt-sched-recipients').value = (sched.recipients || []).join(', ');
+
+                    // Update format pills
+                    const formats = sched.formats || sched.format || ['html'];
+                    document.querySelectorAll('#rpt-sched-formats .rpt-format-pill').forEach(p => {
+                        p.classList.toggle('active', formats.includes(p.dataset.fmt));
+                    });
+
+                    // Update channel checkboxes
+                    const channels = sched.channels || sched.delivery_channels || ['email'];
+                    document.querySelectorAll('#rpt-sched-form-card .rpt-channel-checks input').forEach(cb => {
+                        cb.checked = channels.includes(cb.value);
+                    });
+                } catch (e) {
+                    console.error('Edit schedule failed:', e);
+                }
+            };
+
+            window.rptShowAddSchedule = function() {
+                document.getElementById('rpt-sched-form-card').style.display = 'block';
+                document.getElementById('rpt-sched-form-title').textContent = 'Add New Schedule';
+                document.getElementById('rpt-sched-edit-id').value = '';
+                document.getElementById('rpt-sched-name').value = '';
+                document.getElementById('rpt-sched-type').value = 'daily';
+                document.getElementById('rpt-sched-time').value = '06:00';
+                document.getElementById('rpt-sched-recipients').value = '';
+                document.getElementById('rpt-sched-cron').value = '';
+                document.querySelectorAll('#rpt-sched-formats .rpt-format-pill').forEach(p => {
+                    p.classList.toggle('active', p.dataset.fmt === 'html');
+                });
+                document.querySelectorAll('#rpt-sched-form-card .rpt-channel-checks input').forEach(cb => {
+                    cb.checked = cb.value === 'email';
+                });
+            };
+
+            window.rptCancelSchedule = function() {
+                document.getElementById('rpt-sched-form-card').style.display = 'none';
+            };
+
+            // Show/hide cron field
+            document.getElementById('rpt-sched-type').addEventListener('change', function() {
+                document.getElementById('rpt-sched-cron-group').style.display = this.value === 'cron' ? 'block' : 'none';
+            });
+
+            window.rptSaveSchedule = async function() {
+                const editId = document.getElementById('rpt-sched-edit-id').value;
+                const body = {
+                    name: document.getElementById('rpt-sched-name').value,
+                    template_key: document.getElementById('rpt-sched-template').value,
+                    schedule_type: document.getElementById('rpt-sched-type').value,
+                    time: document.getElementById('rpt-sched-time').value,
+                    formats: Array.from(document.querySelectorAll('#rpt-sched-formats .rpt-format-pill.active')).map(p => p.dataset.fmt),
+                    channels: Array.from(document.querySelectorAll('#rpt-sched-form-card .rpt-channel-checks input:checked')).map(cb => cb.value),
+                    recipients: document.getElementById('rpt-sched-recipients').value.split(',').map(s => s.trim()).filter(Boolean),
+                    enabled: true
+                };
+                if (body.schedule_type === 'cron') {
+                    body.cron_expression = document.getElementById('rpt-sched-cron').value;
+                }
+
+                try {
+                    const url = editId ? API + '/schedule/' + editId : API + '/schedule';
+                    const method = editId ? 'PUT' : 'POST';
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (data.ok !== false) {
+                        if (typeof showToast === 'function') showToast(editId ? 'Schedule updated' : 'Schedule created');
+                        document.getElementById('rpt-sched-form-card').style.display = 'none';
+                        rptLoadSchedules();
+                    } else {
+                        if (typeof showToast === 'function') showToast(data.error || 'Failed to save', 'error');
+                    }
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            // ----- 5. DELIVERY CONFIG -----
+            window.rptSaveDeliveryConfig = async function() {
+                const config = {
+                    email_from: document.getElementById('rpt-dlv-email-from').value,
+                    email_recipients: document.getElementById('rpt-dlv-email-recipients').value,
+                    sms_provider: document.getElementById('rpt-dlv-sms-provider').value,
+                    sms_recipients: document.getElementById('rpt-dlv-sms-recipients').value,
+                    signal_url: document.getElementById('rpt-dlv-signal-url').value,
+                    webex_token: document.getElementById('rpt-dlv-webex-token').value,
+                    webex_room: document.getElementById('rpt-dlv-webex-room').value,
+                    webhook_url: document.getElementById('rpt-dlv-webhook-url').value,
+                    webhook_secret: document.getElementById('rpt-dlv-webhook-secret').value,
+                };
+                // Save each as a setting
+                for (const [key, value] of Object.entries(config)) {
+                    if (value) {
+                        try {
+                            await fetch('/api/admin/settings', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ key: 'reporting_' + key, value: value, user: typeof USER !== 'undefined' ? USER : 'admin' })
+                            });
+                        } catch (e) { /* ignore individual failures */ }
+                    }
+                }
+                if (typeof showToast === 'function') showToast('Delivery configuration saved');
+            };
+
+            // ----- 6. HISTORY -----
+            window.rptLoadHistory = async function() {
+                try {
+                    const res = await fetch(API + '/history?limit=50');
+                    const data = await res.json();
+                    const tbody = document.getElementById('rpt-history-tbody');
+                    const history = data.history || [];
+
+                    if (!history.length) {
+                        tbody.innerHTML = '<tr><td colspan="7" class="rpt-empty">No report history available</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = history.map(h => {
+                        const statusClass = h.status === 'completed' || h.status === 'sent' ? 'success' : h.status === 'failed' ? 'error' : 'info';
+                        const formats = (h.formats || []).map(f => f.toUpperCase()).join(', ') || '--';
+                        const links = h.links || h.download_links || {};
+                        const downloadBtns = Object.entries(links).map(([fmt, url]) =>
+                            `<a href="${url}" target="_blank" class="btn btn-sm btn-secondary" style="margin: 2px;">${fmt.toUpperCase()}</a>`
+                        ).join('');
+                        const resendBtn = h.run_id ? `<button class="btn btn-sm btn-secondary" onclick="rptResendReport('${h.run_id}')">Re-send</button>` : '';
+
+                        return `<tr>
+                            <td>${h.started_at || h.created_at || h.timestamp || '--'}</td>
+                            <td>${TEMPLATE_META[h.template_key]?.name || h.template_key || h.report_type || '--'}</td>
+                            <td>${h.title || '--'}</td>
+                            <td><span class="rpt-status-badge ${statusClass}">${h.status || '--'}</span></td>
+                            <td>${formats}</td>
+                            <td>${h.created_by || h.triggered_by || '--'}</td>
+                            <td style="white-space: nowrap;">${downloadBtns} ${resendBtn}</td>
+                        </tr>`;
+                    }).join('');
+                } catch (e) {
+                    console.error('Load history failed:', e);
+                    document.getElementById('rpt-history-tbody').innerHTML = '<tr><td colspan="7" class="rpt-empty">Failed to load history</td></tr>';
+                }
+            };
+
+            window.rptResendReport = async function(runId) {
+                const channels = prompt('Delivery channels (comma-separated: email, sms, webhook, signal, webex):', 'email');
+                if (!channels) return;
+                try {
+                    await fetch(API + '/deliver', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            run_id: runId,
+                            channels: channels.split(',').map(s => s.trim()),
+                            triggered_by: 'admin_resend'
+                        })
+                    });
+                    if (typeof showToast === 'function') showToast('Report re-sent successfully');
+                } catch (e) {
+                    if (typeof showToast === 'function') showToast('Error: ' + e.message, 'error');
+                }
+            };
+
+            // ----- INITIALIZATION -----
+            function rptInit() {
+                // Set default date range (last 7 days)
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 86400000);
+                document.getElementById('rpt-analytics-from').value = weekAgo.toISOString().split('T')[0];
+                document.getElementById('rpt-analytics-to').value = today.toISOString().split('T')[0];
+                document.getElementById('rpt-gen-from').value = weekAgo.toISOString().split('T')[0];
+                document.getElementById('rpt-gen-to').value = today.toISOString().split('T')[0];
+
+                rptRenderTemplates();
+                rptPopulateTemplateSelectors();
+            }
+
+            // Run init when DOM ready or immediately if already loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', rptInit);
+            } else {
+                rptInit();
+            }
+        })();
+        </script>
     </div>
 
     <!-- INTEGRATIONS TAB (Super-Admin Only) -->
@@ -1718,14 +2555,9 @@ async function saveDispatchConfig() {
 }
 
 async function saveReportingConfig() {
-    await saveSetting('auto_reports', document.getElementById('cfg-auto-reports').checked);
-    await saveSetting('daily_report_time', document.getElementById('cfg-daily-report-time').value);
-    await saveSetting('report_emails', document.getElementById('cfg-report-emails').value);
-    await saveSetting('nfirs_enabled', document.getElementById('cfg-nfirs-enabled').checked);
-    await saveSetting('nfirs_version', document.getElementById('cfg-nfirs-version').value);
-    await saveSetting('auto_close_hours', document.getElementById('cfg-auto-close-hours').value);
-    await saveSetting('export_format', document.getElementById('cfg-export-format').value);
-    showToast('Reporting configuration saved');
+    // Reporting configuration is now managed through the enterprise reporting panel sub-tabs.
+    // This function is kept for backward compatibility.
+    showToast('Use the Reporting tab sub-panels to configure reports');
 }
 
 async function saveIntegrationsConfig() {
@@ -1782,14 +2614,15 @@ async function loadSettings() {
             document.getElementById('cfg-require-determinant').checked = bool('require_determinant');
             if (val('run_format')) document.getElementById('cfg-run-format').value = val('run_format');
 
-            // Reporting
-            document.getElementById('cfg-auto-reports').checked = bool('auto_reports');
-            document.getElementById('cfg-daily-report-time').value = val('daily_report_time') || '06:00';
-            document.getElementById('cfg-report-emails').value = val('report_emails');
-            document.getElementById('cfg-nfirs-enabled').checked = val('nfirs_enabled') !== 'false';
-            if (val('nfirs_version')) document.getElementById('cfg-nfirs-version').value = val('nfirs_version');
-            document.getElementById('cfg-auto-close-hours').value = val('auto_close_hours') || '24';
-            if (val('export_format')) document.getElementById('cfg-export-format').value = val('export_format');
+            // Reporting settings (elements removed in enterprise reporting redesign, guard safely)
+            var el;
+            if ((el = document.getElementById('cfg-auto-reports'))) el.checked = bool('auto_reports');
+            if ((el = document.getElementById('cfg-daily-report-time'))) el.value = val('daily_report_time') || '06:00';
+            if ((el = document.getElementById('cfg-report-emails'))) el.value = val('report_emails');
+            if ((el = document.getElementById('cfg-nfirs-enabled'))) el.checked = val('nfirs_enabled') !== 'false';
+            if ((el = document.getElementById('cfg-nfirs-version')) && val('nfirs_version')) el.value = val('nfirs_version');
+            if ((el = document.getElementById('cfg-auto-close-hours'))) el.value = val('auto_close_hours') || '24';
+            if ((el = document.getElementById('cfg-export-format')) && val('export_format')) el.value = val('export_format');
 
             // Integrations
             document.getElementById('cfg-station-alerts').checked = bool('station_alerts');
@@ -1870,27 +2703,26 @@ async function exportLogs(type) {
 // NFIRS COMPLIANCE FUNCTIONS
 // =====================================================
 async function fetchNfirsStats() {
+    // NFIRS elements removed from reporting tab in enterprise redesign; safe-guard
     try {
         const res = await fetch('/api/nfirs/stats');
         const data = await res.json();
         if (data.ok && data.stats) {
             const s = data.stats;
-            document.getElementById('nfirs-compliance-pct').textContent = s.compliance_percentage + '%';
-            document.getElementById('nfirs-total-with').textContent = s.total_with_nfirs;
-            document.getElementById('nfirs-total-incomplete').textContent = s.total_incomplete;
-            document.getElementById('nfirs-total-closed').textContent = s.total_closed;
-            document.getElementById('nfirs-missing-type').textContent = s.missing_type_code;
-            document.getElementById('nfirs-missing-fire').textContent = s.missing_fire_fields;
-            document.getElementById('nfirs-missing-ems').textContent = s.missing_ems_fields;
+            const setIf = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setIf('nfirs-compliance-pct', s.compliance_percentage + '%');
+            setIf('nfirs-total-with', s.total_with_nfirs);
+            setIf('nfirs-total-incomplete', s.total_incomplete);
+            setIf('nfirs-total-closed', s.total_closed);
+            setIf('nfirs-missing-type', s.missing_type_code);
+            setIf('nfirs-missing-fire', s.missing_fire_fields);
+            setIf('nfirs-missing-ems', s.missing_ems_fields);
 
-            // Color code compliance percentage
             const pctEl = document.getElementById('nfirs-compliance-pct');
-            if (s.compliance_percentage >= 90) {
-                pctEl.style.color = 'var(--success)';
-            } else if (s.compliance_percentage >= 70) {
-                pctEl.style.color = 'var(--warning)';
-            } else {
-                pctEl.style.color = 'var(--danger)';
+            if (pctEl) {
+                if (s.compliance_percentage >= 90) pctEl.style.color = 'var(--success)';
+                else if (s.compliance_percentage >= 70) pctEl.style.color = 'var(--warning)';
+                else pctEl.style.color = 'var(--danger)';
             }
         }
     } catch (e) {
@@ -1899,9 +2731,12 @@ async function fetchNfirsStats() {
 }
 
 async function exportNfirsCSV() {
-    const startDate = document.getElementById('nfirs-export-start').value;
-    const endDate = document.getElementById('nfirs-export-end').value;
-    const status = document.getElementById('nfirs-export-status').value;
+    const startEl = document.getElementById('nfirs-export-start');
+    const endEl = document.getElementById('nfirs-export-end');
+    const statusEl = document.getElementById('nfirs-export-status');
+    const startDate = startEl ? startEl.value : '';
+    const endDate = endEl ? endEl.value : '';
+    const status = statusEl ? statusEl.value : '';
 
     let url = '/api/nfirs/export/csv?';
     const params = [];
@@ -1910,7 +2745,6 @@ async function exportNfirsCSV() {
     if (status) params.push(`status=${status}`);
     url += params.join('&');
 
-    // Trigger download
     window.location.href = url;
     showToast('NFIRS CSV export started');
 }
@@ -1936,11 +2770,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAdminLogs();
     fetchNfirsStats();
 
-    // Set default date range for NFIRS export (last 30 days)
+    // Set default date range for NFIRS export (last 30 days) - guard for removed elements
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    document.getElementById('nfirs-export-end').value = today.toISOString().split('T')[0];
-    document.getElementById('nfirs-export-start').value = thirtyDaysAgo.toISOString().split('T')[0];
+    const nfirsEnd = document.getElementById('nfirs-export-end');
+    const nfirsStart = document.getElementById('nfirs-export-start');
+    if (nfirsEnd) nfirsEnd.value = today.toISOString().split('T')[0];
+    if (nfirsStart) nfirsStart.value = thirtyDaysAgo.toISOString().split('T')[0];
 });
 </script>
 </body>
