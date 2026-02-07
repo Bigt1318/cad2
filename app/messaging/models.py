@@ -687,3 +687,546 @@ def log_webhook(
 
     conn.commit()
     return c.lastrowid
+
+
+# ============================================================================
+# CHAT SCHEMA v2 — Channel-Based Messaging
+# ============================================================================
+
+def init_chat_schema(conn: sqlite3.Connection):
+    """Initialize the new channel-based chat tables (v2 messaging)."""
+    c = conn.cursor()
+
+    # ----- Channels: incident, shift, ops, dm, broadcast -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_channels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            type TEXT NOT NULL,
+            title TEXT,
+            incident_id INTEGER,
+            shift TEXT,
+            created_by TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            is_archived INTEGER DEFAULT 0
+        )
+    """)
+
+    # ----- Channel membership with roles -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            member_type TEXT NOT NULL,
+            member_id TEXT NOT NULL,
+            display_name TEXT,
+            role TEXT DEFAULT 'member',
+            joined_at TEXT NOT NULL,
+            left_at TEXT,
+            FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
+            UNIQUE(channel_id, member_type, member_id)
+        )
+    """)
+
+    # ----- Messages with types, priority, threading -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            sender_type TEXT NOT NULL,
+            sender_id TEXT NOT NULL,
+            sender_name TEXT,
+            body TEXT NOT NULL,
+            msg_type TEXT DEFAULT 'text',
+            priority TEXT DEFAULT 'normal',
+            reply_to_id INTEGER,
+            metadata TEXT,
+            edited_at TEXT,
+            original_body TEXT,
+            is_deleted INTEGER DEFAULT 0,
+            deleted_at TEXT,
+            deleted_by TEXT,
+            require_ack INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (channel_id) REFERENCES chat_channels(id),
+            FOREIGN KEY (reply_to_id) REFERENCES chat_messages(id)
+        )
+    """)
+
+    # ----- File/image/voice attachments -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            filename TEXT NOT NULL,
+            path TEXT NOT NULL,
+            mime TEXT,
+            size INTEGER,
+            sha256 TEXT,
+            thumbnail_path TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+        )
+    """)
+
+    # ----- Delivery receipts: sent → delivered → read → acknowledged -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_receipts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            recipient_type TEXT NOT NULL,
+            recipient_id TEXT NOT NULL,
+            delivered_at TEXT,
+            read_at TEXT,
+            ack_at TEXT,
+            FOREIGN KEY (message_id) REFERENCES chat_messages(id),
+            UNIQUE(message_id, recipient_type, recipient_id)
+        )
+    """)
+
+    # ----- Presence tracking -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_presence (
+            member_type TEXT NOT NULL,
+            member_id TEXT NOT NULL,
+            status TEXT DEFAULT 'offline',
+            last_seen TEXT,
+            PRIMARY KEY (member_type, member_id)
+        )
+    """)
+
+    # ----- Reactions -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_reactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL,
+            user_id TEXT NOT NULL,
+            reaction TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (message_id) REFERENCES chat_messages(id),
+            UNIQUE(message_id, user_id, reaction)
+        )
+    """)
+
+    # ----- Notification preferences -----
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_preferences (
+            user_id TEXT NOT NULL,
+            channel_id INTEGER,
+            pref_key TEXT NOT NULL,
+            pref_value TEXT NOT NULL,
+            UNIQUE(user_id, channel_id, pref_key)
+        )
+    """)
+
+    # ----- Indexes -----
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_msg_channel ON chat_messages(channel_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_msg_created ON chat_messages(created_at)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_msg_sender ON chat_messages(sender_type, sender_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_msg_type ON chat_messages(msg_type)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_msg_priority ON chat_messages(priority)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_attach_msg ON chat_attachments(message_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_receipt_msg ON chat_receipts(message_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_channel_key ON chat_channels(key)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_channel_type ON chat_channels(type)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_channel_incident ON chat_channels(incident_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_members_channel ON chat_members(channel_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_members_member ON chat_members(member_type, member_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id)")
+
+    conn.commit()
+
+
+# ============================================================================
+# CHAT DATA ACCESS HELPERS
+# ============================================================================
+
+def get_or_create_channel(
+    conn: sqlite3.Connection,
+    key: str,
+    channel_type: str,
+    title: str = None,
+    incident_id: int = None,
+    shift: str = None,
+    created_by: str = None
+) -> Dict:
+    """Get an existing channel by key or create it."""
+    c = conn.cursor()
+    row = c.execute("SELECT * FROM chat_channels WHERE key = ?", (key,)).fetchone()
+    if row:
+        return dict(row)
+
+    now = _ts()
+    c.execute("""
+        INSERT INTO chat_channels (key, type, title, incident_id, shift, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (key, channel_type, title, incident_id, shift, created_by, now, now))
+    conn.commit()
+    channel_id = c.lastrowid
+    return {
+        "id": channel_id, "key": key, "type": channel_type, "title": title,
+        "incident_id": incident_id, "shift": shift, "created_by": created_by,
+        "created_at": now, "updated_at": now, "is_archived": 0
+    }
+
+
+def add_channel_member(
+    conn: sqlite3.Connection,
+    channel_id: int,
+    member_type: str,
+    member_id: str,
+    display_name: str = None,
+    role: str = "member"
+) -> Optional[Dict]:
+    """Add a member to a channel (idempotent)."""
+    c = conn.cursor()
+    now = _ts()
+    try:
+        c.execute("""
+            INSERT INTO chat_members (channel_id, member_type, member_id, display_name, role, joined_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (channel_id, member_type, member_id, display_name, role, now))
+        conn.commit()
+        return {"id": c.lastrowid, "channel_id": channel_id, "member_type": member_type,
+                "member_id": member_id, "display_name": display_name, "role": role, "joined_at": now}
+    except sqlite3.IntegrityError:
+        # Already a member — update display_name if provided
+        if display_name:
+            c.execute("""
+                UPDATE chat_members SET display_name = ?, left_at = NULL
+                WHERE channel_id = ? AND member_type = ? AND member_id = ?
+            """, (display_name, channel_id, member_type, member_id))
+            conn.commit()
+        row = c.execute("""
+            SELECT * FROM chat_members
+            WHERE channel_id = ? AND member_type = ? AND member_id = ?
+        """, (channel_id, member_type, member_id)).fetchone()
+        return dict(row) if row else None
+
+
+def remove_channel_member(
+    conn: sqlite3.Connection,
+    channel_id: int,
+    member_type: str,
+    member_id: str
+) -> bool:
+    """Remove a member from a channel (soft remove via left_at)."""
+    c = conn.cursor()
+    c.execute("""
+        UPDATE chat_members SET left_at = ?
+        WHERE channel_id = ? AND member_type = ? AND member_id = ? AND left_at IS NULL
+    """, (_ts(), channel_id, member_type, member_id))
+    conn.commit()
+    return c.rowcount > 0
+
+
+def get_channel_members(conn: sqlite3.Connection, channel_id: int, active_only: bool = True) -> List[Dict]:
+    """Get all members of a channel."""
+    c = conn.cursor()
+    if active_only:
+        rows = c.execute(
+            "SELECT * FROM chat_members WHERE channel_id = ? AND left_at IS NULL",
+            (channel_id,)
+        ).fetchall()
+    else:
+        rows = c.execute("SELECT * FROM chat_members WHERE channel_id = ?", (channel_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def insert_chat_message(
+    conn: sqlite3.Connection,
+    channel_id: int,
+    sender_type: str,
+    sender_id: str,
+    body: str,
+    sender_name: str = None,
+    msg_type: str = "text",
+    priority: str = "normal",
+    reply_to_id: int = None,
+    metadata: Dict = None,
+    require_ack: int = 0
+) -> Dict:
+    """Insert a chat message and return it."""
+    c = conn.cursor()
+    now = _ts()
+    meta_json = json.dumps(metadata) if metadata else None
+    c.execute("""
+        INSERT INTO chat_messages
+            (channel_id, sender_type, sender_id, sender_name, body, msg_type, priority,
+             reply_to_id, metadata, require_ack, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (channel_id, sender_type, sender_id, sender_name, body, msg_type, priority,
+          reply_to_id, meta_json, require_ack, now))
+    conn.commit()
+    msg_id = c.lastrowid
+
+    # Update channel updated_at
+    c.execute("UPDATE chat_channels SET updated_at = ? WHERE id = ?", (now, channel_id))
+    conn.commit()
+
+    return {
+        "id": msg_id, "channel_id": channel_id, "sender_type": sender_type,
+        "sender_id": sender_id, "sender_name": sender_name, "body": body,
+        "msg_type": msg_type, "priority": priority, "reply_to_id": reply_to_id,
+        "metadata": metadata or {}, "require_ack": require_ack,
+        "is_deleted": 0, "edited_at": None, "created_at": now
+    }
+
+
+def get_chat_messages(
+    conn: sqlite3.Connection,
+    channel_id: int,
+    limit: int = 50,
+    before_id: int = None
+) -> List[Dict]:
+    """Get messages for a channel, newest first then reversed."""
+    c = conn.cursor()
+    if before_id:
+        rows = c.execute("""
+            SELECT * FROM chat_messages WHERE channel_id = ? AND id < ?
+            ORDER BY id DESC LIMIT ?
+        """, (channel_id, before_id, limit)).fetchall()
+    else:
+        rows = c.execute("""
+            SELECT * FROM chat_messages WHERE channel_id = ?
+            ORDER BY id DESC LIMIT ?
+        """, (channel_id, limit)).fetchall()
+
+    messages = []
+    for r in rows:
+        d = dict(r)
+        d["metadata"] = json.loads(d["metadata"]) if d.get("metadata") else {}
+        if d.get("is_deleted"):
+            d["body"] = "This message was deleted"
+            d["metadata"] = {}
+        messages.append(d)
+    return list(reversed(messages))
+
+
+def get_user_channels(conn: sqlite3.Connection, user_id: str) -> List[Dict]:
+    """Get all channels a user is a member of, with unread counts and last message."""
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT ch.* FROM chat_channels ch
+        JOIN chat_members cm ON ch.id = cm.channel_id
+        WHERE cm.member_id = ? AND cm.left_at IS NULL AND ch.is_archived = 0
+        ORDER BY ch.updated_at DESC
+    """, (user_id,)).fetchall()
+
+    channels = []
+    for r in rows:
+        d = dict(r)
+        # Last message
+        last = c.execute("""
+            SELECT * FROM chat_messages WHERE channel_id = ? ORDER BY id DESC LIMIT 1
+        """, (d["id"],)).fetchone()
+        if last:
+            ld = dict(last)
+            ld["metadata"] = json.loads(ld["metadata"]) if ld.get("metadata") else {}
+            if ld.get("is_deleted"):
+                ld["body"] = "This message was deleted"
+            d["last_message"] = ld
+        else:
+            d["last_message"] = None
+
+        # Unread count — messages after last read receipt
+        receipt = c.execute("""
+            SELECT MAX(read_at) as last_read FROM chat_receipts
+            WHERE recipient_id = ? AND message_id IN (
+                SELECT id FROM chat_messages WHERE channel_id = ?
+            )
+        """, (user_id, d["id"])).fetchone()
+        last_read = receipt["last_read"] if receipt else None
+
+        if last_read:
+            unread = c.execute("""
+                SELECT COUNT(*) as cnt FROM chat_messages
+                WHERE channel_id = ? AND sender_id != ? AND created_at > ? AND is_deleted = 0
+            """, (d["id"], user_id, last_read)).fetchone()
+        else:
+            unread = c.execute("""
+                SELECT COUNT(*) as cnt FROM chat_messages
+                WHERE channel_id = ? AND sender_id != ? AND is_deleted = 0
+            """, (d["id"], user_id)).fetchone()
+        d["unread_count"] = unread["cnt"] if unread else 0
+
+        # Member count
+        mc = c.execute(
+            "SELECT COUNT(*) as cnt FROM chat_members WHERE channel_id = ? AND left_at IS NULL",
+            (d["id"],)
+        ).fetchone()
+        d["member_count"] = mc["cnt"] if mc else 0
+
+        channels.append(d)
+    return channels
+
+
+def update_chat_message(
+    conn: sqlite3.Connection,
+    message_id: int,
+    new_body: str,
+    editor_id: str
+) -> Optional[Dict]:
+    """Edit a message body (only sender can edit). Preserves original."""
+    c = conn.cursor()
+    row = c.execute("SELECT * FROM chat_messages WHERE id = ?", (message_id,)).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    if d["sender_id"] != editor_id:
+        return None
+    if d["is_deleted"]:
+        return None
+
+    now = _ts()
+    original = d.get("original_body") or d["body"]
+    c.execute("""
+        UPDATE chat_messages SET body = ?, edited_at = ?, original_body = ?
+        WHERE id = ?
+    """, (new_body, now, original, message_id))
+    conn.commit()
+    d["body"] = new_body
+    d["edited_at"] = now
+    d["original_body"] = original
+    d["metadata"] = json.loads(d["metadata"]) if d.get("metadata") else {}
+    return d
+
+
+def soft_delete_chat_message(
+    conn: sqlite3.Connection,
+    message_id: int,
+    deleter_id: str
+) -> bool:
+    """Soft-delete a message (tombstone)."""
+    c = conn.cursor()
+    row = c.execute("SELECT sender_id, is_deleted FROM chat_messages WHERE id = ?", (message_id,)).fetchone()
+    if not row or row["is_deleted"]:
+        return False
+    if row["sender_id"] != deleter_id:
+        return False
+    c.execute("""
+        UPDATE chat_messages SET is_deleted = 1, deleted_at = ?, deleted_by = ? WHERE id = ?
+    """, (_ts(), deleter_id, message_id))
+    conn.commit()
+    return True
+
+
+def upsert_receipt(
+    conn: sqlite3.Connection,
+    message_id: int,
+    recipient_type: str,
+    recipient_id: str,
+    field: str
+) -> bool:
+    """Upsert a delivery receipt field (delivered_at, read_at, ack_at)."""
+    if field not in ("delivered_at", "read_at", "ack_at"):
+        return False
+    c = conn.cursor()
+    now = _ts()
+    try:
+        c.execute("""
+            INSERT INTO chat_receipts (message_id, recipient_type, recipient_id, {field})
+            VALUES (?, ?, ?, ?)
+        """.format(field=field), (message_id, recipient_type, recipient_id, now))
+    except sqlite3.IntegrityError:
+        c.execute("""
+            UPDATE chat_receipts SET {field} = ?
+            WHERE message_id = ? AND recipient_type = ? AND recipient_id = ? AND {field} IS NULL
+        """.format(field=field), (now, message_id, recipient_type, recipient_id))
+    conn.commit()
+    return True
+
+
+def search_chat_messages(
+    conn: sqlite3.Connection,
+    user_id: str,
+    query: str,
+    channel_type: str = None,
+    sender_id: str = None,
+    limit: int = 50
+) -> List[Dict]:
+    """Search messages across user's channels."""
+    c = conn.cursor()
+    params = [user_id, f"%{query}%"]
+    type_filter = ""
+    sender_filter = ""
+    if channel_type:
+        type_filter = "AND ch.type = ?"
+        params.append(channel_type)
+    if sender_id:
+        sender_filter = "AND m.sender_id = ?"
+        params.append(sender_id)
+    params.append(limit)
+
+    rows = c.execute(f"""
+        SELECT m.*, ch.key as channel_key, ch.title as channel_title, ch.type as channel_type
+        FROM chat_messages m
+        JOIN chat_channels ch ON m.channel_id = ch.id
+        JOIN chat_members cm ON ch.id = cm.channel_id
+        WHERE cm.member_id = ? AND cm.left_at IS NULL
+          AND m.is_deleted = 0 AND m.body LIKE ?
+          {type_filter} {sender_filter}
+        ORDER BY m.created_at DESC LIMIT ?
+    """, params).fetchall()
+
+    results = []
+    for r in rows:
+        d = dict(r)
+        d["metadata"] = json.loads(d["metadata"]) if d.get("metadata") else {}
+        results.append(d)
+    return results
+
+
+def add_reaction(conn: sqlite3.Connection, message_id: int, user_id: str, reaction: str) -> bool:
+    """Add a reaction to a message."""
+    c = conn.cursor()
+    now = _ts()
+    try:
+        c.execute("""
+            INSERT INTO chat_reactions (message_id, user_id, reaction, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (message_id, user_id, reaction, now))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+
+def remove_reaction(conn: sqlite3.Connection, message_id: int, user_id: str, reaction: str) -> bool:
+    """Remove a reaction from a message."""
+    c = conn.cursor()
+    c.execute("DELETE FROM chat_reactions WHERE message_id = ? AND user_id = ? AND reaction = ?",
+              (message_id, user_id, reaction))
+    conn.commit()
+    return c.rowcount > 0
+
+
+def get_message_reactions(conn: sqlite3.Connection, message_id: int) -> List[Dict]:
+    """Get all reactions for a message."""
+    c = conn.cursor()
+    rows = c.execute(
+        "SELECT reaction, GROUP_CONCAT(user_id) as users, COUNT(*) as cnt FROM chat_reactions WHERE message_id = ? GROUP BY reaction",
+        (message_id,)
+    ).fetchall()
+    return [{"reaction": r["reaction"], "users": r["users"].split(","), "count": r["cnt"]} for r in rows]
+
+
+def get_messages_reactions_bulk(conn: sqlite3.Connection, message_ids: List[int]) -> Dict[int, List[Dict]]:
+    """Get reactions for multiple messages at once."""
+    if not message_ids:
+        return {}
+    c = conn.cursor()
+    placeholders = ",".join("?" * len(message_ids))
+    rows = c.execute(f"""
+        SELECT message_id, reaction, GROUP_CONCAT(user_id) as users, COUNT(*) as cnt
+        FROM chat_reactions WHERE message_id IN ({placeholders})
+        GROUP BY message_id, reaction
+    """, message_ids).fetchall()
+
+    result: Dict[int, List[Dict]] = {mid: [] for mid in message_ids}
+    for r in rows:
+        result[r["message_id"]].append({
+            "reaction": r["reaction"], "users": r["users"].split(","), "count": r["cnt"]
+        })
+    return result

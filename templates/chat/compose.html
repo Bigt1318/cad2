@@ -1,0 +1,62 @@
+<!-- ============================================================================
+     FORD-CAD Chat Compose — New Message Modal
+     ============================================================================ -->
+
+<div class="modal-content chat-compose-modal">
+    <div class="modal-header">
+        <h3>New Message</h3>
+        <button class="btn-icon" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px">
+        <!-- Recipient -->
+        <div class="form-group">
+            <label>To:</label>
+            <div class="chat-recipient-input">
+                <input type="text" id="compose-to" placeholder="Search units..."
+                       oninput="MessagingUI.searchUnits(this.value)" autocomplete="off">
+                <div id="compose-suggestions" class="chat-suggestions" style="display:none"></div>
+                <div id="compose-selected" class="chat-selected-recipients"></div>
+            </div>
+        </div>
+
+        <!-- Priority -->
+        <div class="form-group">
+            <label>Priority:</label>
+            <div class="chat-priority-row">
+                <label class="chat-radio"><input type="radio" name="compose-priority" value="normal" checked> Normal</label>
+                <label class="chat-radio"><input type="radio" name="compose-priority" value="urgent"> Urgent</label>
+                <label class="chat-radio"><input type="radio" name="compose-priority" value="emergency"> Emergency</label>
+            </div>
+        </div>
+
+        <!-- ACK Required -->
+        <div class="form-group" id="compose-ack-group" style="display:none">
+            <label class="chat-checkbox">
+                <input type="checkbox" id="compose-ack-required">
+                Require Acknowledgment
+            </label>
+        </div>
+
+        <!-- Message -->
+        <div class="form-group">
+            <label>Message:</label>
+            <textarea id="compose-body" class="chat-textarea" rows="4" placeholder="Type your message..."></textarea>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Cancel</button>
+        <button class="btn-primary" onclick="MessagingUI.sendCompose()">Send</button>
+    </div>
+</div>
+
+<script>
+// Show ACK option when urgent/emergency selected
+document.querySelectorAll('input[name="compose-priority"]').forEach(r => {
+    r.addEventListener('change', () => {
+        const v = document.querySelector('input[name="compose-priority"]:checked').value;
+        document.getElementById('compose-ack-group').style.display = (v !== 'normal') ? 'block' : 'none';
+    });
+});
+</script>

@@ -41,6 +41,38 @@ const ACTIONS = {
         }, 100);
     },
 
+    // ------------------------------------------------------------
+    // Messaging actions
+    // ------------------------------------------------------------
+    "chat-toggle-drawer": () => {
+        window.MessagingUI?.toggleDrawer?.();
+    },
+
+    "chat-open-dm": (el) => {
+        const unitId = (el?.dataset?.unitId || "").trim();
+        if (unitId && window.MessagingUI?.openDM) {
+            window.MessagingUI.openDM(unitId);
+        }
+    },
+
+    "chat-open-channel": (el) => {
+        const channelId = (el?.dataset?.channelId || "").trim();
+        if (channelId && window.MessagingUI?.openChannel) {
+            window.MessagingUI.openChannel(channelId);
+        }
+    },
+
+    "chat-open-broadcast": () => {
+        window.MessagingUI?.openBroadcast?.();
+    },
+
+    "chat-ack-message": (el) => {
+        const msgId = (el?.dataset?.messageId || "").trim();
+        if (msgId && window.MessagingUI?.ackMessage) {
+            window.MessagingUI.ackMessage(msgId);
+        }
+    },
+
     "incident-reopen": async (el) => {
         const id = (el?.dataset?.incidentId || "").trim();
         if (!id) return;

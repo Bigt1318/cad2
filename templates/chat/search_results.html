@@ -1,0 +1,25 @@
+<!-- ============================================================================
+     FORD-CAD Chat Search Results
+     ============================================================================ -->
+
+{% if results %}
+<div class="chat-search-result-list">
+    <div class="chat-search-header">
+        {{ results|length }} result{{ 's' if results|length != 1 else '' }} for "{{ query }}"
+    </div>
+    {% for msg in results %}
+    <div class="chat-search-result" onclick="MessagingUI.openChannel({{ msg.channel_id }})">
+        <div class="chat-search-result-channel">
+            {% if msg.channel_type == 'dm' %}DM{% elif msg.channel_type == 'incident' %}Incident{% else %}{{ msg.channel_title or msg.channel_key }}{% endif %}
+        </div>
+        <div class="chat-search-result-sender">{{ msg.sender_name or msg.sender_id }}</div>
+        <div class="chat-search-result-body">{{ msg.body[:120] }}</div>
+        <div class="chat-search-result-time">{{ msg.created_at[:16] }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% elif query %}
+<div class="chat-empty-state">
+    <p>No results for "{{ query }}"</p>
+</div>
+{% endif %}

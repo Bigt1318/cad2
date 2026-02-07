@@ -53,6 +53,12 @@
     {% endif %}
 
     <div class="uaw-mini-footer">
+      <button class="cad-btn" onclick="MessagingUI.openDM('{{ unit.unit_id }}')" title="Send message to {{ unit.unit_id }}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        </svg>
+        Message Unit
+      </button>
       <button class="cad-btn secondary" onclick="UAW.openDetails('{{ unit.unit_id }}')">Full Unit Details</button>
       <button class="cad-btn secondary" onclick="CAD_MODAL.close()">Close</button>
     </div>

@@ -1,0 +1,65 @@
+<!-- ============================================================================
+     FORD-CAD Chat — Channel Info Panel
+     ============================================================================ -->
+
+<div class="modal-content">
+    <div class="modal-header">
+        <h3>{{ channel.title or 'Channel Info' }}</h3>
+        <button class="btn-icon" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px">
+        <div class="chat-info-section">
+            <div class="chat-info-label">Type</div>
+            <div class="chat-info-value">
+                {% if channel.type == 'dm' %}Direct Message
+                {% elif channel.type == 'incident' %}Incident Channel
+                {% elif channel.type == 'shift' %}Shift Channel
+                {% elif channel.type == 'ops' %}Operations Channel
+                {% elif channel.type == 'broadcast' %}Broadcast
+                {% else %}{{ channel.type }}{% endif %}
+            </div>
+        </div>
+
+        {% if channel.incident_id %}
+        <div class="chat-info-section">
+            <div class="chat-info-label">Incident</div>
+            <div class="chat-info-value">
+                <a href="#" onclick="IAW && IAW.open({{ channel.incident_id }})">#{{ channel.incident_id }}</a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if channel.shift %}
+        <div class="chat-info-section">
+            <div class="chat-info-label">Shift</div>
+            <div class="chat-info-value">{{ channel.shift }}</div>
+        </div>
+        {% endif %}
+
+        <div class="chat-info-section">
+            <div class="chat-info-label">Created</div>
+            <div class="chat-info-value">{{ channel.created_at[:16] }}</div>
+        </div>
+
+        <div class="chat-info-section">
+            <div class="chat-info-label">Members ({{ members|length }})</div>
+            <div class="chat-member-list">
+                {% for m in members %}
+                <div class="chat-member-row">
+                    <span class="chat-presence-dot"
+                          data-status="{{ presence.get(m.member_id, {}).get('status', 'offline') }}"></span>
+                    <span class="chat-member-name">{{ m.display_name or m.member_id }}</span>
+                    {% if m.role != 'member' %}
+                    <span class="chat-member-role">{{ m.role }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
+    </div>
+</div>

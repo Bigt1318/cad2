@@ -539,6 +539,28 @@ except ImportError as e:
 except Exception as e:
     print(f"[MAIN] Messaging module error: {e}")
 
+# ================================================================
+# CHAT MODULE v2 — Channel-based messaging
+# ================================================================
+try:
+    from app.messaging.models import init_chat_schema
+    from app.messaging.chat_engine import get_chat_engine
+    from app.messaging.chat_routes import register_chat_routes
+    # Init chat schema
+    _chat_conn = get_conn()
+    init_chat_schema(_chat_conn)
+    _chat_conn.close()
+    # Init singleton engine
+    get_chat_engine(get_conn)
+    # Register chat API routes
+    register_chat_routes(app, templates, get_conn)
+    print("[MAIN] Chat v2 module loaded")
+except ImportError as e:
+    print(f"[MAIN] Chat v2 module not available: {e}")
+except Exception as e:
+    import traceback; traceback.print_exc()
+    print(f"[MAIN] Chat v2 module error: {e}")
+
 
 def assert_known_unit(unit_id: str):
     """Raise 400 if unit_id is not present in Units table."""
@@ -2554,6 +2576,23 @@ def ford_incident_action_window(request: Request, incident_id: int):
     # Get NFIRS completeness status
     nfirs_status = get_nfirs_completeness(incident_id)
 
+    # --- Incident Chat Channel ---
+    incident_chat_channel_id = None
+    incident_chat_messages = []
+    try:
+        from app.messaging.chat_engine import get_chat_engine
+        _chat = get_chat_engine()
+        user_id = request.session.get("unit_id") or request.session.get("user") or "DISPATCH"
+        _ch = _chat.get_or_create_incident_channel(incident_id, title=f"Incident #{incident_id}")
+        incident_chat_channel_id = _ch["id"]
+        # Auto-join assigned units + dispatcher
+        _chat.add_member(_ch["id"], "unit", user_id, display_name=user_id)
+        for u in units:
+            _chat.add_member(_ch["id"], "unit", u["unit_id"], display_name=u.get("unit_name") or u["unit_id"])
+        incident_chat_messages = _chat.get_messages(_ch["id"], limit=20)
+    except Exception as _ce:
+        print(f"[IAW] Chat channel setup: {_ce}")
+
     return templates.TemplateResponse(
         "iaw/incident_action_window.html",
         {
@@ -2566,7 +2605,10 @@ def ford_incident_action_window(request: Request, incident_id: int):
             "premise_count": premise_count,
             "caller_history": caller_history,
             "caller_count": caller_count,
-            "nfirs_status": nfirs_status
+            "nfirs_status": nfirs_status,
+            "incident_chat_channel_id": incident_chat_channel_id,
+            "incident_chat_messages": incident_chat_messages,
+            "user_id": request.session.get("unit_id") or request.session.get("user") or "DISPATCH",
         }
     )
 
@@ -4649,6 +4691,13 @@ async def dispatch_units(incident_id: int, request: Request):
 
     # Map response to expected format for backward compatibility
     if result.get("ok"):
+        # --- Chat event: DISPATCH ---
+        try:
+            from app.messaging.chat_engine import get_chat_engine, post_cad_event_to_chat
+            for uid in result.get("assigned", []):
+                post_cad_event_to_chat(get_chat_engine(), incident_id, "DISPATCH", unit_id=uid, user=user)
+        except Exception:
+            pass
         return {"ok": True, "units": result.get("assigned", [])}
     else:
         return result
@@ -4961,12 +5010,21 @@ async def unit_status_update(
             conn.close()
 
 
+    # --- Chat event helper ---
+    def _chat_event(evt):
+        try:
+            from app.messaging.chat_engine import get_chat_engine, post_cad_event_to_chat
+            post_cad_event_to_chat(get_chat_engine(), incident_id, evt, unit_id=unit_id, user=user)
+        except Exception:
+            pass
+
     # DISPATCHED
     if new_status == "DISPATCHED":
         set_unit_status_pipeline(unit_id, "DISPATCHED")
         mark_assignment(incident_id, unit_id, "dispatched")
         incident_history(incident_id, "DISPATCHED", user=user, unit_id=unit_id)
         _mirror_to_crew("dispatched")
+        _chat_event("DISPATCH")
         return {"ok": True}
 
     if new_status == "ENROUTE":
@@ -4974,12 +5032,14 @@ async def unit_status_update(
         mark_assignment(incident_id, unit_id, "enroute")
         incident_history(incident_id, "ENROUTE", user=user, unit_id=unit_id)
         _mirror_to_crew("enroute")
+        _chat_event("ENROUTE")
 
     elif new_status == "ARRIVED":
         set_unit_status_pipeline(unit_id, "ARRIVED")
         mark_assignment(incident_id, unit_id, "arrived")
         incident_history(incident_id, "ARRIVED", user=user, unit_id=unit_id)
         _mirror_to_crew("arrived")
+        _chat_event("ARRIVED")
 
         # Auto-command: first ARRIVED unit becomes command (if supported)
         conn = get_conn()
@@ -6272,6 +6332,14 @@ async def clear_unit_api(request: Request, incident_id: int, unit_id: str):
 
     enter_disposition_stage_if_last(incident_id)
 
+    # --- Chat event: CLEAR ---
+    try:
+        from app.messaging.chat_engine import get_chat_engine, post_cad_event_to_chat
+        post_cad_event_to_chat(get_chat_engine(), incident_id, "CLEAR", unit_id=unit_id, user=user,
+                               details=f"{disposition} ({VALID_DISPOSITIONS_LEGACY_CLEAR[disposition]})")
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "unit_id": unit_id,
@@ -6522,6 +6590,14 @@ async def event_disposition_submit(request: Request, incident_id: int):
     add_narrative(incident_id, user, text)
     log_event_disposition(incident_id, code, user, notes)
     close_incident_with_disposition(incident_id, code)
+
+    # --- Chat event: CLOSE ---
+    try:
+        from app.messaging.chat_engine import get_chat_engine, post_cad_event_to_chat
+        post_cad_event_to_chat(get_chat_engine(), incident_id, "CLOSE", user=user,
+                               details=f"{code} ({EVENT_OUTCOME_MAP.get(code, '')})")
+    except Exception:
+        pass
 
     return {"ok": True, "incident_id": incident_id, "closed": True}
 
@@ -10235,6 +10311,13 @@ async def api_hold_incident(incident_id: int, request: Request):
     # Audit
     masterlog(event_type="HELD", user=user, incident_id=incident_id, details=reason, unit_id=None, ok=1, reason=reason)
     incident_history(incident_id=incident_id, event_type="HELD", user=user, unit_id=None, details=reason)
+
+    # --- Chat event: HOLD ---
+    try:
+        from app.messaging.chat_engine import get_chat_engine, post_cad_event_to_chat
+        post_cad_event_to_chat(get_chat_engine(), incident_id, "HOLD", user=user, details=reason)
+    except Exception:
+        pass
 
     return {"ok": True}
 

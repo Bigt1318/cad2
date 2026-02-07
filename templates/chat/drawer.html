@@ -1,0 +1,118 @@
+<!-- ============================================================================
+     FORD-CAD Chat Drawer — Slide-Out Messaging Panel
+     3 Tabs: Inbox (DMs) | Channels | Alerts
+     ============================================================================ -->
+
+<div id="chat-drawer" class="chat-drawer">
+    <!-- HEADER -->
+    <div class="chat-drawer-header">
+        <div class="chat-drawer-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+            Messages
+            <span id="chat-total-unread" class="chat-badge" style="display:none">0</span>
+        </div>
+        <div class="chat-drawer-actions">
+            <!-- Presence selector -->
+            <select id="chat-my-status" class="chat-status-select" onchange="MessagingUI.setMyStatus(this.value)">
+                <option value="available">Available</option>
+                <option value="busy">Busy</option>
+                <option value="on-scene">On Scene</option>
+                <option value="dnd">Do Not Disturb</option>
+            </select>
+            <button class="chat-icon-btn" onclick="MessagingUI.toggleDrawer()" title="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="chat-search-bar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:0.5">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="chat-search-input" placeholder="Search messages..."
+               oninput="MessagingUI.onSearchInput(this.value)" autocomplete="off">
+    </div>
+
+    <!-- TABS -->
+    <div class="chat-tabs">
+        <button class="chat-tab active" data-tab="inbox" onclick="MessagingUI.switchTab('inbox')">
+            Inbox
+            <span id="chat-inbox-badge" class="chat-tab-badge" style="display:none">0</span>
+        </button>
+        <button class="chat-tab" data-tab="channels" onclick="MessagingUI.switchTab('channels')">
+            Channels
+        </button>
+        <button class="chat-tab" data-tab="alerts" onclick="MessagingUI.switchTab('alerts')">
+            Alerts
+            <span id="chat-alerts-badge" class="chat-tab-badge" style="display:none">0</span>
+        </button>
+    </div>
+
+    <!-- TOOLBAR BUTTONS -->
+    <div class="chat-toolbar-row">
+        <button class="chat-action-btn" onclick="MessagingUI.openCompose()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Message
+        </button>
+        <button class="chat-action-btn" onclick="MessagingUI.openGroupCreate()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/><line x1="20" y1="8" x2="20" y2="14"/>
+            </svg>
+            New Group
+        </button>
+        {% if is_dispatcher %}
+        <button class="chat-action-btn chat-action-broadcast" onclick="MessagingUI.openBroadcast()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+            </svg>
+            Broadcast
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- SEARCH RESULTS (hidden by default) -->
+    <div id="chat-search-results" class="chat-panel-content" style="display:none"></div>
+
+    <!-- TAB CONTENT: INBOX -->
+    <div id="chat-tab-inbox" class="chat-panel-content chat-tab-content active">
+        <div id="chat-inbox-list" class="chat-channel-list">
+            <div class="chat-empty-state">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                <p>No conversations yet</p>
+                <p class="chat-empty-hint">Send a message to get started</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB CONTENT: CHANNELS -->
+    <div id="chat-tab-channels" class="chat-panel-content chat-tab-content">
+        <div id="chat-channels-list" class="chat-channel-list">
+            <div class="chat-empty-state">
+                <p>No channels joined</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB CONTENT: ALERTS -->
+    <div id="chat-tab-alerts" class="chat-panel-content chat-tab-content">
+        <div id="chat-alerts-list" class="chat-channel-list">
+            <div class="chat-empty-state">
+                <p>No alerts</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- THREAD VIEW (shown when a channel is opened) -->
+    <div id="chat-thread-container" class="chat-thread-container" style="display:none"></div>
+</div>

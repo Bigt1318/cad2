@@ -132,6 +132,13 @@ const CLI = {
         { key: "VIEW_DAILY", aliases: ["DAILY", "DAILYLOG"], desc: "View daily log" },
         { key: "VIEW_HISTORY", aliases: ["HISTORY", "HIST"], desc: "Search history" },
         { key: "SEND_REPORT", aliases: ["REPORT", "RPT", "SENDREPORT"], desc: "Send daily report" },
+
+        // ─────────────────────────────────────────────────────────────────────
+        // MESSAGING
+        // ─────────────────────────────────────────────────────────────────────
+        { key: "MESSAGE", aliases: ["MSG", "MESSAGE", "DM"], desc: "Message unit: MSG <unit>" },
+        { key: "CHAT", aliases: ["CHAT"], desc: "Toggle messaging drawer" },
+        { key: "BROADCAST_MSG", aliases: ["BCAST", "BROADCAST"], desc: "Open broadcast console" },
     ],
 
     // Unit Disposition codes
@@ -342,6 +349,10 @@ const CLI = {
 ║  DL: text    Daily log entry                              ║
 ║  ED <#> R    Event disposition (R=Resolved)               ║
 ║  CLOSE <#>   Close incident                               ║
+╠───────────────────────────────────────────────────────────╣
+║  MSG E1      Message unit E1                              ║
+║  CHAT        Toggle messaging drawer                      ║
+║  BCAST       Open broadcast console                       ║
 ╚═══════════════════════════════════════════════════════════╝
 `.trim();
         this._showHelp(text, "Quick Reference");
@@ -425,6 +436,12 @@ CREW & ROSTER
   CS E1                    Show crew on apparatus
   AU 17                    Add unit to shift
   DU 17                    Remove unit from shift
+
+MESSAGING
+  MSG <unit>               Open DM with unit
+  MSG                      Open messaging drawer
+  CHAT                     Toggle messaging drawer
+  BCAST                    Open broadcast console
 
 UNIT ALIASES
   Units can use aliases: e1, eng1 → Engine1
@@ -1048,6 +1065,45 @@ DISPOSITION CODES
             return;
         }
 
+        // ────────────────────────────────────────────────────────────────────
+        // MESSAGING COMMANDS
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "MESSAGE") {
+            const target = tokens[1];
+            if (target) {
+                const unitId = this.resolveAlias(target);
+                if (window.MessagingUI?.openDM) {
+                    window.MessagingUI.openDM(unitId);
+                } else {
+                    this._toast("Messaging module not loaded", "error");
+                }
+            } else {
+                // No target — just open the drawer
+                if (window.MessagingUI?.toggleDrawer) {
+                    window.MessagingUI.toggleDrawer();
+                }
+            }
+            return;
+        }
+
+        if (firstCmd === "CHAT") {
+            if (window.MessagingUI?.toggleDrawer) {
+                window.MessagingUI.toggleDrawer();
+            } else {
+                this._toast("Messaging module not loaded", "error");
+            }
+            return;
+        }
+
+        if (firstCmd === "BROADCAST_MSG") {
+            if (window.MessagingUI?.openBroadcast) {
+                window.MessagingUI.openBroadcast();
+            } else {
+                this._toast("Messaging module not loaded", "error");
+            }
+            return;
+        }
+
         if (firstCmd === "VIEW_IAW") {
             if (tokens[1]) IAW.open(this._normalizeIncidentRef(tokens[1]));
             return;
@@ -1407,6 +1463,16 @@ DISPOSITION CODES
 
         if (action === "VIEW_UAW") {
             UAW.open(units[0]);
+            return;
+        }
+
+        // --- Messaging ---
+        if (action === "MESSAGE") {
+            if (window.MessagingUI?.openDM) {
+                window.MessagingUI.openDM(units[0]);
+            } else {
+                this._toast("Messaging module not loaded", "error");
+            }
             return;
         }
 

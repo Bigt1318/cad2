@@ -1,0 +1,94 @@
+<!-- ============================================================================
+     FORD-CAD Broadcast Console — Dispatcher Only
+     ============================================================================ -->
+
+<div class="modal-content chat-broadcast-modal">
+    <div class="modal-header" style="background:var(--fire-red);color:white">
+        <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+            </svg>
+            Broadcast Message
+        </h3>
+        <button class="btn-icon" style="color:white" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px">
+        <!-- Target Selector -->
+        <div class="form-group">
+            <label>Send To:</label>
+            <select id="bcast-target-type" onchange="MessagingUI.updateBroadcastTargets()">
+                <option value="all">All Active Units</option>
+                <option value="shift_a">Shift A Only</option>
+                <option value="shift_b">Shift B Only</option>
+                <option value="shift_c">Shift C Only</option>
+                <option value="shift_d">Shift D Only</option>
+                <option value="command">Command Units</option>
+                <option value="custom">Custom Selection</option>
+            </select>
+        </div>
+
+        <!-- Custom unit picker (hidden unless custom selected) -->
+        <div id="bcast-custom-picker" class="form-group" style="display:none">
+            <label>Select Units:</label>
+            <div class="chat-unit-grid">
+                {% for u in units %}
+                <label class="chat-checkbox chat-unit-option">
+                    <input type="checkbox" name="bcast-unit" value="{{ u.unit_id }}" data-shift="{{ u.shift or '' }}">
+                    {{ u.unit_id }}
+                    {% if u.shift %}<small>({{ u.shift }})</small>{% endif %}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recipient count preview -->
+        <div class="chat-bcast-preview" id="bcast-preview">
+            <strong id="bcast-count">{{ units|length }}</strong> units will receive this broadcast
+        </div>
+
+        <!-- Priority -->
+        <div class="form-group">
+            <label>Priority:</label>
+            <div class="chat-priority-row">
+                <label class="chat-radio"><input type="radio" name="bcast-priority" value="normal" checked> Normal</label>
+                <label class="chat-radio"><input type="radio" name="bcast-priority" value="urgent"> Urgent</label>
+                <label class="chat-radio"><input type="radio" name="bcast-priority" value="emergency"> Emergency</label>
+            </div>
+        </div>
+
+        <!-- ACK Required -->
+        <div class="form-group">
+            <label class="chat-checkbox">
+                <input type="checkbox" id="bcast-ack-required">
+                Require Acknowledgment
+            </label>
+        </div>
+
+        <!-- Message -->
+        <div class="form-group">
+            <label>Message:</label>
+            <textarea id="bcast-body" class="chat-textarea" rows="4" placeholder="Enter broadcast message..."></textarea>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Cancel</button>
+        <button class="btn-primary" style="background:var(--fire-red);border-color:var(--fire-red)" onclick="MessagingUI.sendBroadcast()">
+            Send Broadcast
+        </button>
+    </div>
+</div>
+
+<script>
+(function(){
+    const allUnits = {{ units|tojson }};
+    const COMMAND_PREFIXES = ['BC', 'BAT', 'BATT', 'CAR', 'CHIEF'];
+
+    window._bcastAllUnits = allUnits;
+    window._bcastCommandPrefixes = COMMAND_PREFIXES;
+
+    document.getElementById('bcast-target-type').dispatchEvent(new Event('change'));
+})();
+</script>

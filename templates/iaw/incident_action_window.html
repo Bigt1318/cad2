@@ -352,6 +352,45 @@
     </div>
     {% endif %}
 
+    <!-- INCIDENT CHAT SECTION -->
+    {% if incident_chat_channel_id %}
+    <div class="iaw-section iaw-chat-section">
+      <div class="iaw-chat-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+        <span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+          Incident Chat
+        </span>
+        <span style="font-size:10px;color:var(--text-muted)">click to toggle</span>
+      </div>
+      <div>
+        <div class="iaw-chat-body" id="iaw-chat-messages-{{ incident.incident_id }}">
+          {% for msg in incident_chat_messages %}
+            {% if msg.sender_type == 'system' %}
+              <div class="chat-msg chat-msg-system" data-msg-id="{{ msg.id }}">
+                <div class="chat-card"><div class="chat-card-body">{{ msg.body }}</div></div>
+              </div>
+            {% else %}
+              {% set is_mine = msg.sender_id == user_id %}
+              <div class="chat-msg {% if is_mine %}chat-msg-mine{% else %}chat-msg-other{% endif %}" data-msg-id="{{ msg.id }}">
+                {% if not is_mine %}<div class="chat-msg-sender">{{ msg.sender_name or msg.sender_id }}</div>{% endif %}
+                <div class="chat-bubble {% if is_mine %}chat-bubble-mine{% else %}chat-bubble-other{% endif %}">
+                  <div class="chat-msg-body">{{ msg.body }}</div>
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="iaw-chat-composer">
+          <input type="text" id="iaw-chat-input-{{ incident.incident_id }}" placeholder="Type a message..."
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();MessagingUI.sendIncidentMessage({{ incident.incident_id }}, {{ incident_chat_channel_id }});}">
+          <button onclick="MessagingUI.sendIncidentMessage({{ incident.incident_id }}, {{ incident_chat_channel_id }})">Send</button>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- ADD NOTE SECTION -->
     <div class="iaw-section">
       <div class="iaw-section-header">

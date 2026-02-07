@@ -1,0 +1,30 @@
+<!-- ============================================================================
+     FORD-CAD Chat — Create Group/Ops Channel
+     ============================================================================ -->
+
+<div class="modal-content">
+    <div class="modal-header">
+        <h3>Create Group Channel</h3>
+        <button class="btn-icon" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+
+    <div class="modal-body" style="padding:16px">
+        <div class="form-group">
+            <label>Channel Name:</label>
+            <input type="text" id="group-title" placeholder="e.g. Training, Ops Room" maxlength="50">
+        </div>
+
+        <div class="form-group">
+            <label>Add Members:</label>
+            <input type="text" id="group-member-search" placeholder="Search units..."
+                   oninput="MessagingUI.searchGroupMembers(this.value)" autocomplete="off">
+            <div id="group-suggestions" class="chat-suggestions" style="display:none"></div>
+            <div id="group-selected-members" class="chat-selected-recipients"></div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button class="btn-secondary" onclick="CAD_MODAL.close()">Cancel</button>
+        <button class="btn-primary" onclick="MessagingUI.createGroup()">Create Channel</button>
+    </div>
+</div>
