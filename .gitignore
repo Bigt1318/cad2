@@ -360,6 +360,47 @@ MigrationBackup/
 .ionide/
 
 # Fody - auto-generated XML schema
-FodyWeavers.xsdemail_config.json
-cad.db
+FodyWeavers.xsd
+
+# ── FORD-CAD Project ─────────────────────────────────
+
+# Config and database
 email_config.json
+cad.db
+*.db-journal
+
+# Virtual environment
+.venv/
+
+# Claude Code
+.claude/
+
+# Backups and archives
+*.zip
+static/archives/
+
+# Temp and debug files
+cookies.txt
+cookies2.txt
+tmp_modal.html
+nul
+fix_dailylog_schema.py
+UsersblueoAppDataLocalTempclaudeC--cad2a583cbe0-b121-477b-b5c8-b7d0a3879636scratchpadtemplates.json
+
+# Reports and personal docs
+CAD_ANALYSIS_REPORT.md
+FORD_CAD_EVALUATION_REPORT.md
+Elevators.txt
+notes.txt
+ground truth contract 12-28-2025.txt
+
+# Images not part of the app
+google cloud client id.png
+screenshots/
+static/images/headshots/
+static/images/old icons/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
