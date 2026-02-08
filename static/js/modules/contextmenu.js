@@ -366,6 +366,43 @@ async function _executeAction(action, value) {
         }
         break;
 
+      // Mark PAR (Personnel Accountability Report)
+      case "mark_par":
+        if (unitId) {
+          await CAD_UTIL.postJSON(`/api/uaw/misc/${unitId}`, { misc: "PAR" });
+          CAD_UTIL.refreshPanels();
+          window.TOAST?.success?.(`${unitId} marked PAR`);
+        }
+        break;
+
+      // Request Rehab
+      case "request_rehab":
+        if (unitId) {
+          await CAD_UTIL.postJSON(`/api/uaw/misc/${unitId}`, { misc: "REHAB" });
+          CAD_UTIL.refreshPanels();
+          window.TOAST?.info?.(`${unitId} assigned to REHAB`);
+        }
+        break;
+
+      // Transfer Command
+      case "transfer_command":
+        if (unitId) {
+          // Find unit's active incident
+          const ctx2 = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(unitId)}`);
+          const incId2 = Number(ctx2?.active_incident_id || 0);
+          if (!incId2) {
+            window.TOAST?.error?.(`${unitId} is not on an active incident`);
+            break;
+          }
+          await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
+            incident_id: incId2,
+            unit_id: unitId
+          });
+          CAD_UTIL.refreshPanels();
+          window.TOAST?.success?.(`Command transferred to ${unitId}`);
+        }
+        break;
+
       // Manage crew (open UAW to crew tab)
       case "manage_crew":
         if (unitId && window.UAW?.openCrewMode) {
@@ -799,6 +836,16 @@ function getUnitMenuItems(unitId, context = {}) {
       { label: "Available", action: "status_available" },
       { label: "10-7 (Out of Service)", action: "status_107" },
       { label: "OOS", action: "status_oos" }
+    ]
+  });
+
+  // Quick actions
+  items.push({
+    label: "Quick Actions",
+    submenu: [
+      { label: "Mark PAR", action: "mark_par" },
+      { label: "Request Rehab", action: "request_rehab" },
+      { label: "Transfer Command", action: "transfer_command" }
     ]
   });
 

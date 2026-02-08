@@ -1804,6 +1804,8 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Incidents ADD COLUMN determinant_code TEXT")        # Full code e.g., "10-D-1"
     _add_col("ALTER TABLE Incidents ADD COLUMN determinant_protocol TEXT")    # MPDS, FPDS, or custom
     _add_col("ALTER TABLE Incidents ADD COLUMN determinant_description TEXT") # Chief complaint/description
+    _add_col("ALTER TABLE Incidents ADD COLUMN first_unit_arrived TEXT")      # Unit ID of first arrival
+    _add_col("ALTER TABLE Incidents ADD COLUMN first_arrival_time TEXT")      # Timestamp of first unit arrival
 
     # --------------------------------------------------
     # MASTER LOG
@@ -5183,10 +5185,39 @@ async def unit_status_update(
         _chat_event("ARRIVED")
         _emit_status("ARRIVED")
 
-        # Auto-command: first ARRIVED unit becomes command (if supported)
+        # First-arrival tracking + auto-ACTIVE + auto-command
         conn = get_conn()
         c = conn.cursor()
+        ts_now = _ts()
 
+        # Check if this is the first unit to arrive on this incident
+        inc_cols = {r["name"] for r in c.execute("PRAGMA table_info(Incidents)").fetchall()}
+        if "first_unit_arrived" in inc_cols:
+            existing = c.execute(
+                "SELECT first_unit_arrived FROM Incidents WHERE incident_id = ?",
+                (incident_id,)
+            ).fetchone()
+            if existing and not (existing["first_unit_arrived"] or "").strip():
+                c.execute("""
+                    UPDATE Incidents
+                    SET first_unit_arrived = ?, first_arrival_time = ?, arrival_time = ?
+                    WHERE incident_id = ?
+                """, (unit_id, ts_now, ts_now, incident_id))
+
+        # Auto-set incident to ACTIVE if still OPEN or DISPATCHED
+        inc_status = c.execute(
+            "SELECT status FROM Incidents WHERE incident_id = ?",
+            (incident_id,)
+        ).fetchone()
+        if inc_status and (inc_status["status"] or "").upper() in ("OPEN", "DISPATCHED"):
+            c.execute("""
+                UPDATE Incidents SET status = 'ACTIVE', updated = ?
+                WHERE incident_id = ?
+            """, (ts_now, incident_id))
+            incident_history(incident_id, "AUTO_ACTIVE", user="SYSTEM", unit_id=unit_id,
+                             details=f"First arrival by {unit_id}")
+
+        # Auto-command: first ARRIVED unit becomes command (if supported)
         ua_cols = [r["name"] for r in c.execute("PRAGMA table_info(UnitAssignments)").fetchall()]
         has_cmd_col = "commanding_unit" in ua_cols
 
@@ -5215,8 +5246,7 @@ async def unit_status_update(
                       AND cleared IS NULL
                 """, (incident_id, unit_id))
 
-            conn.commit()
-
+        conn.commit()
         conn.close()
 
     elif new_status == "TRANSPORTING":
@@ -8696,6 +8726,112 @@ async def api_cli_dispatch(request: Request):
             update_unit_status(uid, "ENROUTE")
 
     return {"ok": True, "incident_id": int(incident_id), "result": res}
+
+
+@app.post("/api/cli/swap")
+async def api_cli_swap(request: Request):
+    """Swap incident assignments between two units."""
+    ensure_phase3_schema()
+    data = await request.json()
+    unit1 = (data.get("unit1") or "").strip()
+    unit2 = (data.get("unit2") or "").strip()
+    if not unit1 or not unit2:
+        return {"ok": False, "error": "Two unit IDs required"}
+
+    user = request.session.get("user", "Dispatcher")
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Find active assignment for each unit
+    a1 = c.execute("""
+        SELECT incident_id FROM UnitAssignments
+        WHERE unit_id = ? AND cleared IS NULL
+        ORDER BY assigned DESC LIMIT 1
+    """, (unit1,)).fetchone()
+    a2 = c.execute("""
+        SELECT incident_id FROM UnitAssignments
+        WHERE unit_id = ? AND cleared IS NULL
+        ORDER BY assigned DESC LIMIT 1
+    """, (unit2,)).fetchone()
+
+    inc1 = int(a1["incident_id"]) if a1 else 0
+    inc2 = int(a2["incident_id"]) if a2 else 0
+
+    if not inc1 and not inc2:
+        conn.close()
+        return {"ok": False, "error": f"Neither {unit1} nor {unit2} are assigned to incidents"}
+
+    ts = _ts()
+
+    # Clear both assignments
+    if inc1:
+        c.execute("UPDATE UnitAssignments SET cleared = ? WHERE unit_id = ? AND incident_id = ? AND cleared IS NULL", (ts, unit1, inc1))
+    if inc2:
+        c.execute("UPDATE UnitAssignments SET cleared = ? WHERE unit_id = ? AND incident_id = ? AND cleared IS NULL", (ts, unit2, inc2))
+    conn.commit()
+    conn.close()
+
+    # Re-assign swapped
+    if inc2:
+        dispatch_units_to_incident(inc2, [unit1], user=user, force=True)
+        incident_history(inc2, "SWAP", user=user, unit_id=unit1, details=f"Swapped with {unit2}")
+    if inc1:
+        dispatch_units_to_incident(inc1, [unit2], user=user, force=True)
+        incident_history(inc1, "SWAP", user=user, unit_id=unit2, details=f"Swapped with {unit1}")
+
+    return {"ok": True, "unit1": unit1, "unit2": unit2, "incident1": inc1, "incident2": inc2}
+
+
+@app.post("/api/cli/move")
+async def api_cli_move(request: Request):
+    """Move a unit from its current incident to a different incident."""
+    ensure_phase3_schema()
+    data = await request.json()
+    unit_id = (data.get("unit_id") or "").strip()
+    to_incident = int(data.get("to_incident") or 0)
+    if not unit_id or not to_incident:
+        return {"ok": False, "error": "unit_id and to_incident required"}
+
+    user = request.session.get("user", "Dispatcher")
+    conn = get_conn()
+    c = conn.cursor()
+
+    # Clear from current incident
+    current = c.execute("""
+        SELECT incident_id FROM UnitAssignments
+        WHERE unit_id = ? AND cleared IS NULL
+        ORDER BY assigned DESC LIMIT 1
+    """, (unit_id,)).fetchone()
+    from_incident = int(current["incident_id"]) if current else 0
+
+    if from_incident:
+        c.execute("UPDATE UnitAssignments SET cleared = ? WHERE unit_id = ? AND incident_id = ? AND cleared IS NULL",
+                  (_ts(), unit_id, from_incident))
+        conn.commit()
+        incident_history(from_incident, "UNIT_MOVED", user=user, unit_id=unit_id,
+                         details=f"Moved to incident {to_incident}")
+
+    conn.close()
+
+    # Dispatch to new incident
+    res = dispatch_units_to_incident(to_incident, [unit_id], user=user, force=True)
+    incident_history(to_incident, "UNIT_MOVED_IN", user=user, unit_id=unit_id,
+                     details=f"Moved from incident {from_incident}" if from_incident else "Moved in")
+
+    return {"ok": True, "unit_id": unit_id, "from_incident": from_incident, "to_incident": to_incident}
+
+
+@app.post("/api/cli/note")
+async def api_cli_note(request: Request):
+    """Add a remark/note to an incident from CLI."""
+    data = await request.json()
+    incident_id = data.get("incident_id")
+    text = (data.get("text") or "").strip()
+    if not incident_id or not text:
+        return JSONResponse({"ok": False, "error": "incident_id and text required"}, status_code=400)
+    user = request.session.get("user", "Dispatcher")
+    result = process_remark(user=user, text=text, incident_id=int(incident_id))
+    return result
 
 
 @app.get("/api/uaw/context/{unit_id}")
@@ -12743,6 +12879,31 @@ async def api_unit_status(request: Request, unit_id: str, status: str):
         ensure_assignment_row(incident_id, unit_id)
         mark_assignment(incident_id, unit_id, field)
         incident_history(incident_id, new_status, user=user, unit_id=unit_id)
+
+    # First-arrival tracking + auto-ACTIVE on ARRIVED
+    if incident_id and new_status == "ARRIVED":
+        conn3 = get_conn()
+        c3 = conn3.cursor()
+        ts_now = _ts()
+        inc_cols2 = {r["name"] for r in c3.execute("PRAGMA table_info(Incidents)").fetchall()}
+        if "first_unit_arrived" in inc_cols2:
+            existing = c3.execute(
+                "SELECT first_unit_arrived FROM Incidents WHERE incident_id = ?",
+                (incident_id,)
+            ).fetchone()
+            if existing and not (existing["first_unit_arrived"] or "").strip():
+                c3.execute("""
+                    UPDATE Incidents
+                    SET first_unit_arrived = ?, first_arrival_time = ?, arrival_time = ?
+                    WHERE incident_id = ?
+                """, (unit_id, ts_now, ts_now, incident_id))
+        inc_st = c3.execute("SELECT status FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+        if inc_st and (inc_st["status"] or "").upper() in ("OPEN", "DISPATCHED"):
+            c3.execute("UPDATE Incidents SET status = 'ACTIVE', updated = ? WHERE incident_id = ?", (ts_now, incident_id))
+            incident_history(incident_id, "AUTO_ACTIVE", user="SYSTEM", unit_id=unit_id,
+                             details=f"First arrival by {unit_id}")
+        c3.connection.commit()
+        c3.connection.close()
 
     # Apparatus mirrors to assigned crew
     if is_apparatus:

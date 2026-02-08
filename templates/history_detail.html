@@ -41,6 +41,9 @@
         <div><strong>Pole:</strong> {{ incident.pole or "—" }}</div>
         <div><strong>Shift:</strong> {{ incident.shift or "—" }}</div>
         <div><strong>Status:</strong> {{ incident.status }}</div>
+        {% if incident.first_unit_arrived %}
+        <div><strong>1st Arrival:</strong> {{ incident.first_unit_arrived }}{% if incident.first_arrival_time %} @ {{ incident.first_arrival_time }}{% endif %}</div>
+        {% endif %}
         {% if incident.final_disposition %}
         <div><strong>Disposition:</strong> {{ incident.final_disposition }}</div>
         {% endif %}

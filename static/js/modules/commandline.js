@@ -13,6 +13,9 @@ const CLI = {
     _pending: null,
     _aliasMap: {},      // alias (lowercase) -> canonical unit_id
     _unitIds: new Set(), // Set of known unit_ids for validation
+    _cmdHistory: [],     // Command history ring buffer
+    _historyIdx: -1,     // Current position in history (-1 = new input)
+    _historyDraft: "",   // Saved draft when browsing history
 
     // ========================================================================
     // COMMAND DEFINITIONS - Professional CAD Command Set
@@ -74,7 +77,6 @@ const CLI = {
         // NARRATIVE & TIMELINE
         // ─────────────────────────────────────────────────────────────────────
         { key: "NARRATIVE", aliases: ["NARR", "NAR"], desc: "Add narrative: NARR <#>: text" },
-        { key: "TIMELINE_NOTE", aliases: ["NT", "TNOTE"], desc: "Add timeline note: NT <#>: text" },
 
         // ─────────────────────────────────────────────────────────────────────
         // DISPATCH & ASSIGNMENT
@@ -82,7 +84,10 @@ const CLI = {
         { key: "DISPATCH", aliases: ["D", "DSP", "DISP", "DISPATCH", "SEND"], desc: "Dispatch: D <#> <units>" },
         { key: "DISPATCH_ENROUTE", aliases: ["DE", "D/E"], desc: "Dispatch + Enroute" },
         { key: "UNASSIGN", aliases: ["UA", "UNASSIGN", "RM"], desc: "Unassign unit: UA <unit> <#>" },
-        { key: "MOVE_UNIT", aliases: ["MOVE", "MV"], desc: "Move unit: MOVE <unit> FROM <#> TO <#>" },
+        { key: "MOVE_UNIT", aliases: ["MOVE", "MV"], desc: "Move unit: MOVE <unit> TO <#>" },
+        { key: "SWAP_UNITS", aliases: ["SWAP", "SW"], desc: "Swap assignments: SWAP <unit1> <unit2>" },
+        { key: "NOTE", aliases: ["NOTE", "NT"], desc: "Add note to incident: NOTE <#> <text>" },
+        { key: "TRANSFER_CMD", aliases: ["TC", "TRANSFERCMD", "XFERCMD"], desc: "Transfer command: TC <unit>" },
         { key: "ASSIGNED", aliases: ["ASG", "ASSIGNED"], desc: "List assigned: ASG <#>" },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -171,11 +176,45 @@ const CLI = {
         await this._loadAliases();
 
         input.addEventListener("keydown", (e) => {
+            // Command history: Up/Down arrows
+            if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (this._cmdHistory.length === 0) return;
+                if (this._historyIdx === -1) {
+                    this._historyDraft = input.value;
+                    this._historyIdx = this._cmdHistory.length - 1;
+                } else if (this._historyIdx > 0) {
+                    this._historyIdx--;
+                }
+                input.value = this._cmdHistory[this._historyIdx] || "";
+                return;
+            }
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (this._historyIdx === -1) return;
+                if (this._historyIdx < this._cmdHistory.length - 1) {
+                    this._historyIdx++;
+                    input.value = this._cmdHistory[this._historyIdx] || "";
+                } else {
+                    this._historyIdx = -1;
+                    input.value = this._historyDraft;
+                }
+                return;
+            }
+
             if (e.key !== "Enter") return;
             e.preventDefault();
 
             const cmd = (input.value || "").trim();
             if (!cmd) return;
+
+            // Save to history (avoid consecutive duplicates)
+            if (this._cmdHistory.length === 0 || this._cmdHistory[this._cmdHistory.length - 1] !== cmd) {
+                this._cmdHistory.push(cmd);
+                if (this._cmdHistory.length > 50) this._cmdHistory.shift();
+            }
+            this._historyIdx = -1;
+            this._historyDraft = "";
 
             this.execute(cmd).catch((err) => {
                 console.error("[CLI] Execute failed:", err);
@@ -350,9 +389,16 @@ const CLI = {
 ║  ED <#> R    Event disposition (R=Resolved)               ║
 ║  CLOSE <#>   Close incident                               ║
 ╠───────────────────────────────────────────────────────────╣
+║  SWAP E1 E2  Swap incident assignments                    ║
+║  MOVE E1 TO 5  Move unit to incident                      ║
+║  NOTE 3 text Add note to incident                         ║
+║  TC E1       Transfer command to unit                     ║
+╠───────────────────────────────────────────────────────────╣
 ║  MSG E1      Message unit E1                              ║
 ║  CHAT        Toggle messaging drawer                      ║
 ║  BCAST       Open broadcast console                       ║
+║  ↑/↓         Browse command history                       ║
+║  HELP <cmd>  Help for specific command                    ║
 ╚═══════════════════════════════════════════════════════════╝
 `.trim();
         this._showHelp(text, "Quick Reference");
@@ -407,6 +453,11 @@ DISPATCH & ASSIGNMENT
   E1 D <#>                 Dispatch E1 to specific incident
   E1,M1 D <#>              Dispatch multiple units
   UA E1 <#>                Unassign unit from incident
+  SWAP E1 E2               Swap incident assignments
+  MOVE E1 TO 5             Move unit to incident #5
+  NOTE 3 text              Add note to incident #3
+  TC E1                    Transfer command to E1
+  E1 TC                    Transfer command to E1 (unit-first)
 
 UNIT STATUS
   E1 E                     ENROUTE (E, ENR, ER)
@@ -454,6 +505,42 @@ DISPOSITION CODES
 ═══════════════════════════════════════════════════════════════
 `.trim();
         this._showHelp(text, "Command Reference");
+    },
+
+    _commandHelp(target) {
+        const USAGE = {
+            "SWAP": "SWAP <unit1> <unit2>\n  Swap incident assignments between two units.\n  Example: SWAP E1 E2",
+            "SW": "SWAP <unit1> <unit2>\n  Swap incident assignments between two units.",
+            "MOVE": "MOVE <unit> TO <#>\n  Move a unit to a different incident.\n  Example: MOVE E1 TO 5",
+            "MV": "MOVE <unit> TO <#>\n  Move a unit to a different incident.",
+            "NOTE": "NOTE <#> <text>\n  Add a remark/note to an incident.\n  Example: NOTE 3 Patient transported",
+            "NT": "NOTE <#> <text>\n  Add a remark/note to an incident.",
+            "TC": "TC <unit>\n  Transfer incident command to a unit.\n  The unit must be assigned to the active incident.\n  Example: TC E1",
+            "TRANSFERCMD": "TC <unit>\n  Transfer incident command to a unit.",
+            "D": "D <#> <unit> [unit...]\n  Dispatch units to incident.\n  Example: D 3 E1 M1",
+            "DISPATCH": "D <#> <unit> [unit...]\n  Dispatch units to incident.\n  Or: <unit> D [#]  (unit-first mode)",
+            "E": "<unit> E\n  Set unit status to ENROUTE.\n  Example: E1 E",
+            "A": "<unit> A\n  Set unit status to ARRIVED.\n  Example: E1 A",
+            "C": "<unit> C\n  Clear unit (prompts for disposition).\n  Example: E1 C",
+            "R": "<unit> R: <text>\n  Add remark to unit's incident.\n  Example: E1 R: All clear",
+            "NEW": "NEW [type]\n  Create a new incident.\n  Example: NEW EMS",
+            "HOLD": "HOLD <#>: <reason>\n  Place incident on hold.\n  Example: HOLD 3: Awaiting callback",
+            "SI": "<unit> SI [type]\n  Self-initiate an incident.\n  Example: E1 SI EMS",
+            "ED": "ED <#> <code>\n  Set event disposition.\n  Codes: R, FA, NF, T, CT, PRTT, C, O",
+            "CLOSE": "CLOSE <#>\n  Close an incident (requires event disposition).",
+        };
+        const help = USAGE[target];
+        if (help) {
+            this._showHelp(help, `Help: ${target}`);
+        } else {
+            // Try finding in COMMANDS
+            const cmd = this.COMMANDS.find(c => c.aliases.some(a => a.toUpperCase() === target));
+            if (cmd) {
+                this._showHelp(`${cmd.key}\n  ${cmd.desc}\n  Aliases: ${cmd.aliases.join(", ")}`, `Help: ${cmd.key}`);
+            } else {
+                this._toast(`Unknown command: ${target}. Type HELP for full reference.`, "error");
+            }
+        }
     },
 
     _showAliases() {
@@ -944,7 +1031,12 @@ DISPOSITION CODES
         }
 
         if (firstCmd === "HELP") {
-            this._fullHelp();
+            const helpTarget = (tokens[1] || "").toUpperCase();
+            if (helpTarget) {
+                this._commandHelp(helpTarget);
+            } else {
+                this._fullHelp();
+            }
             return;
         }
 
@@ -1266,6 +1358,115 @@ DISPOSITION CODES
         }
 
         // ────────────────────────────────────────────────────────────────────
+        // SWAP UNITS: SWAP <unit1> <unit2>
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "SWAP_UNITS") {
+            const u1 = this.resolveAlias(tokens[1]);
+            const u2 = this.resolveAlias(tokens[2]);
+            if (!u1 || !u2) {
+                this._toast("Usage: SWAP <unit1> <unit2>", "error");
+                return;
+            }
+            try {
+                const res = await CAD_UTIL.postJSON("/api/cli/swap", { unit1: u1, unit2: u2 });
+                if (res?.ok) {
+                    CAD_UTIL.refreshPanels();
+                    this._toast(`Swapped ${u1} ↔ ${u2}`, "success");
+                } else {
+                    this._toast(res?.error || "Swap failed", "error");
+                }
+            } catch (err) {
+                this._toast(err?.message || "Swap failed", "error");
+            }
+            return;
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // NOTE: NOTE <#> <text>
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "NOTE") {
+            const incRef = tokens[1];
+            const text = tokens.slice(2).join(" ").trim();
+            if (!incRef || !text) {
+                this._toast("Usage: NOTE <incident#> <text>", "error");
+                return;
+            }
+            const incId = this._normalizeIncidentRef(incRef);
+            try {
+                await CAD_UTIL.postJSON("/remark", {
+                    incident_id: Number(incId),
+                    text: text
+                });
+                this._toast(`Note added to incident ${incId}`, "success");
+            } catch (err) {
+                this._toast(err?.message || "Failed to add note", "error");
+            }
+            return;
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // TRANSFER COMMAND: TC <unit>
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "TRANSFER_CMD") {
+            const targetUnit = this.resolveAlias(tokens[1]);
+            if (!targetUnit) {
+                this._toast("Usage: TC <unit>", "error");
+                return;
+            }
+            // Find the unit's active incident
+            try {
+                const ctx = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(targetUnit)}`);
+                const incId = Number(ctx?.active_incident_id || 0);
+                if (!incId) {
+                    this._toast(`${targetUnit} is not assigned to an active incident`, "error");
+                    return;
+                }
+                const res = await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
+                    incident_id: incId,
+                    unit_id: targetUnit
+                });
+                if (res?.ok) {
+                    CAD_UTIL.refreshPanels();
+                    this._toast(`Command transferred to ${targetUnit}`, "success");
+                } else {
+                    this._toast(res?.error || "Transfer failed", "error");
+                }
+            } catch (err) {
+                this._toast(err?.message || "Transfer command failed", "error");
+            }
+            return;
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // MOVE UNIT: MOVE <unit> TO <#>
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "MOVE_UNIT") {
+            const unitId = this.resolveAlias(tokens[1]);
+            const toIdx = tokens.findIndex(t => t.toUpperCase() === "TO");
+            const incRef = toIdx > 0 ? tokens[toIdx + 1] : tokens[2];
+            if (!unitId || !incRef) {
+                this._toast("Usage: MOVE <unit> TO <incident#>", "error");
+                return;
+            }
+            const incId = this._normalizeIncidentRef(incRef);
+            try {
+                const res = await CAD_UTIL.postJSON("/api/cli/move", {
+                    unit_id: unitId,
+                    to_incident: Number(incId)
+                });
+                if (res?.ok) {
+                    CAD_UTIL.refreshPanels();
+                    this._toast(`${unitId} moved to incident ${incId}`, "success");
+                } else {
+                    this._toast(res?.error || "Move failed", "error");
+                }
+            } catch (err) {
+                this._toast(err?.message || "Move failed", "error");
+            }
+            return;
+        }
+
+        // ────────────────────────────────────────────────────────────────────
         // INCIDENT-FIRST DISPATCH: D <#> <units>
         // ────────────────────────────────────────────────────────────────────
         if (firstCmd === "DISPATCH" && tokens[1] && this._isIncidentRef(tokens[1])) {
@@ -1463,6 +1664,32 @@ DISPOSITION CODES
 
         if (action === "VIEW_UAW") {
             UAW.open(units[0]);
+            return;
+        }
+
+        // --- Transfer Command ---
+        if (action === "TRANSFER_CMD") {
+            const u = units[0];
+            try {
+                const ctx = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(u)}`);
+                const incId = Number(ctx?.active_incident_id || 0);
+                if (!incId) {
+                    this._toast(`${u} is not assigned to an active incident`, "error");
+                    return;
+                }
+                const res = await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
+                    incident_id: incId,
+                    unit_id: u
+                });
+                if (res?.ok) {
+                    CAD_UTIL.refreshPanels();
+                    this._toast(`Command transferred to ${u}`, "success");
+                } else {
+                    this._toast(res?.error || "Transfer failed", "error");
+                }
+            } catch (err) {
+                this._toast(err?.message || "Transfer command failed", "error");
+            }
             return;
         }
 

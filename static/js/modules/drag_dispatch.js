@@ -13,6 +13,7 @@ import DISP from "./disposition.js";
 
 const SUPPRESS_CLICK_MS = 450;
 let _suppressUntil = 0;
+let _dragGhost = null;
 
 function _suppressIncidentClicksBriefly() {
   _suppressUntil = Date.now() + SUPPRESS_CLICK_MS;
@@ -231,16 +232,95 @@ function _isDropOnIncidentRow(el) {
   return !!el.closest?.(".incident-row");
 }
 
+// ============================================================================
+// DRAG GHOST
+// ============================================================================
+function _createDragGhost(label) {
+  _removeDragGhost();
+  const ghost = document.createElement("div");
+  ghost.className = "drag-ghost";
+  ghost.textContent = label;
+  Object.assign(ghost.style, {
+    position: "fixed", top: "-100px", left: "-100px",
+    padding: "4px 10px", borderRadius: "4px",
+    background: "var(--ford-blue, #003478)", color: "#fff",
+    fontSize: "0.8em", fontWeight: "600", fontFamily: "inherit",
+    whiteSpace: "nowrap", zIndex: "99999", pointerEvents: "none",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
+  });
+  document.body.appendChild(ghost);
+  _dragGhost = ghost;
+  return ghost;
+}
+
+function _removeDragGhost() {
+  if (_dragGhost) {
+    _dragGhost.remove();
+    _dragGhost = null;
+  }
+}
+
+// ============================================================================
+// DROP ZONE HIGHLIGHTING
+// ============================================================================
+function _addDropHighlight(el) {
+  const row = el?.closest?.(".incident-row");
+  if (row) row.classList.add("drag-drop-target");
+  const apparatus = el?.closest?.(".unit-row[data-is-apparatus='1']");
+  if (apparatus) apparatus.classList.add("drag-drop-target");
+  const panel = el?.closest?.("#panel-units, .panel-units");
+  if (panel && !row && !apparatus) panel.classList.add("drag-drop-target");
+}
+
+function _removeAllDropHighlights() {
+  document.querySelectorAll(".drag-drop-target").forEach(el => el.classList.remove("drag-drop-target"));
+}
+
+// Inject drop-zone highlight styles once
+(function _injectDragStyles() {
+  if (document.getElementById("drag-dispatch-styles")) return;
+  const style = document.createElement("style");
+  style.id = "drag-dispatch-styles";
+  style.textContent = `
+    .drag-drop-target {
+      outline: 2px solid var(--ford-blue, #003478) !important;
+      outline-offset: -2px;
+      background: rgba(0, 52, 120, 0.08) !important;
+      transition: outline 0.15s, background 0.15s;
+    }
+    .drag-ghost {
+      animation: ghost-fade-in 0.15s ease;
+    }
+    @keyframes ghost-fade-in {
+      from { opacity: 0; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 // Delegated dragstart
 document.addEventListener("dragstart", (e) => {
   const payload = _getDragPayloadFromTarget(e.target);
   if (!payload) return;
 
+  // Create drag ghost with label
+  let label = "";
   if (payload.type === "crew_chip") {
+    label = payload.personnel_id || "Crew";
   } else {
+    label = payload.unit_id || "Unit";
   }
+  const ghost = _createDragGhost(label);
+  e.dataTransfer.setDragImage(ghost, 0, 0);
 
   _setDragPayload(e, payload);
+});
+
+// Clean up ghost and highlights on drag end
+document.addEventListener("dragend", () => {
+  _removeDragGhost();
+  _removeAllDropHighlights();
 });
 
 // Allow dropping on incident rows + units panel + apparatus rows (for crew assignment)
@@ -248,7 +328,18 @@ document.addEventListener("dragover", (e) => {
   if (_isDropOnIncidentRow(e.target) || _isDropOnUnitsPanel(e.target) || _isDropOnApparatusRow(e.target)) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    _addDropHighlight(e.target);
   }
+});
+
+// Remove highlight when leaving a drop zone
+document.addEventListener("dragleave", (e) => {
+  const row = e.target?.closest?.(".incident-row");
+  if (row) row.classList.remove("drag-drop-target");
+  const apparatus = e.target?.closest?.(".unit-row[data-is-apparatus='1']");
+  if (apparatus) apparatus.classList.remove("drag-drop-target");
+  const panel = e.target?.closest?.("#panel-units, .panel-units");
+  if (panel) panel.classList.remove("drag-drop-target");
 });
 
 // Delegated drop
@@ -263,6 +354,7 @@ document.addEventListener("drop", async (e) => {
   e.stopPropagation();
 
   _suppressIncidentClicksBriefly();
+  _removeAllDropHighlights();
 
   const payload = _jsonFromDataTransfer(e.dataTransfer);
   if (!payload) return;
@@ -329,6 +421,9 @@ document.addEventListener("drop", async (e) => {
     if (dropIncidentId) {
       // Transfer semantics: clear old then dispatch new
       if (fromIncidentId && fromIncidentId !== dropIncidentId) {
+        // Confirm cross-incident transfer
+        const ok = confirm(`Transfer ${unitId} from incident #${fromIncidentId} to incident #${dropIncidentId}?`);
+        if (!ok) return;
         await _clearUnitFromIncident(unitId, fromIncidentId);
         await _dispatchUnitToIncident(unitId, dropIncidentId);
       } else if (!fromIncidentId) {
