@@ -482,6 +482,7 @@ INCIDENT_TYPE_CATALOG = [
     {"key": "TEST",               "group": "OPS",  "requires_number": False},
     {"key": "DAILY LOG",          "group": "OPS",  "requires_number": False},
     {"key": "SELF-INITIATED",     "group": "OPS",  "requires_number": True},   # unit self-initiated incident
+    {"key": "DRILL",              "group": "OPS",  "requires_number": False},  # training/exercise drill
 ]
 
 INCIDENT_TYPE_KEYS = {t["key"] for t in INCIDENT_TYPE_CATALOG}
@@ -510,6 +511,9 @@ INCIDENT_TYPE_ALIASES = {
     "SI": "SELF-INITIATED",
     "SELFINIT": "SELF-INITIATED",
     "SELF INIT": "SELF-INITIATED",
+
+    "TRAINING": "DRILL",
+    "EXERCISE": "DRILL",
 }
 
 def normalize_incident_type(raw: str) -> str:
@@ -5774,25 +5778,152 @@ async def history_list(request: Request):
     conn = get_conn()
     c = conn.cursor()
 
-    rows = c.execute("""
+    # --- filter params ---
+    q_search = (request.query_params.get("q") or "").strip()
+    q_type = (request.query_params.get("type") or "").strip()
+    q_status = (request.query_params.get("status") or "").strip()
+    q_shift = (request.query_params.get("shift") or "").strip()
+    q_from = (request.query_params.get("from") or "").strip()
+    q_to = (request.query_params.get("to") or "").strip()
+    q_page = int(request.query_params.get("page") or 1)
+    per_page = 50
+
+    where = ["is_draft = 0"]
+    params: list = []
+
+    if q_type:
+        where.append("type = ?")
+        params.append(q_type)
+    if q_status:
+        where.append("status = ?")
+        params.append(q_status)
+    if q_shift:
+        where.append("shift = ?")
+        params.append(q_shift)
+    if q_from:
+        where.append("SUBSTR(COALESCE(created,''), 1, 10) >= ?")
+        params.append(q_from)
+    if q_to:
+        where.append("SUBSTR(COALESCE(created,''), 1, 10) <= ?")
+        params.append(q_to)
+    if q_search:
+        where.append("(location LIKE ? OR incident_number LIKE ? OR type LIKE ? OR COALESCE(caller_name,'') LIKE ?)")
+        like = f"%{q_search}%"
+        params.extend([like, like, like, like])
+
+    where_sql = " AND ".join(where)
+
+    # total count for pagination
+    total = c.execute(f"SELECT COUNT(*) FROM Incidents WHERE {where_sql}", params).fetchone()[0]
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    q_page = max(1, min(q_page, total_pages))
+    offset = (q_page - 1) * per_page
+
+    rows = c.execute(f"""
         SELECT
             incident_id,
             incident_number,
             type,
             location,
             status,
+            shift,
             SUBSTR(COALESCE(created,''), 1, 10) AS incident_date
         FROM Incidents
-        WHERE is_draft = 0
+        WHERE {where_sql}
         ORDER BY updated DESC
-        LIMIT 300
-    """).fetchall()
+        LIMIT ? OFFSET ?
+    """, params + [per_page, offset]).fetchall()
+
+    # distinct values for filter dropdowns
+    types = [r[0] for r in c.execute("SELECT DISTINCT type FROM Incidents WHERE type IS NOT NULL ORDER BY type").fetchall()]
+    statuses = [r[0] for r in c.execute("SELECT DISTINCT status FROM Incidents WHERE status IS NOT NULL ORDER BY status").fetchall()]
+    shifts = [r[0] for r in c.execute("SELECT DISTINCT shift FROM Incidents WHERE shift IS NOT NULL AND shift != '' ORDER BY shift").fetchall()]
 
     conn.close()
 
     return templates.TemplateResponse(
         "history.html",
-        {"request": request, "incidents": [dict(r) for r in (rows or [])]},
+        {
+            "request": request,
+            "incidents": [dict(r) for r in (rows or [])],
+            "total": total,
+            "page": q_page,
+            "total_pages": total_pages,
+            "per_page": per_page,
+            "filters": {
+                "q": q_search, "type": q_type, "status": q_status,
+                "shift": q_shift, "from": q_from, "to": q_to,
+            },
+            "types": types,
+            "statuses": statuses,
+            "shifts": shifts,
+        },
+    )
+
+
+@app.get("/history/export/csv")
+async def history_export_csv(request: Request):
+    """Export filtered history as CSV download."""
+    import csv
+    import io
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+
+    q_search = (request.query_params.get("q") or "").strip()
+    q_type = (request.query_params.get("type") or "").strip()
+    q_status = (request.query_params.get("status") or "").strip()
+    q_shift = (request.query_params.get("shift") or "").strip()
+    q_from = (request.query_params.get("from") or "").strip()
+    q_to = (request.query_params.get("to") or "").strip()
+
+    where = ["is_draft = 0"]
+    params: list = []
+
+    if q_type:
+        where.append("type = ?")
+        params.append(q_type)
+    if q_status:
+        where.append("status = ?")
+        params.append(q_status)
+    if q_shift:
+        where.append("shift = ?")
+        params.append(q_shift)
+    if q_from:
+        where.append("SUBSTR(COALESCE(created,''), 1, 10) >= ?")
+        params.append(q_from)
+    if q_to:
+        where.append("SUBSTR(COALESCE(created,''), 1, 10) <= ?")
+        params.append(q_to)
+    if q_search:
+        where.append("(location LIKE ? OR incident_number LIKE ? OR type LIKE ? OR COALESCE(caller_name,'') LIKE ?)")
+        like = f"%{q_search}%"
+        params.extend([like, like, like, like])
+
+    where_sql = " AND ".join(where)
+
+    rows = c.execute(f"""
+        SELECT incident_number, SUBSTR(COALESCE(created,''),1,10) AS date,
+               SUBSTR(COALESCE(created,''),12,5) AS time,
+               type, location, status, shift, node, pole,
+               final_disposition, caller_name, caller_phone
+        FROM Incidents WHERE {where_sql}
+        ORDER BY updated DESC
+    """, params).fetchall()
+    conn.close()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Run#", "Date", "Time", "Type", "Location", "Status",
+                     "Shift", "Node", "Pole", "Disposition", "Caller", "Phone"])
+    for r in rows:
+        writer.writerow([r[k] or "" for k in r.keys()])
+
+    from starlette.responses import Response
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=incident_history.csv"},
     )
 
 
@@ -9271,7 +9402,7 @@ def _build_units_panel_context(request: Request) -> dict:
         """, (_gc_ts,))
         _gc.execute("""
             UPDATE Units SET status = 'AVAILABLE', last_updated = ?
-            WHERE status != 'AVAILABLE'
+            WHERE status NOT IN ('AVAILABLE', 'UNAVAILABLE', 'OOS')
               AND unit_id NOT IN (SELECT unit_id FROM UnitAssignments WHERE cleared IS NULL)
         """, (_gc_ts,))
         _gc.commit()

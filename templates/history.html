@@ -1,6 +1,6 @@
 <!-- ============================================================
      FORD-CAD — INCIDENT HISTORY LIST
-     Phase-3 Canon • Clean Table Style
+     Phase-3 Canon • Filterable + Paginated
      ============================================================ -->
 
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
@@ -13,26 +13,50 @@
             <div class="history-header">
                 <h3>Incident History</h3>
                 <div class="history-header-actions">
-                    <span class="history-count">{{ incidents|length }} records</span>
+                    <span class="history-count">{{ total }} records</span>
+                    <button class="pill-btn pill-btn-sm" type="button" onclick="window._historyExportCSV()">CSV Export</button>
                     <button class="pill-btn" onclick="CAD_MODAL.close()">Close</button>
                 </div>
+            </div>
+
+            <!-- FILTER BAR -->
+            <div class="history-filters">
+                <input type="text" id="hf-search" class="hf-input" placeholder="Search..."
+                       value="{{ filters.q }}" />
+                <select id="hf-type" class="hf-select">
+                    <option value="">All Types</option>
+                    {% for t in types %}<option value="{{ t }}" {{ 'selected' if filters.type == t }}>{{ t }}</option>{% endfor %}
+                </select>
+                <select id="hf-status" class="hf-select">
+                    <option value="">All Statuses</option>
+                    {% for s in statuses %}<option value="{{ s }}" {{ 'selected' if filters.status == s }}>{{ s }}</option>{% endfor %}
+                </select>
+                <select id="hf-shift" class="hf-select">
+                    <option value="">All Shifts</option>
+                    {% for sh in shifts %}<option value="{{ sh }}" {{ 'selected' if filters.shift == sh }}>{{ sh }}</option>{% endfor %}
+                </select>
+                <input type="date" id="hf-from" class="hf-input hf-date" value="{{ filters['from'] }}" title="From date" />
+                <input type="date" id="hf-to" class="hf-input hf-date" value="{{ filters.to }}" title="To date" />
+                <button class="pill-btn pill-btn-sm" type="button" onclick="window._historyApplyFilters()">Filter</button>
+                <button class="pill-btn pill-btn-sm secondary" type="button" onclick="window._historyClearFilters()">Clear</button>
             </div>
 
             <table class="history-table">
                 <thead>
                     <tr>
-                        <th style="width:100px;">Run #</th>
-                        <th style="width:100px;">Date</th>
+                        <th style="width:90px;">Run #</th>
+                        <th style="width:90px;">Date</th>
                         <th>Type</th>
                         <th>Location</th>
-                        <th style="width:100px;">Status</th>
+                        <th style="width:60px;">Shift</th>
+                        <th style="width:90px;">Status</th>
                     </tr>
                 </thead>
 
                 <tbody>
                 {% if incidents|length == 0 %}
                     <tr>
-                        <td colspan="5" class="history-empty">No historical incidents.</td>
+                        <td colspan="6" class="history-empty">No incidents match your filters.</td>
                     </tr>
                 {% else %}
                     {% for i in incidents %}
@@ -43,14 +67,150 @@
                         <td>{{ i.incident_date }}</td>
                         <td>{{ i.type }}</td>
                         <td>{{ i.location }}</td>
-                        <td>{{ i.status }}</td>
+                        <td>{{ i.shift or "" }}</td>
+                        <td><span class="history-status history-status-{{ (i.status or '')|lower }}">{{ i.status }}</span></td>
                     </tr>
                     {% endfor %}
                 {% endif %}
                 </tbody>
             </table>
 
+            <!-- PAGINATION -->
+            {% if total_pages > 1 %}
+            <div class="history-pagination">
+                {% if page > 1 %}
+                    <button class="pill-btn pill-btn-sm secondary" type="button"
+                            onclick="window._historyGoPage({{ page - 1 }})">Prev</button>
+                {% endif %}
+                <span class="history-page-info">Page {{ page }} of {{ total_pages }}</span>
+                {% if page < total_pages %}
+                    <button class="pill-btn pill-btn-sm secondary" type="button"
+                            onclick="window._historyGoPage({{ page + 1 }})">Next</button>
+                {% endif %}
+            </div>
+            {% endif %}
+
         </div>
 
     </div>
 </div>
+
+<style>
+/* History filter bar */
+.history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light, #e2e8f0);
+    margin-bottom: 6px;
+    align-items: center;
+}
+.hf-input, .hf-select {
+    padding: 4px 8px;
+    font-size: 0.8em;
+    border: 1px solid var(--border-default, #cbd5e1);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--bg-surface, #fff);
+    color: var(--text-primary, #0f172a);
+    font-family: inherit;
+}
+.hf-input:focus, .hf-select:focus {
+    outline: none;
+    border-color: var(--ford-blue, #003478);
+    box-shadow: 0 0 0 2px rgba(0, 52, 120, 0.1);
+}
+.hf-input { width: 120px; }
+.hf-date { width: 130px; }
+.hf-select { min-width: 100px; }
+.pill-btn-sm {
+    padding: 3px 10px;
+    font-size: 0.75em;
+}
+
+/* History status badges */
+.history-status {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm, 4px);
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.history-status-open { background: var(--status-dispatched, #ea580c); color: #fff; }
+.history-status-active { background: var(--status-enroute, #2563eb); color: #fff; }
+.history-status-closed { background: var(--status-oos, #64748b); color: #fff; }
+.history-status-cancelled { background: var(--text-muted, #64748b); color: #fff; }
+.history-status-disposed { background: var(--status-available, #16a34a); color: #fff; }
+.history-status-held { background: var(--fire-amber, #f59e0b); color: #000; }
+
+/* Pagination */
+.history-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 0 4px;
+    border-top: 1px solid var(--border-light, #e2e8f0);
+    margin-top: 4px;
+}
+.history-page-info {
+    font-size: 0.8em;
+    color: var(--text-muted, #64748b);
+}
+</style>
+
+<script>
+(function() {
+    // Build query string from current filter inputs
+    function _buildFilterQS(extraPage) {
+        const p = new URLSearchParams();
+        const q = document.getElementById('hf-search')?.value?.trim();
+        const type = document.getElementById('hf-type')?.value;
+        const status = document.getElementById('hf-status')?.value;
+        const shift = document.getElementById('hf-shift')?.value;
+        const from = document.getElementById('hf-from')?.value;
+        const to = document.getElementById('hf-to')?.value;
+
+        if (q) p.set('q', q);
+        if (type) p.set('type', type);
+        if (status) p.set('status', status);
+        if (shift) p.set('shift', shift);
+        if (from) p.set('from', from);
+        if (to) p.set('to', to);
+        if (extraPage && extraPage > 1) p.set('page', extraPage);
+        return p.toString();
+    }
+
+    window._historyApplyFilters = function() {
+        const qs = _buildFilterQS(1);
+        CAD_MODAL.open('/history' + (qs ? '?' + qs : ''));
+    };
+
+    window._historyClearFilters = function() {
+        CAD_MODAL.open('/history');
+    };
+
+    window._historyGoPage = function(page) {
+        const qs = _buildFilterQS(page);
+        CAD_MODAL.open('/history' + (qs ? '?' + qs : ''));
+    };
+
+    window._historyExportCSV = function() {
+        const qs = _buildFilterQS();
+        const url = '/history/export/csv' + (qs ? '?' + qs : '');
+        window.open(url, '_blank');
+    };
+
+    // Enter key triggers filter
+    setTimeout(() => {
+        const searchInput = document.getElementById('hf-search');
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') window._historyApplyFilters();
+            });
+            searchInput.focus();
+        }
+    }, 100);
+})();
+</script>

@@ -258,7 +258,7 @@
 
   // Hook up the Send Report button
   document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btn-send-report');
+    const btn = document.getElementById('btn-reports') || document.getElementById('btn-send-report');
     if (btn) {
       btn.addEventListener('click', triggerManualReport);
     }

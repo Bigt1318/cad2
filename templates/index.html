@@ -127,11 +127,18 @@
     </div>
 
     <div class="header-center">
-        <div class="header-title">FORD CAD</div>
-        <div class="header-subtitle">Fire & EMS Computer Aided Dispatch</div>
+        <div class="header-title-row">
+            <span class="header-title">FORD CAD</span>
+            <span class="header-sep">&mdash;</span>
+            <span class="header-subtitle">Fire & EMS Dispatch</span>
+        </div>
         <div id="header-userline" class="header-userline">
             {% if shift %}
-                <span class="shift-indicator">{{ shift }} Shift</span> — {{ unit }} — {{ user }}
+                <span class="shift-indicator">{{ shift }} Shift</span>
+                <span class="header-sep-sm">&bull;</span>
+                <span>{{ unit }}</span>
+                <span class="header-sep-sm">&bull;</span>
+                <span>{{ user }}</span>
             {% else %}
                 <span class="login-required">Authentication Required</span>
             {% endif %}
@@ -360,31 +367,32 @@
     </div>
 
     <div class="toolbar-center">
-        <button class="pill-btn secondary" id="btn-dailylog" type="button" title="Open Daily Log">
+        <button class="pill-btn secondary" id="btn-dailylog" type="button" title="Open Daily Log (D)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
                 <polyline points="14,2 14,8 20,8"></polyline>
             </svg>
             Daily Log
         </button>
-        <button class="pill-btn secondary" id="btn-history" type="button" title="View incident history">
+        <button class="pill-btn secondary" id="btn-history" type="button" title="View incident history (H)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12,6 12,12 16,14"></polyline>
             </svg>
             History
         </button>
-        <button class="pill-btn secondary" id="btn-send-report" type="button" title="Send daily report to Battalion Chiefs">
+        <button class="pill-btn secondary" id="btn-reports" type="button" title="Reports & Delivery (R)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                <polyline points="17,8 12,3 7,8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
-            Send Report
+            Reports
         </button>
     </div>
 
     <div class="toolbar-right">
-        <button class="pill-btn secondary" id="btn-messaging" type="button" title="Messages (M)" onclick="MessagingUI.toggleDrawer()">
+        <button class="pill-btn secondary" id="btn-messaging" type="button" title="Messages (Ctrl+M)" onclick="MessagingUI.toggleDrawer()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
             </svg>
