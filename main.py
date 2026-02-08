@@ -14733,3 +14733,48 @@ async def get_incident_history_context(incident_id: int):
     finally:
         conn.close()
 
+
+# ================================================================
+# DASHBOARD STATS ENDPOINT
+# ================================================================
+
+@app.get("/api/dashboard/stats")
+async def dashboard_stats():
+    """Return daily stats for the dashboard stats bar."""
+    conn = get_conn()
+    try:
+        c = conn.cursor()
+
+        today_count = c.execute(
+            "SELECT COUNT(*) AS cnt FROM Incidents WHERE DATE(created) = DATE('now')"
+        ).fetchone()["cnt"]
+
+        active_count = c.execute(
+            "SELECT COUNT(*) AS cnt FROM Incidents WHERE status IN ('OPEN', 'ACTIVE')"
+        ).fetchone()["cnt"]
+
+        avg_row = c.execute(
+            "SELECT AVG(julianday(first_arrival_time) - julianday(created)) * 1440 AS avg_min "
+            "FROM Incidents WHERE first_arrival_time IS NOT NULL AND DATE(created) = DATE('now')"
+        ).fetchone()
+        avg_response_min = round(avg_row["avg_min"], 1) if avg_row["avg_min"] is not None else 0
+
+        avail_count = c.execute(
+            "SELECT COUNT(*) AS cnt FROM Units WHERE status='AVAILABLE'"
+        ).fetchone()["cnt"]
+
+        total_count = c.execute(
+            "SELECT COUNT(*) AS cnt FROM Units WHERE status != 'INACTIVE'"
+        ).fetchone()["cnt"]
+
+        return {
+            "ok": True,
+            "today_count": today_count,
+            "active_count": active_count,
+            "avg_response_min": avg_response_min,
+            "units_available": avail_count,
+            "units_total": total_count,
+        }
+    finally:
+        conn.close()
+

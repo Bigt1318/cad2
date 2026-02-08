@@ -339,6 +339,27 @@
     .toast.success { border-left: 4px solid #22c55e; }
     .toast.error { border-left: 4px solid #ef4444; }
 
+    /* Self-Initiate Button */
+    .mdt-si-btn {
+      display: block;
+      width: 100%;
+      padding: 18px 16px;
+      margin-bottom: 20px;
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #000;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+
+    .mdt-si-btn:active {
+      transform: scale(0.97);
+    }
+
     /* Loading Overlay */
     .loading-overlay {
       position: fixed;
@@ -483,6 +504,10 @@
     <div class="status-grid">
       <button class="status-btn btn-available" onclick="setAvailable()">SET AVAILABLE</button>
     </div>
+
+    <button class="mdt-si-btn" onclick="selfInitiate()">
+      Self-Initiate
+    </button>
     {% endif %}
 
     <!-- Quick Actions -->
@@ -645,6 +670,64 @@
         if (data.ok) showToast('Note added');
         else showToast('Failed to add note', 'error');
       }).catch(err => showToast('Error', 'error'));
+    }
+
+    // Self-Initiate
+    async function selfInitiate() {
+      if (!confirm('Create self-initiated incident?')) return;
+
+      showLoading();
+      try {
+        // Step 1: Create a draft incident
+        const newRes = await fetch('/incident/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const newData = await newRes.json();
+        if (!newData.ok) {
+          showToast(newData.error || 'Failed to create incident', 'error');
+          return;
+        }
+        const newId = newData.incident_id;
+
+        // Step 2: Save as SELF-INITIATED type
+        const saveRes = await fetch(`/incident/save/${newId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'SELF-INITIATED',
+            priority: 3,
+            location: '',
+            narrative: `Self-initiated by ${UNIT_ID}`,
+            user: UNIT_ID
+          })
+        });
+        const saveData = await saveRes.json();
+        if (!saveData.ok && !saveData.incident_number) {
+          showToast(saveData.detail || saveData.error || 'Failed to save incident', 'error');
+          return;
+        }
+
+        // Step 3: Dispatch this unit to the new incident
+        const dispRes = await fetch(`/api/unit_dispatch/${UNIT_ID}/${newId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const dispData = await dispRes.json();
+        if (!dispData.ok) {
+          showToast(dispData.error || 'Failed to dispatch', 'error');
+          return;
+        }
+
+        showToast('Self-initiated incident created');
+        setTimeout(() => location.reload(), 800);
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        hideLoading();
+      }
     }
 
     // Auto-refresh every 30 seconds

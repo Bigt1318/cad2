@@ -416,6 +416,14 @@
     </div>
 </nav>
 
+<!-- DASHBOARD STATS BAR -->
+<div id="dashboard-stats" class="dashboard-stats">
+    <span class="stat"><strong id="stat-today">-</strong> Today</span>
+    <span class="stat"><strong id="stat-active">-</strong> Active</span>
+    <span class="stat"><strong id="stat-response">-</strong> min Avg</span>
+    <span class="stat"><strong id="stat-available">-</strong>/<span id="stat-total">-</span> Available</span>
+</div>
+
 <!-- MAIN WORKSPACE -->
 <main id="workspace">
     <!-- CALLTAKER -->
@@ -469,6 +477,21 @@
         <span class="cmd-hint" title="Full command list">HELP</span>
     </div>
 </footer>
+
+<!-- Dashboard Stats Refresh -->
+<script>
+function refreshStats() {
+    fetch('/api/dashboard/stats').then(r => r.json()).then(d => {
+        document.getElementById('stat-today').textContent = d.today_count || 0;
+        document.getElementById('stat-active').textContent = d.active_count || 0;
+        document.getElementById('stat-response').textContent = (d.avg_response_min || 0).toFixed(1);
+        document.getElementById('stat-available').textContent = d.units_available || 0;
+        document.getElementById('stat-total').textContent = d.units_total || 0;
+    }).catch(() => {});
+}
+refreshStats();
+setInterval(refreshStats, 30000);
+</script>
 
 </body>
 </html>
