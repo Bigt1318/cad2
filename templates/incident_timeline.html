@@ -1,13 +1,13 @@
 <!-- =========================================================
-     INCIDENT TIMELINE — PHASE 4B
-     Read-Only Unified Timeline View
+     INCIDENT TIMELINE — Full Page View
+     Unified: Narrative + IncidentHistory + Photos
 ========================================================= -->
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Incident Timeline</title>
+    <title>Incident Timeline — #{{ incident_id }}</title>
 
     <style>
         body {
@@ -23,22 +23,25 @@
             margin: 0 auto;
         }
 
-        .incident-header {
+        .timeline-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .timeline-toolbar h2 { margin: 0; font-size: 20px; flex: 1; }
+
+        .tl-btn {
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #2a3a52;
             background: #13202f;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
+            color: #e6e9ee;
+            cursor: pointer;
+            font-size: 13px;
         }
-
-        .incident-header h2 {
-            margin: 0 0 4px 0;
-            font-size: 20px;
-        }
-
-        .incident-meta {
-            font-size: 14px;
-            opacity: 0.85;
-        }
+        .tl-btn:hover { background: #1a2d42; }
 
         .timeline {
             border-left: 3px solid #2a3a52;
@@ -53,7 +56,7 @@
         .event::before {
             content: "";
             position: absolute;
-            left: -11px;
+            left: -22px;
             top: 6px;
             width: 10px;
             height: 10px;
@@ -61,22 +64,20 @@
             background: #4da3ff;
         }
 
-        .event.history::before {
-            background: #4da3ff;
-        }
-
-        .event.narrative::before {
-            background: #5bd28c;
-        }
-
-        .event.dailylog::before {
-            background: #f1c453;
-        }
+        .event.history::before { background: #4da3ff; }
+        .event.narrative::before { background: #5bd28c; }
+        .event.dailylog::before { background: #f1c453; }
+        .event.photo::before { background: #e879f9; }
 
         .event-header {
             font-size: 13px;
             opacity: 0.8;
             margin-bottom: 2px;
+        }
+
+        .event-type {
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
         .event-body {
@@ -86,13 +87,25 @@
             font-size: 14px;
         }
 
-        .event-type {
-            font-weight: 600;
-        }
-
         .empty {
             opacity: 0.7;
             font-style: italic;
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -100,5 +113,44 @@
 <body>
 <div class="timeline-container">
 
-    <!-- INCIDENT HEADER -->
-    <div class="incident-header">
+    <div class="timeline-toolbar">
+        <h2>Incident #{{ incident_id }} — Timeline</h2>
+        <button class="tl-btn" onclick="window.print()">Print</button>
+        <button class="tl-btn" onclick="window.close()">Close</button>
+    </div>
+
+    <div class="legend">
+        <span><span class="legend-dot" style="background:#4da3ff"></span> Status/History</span>
+        <span><span class="legend-dot" style="background:#5bd28c"></span> Narrative</span>
+        <span><span class="legend-dot" style="background:#f1c453"></span> Daily Log</span>
+        <span><span class="legend-dot" style="background:#e879f9"></span> Photo</span>
+    </div>
+
+    <div class="timeline">
+        {% if timeline|length == 0 %}
+            <div class="empty">No timeline events recorded.</div>
+        {% endif %}
+
+        {% for e in timeline %}
+        <div class="event {{ e.source }}">
+            <div class="event-header">
+                {{ e.timestamp }}
+                —
+                <span class="event-type">{{ e.event_type }}</span>
+                {% if e.user %} — {{ e.user }}{% endif %}
+                {% if e.unit_id %} ({{ e.unit_id }}){% endif %}
+            </div>
+            <div class="event-body">
+                {% if e.source == 'photo' and e.filename %}
+                    <img src="/static/uploads/photos/{{ e.filename }}" alt="{{ e.text }}"
+                         style="max-width:300px; max-height:200px; border-radius:4px; margin-bottom:4px; display:block;">
+                {% endif %}
+                {% if e.text %}{{ e.text }}{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+</body>
+</html>

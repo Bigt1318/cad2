@@ -1,6 +1,6 @@
 <!-- =====================================================
      IAW — INCIDENT TIMELINE (EMBEDDED PARTIAL)
-     NOTE: In this build, /iaw/<id>/timeline returns Narrative rows.
+     Unified: Narrative + IncidentHistory + Photos
 ===================================================== -->
 
 <div class="iaw-timeline">
@@ -10,21 +10,23 @@
     {% endif %}
 
     {% for e in timeline %}
-        <div class="iaw-event narrative">
+        <div class="iaw-event {{ e.source }}">
 
             <div class="iaw-event-header">
                 {{ e.timestamp }}
                 —
-                NARRATIVE
+                <span class="iaw-event-type">{{ e.event_type }}</span>
                 {% if e.user %} — {{ e.user }}{% endif %}
+                {% if e.unit_id %} ({{ e.unit_id }}){% endif %}
             </div>
 
             <div class="iaw-event-body">
-                <strong>{{ e.entry_type }}</strong>
+                {% if e.source == 'photo' and e.filename %}
+                    <img src="/static/uploads/photos/{{ e.filename }}" alt="{{ e.text }}"
+                         style="max-width:200px; max-height:150px; border-radius:4px; margin-bottom:4px; display:block;">
+                {% endif %}
                 {% if e.text %}
-                    <div>
-                        {% if e.unit_id %}{{ e.unit_id }} - {% endif %}{{ e.text }}
-                    </div>
+                    <div>{{ e.text }}</div>
                 {% endif %}
             </div>
 
@@ -38,6 +40,8 @@
     margin-top: 12px;
     border-top: 1px solid rgba(255,255,255,0.08);
     padding-top: 8px;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .iaw-event {
@@ -49,11 +53,17 @@
 .iaw-event.history { border-color: #4da3ff; }
 .iaw-event.narrative { border-color: #5bd28c; }
 .iaw-event.dailylog { border-color: #f1c453; }
+.iaw-event.photo { border-color: #e879f9; }
 
 .iaw-event-header {
     font-size: 12px;
     opacity: 0.75;
     margin-bottom: 2px;
+}
+
+.iaw-event-type {
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 .iaw-event-body {

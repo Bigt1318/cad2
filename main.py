@@ -1806,6 +1806,10 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Incidents ADD COLUMN determinant_description TEXT") # Chief complaint/description
     _add_col("ALTER TABLE Incidents ADD COLUMN first_unit_arrived TEXT")      # Unit ID of first arrival
     _add_col("ALTER TABLE Incidents ADD COLUMN first_arrival_time TEXT")      # Timestamp of first unit arrival
+    _add_col("ALTER TABLE Incidents ADD COLUMN scheduled_for TEXT")           # Delayed/scheduled activation time
+    _add_col("ALTER TABLE Incidents ADD COLUMN cross_street TEXT")            # Cross street for location
+    _add_col("ALTER TABLE Incidents ADD COLUMN nature TEXT")                  # Incident nature description
+    _add_col("ALTER TABLE Incidents ADD COLUMN determinant_code TEXT")        # Medical/fire determinant code
 
     # --------------------------------------------------
     # MASTER LOG
@@ -1843,6 +1847,19 @@ def ensure_phase3_schema():
             event_type TEXT NOT NULL,
             unit_id TEXT,
             details TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS IncidentDispositions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id INTEGER NOT NULL,
+            disposition TEXT,
+            disposition_code TEXT,
+            comment TEXT,
+            notes TEXT,
+            user TEXT,
+            timestamp TEXT NOT NULL
         )
     """)
 
@@ -2444,6 +2461,7 @@ async def save_incident(request: Request, incident_id: int):
 
     # Optional: store caller location into Incidents.address if provided
     address = (data.get("address") or data.get("caller_location") or "").strip()
+    cross_street = (data.get("cross_street") or "").strip()
 
     # Auto-detect shift from current time
     shift = determine_current_shift()
@@ -2508,6 +2526,7 @@ async def save_incident(request: Request, incident_id: int):
                 caller_phone=?,
                 narrative=?,
                 address=?,
+                cross_street=?,
                 updated=?
             WHERE incident_id=?
             """,
@@ -2524,6 +2543,7 @@ async def save_incident(request: Request, incident_id: int):
                 caller_phone,
                 data.get("narrative"),
                 address,
+                cross_street,
                 ts,
                 incident_id,
             ),
@@ -6003,6 +6023,75 @@ async def history_detail(request: Request, incident_id: int):
     )
 
 # ================================================================
+# INCIDENT COMMANDS — SCHEDULE (Delayed Incidents)
+# ================================================================
+
+@app.post("/api/incident/{incident_id}/schedule")
+async def api_incident_schedule(request: Request, incident_id: int):
+    """Schedule an incident for delayed activation."""
+    ensure_phase3_schema()
+    data = await request.json()
+    scheduled_for = (data.get("scheduled_for") or "").strip()
+    user = request.session.get("user", "Dispatcher")
+
+    if not scheduled_for:
+        return {"ok": False, "error": "scheduled_for timestamp required (YYYY-MM-DD HH:MM)"}
+
+    conn = get_conn()
+    c = conn.cursor()
+    inc = c.execute("SELECT status FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+    if not inc:
+        conn.close()
+        return {"ok": False, "error": "Incident not found"}
+
+    c.execute("UPDATE Incidents SET scheduled_for = ?, status = 'SCHEDULED', updated = ? WHERE incident_id = ?",
+              (scheduled_for, _ts(), incident_id))
+    conn.commit()
+    conn.close()
+
+    incident_history(incident_id, "SCHEDULED", user=user, details=f"Scheduled for {scheduled_for}")
+    masterlog("INCIDENT_SCHEDULED", user=user, incident_id=incident_id, details=f"Scheduled for {scheduled_for}")
+
+    return {"ok": True, "incident_id": incident_id, "scheduled_for": scheduled_for}
+
+
+@app.get("/api/incidents/scheduled")
+async def api_incidents_scheduled(request: Request):
+    """Get all scheduled (delayed) incidents."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    c = conn.cursor()
+    rows = c.execute("""
+        SELECT incident_id, incident_number, type, location, scheduled_for, created
+        FROM Incidents
+        WHERE status = 'SCHEDULED' AND scheduled_for IS NOT NULL
+        ORDER BY scheduled_for ASC
+    """).fetchall()
+    conn.close()
+    return {"ok": True, "scheduled": [dict(r) for r in rows]}
+
+
+def _check_scheduled_incidents():
+    """Background task: activate scheduled incidents whose time has arrived."""
+    try:
+        conn = get_conn()
+        c = conn.cursor()
+        now = _ts()
+        due = c.execute("""
+            SELECT incident_id FROM Incidents
+            WHERE status = 'SCHEDULED' AND scheduled_for IS NOT NULL AND scheduled_for <= ?
+        """, (now,)).fetchall()
+        for row in due:
+            iid = row["incident_id"]
+            c.execute("UPDATE Incidents SET status = 'OPEN', updated = ? WHERE incident_id = ?", (now, iid))
+            incident_history(iid, "AUTO_ACTIVATED", user="SCHEDULER", details=f"Scheduled time reached at {now}")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[SCHEDULER] Error checking scheduled incidents: {e}")
+
+
+# ================================================================
 # INCIDENT COMMANDS — REOPEN (History/Daily Log parity)
 # ================================================================
 
@@ -6923,6 +7012,36 @@ async def event_disposition_submit(request: Request, incident_id: int):
     if code not in EVENT_OUTCOME_MAP:
         return {"ok": False, "error": "Invalid event disposition code."}
 
+    # Disposition validation rules
+    conn = get_conn()
+    c = conn.cursor()
+    inc = c.execute("SELECT type, status FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+    warnings = []
+    if inc:
+        inc_type = (inc["type"] or "").upper()
+        # Check if any unit arrived
+        arrived = c.execute("""
+            SELECT 1 FROM UnitAssignments
+            WHERE incident_id = ? AND arrived IS NOT NULL AND cleared IS NULL
+            LIMIT 1
+        """, (incident_id,)).fetchone()
+        any_arrived = c.execute("""
+            SELECT 1 FROM UnitAssignments
+            WHERE incident_id = ? AND arrived IS NOT NULL
+            LIMIT 1
+        """, (incident_id,)).fetchone()
+        if not any_arrived:
+            warnings.append("No units arrived on scene before closing")
+        # Type-specific rules
+        if inc_type in ("FIRE", "THERMAL EVENT", "STRUCTURE FIRE", "WILDLAND FIRE", "VEGETATION FIRE"):
+            if code not in ("FF", "FA", "NF", "C", "CT", "O", "H"):
+                warnings.append(f"Disposition '{code}' is unusual for fire incidents (expected FF, FA, NF, C)")
+        elif inc_type in ("EMS", "MEDICAL", "CARDIAC", "TRAUMA", "OVERDOSE", "PERSONAL MEDICAL", "INJURY", "FALL"):
+            if code == "FF":
+                warnings.append(f"Disposition 'FF' (Fire Found) is unusual for EMS incidents")
+        # Auto-suggest is informational only — don't block
+    conn.close()
+
     write_event_disposition(incident_id, code, user, notes)
 
     text = f"Event disposition set to {code} ({EVENT_OUTCOME_MAP[code]})"
@@ -6941,7 +7060,7 @@ async def event_disposition_submit(request: Request, incident_id: int):
     except Exception:
         pass
 
-    return {"ok": True, "incident_id": incident_id, "closed": True}
+    return {"ok": True, "incident_id": incident_id, "closed": True, "warnings": warnings}
 
 
 @app.get(
@@ -8183,15 +8302,61 @@ def get_incident_timeline(incident_id: int) -> list[dict]:
     conn = get_conn()
     c = conn.cursor()
 
-    rows = c.execute("""
+    events = []
+
+    # Narrative entries
+    for r in c.execute("""
         SELECT timestamp, entry_type, text, user, unit_id
         FROM Narrative
         WHERE incident_id = ?
-        ORDER BY timestamp ASC
-    """, (incident_id,)).fetchall()
+    """, (incident_id,)).fetchall():
+        events.append({
+            "timestamp": r["timestamp"],
+            "source": "narrative",
+            "event_type": r["entry_type"] or "REMARK",
+            "text": r["text"] or "",
+            "user": r["user"] or "",
+            "unit_id": r["unit_id"] or "",
+        })
+
+    # IncidentHistory entries (unit status changes, edits, etc.)
+    for r in c.execute("""
+        SELECT timestamp, event_type, details, user, unit_id
+        FROM IncidentHistory
+        WHERE incident_id = ?
+    """, (incident_id,)).fetchall():
+        events.append({
+            "timestamp": r["timestamp"],
+            "source": "history",
+            "event_type": r["event_type"] or "",
+            "text": r["details"] or "",
+            "user": r["user"] or "",
+            "unit_id": r["unit_id"] or "",
+        })
+
+    # Photos (if table exists)
+    tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if "incident_photos" in tables:
+        for r in c.execute("""
+            SELECT uploaded_at AS timestamp, filename, caption, uploaded_by
+            FROM incident_photos
+            WHERE incident_id = ?
+        """, (incident_id,)).fetchall():
+            events.append({
+                "timestamp": r["timestamp"],
+                "source": "photo",
+                "event_type": "PHOTO",
+                "text": r["caption"] or r["filename"] or "",
+                "user": r["uploaded_by"] or "",
+                "unit_id": "",
+                "filename": r["filename"] or "",
+            })
+
+    # Sort by timestamp
+    events.sort(key=lambda e: e.get("timestamp") or "")
 
     conn.close()
-    return [dict(r) for r in rows]
+    return events
 # ================================================================
 # UAW INLINE API (NO MODAL) — REQUIRED ROUTES
 # ================================================================
@@ -12716,6 +12881,19 @@ async def startup_event():
     except Exception as e:
         print(f"[STARTUP] sync_units_table() failed: {e}")
 
+    # Start scheduled incident checker (runs every 30s)
+    import threading
+    def _scheduled_check_loop():
+        import time as _time
+        while True:
+            _time.sleep(30)
+            try:
+                _check_scheduled_incidents()
+            except Exception:
+                pass
+    t = threading.Thread(target=_scheduled_check_loop, daemon=True)
+    t.start()
+
 
 # ================================================================
 # ERROR HANDLERS
@@ -13788,7 +13966,10 @@ async def api_incident_edit(incident_id: int, request: Request):
     ensure_phase3_schema()
     data = await request.json()
 
-    editable_fields = ["location", "address", "caller_name", "caller_phone", "type", "priority", "notes"]
+    editable_fields = [
+        "location", "address", "caller_name", "caller_phone", "type", "priority", "notes",
+        "node", "pole", "shift", "determinant_code", "nature", "cross_street",
+    ]
     updates = {}
     for field in editable_fields:
         if field in data:

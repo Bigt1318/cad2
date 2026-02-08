@@ -90,6 +90,7 @@ export const CALLTAKER = {
             poleAlphaDec: document.getElementById("ctPoleAlphaDec"),
             poleNum: document.getElementById("ctPoleNum"),
             poleNumDec: document.getElementById("ctPoleNumDec"),
+            crossStreet: document.getElementById("ctCrossStreet"),
 
             type: document.getElementById("ctType"),
 
@@ -230,6 +231,7 @@ export const CALLTAKER = {
             caller_last: (EL.callerLast?.value || "").trim(),
             caller_phone: (EL.callerPhone?.value || "").trim(),
             caller_location: (EL.callerLocation?.value || "").trim(),
+            cross_street: (EL.crossStreet?.value || "").trim(),
 
             // DAILY LOG subtype (Phase-3 canon)
             dailylog_subtype: isDL ? (EL.dailySubtype?.value || "").trim() : "",

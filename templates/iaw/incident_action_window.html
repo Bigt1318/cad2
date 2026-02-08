@@ -76,17 +76,17 @@
           <span class="iaw-info-label">Phone</span>
           <span class="iaw-info-value" id="iaw-caller-phone">{{ incident.caller_phone or "—" }}</span>
         </div>
-        <div class="iaw-info-item">
+        <div class="iaw-info-item iaw-editable" onclick="IAW_EDIT.editField('node', '{{ (incident.node or '')|e }}', {{ incident.incident_id }})" title="Click to edit">
           <span class="iaw-info-label">Node</span>
-          <span class="iaw-info-value">{{ incident.node or "—" }}</span>
+          <span class="iaw-info-value" id="iaw-node">{{ incident.node or "—" }}</span>
         </div>
-        <div class="iaw-info-item">
+        <div class="iaw-info-item iaw-editable" onclick="IAW_EDIT.editField('pole', '{{ (incident.pole or '')|e }}', {{ incident.incident_id }})" title="Click to edit">
           <span class="iaw-info-label">Pole</span>
-          <span class="iaw-info-value">{{ incident.pole or "—" }}</span>
+          <span class="iaw-info-value" id="iaw-pole">{{ incident.pole or "—" }}</span>
         </div>
-        <div class="iaw-info-item">
+        <div class="iaw-info-item iaw-editable" onclick="IAW_EDIT.editField('shift', '{{ (incident.shift or '')|e }}', {{ incident.incident_id }})" title="Click to edit">
           <span class="iaw-info-label">Shift</span>
-          <span class="iaw-info-value">{{ incident.shift or "—" }}</span>
+          <span class="iaw-info-value" id="iaw-shift">{{ incident.shift or "—" }}</span>
         </div>
         <div class="iaw-info-item">
           <span class="iaw-info-label">Created</span>
@@ -1407,13 +1407,22 @@
 
 <script>
 window.IAW_EDIT = {
+  _fieldMap: {
+    location: 'iaw-location-display',
+    caller_name: 'iaw-caller-name',
+    caller_phone: 'iaw-caller-phone',
+    node: 'iaw-node',
+    pole: 'iaw-pole',
+    shift: 'iaw-shift',
+    type: 'iaw-type',
+    priority: 'iaw-priority',
+    determinant_code: 'iaw-determinant-code',
+    nature: 'iaw-nature',
+    cross_street: 'iaw-cross-street'
+  },
+
   editField(field, currentValue, incidentId) {
-    const fieldMap = {
-      location: 'iaw-location-display',
-      caller_name: 'iaw-caller-name',
-      caller_phone: 'iaw-caller-phone'
-    };
-    const elId = fieldMap[field];
+    const elId = this._fieldMap[field];
     if (!elId) return;
     const el = document.getElementById(elId);
     if (!el || el.querySelector('.iaw-inline-edit')) return;
@@ -1425,7 +1434,13 @@ window.IAW_EDIT = {
       <button class="iaw-edit-cancel" onclick="IAW_EDIT.cancelEdit('${elId}', '${orig.replace(/'/g, "\\'")}')">Cancel</button>
     </div>`;
     const inp = document.getElementById(`iaw-edit-input-${field}`);
-    if (inp) { inp.focus(); inp.select(); }
+    if (inp) {
+      inp.focus(); inp.select();
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') IAW_EDIT.saveField(field, incidentId);
+        if (e.key === 'Escape') IAW_EDIT.cancelEdit(elId, orig);
+      });
+    }
   },
 
   async saveField(field, incidentId) {
@@ -1441,12 +1456,7 @@ window.IAW_EDIT = {
       });
       const data = await resp.json();
       if (data.ok) {
-        const fieldMap = {
-          location: 'iaw-location-display',
-          caller_name: 'iaw-caller-name',
-          caller_phone: 'iaw-caller-phone'
-        };
-        const el = document.getElementById(fieldMap[field]);
+        const el = document.getElementById(this._fieldMap[field]);
         if (el) el.textContent = newValue || '—';
         if (typeof TOAST !== 'undefined') TOAST.success?.('Field updated');
       } else {

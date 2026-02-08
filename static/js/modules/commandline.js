@@ -88,6 +88,7 @@ const CLI = {
         { key: "SWAP_UNITS", aliases: ["SWAP", "SW"], desc: "Swap assignments: SWAP <unit1> <unit2>" },
         { key: "NOTE", aliases: ["NOTE", "NT"], desc: "Add note to incident: NOTE <#> <text>" },
         { key: "TRANSFER_CMD", aliases: ["TC", "TRANSFERCMD", "XFERCMD"], desc: "Transfer command: TC <unit>" },
+        { key: "SCHEDULE", aliases: ["SCHED", "SCHEDULE", "DELAY"], desc: "Schedule incident: SCHED <#> <HH:MM>" },
         { key: "ASSIGNED", aliases: ["ASG", "ASSIGNED"], desc: "List assigned: ASG <#>" },
 
         // ─────────────────────────────────────────────────────────────────────
@@ -528,6 +529,9 @@ DISPOSITION CODES
             "SI": "<unit> SI [type]\n  Self-initiate an incident.\n  Example: E1 SI EMS",
             "ED": "ED <#> <code>\n  Set event disposition.\n  Codes: R, FA, NF, T, CT, PRTT, C, O",
             "CLOSE": "CLOSE <#>\n  Close an incident (requires event disposition).",
+            "SCHED": "SCHED <#> <HH:MM>\n  Schedule incident for delayed activation.\n  Example: SCHED 5 14:30",
+            "SCHEDULE": "SCHED <#> <HH:MM>\n  Schedule incident for delayed activation.",
+            "DELAY": "SCHED <#> <HH:MM>\n  Schedule incident for delayed activation.",
         };
         const help = USAGE[target];
         if (help) {
@@ -1433,6 +1437,39 @@ DISPOSITION CODES
                 }
             } catch (err) {
                 this._toast(err?.message || "Transfer command failed", "error");
+            }
+            return;
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // SCHEDULE INCIDENT: SCHED <#> <HH:MM or YYYY-MM-DD HH:MM>
+        // ────────────────────────────────────────────────────────────────────
+        if (firstCmd === "SCHEDULE") {
+            const incRef = tokens[1];
+            const timeStr = tokens.slice(2).join(" ").trim();
+            if (!incRef || !timeStr) {
+                this._toast("Usage: SCHED <incident#> <HH:MM>", "error");
+                return;
+            }
+            const incId = this._normalizeIncidentRef(incRef);
+            // If only HH:MM given, prepend today's date
+            let scheduledFor = timeStr;
+            if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+                const today = new Date().toISOString().slice(0, 10);
+                scheduledFor = `${today} ${timeStr}`;
+            }
+            try {
+                const res = await CAD_UTIL.postJSON(`/api/incident/${incId}/schedule`, {
+                    scheduled_for: scheduledFor
+                });
+                if (res?.ok) {
+                    CAD_UTIL.refreshPanels();
+                    this._toast(`Incident ${incId} scheduled for ${scheduledFor}`, "success");
+                } else {
+                    this._toast(res?.error || "Schedule failed", "error");
+                }
+            } catch (err) {
+                this._toast(err?.message || "Schedule failed", "error");
             }
             return;
         }
