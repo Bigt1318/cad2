@@ -167,6 +167,13 @@
         <span id="chat-typing-who"></span> is typing...
     </div>
 
+    <!-- REPLY PREVIEW (shown when replying to a message) -->
+    <div id="chat-reply-preview" style="display:none" class="chat-reply-preview">
+        <span class="reply-label">Replying to</span>
+        <span id="chat-reply-text" class="reply-text"></span>
+        <button onclick="MessagingUI.cancelReply()" class="reply-cancel">&times;</button>
+    </div>
+
     <!-- COMPOSER -->
     <div class="chat-composer">
         {% if is_dispatcher %}
@@ -180,6 +187,9 @@
         </div>
         {% endif %}
 
+        <!-- @Mention autocomplete dropdown -->
+        <div id="chat-mention-dropdown" class="chat-mention-dropdown" style="display:none"></div>
+
         <div class="chat-composer-row">
             <button class="chat-icon-btn" onclick="document.getElementById('chat-file-input').click()" title="Attach file">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -188,8 +198,8 @@
             </button>
             <input type="file" id="chat-file-input" style="display:none" onchange="MessagingUI.handleFileSelect(this)">
 
-            <textarea id="chat-input" class="chat-textarea" rows="1" placeholder="Type a message..."
-                      oninput="MessagingUI.autoResize(this); MessagingUI.sendTyping()"
+            <textarea id="chat-input" class="chat-textarea" rows="1" placeholder="Type a message... (@ to mention)"
+                      oninput="MessagingUI.handleComposerInput(this)"
                       onkeydown="MessagingUI.handleKeyDown(event, {{ channel.id }})"></textarea>
 
             <select id="chat-priority-select" class="chat-priority-select" title="Message priority">
@@ -216,3 +226,16 @@
     <button data-action="delete" onclick="MessagingUI.deleteMessage()">Delete</button>
     <button data-action="reply" onclick="MessagingUI.replyToMessage()">Reply</button>
 </div>
+
+<script>
+// Apply @mention highlighting to server-rendered messages
+(function() {
+    document.querySelectorAll('.chat-msg-body').forEach(function(el) {
+        var text = el.innerHTML;
+        if (text.indexOf('@') !== -1) {
+            el.innerHTML = text.replace(/@([A-Za-z0-9_-]+)/g,
+                '<span class="chat-mention" data-mention="$1">@$1</span>');
+        }
+    });
+})();
+</script>

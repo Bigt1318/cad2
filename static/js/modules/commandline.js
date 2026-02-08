@@ -203,8 +203,31 @@ const CLI = {
                 return;
             }
 
+            // Tab = accept autocomplete
+            if (e.key === "Tab" && this._acDropdown?.style.display !== "none") {
+                e.preventDefault();
+                const active = this._acDropdown.querySelector(".cli-ac-item.active") || this._acDropdown.querySelector(".cli-ac-item");
+                if (active) {
+                    const tokens = input.value.split(/[\s,]+/);
+                    tokens[0] = active.dataset.key;
+                    input.value = tokens.join(" ") + " ";
+                    this._acDropdown.style.display = "none";
+                }
+                return;
+            }
+
+            // Escape = dismiss autocomplete
+            if (e.key === "Escape" && this._acDropdown?.style.display !== "none") {
+                e.preventDefault();
+                this._acDropdown.style.display = "none";
+                return;
+            }
+
             if (e.key !== "Enter") return;
             e.preventDefault();
+
+            // Hide autocomplete on execute
+            if (this._acDropdown) this._acDropdown.style.display = "none";
 
             const cmd = (input.value || "").trim();
             if (!cmd) return;
@@ -224,6 +247,9 @@ const CLI = {
 
             input.value = "";
         });
+
+        // Initialize autocomplete dropdown
+        this._initAutocomplete();
 
     },
 
@@ -340,22 +366,154 @@ const CLI = {
         return true;
     },
 
+    _levenshtein(a, b) {
+        const m = a.length, n = b.length;
+        const dp = Array.from({length: m + 1}, (_, i) => Array(n + 1).fill(0));
+        for (let i = 0; i <= m; i++) dp[i][0] = i;
+        for (let j = 0; j <= n; j++) dp[0][j] = j;
+        for (let i = 1; i <= m; i++)
+            for (let j = 1; j <= n; j++)
+                dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+        return dp[m][n];
+    },
+
     _matchCommand(tok) {
         const t = String(tok || "").trim().toUpperCase().replace(/-/g, "");
         if (!t) return null;
 
+        // Exact match first
         for (const cmd of this.COMMANDS) {
             for (const alias of cmd.aliases) {
-                if (alias.toUpperCase().replace(/-/g, "") === t) {
-                    return cmd.key;
+                if (alias.toUpperCase().replace(/-/g, "") === t) return cmd.key;
+            }
+        }
+
+        // Fuzzy match: find best match with edit distance <= 2 (for tokens >= 3 chars)
+        if (t.length >= 3) {
+            let bestKey = null, bestDist = Infinity;
+            for (const cmd of this.COMMANDS) {
+                for (const alias of cmd.aliases) {
+                    const a = alias.toUpperCase().replace(/-/g, "");
+                    const d = this._levenshtein(t, a);
+                    if (d < bestDist && d <= 2) {
+                        bestDist = d;
+                        bestKey = cmd.key;
+                    }
+                }
+            }
+            if (bestKey) return bestKey;
+        }
+
+        // Prefix match: if token is a prefix of any alias (3+ chars)
+        if (t.length >= 3) {
+            for (const cmd of this.COMMANDS) {
+                for (const alias of cmd.aliases) {
+                    if (alias.toUpperCase().startsWith(t)) return cmd.key;
                 }
             }
         }
+
         return null;
     },
 
     _asUnitList(units) {
         return (units || []).map((u) => this.resolveAlias(String(u).trim())).filter(Boolean);
+    },
+
+    // ========================================================================
+    // AUTOCOMPLETE SYSTEM
+    // ========================================================================
+    _initAutocomplete() {
+        const input = document.getElementById("cmd-input");
+        if (!input) return;
+
+        // Create dropdown element
+        const dropdown = document.createElement("div");
+        dropdown.id = "cli-autocomplete";
+        dropdown.className = "cli-autocomplete-dropdown";
+        dropdown.style.display = "none";
+        input.parentElement.style.position = "relative";
+        input.parentElement.appendChild(dropdown);
+
+        // Inject styles
+        if (!document.getElementById("cli-ac-styles")) {
+            const style = document.createElement("style");
+            style.id = "cli-ac-styles";
+            style.textContent = `
+                .cli-autocomplete-dropdown {
+                    position: absolute; bottom: 100%; left: 0; right: 0;
+                    background: #0d1926; border: 1px solid #2a3a52; border-radius: 4px;
+                    max-height: 200px; overflow-y: auto; z-index: 9999;
+                    font-size: 13px;
+                }
+                .cli-ac-item {
+                    padding: 4px 8px; cursor: pointer; display: flex; justify-content: space-between;
+                }
+                .cli-ac-item:hover, .cli-ac-item.active { background: #1a2d42; }
+                .cli-ac-cmd { font-weight: 600; color: #4da3ff; }
+                .cli-ac-desc { opacity: 0.6; font-size: 12px; margin-left: 8px; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        this._acDropdown = dropdown;
+        this._acIndex = -1;
+
+        input.addEventListener("input", () => this._updateAutocomplete(input.value));
+    },
+
+    _updateAutocomplete(value) {
+        const dd = this._acDropdown;
+        if (!dd) return;
+
+        const raw = value.trim().toUpperCase();
+        if (raw.length < 2) { dd.style.display = "none"; return; }
+
+        // Get first token (the command part)
+        const firstToken = raw.split(/[\s,]+/)[0];
+        if (!firstToken) { dd.style.display = "none"; return; }
+
+        // Find matching commands (prefix + fuzzy)
+        const matches = [];
+        const seen = new Set();
+        for (const cmd of this.COMMANDS) {
+            for (const alias of cmd.aliases) {
+                const a = alias.toUpperCase();
+                if (a.startsWith(firstToken) && !seen.has(cmd.key)) {
+                    seen.add(cmd.key);
+                    matches.push(cmd);
+                    break;
+                }
+            }
+        }
+
+        if (matches.length === 0 || matches.length > 8) { dd.style.display = "none"; return; }
+        // Don't show if exact match
+        if (matches.length === 1 && matches[0].aliases.some(a => a.toUpperCase() === firstToken)) {
+            dd.style.display = "none"; return;
+        }
+
+        dd.innerHTML = matches.slice(0, 6).map((cmd, i) =>
+            `<div class="cli-ac-item${i === this._acIndex ? ' active' : ''}" data-key="${cmd.aliases[0]}">
+                <span class="cli-ac-cmd">${cmd.aliases[0]}</span>
+                <span class="cli-ac-desc">${cmd.desc}</span>
+            </div>`
+        ).join("");
+
+        dd.style.display = "block";
+
+        // Click handler
+        dd.querySelectorAll(".cli-ac-item").forEach(item => {
+            item.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                const inp = document.getElementById("cmd-input");
+                const tokens = inp.value.split(/[\s,]+/);
+                tokens[0] = item.dataset.key;
+                inp.value = tokens.join(" ");
+                dd.style.display = "none";
+                inp.focus();
+            });
+        });
     },
 
     // ========================================================================
@@ -1017,9 +1175,86 @@ DISPOSITION CODES
     },
 
     // ========================================================================
+    // NLP-LIKE PARSING
+    // ========================================================================
+    _tryNLP(raw) {
+        const lower = raw.toLowerCase().trim();
+
+        // Pattern: "send <unit(s)> to <incident>"
+        let m = lower.match(/^send\s+(.+?)\s+to\s+(?:incident\s+)?(\d+)$/i);
+        if (m) return { action: "DISPATCH", incident: m[2], units: m[1].split(/[\s,]+/) };
+
+        // Pattern: "move <unit> to <incident>"
+        m = lower.match(/^move\s+(.+?)\s+to\s+(?:incident\s+)?(\d+)$/i);
+        if (m) return { action: "MOVE_UNIT", unit: m[1].trim(), incident: m[2] };
+
+        // Pattern: "mark <unit> arrived" or "<unit> has arrived"
+        m = lower.match(/^(?:mark\s+)?(.+?)\s+(?:has\s+)?arrived$/i);
+        if (m) return { action: "ARRIVED", units: [m[1].trim()] };
+
+        // Pattern: "clear <unit>"
+        m = lower.match(/^clear\s+(.+)$/i);
+        if (m) return { action: "CLEAR", units: m[1].split(/[\s,]+/) };
+
+        // Pattern: "note <incident> <text>" or "add note to <incident>: <text>"
+        m = lower.match(/^(?:add\s+)?note\s+(?:to\s+)?(\d+)[:\s]+(.+)$/i);
+        if (m) return { action: "NOTE", incident: m[1], text: m[2] };
+
+        return null; // No NLP match
+    },
+
+    // ========================================================================
     // MAIN EXECUTE
     // ========================================================================
     async execute(command) {
+        // Try NLP-like parsing first
+        const nlp = this._tryNLP(command);
+        if (nlp) {
+            switch (nlp.action) {
+                case "DISPATCH":
+                    await this._dispatchToIncident(nlp.units, nlp.incident, "D");
+                    return;
+                case "MOVE_UNIT": {
+                    const unitId = this.resolveAlias(nlp.unit);
+                    const incId = nlp.incident;
+                    try {
+                        const res = await CAD_UTIL.postJSON("/api/cli/move", {
+                            unit_id: unitId,
+                            to_incident: Number(incId)
+                        });
+                        if (res?.ok) {
+                            CAD_UTIL.refreshPanels();
+                            this._toast(`${unitId} moved to incident ${incId}`, "success");
+                        } else {
+                            this._toast(res?.error || "Move failed", "error");
+                        }
+                    } catch (err) {
+                        this._toast(err?.message || "Move failed", "error");
+                    }
+                    return;
+                }
+                case "ARRIVED":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "ARRIVED");
+                    return;
+                case "CLEAR":
+                    await this._clearUnit(this.resolveAliases(nlp.units));
+                    return;
+                case "NOTE": {
+                    const incId = nlp.incident;
+                    try {
+                        await CAD_UTIL.postJSON("/remark", {
+                            incident_id: Number(incId),
+                            text: nlp.text
+                        });
+                        this._toast(`Note added to incident ${incId}`, "success");
+                    } catch (err) {
+                        this._toast(err?.message || "Failed to add note", "error");
+                    }
+                    return;
+                }
+            }
+        }
+
         const tokens = this._tokenize(command);
         if (!tokens.length) return;
 

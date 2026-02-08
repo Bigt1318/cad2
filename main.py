@@ -445,13 +445,14 @@ async def login_submit(request: Request):
     request.session["shift_effective"] = shift_effective
     request.session["shift_start_ts"] = _ts()
     request.session["is_admin"] = bool(is_admin)
+    request.session["role"] = _get_user_role(dispatcher_unit)
 
     # Legacy compatibility keys
     request.session["shift"] = shift_letter
     request.session["unit"] = dispatcher_unit
 
     try:
-        log_master("SESSION_LOGIN", f"LOGIN: {dispatcher_unit} • shift {shift_letter} (effective {shift_effective})")
+        log_master("SESSION_LOGIN", f"LOGIN: {dispatcher_unit} • shift {shift_letter} (effective {shift_effective}) • role {request.session['role']}")
     except Exception:
         pass
 
@@ -2130,6 +2131,9 @@ def ensure_phase3_schema():
     """)
 
 
+    # Role column for permissions & roles system (Batch 4A)
+    _add_col("ALTER TABLE UserAccounts ADD COLUMN role TEXT DEFAULT 'DISPATCHER'")
+
     # -----------------------------
     # ShiftOverrides (temporary shift moves; do not rewrite UnitRoster)
     # -----------------------------
@@ -2324,6 +2328,10 @@ def ensure_phase3_schema():
 @app.post("/incident/new")
 async def create_incident(request: Request):
     ensure_phase3_schema()
+
+    # Role check: CALLTAKER minimum to create incidents
+    if not require_role(request, "CALLTAKER"):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: CALLTAKER required"})
 
     ts = _ts()
 
@@ -3498,6 +3506,7 @@ async def api_session_status(request: Request):
         "shift_effective": get_session_shift_effective(request),
         "shift_start_ts": (request.session.get("shift_start_ts") or "").strip(),
         "roster_view_mode": (request.session.get("roster_view_mode") or "CURRENT").strip().upper(),
+        "role": (request.session.get("role") or "").strip() or _get_user_role((request.session.get("user") or "").strip()),
     }
 
 
@@ -3526,17 +3535,18 @@ async def api_session_login(request: Request, payload: dict):
     request.session["shift_letter"] = shift_letter
     request.session["shift_effective"] = shift_effective
     request.session["shift_start_ts"] = _ts()
+    request.session["role"] = _get_user_role(dispatcher_unit or user)
 
     # Legacy compatibility keys (older templates/blocks)
     request.session["shift"] = shift_letter
     request.session["unit"] = dispatcher_unit or user
 
     try:
-        log_master("SESSION_LOGIN", f"LOGIN: {user} • shift {shift_letter} (effective {shift_effective})")
+        log_master("SESSION_LOGIN", f"LOGIN: {user} • shift {shift_letter} (effective {shift_effective}) • role {request.session['role']}")
     except Exception:
         pass
 
-    return {"ok": True, "shift_letter": shift_letter, "shift_effective": shift_effective, "user": user}
+    return {"ok": True, "shift_letter": shift_letter, "shift_effective": shift_effective, "user": user, "role": request.session["role"]}
 
 
 @app.post("/api/session/logout")
@@ -8526,6 +8536,11 @@ async def api_clear_all_and_close(incident_id: int, request: Request):
     """
     ensure_phase3_schema()
 
+    # Role check: DISPATCHER minimum to close incidents
+    # NOTE: Can be elevated to SUPERVISOR when agency policy requires supervisor sign-off
+    if not require_role(request, "DISPATCHER"):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: DISPATCHER required"})
+
     try:
         payload = await request.json()
     except Exception:
@@ -11092,6 +11107,52 @@ def _get_user_permission_level(user: str) -> str:
 
 
 # ------------------------------------------------------
+# PERMISSIONS & ROLES (BATCH 4A)
+# ------------------------------------------------------
+
+ROLE_HIERARCHY = {"CALLTAKER": 1, "DISPATCHER": 2, "SUPERVISOR": 3, "ADMIN": 4}
+
+
+def _get_user_role(user: str) -> str:
+    """
+    Get the role for a user from UserAccounts table.
+    Falls back to: if user in ADMIN_UNITS -> "ADMIN", else -> "DISPATCHER".
+    """
+    uid = (user or "").strip()
+    if not uid:
+        return "DISPATCHER"
+    try:
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT role FROM UserAccounts WHERE unit_id = ?", (uid,)
+        ).fetchone()
+        conn.close()
+        if row and row["role"] and row["role"].upper() in ROLE_HIERARCHY:
+            return row["role"].upper()
+    except Exception:
+        pass
+    # Fallback: admin units get ADMIN role, everyone else DISPATCHER
+    if uid.upper() in ADMIN_UNITS:
+        return "ADMIN"
+    return "DISPATCHER"
+
+
+def require_role(request, min_role: str) -> bool:
+    """
+    Check if the current session user meets the minimum role requirement.
+    Returns True if user role >= min_role in ROLE_HIERARCHY, False otherwise.
+    """
+    dispatcher_unit = (request.session.get("dispatcher_unit") or "").strip()
+    user = (request.session.get("user") or "").strip()
+    if not user and not dispatcher_unit:
+        return False
+    user_role = _get_user_role(dispatcher_unit or user)
+    user_level = ROLE_HIERARCHY.get(user_role, 0)
+    min_level = ROLE_HIERARCHY.get(min_role.upper(), 99)
+    return user_level >= min_level
+
+
+# ------------------------------------------------------
 # ADMIN — RUN NUMBER VIEW
 # ------------------------------------------------------
 
@@ -12728,6 +12789,74 @@ async def api_admin_units_reorder(request: Request, user: str = "DISPATCH"):
 
 
 # ------------------------------------------------------
+# ADMIN — USER ROLE MANAGEMENT (Batch 4A)
+# ------------------------------------------------------
+
+@app.post("/api/admin/users/{unit_id}/role")
+async def set_user_role(request: Request, unit_id: str):
+    """Change a user's role. ADMIN only."""
+    ensure_phase3_schema()
+    user = request.session.get("user", "")
+    if not require_role(request, "ADMIN"):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON"})
+    new_role = (data.get("role") or "").upper()
+    if new_role not in ROLE_HIERARCHY:
+        return {"ok": False, "error": f"Invalid role. Valid: {list(ROLE_HIERARCHY.keys())}"}
+    conn = get_conn()
+    # Ensure user account exists first
+    existing = conn.execute("SELECT unit_id FROM UserAccounts WHERE unit_id = ?", (unit_id,)).fetchone()
+    if not existing:
+        # Auto-create a minimal account with the requested role
+        conn.execute(
+            "INSERT INTO UserAccounts (unit_id, display_name, role, created, updated) VALUES (?, ?, ?, ?, ?)",
+            (unit_id, unit_id, new_role, _ts(), _ts()),
+        )
+    else:
+        conn.execute(
+            "UPDATE UserAccounts SET role = ?, updated = ? WHERE unit_id = ?",
+            (new_role, _ts(), unit_id),
+        )
+    conn.commit()
+    conn.close()
+    try:
+        masterlog(event_type="USER_ROLE_CHANGE", user=user, details=f"Set {unit_id} role to {new_role}")
+    except Exception:
+        pass
+    return {"ok": True, "unit_id": unit_id, "role": new_role}
+
+
+@app.get("/api/admin/users/roles")
+async def list_user_roles(request: Request):
+    """List all user accounts with their roles. ADMIN only."""
+    ensure_phase3_schema()
+    if not require_role(request, "ADMIN"):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Admin only"})
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT unit_id, display_name, is_admin, role FROM UserAccounts ORDER BY unit_id"
+    ).fetchall()
+    conn.close()
+    users = []
+    for r in rows:
+        role = (r["role"] or "").upper()
+        if role not in ROLE_HIERARCHY:
+            # Fallback for accounts without a role set
+            uid = (r["unit_id"] or "").upper()
+            role = "ADMIN" if uid in ADMIN_UNITS else "DISPATCHER"
+        users.append({
+            "unit_id": r["unit_id"],
+            "display_name": r["display_name"] or r["unit_id"],
+            "is_admin": bool(r["is_admin"]),
+            "role": role,
+        })
+    return {"ok": True, "users": users, "valid_roles": list(ROLE_HIERARCHY.keys())}
+
+
+# ------------------------------------------------------
 # ADMIN — SYSTEM SETTINGS APIs
 # ------------------------------------------------------
 
@@ -12993,6 +13122,10 @@ async def api_unit_status(request: Request, unit_id: str, status: str):
       • Apparatus status mirrors to assigned personnel automatically.
     """
     ensure_phase3_schema()
+
+    # Role check: DISPATCHER minimum to change unit status
+    if not require_role(request, "DISPATCHER"):
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: DISPATCHER required"})
 
     new_status = (status or "").upper().strip()
     user = request.session.get("user", "Dispatcher")

@@ -3103,6 +3103,7 @@ textarea {
 
 /* --- Composer --- */
 .chat-composer {
+    position: relative;
     border-top: 1px solid var(--border-default);
     padding: 8px 12px;
     background: var(--bg-surface);
@@ -3190,6 +3191,84 @@ textarea {
     cursor: pointer;
     color: var(--fire-red);
     font-weight: bold;
+}
+
+/* --- Reply Preview Bar --- */
+.chat-reply-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--bg-elevated);
+    border-left: 3px solid var(--ford-blue);
+    border-top: 1px solid var(--border-default);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.chat-reply-preview .reply-label {
+    font-weight: 600;
+    color: var(--ford-blue);
+    white-space: nowrap;
+}
+.chat-reply-preview .reply-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.chat-reply-preview .reply-cancel {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.chat-reply-preview .reply-cancel:hover {
+    color: var(--fire-red);
+}
+
+/* --- @Mention Highlights --- */
+.chat-mention {
+    color: #4da3ff;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0 2px;
+}
+.chat-mention:hover {
+    background: rgba(77, 163, 255, 0.15);
+    text-decoration: underline;
+}
+
+/* --- @Mention Autocomplete Dropdown --- */
+.chat-mention-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 12px;
+    right: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.15);
+    z-index: 1000;
+    margin-bottom: 4px;
+}
+.chat-mention-item {
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.chat-mention-item:hover,
+.chat-mention-item.active {
+    background: var(--bg-hover);
+    color: var(--ford-blue);
 }
 
 /* --- Context Menu --- */

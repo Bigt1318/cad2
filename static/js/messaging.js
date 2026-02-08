@@ -21,6 +21,11 @@ const MessagingUI = {
     _channelsCache: [],
     _composeRecipients: [],
     _groupMembers: [],
+    _replyToId: null,
+    _mentionUnitsCache: [],
+    _mentionActive: false,
+    _mentionQuery: '',
+    _mentionStartPos: -1,
 
     // =========================================================================
     // INITIALIZATION
@@ -498,16 +503,23 @@ const MessagingUI = {
         }
 
         try {
+            const payload = {
+                body: body,
+                sender_name: this.userId,
+                priority: priority,
+                require_ack: requireAck,
+                metadata: this.pendingAttachments.length ? { attachments: this.pendingAttachments } : null
+            };
+
+            // Include reply_to_id if replying
+            if (this._replyToId) {
+                payload.reply_to_id = this._replyToId;
+            }
+
             const res = await fetch(`/api/chat/channel/${channelId}/send`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    body: body,
-                    sender_name: this.userId,
-                    priority: priority,
-                    require_ack: requireAck,
-                    metadata: this.pendingAttachments.length ? { attachments: this.pendingAttachments } : null
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.ok) {
@@ -516,6 +528,9 @@ const MessagingUI = {
                 this.pendingAttachments = [];
                 const filesEl = document.getElementById('chat-pending-files');
                 if (filesEl) { filesEl.innerHTML = ''; filesEl.style.display = 'none'; }
+
+                // Clear reply state
+                this.cancelReply();
 
                 // Append own message immediately
                 this.appendMessageToThread(data.message);
@@ -530,10 +545,7 @@ const MessagingUI = {
     },
 
     handleKeyDown(event, channelId) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            this.sendFromComposer(channelId);
-        }
+        this.handleComposerKeyDown(event, channelId);
     },
 
     sendTyping() {
@@ -578,10 +590,17 @@ const MessagingUI = {
             const bubbleClass = isMine ? 'chat-bubble-mine' : 'chat-bubble-other';
             const time = (msg.created_at || '').substring(11, 16);
 
+            // Reply reference
+            let replyRef = '';
+            if (msg.reply_to_id) {
+                replyRef = `<div class="chat-reply-ref" onclick="MessagingUI.scrollToMessage(${msg.reply_to_id})">Reply to #${msg.reply_to_id}</div>`;
+            }
+
             html = `<div class="chat-msg ${isMine ? 'chat-msg-mine' : 'chat-msg-other'}${priorityClass}" data-msg-id="${msg.id}">
                 ${!isMine ? `<div class="chat-msg-sender">${this.escapeHtml(msg.sender_name || msg.sender_id)}</div>` : ''}
                 <div class="chat-bubble ${bubbleClass}">
-                    <div class="chat-msg-body">${this.escapeHtml(msg.body)}</div>
+                    ${replyRef}
+                    <div class="chat-msg-body">${this.formatMentions(this.escapeHtml(msg.body))}</div>
                     <div class="chat-msg-footer">
                         <span class="chat-msg-time">${time}</span>
                         ${msg.priority !== 'normal' ? `<span class="chat-priority-tag ${msg.priority}">${msg.priority.toUpperCase()}</span>` : ''}
@@ -674,10 +693,37 @@ const MessagingUI = {
     },
 
     replyToMessage() {
+        const msgId = this.contextMenuMsgId;
         document.getElementById('chat-context-menu').style.display = 'none';
-        // Focus input and add reply reference
+        if (!msgId) return;
+
+        // Get the message text for preview
+        const msgEl = document.querySelector(`[data-msg-id="${msgId}"] .chat-msg-body`);
+        const msgText = msgEl ? msgEl.textContent : `Message #${msgId}`;
+        const senderEl = document.querySelector(`[data-msg-id="${msgId}"] .chat-msg-sender`);
+        const senderName = senderEl ? senderEl.textContent : '';
+
+        // Store reply state
+        this._replyToId = msgId;
+
+        // Show reply preview bar
+        const preview = document.getElementById('chat-reply-preview');
+        const previewText = document.getElementById('chat-reply-text');
+        if (preview && previewText) {
+            const label = senderName ? `${senderName}: ` : '';
+            previewText.textContent = label + (msgText.length > 80 ? msgText.substring(0, 80) + '...' : msgText);
+            preview.style.display = 'flex';
+        }
+
+        // Focus input
         const input = document.getElementById('chat-input');
         if (input) input.focus();
+    },
+
+    cancelReply() {
+        this._replyToId = null;
+        const preview = document.getElementById('chat-reply-preview');
+        if (preview) preview.style.display = 'none';
     },
 
     // =========================================================================
@@ -1288,6 +1334,143 @@ const MessagingUI = {
             el.style.background = 'var(--bg-active)';
             setTimeout(() => el.style.background = '', 2000);
         }
+    },
+
+    // =========================================================================
+    // @MENTION SUPPORT
+    // =========================================================================
+
+    formatMentions(html) {
+        // Replace @WORD patterns with styled mention spans
+        // Matches @followed by alphanumeric, dash, or underscore (unit IDs like E1, CAR1, BATT1-4, etc.)
+        return html.replace(/@([A-Za-z0-9_-]+)/g, '<span class="chat-mention" data-mention="$1">@$1</span>');
+    },
+
+    async loadMentionUnits() {
+        // Cache unit list for mention autocomplete
+        if (this._mentionUnitsCache.length > 0) return;
+        try {
+            const res = await fetch('/api/chat/units/available');
+            const data = await res.json();
+            this._mentionUnitsCache = (data.units || []).map(u => u.unit_id);
+        } catch (e) {
+            console.error('[Chat] Failed to load units for mentions:', e);
+        }
+    },
+
+    handleComposerInput(textarea) {
+        this.autoResize(textarea);
+        this.sendTyping();
+
+        // Detect @ for mention autocomplete
+        const val = textarea.value;
+        const cursorPos = textarea.selectionStart;
+
+        // Find the @ sign before cursor
+        let atPos = -1;
+        for (let i = cursorPos - 1; i >= 0; i--) {
+            if (val[i] === '@') {
+                atPos = i;
+                break;
+            }
+            // Stop searching at whitespace or start (except if it's the very character)
+            if (val[i] === ' ' || val[i] === '\n') break;
+        }
+
+        const dropdown = document.getElementById('chat-mention-dropdown');
+        if (!dropdown) return;
+
+        if (atPos >= 0 && (atPos === 0 || /\s/.test(val[atPos - 1]))) {
+            const query = val.substring(atPos + 1, cursorPos).toUpperCase();
+            this._mentionActive = true;
+            this._mentionQuery = query;
+            this._mentionStartPos = atPos;
+
+            this.loadMentionUnits().then(() => {
+                const filtered = this._mentionUnitsCache.filter(u =>
+                    u.toUpperCase().startsWith(query) || u.toUpperCase().includes(query)
+                ).slice(0, 8);
+
+                if (filtered.length === 0) {
+                    dropdown.style.display = 'none';
+                    this._mentionActive = false;
+                    return;
+                }
+
+                dropdown.innerHTML = filtered.map((u, i) =>
+                    `<div class="chat-mention-item ${i === 0 ? 'active' : ''}" data-unit="${this.escapeAttr(u)}" onclick="MessagingUI.acceptMention('${this.escapeAttr(u)}')">${this.escapeHtml(u)}</div>`
+                ).join('');
+                dropdown.style.display = 'block';
+            });
+        } else {
+            dropdown.style.display = 'none';
+            this._mentionActive = false;
+        }
+    },
+
+    handleComposerKeyDown(event, channelId) {
+        const dropdown = document.getElementById('chat-mention-dropdown');
+
+        // Handle mention dropdown navigation
+        if (this._mentionActive && dropdown && dropdown.style.display !== 'none') {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                const items = dropdown.querySelectorAll('.chat-mention-item');
+                let activeIdx = -1;
+                items.forEach((el, i) => { if (el.classList.contains('active')) activeIdx = i; });
+
+                items.forEach(el => el.classList.remove('active'));
+                if (event.key === 'ArrowDown') {
+                    activeIdx = (activeIdx + 1) % items.length;
+                } else {
+                    activeIdx = activeIdx <= 0 ? items.length - 1 : activeIdx - 1;
+                }
+                items[activeIdx].classList.add('active');
+                items[activeIdx].scrollIntoView({ block: 'nearest' });
+                return;
+            }
+
+            if (event.key === 'Tab' || (event.key === 'Enter' && this._mentionActive)) {
+                const active = dropdown.querySelector('.chat-mention-item.active');
+                if (active) {
+                    event.preventDefault();
+                    this.acceptMention(active.dataset.unit);
+                    return;
+                }
+            }
+
+            if (event.key === 'Escape') {
+                dropdown.style.display = 'none';
+                this._mentionActive = false;
+                return;
+            }
+        }
+
+        // Normal Enter to send
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendFromComposer(channelId);
+        }
+    },
+
+    acceptMention(unitId) {
+        const input = document.getElementById('chat-input');
+        const dropdown = document.getElementById('chat-mention-dropdown');
+        if (!input) return;
+
+        const val = input.value;
+        const before = val.substring(0, this._mentionStartPos);
+        const after = val.substring(input.selectionStart);
+        input.value = before + '@' + unitId + ' ' + after;
+        input.focus();
+
+        // Place cursor after the inserted mention
+        const newPos = this._mentionStartPos + unitId.length + 2; // @+unitId+space
+        input.selectionStart = newPos;
+        input.selectionEnd = newPos;
+
+        if (dropdown) dropdown.style.display = 'none';
+        this._mentionActive = false;
     },
 
     // =========================================================================
