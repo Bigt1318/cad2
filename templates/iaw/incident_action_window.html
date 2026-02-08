@@ -81,6 +81,14 @@
           <span class="iaw-info-value">{{ incident.node or "—" }}</span>
         </div>
         <div class="iaw-info-item">
+          <span class="iaw-info-label">Pole</span>
+          <span class="iaw-info-value">{{ incident.pole or "—" }}</span>
+        </div>
+        <div class="iaw-info-item">
+          <span class="iaw-info-label">Shift</span>
+          <span class="iaw-info-value">{{ incident.shift or "—" }}</span>
+        </div>
+        <div class="iaw-info-item">
           <span class="iaw-info-label">Created</span>
           <span class="iaw-info-value">{{ created_ts }}</span>
         </div>
@@ -666,7 +674,7 @@
 /* Info Grid */
 .iaw-info-grid-v2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 12px;
 }

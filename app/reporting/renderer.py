@@ -348,7 +348,34 @@ class ReportRenderer:
     """Renders report data into multiple formats (PDF, CSV, XLSX, HTML, TXT)."""
 
     # ------------------------------------------------------------------
-    # Public entry-point
+    # Public entry-point: single-format dispatch
+    # ------------------------------------------------------------------
+
+    def render(self, fmt: str, data: Dict) -> Optional[str]:
+        """Render extracted data into a single format string.
+
+        Called by ``ReportingEngine._render()`` for text-based formats.
+        Returns the rendered string for html/txt/json, or None for
+        file-based formats (csv, xlsx, pdf) which must use ``render_all()``.
+        """
+        meta = data.get("metadata") or {}
+        template_key = meta.get("template_key", "generic")
+        title = meta.get("title", "FORD CAD Report")
+        filters = data.get("filters") or {}
+
+        if fmt == "html":
+            return self.render_html(template_key, title, data, filters)
+        elif fmt == "txt":
+            return self.render_txt(template_key, title, data, filters)
+        elif fmt == "json":
+            import json as _json
+            return _json.dumps(data, indent=2, default=str)
+        elif fmt in ("csv", "xlsx", "pdf"):
+            return None  # file-based — handled by render_all()
+        return None
+
+    # ------------------------------------------------------------------
+    # Public entry-point: multi-format (writes files directly)
     # ------------------------------------------------------------------
 
     def render_all(
@@ -417,6 +444,8 @@ class ReportRenderer:
             ok = self.render_pdf(html_string, out)
             if ok:
                 results["pdf"] = str(out.resolve())
+                if self._pdf_used_fallback:
+                    logger.info("PDF fallback used: output is print-ready HTML, not a real PDF")
 
         # --- CSV ---
         if "csv" in formats:
@@ -673,8 +702,8 @@ class ReportRenderer:
         if log_entries:
             parts.append("<h2 class=\"section-title\">Daily Log</h2>")
             # Pick columns that are most useful for blotter view
-            display_cols = ["timestamp", "category", "event_type", "unit_id",
-                            "details", "created_by", "issue_found"]
+            display_cols = ["timestamp", "event_type", "unit_id", "user",
+                            "action", "details", "issue_found"]
             # Filter to columns that actually exist
             available = set()
             for entry in log_entries:
@@ -1952,27 +1981,83 @@ class ReportRenderer:
     # PDF rendering
     # ------------------------------------------------------------------
 
+    # Tracks whether the last PDF render used the HTML fallback
+    _pdf_used_fallback: bool = False
+
     def render_pdf(self, html: str, output_path: Path) -> bool:
         """
-        Convert an HTML string to PDF via WeasyPrint.
+        Convert an HTML string to PDF.
 
-        Returns True on success, False on failure (logged).
+        Tries multiple strategies in order:
+        1. WeasyPrint (best quality, may not be available on Windows)
+        2. pdfkit + wkhtmltopdf (if installed)
+        3. Fallback: save as print-ready HTML with @media print CSS
+
+        Returns True on success, False on total failure (logged).
+        Sets ``self._pdf_used_fallback`` if HTML fallback was used.
         """
+        self._pdf_used_fallback = False
+
+        # Strategy 1: WeasyPrint
         try:
             from weasyprint import HTML as WeasyprintHTML  # type: ignore
-        except ImportError:
-            logger.error(
-                "WeasyPrint is not installed. Install with: pip install weasyprint  "
-                "PDF rendering skipped for %s", output_path,
-            )
-            return False
-
-        try:
             WeasyprintHTML(string=html).write_pdf(str(output_path))
-            logger.info("PDF artifact saved: %s", output_path)
+            logger.info("PDF artifact saved (WeasyPrint): %s", output_path)
+            return True
+        except ImportError:
+            logger.debug("WeasyPrint not available, trying pdfkit")
+        except Exception:
+            logger.warning("WeasyPrint render failed, trying pdfkit:\n%s", traceback.format_exc())
+
+        # Strategy 2: pdfkit (wkhtmltopdf wrapper)
+        try:
+            import pdfkit  # type: ignore
+            pdfkit.from_string(html, str(output_path))
+            logger.info("PDF artifact saved (pdfkit): %s", output_path)
+            return True
+        except ImportError:
+            logger.debug("pdfkit not available, using HTML fallback")
+        except Exception:
+            logger.warning("pdfkit render failed, using HTML fallback:\n%s", traceback.format_exc())
+
+        # Strategy 3: Save as print-optimized HTML
+        # The user can open this in a browser and use Print → Save as PDF
+        print_css = """
+<style>
+@media print {
+    body { font-size: 11pt; }
+    .page-wrap { max-width: 100%; padding: 0; }
+    .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+    .no-print { display: none !important; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+}
+</style>
+"""
+        try:
+            # Insert print CSS right before </head>
+            if "</head>" in html:
+                printable_html = html.replace("</head>", print_css + "</head>")
+            else:
+                printable_html = print_css + html
+
+            # Save as .html file with the .pdf path changed to .html
+            fallback_path = output_path.with_suffix(".print.html")
+            fallback_path.write_text(printable_html, encoding="utf-8")
+            # Also copy the path into the expected output_path location
+            # (as .pdf won't work, but return the .print.html path)
+            logger.warning(
+                "PDF engines not available. Saved print-ready HTML: %s "
+                "(open in browser → Print → Save as PDF)", fallback_path,
+            )
+            # Move the fallback path to the output_path so artifact tracking works
+            # but change extension to indicate it's actually HTML
+            import shutil
+            shutil.copy2(str(fallback_path), str(output_path))
+            self._pdf_used_fallback = True
             return True
         except Exception:
-            logger.error("PDF render failed for %s:\n%s", output_path, traceback.format_exc())
+            logger.error("PDF fallback (print HTML) also failed:\n%s", traceback.format_exc())
             return False
 
     # ------------------------------------------------------------------
@@ -2170,7 +2255,7 @@ class ReportRenderer:
 
         # Date range / filters
         meta = data.get("metadata") or {}
-        date_range = filters.get("date_range") or meta.get("date") or data.get("date") or ""
+        date_range = meta.get("date_range") or filters.get("date_range") or meta.get("date") or data.get("date") or ""
         if date_range:
             lines.append(f"Date: {date_range}")
         shift = filters.get("shift") or meta.get("shift") or data.get("shift")

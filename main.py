@@ -173,15 +173,7 @@ async def masterlog_guard(request: Request, call_next):
     if request.url.path.startswith("/static") or request.method in ("GET", "HEAD", "OPTIONS"):
         return await call_next(request)
 
-    # Read body safely and re-inject for downstream
-    body_bytes = await request.body()
-
-    async def _receive():
-        return {"type": "http.request", "body": body_bytes, "more_body": False}
-
-    req2 = Request(request.scope, _receive)
-
-    response = await call_next(req2)
+    response = await call_next(request)
 
     # If handler already wrote to MasterLog, do nothing
     if MASTERLOG_WRITTEN.get():
@@ -189,7 +181,7 @@ async def masterlog_guard(request: Request, call_next):
 
     # Generic audit fallback
     try:
-        user = (req2.session.get("user") if hasattr(req2, "session") else None) or "Dispatcher"
+        user = (request.session.get("user") if hasattr(request, "session") else None) or "Dispatcher"
     except Exception:
         user = "Dispatcher"
 
@@ -199,20 +191,21 @@ async def masterlog_guard(request: Request, call_next):
     unit_id = None
 
     # Path-based hints
-    m = re.search(r"/incident/(\d+)", req2.url.path)
+    m = re.search(r"/incident/(\d+)", request.url.path)
     if m:
         try:
             incident_id = int(m.group(1))
         except Exception:
             incident_id = None
 
-    m2 = re.search(r"/unit/([^/]+)", req2.url.path)
+    m2 = re.search(r"/unit/([^/]+)", request.url.path)
     if m2:
         unit_id = m2.group(1)
 
-    # Body-based hints (JSON) for better attribution
+    # Body-based hints (JSON) — use cached body if handler already read it
     details = None
     try:
+        body_bytes = getattr(request, "_body", b"") or b""
         if body_bytes:
             b = body_bytes.decode("utf-8", "ignore")
             details = b[:800]
@@ -225,7 +218,7 @@ async def masterlog_guard(request: Request, call_next):
     except Exception:
         details = None
 
-    event = f"HTTP_{req2.method} {req2.url.path}"[:80]
+    event = f"HTTP_{request.method} {request.url.path}"[:80]
 
     try:
         masterlog(event_type=event, user=user, incident_id=incident_id, unit_id=unit_id, ok=ok, reason=None, details=details)
@@ -2432,11 +2425,22 @@ async def save_incident(request: Request, incident_id: int):
         pad = (data.get("pole_alpha_dec") or "").strip()
         pn = (data.get("pole_number") or data.get("pole_num") or "").strip()
         pnd = (data.get("pole_number_dec") or data.get("pole_num_dec") or "").strip()
-        parts = [((pa + pad).strip()), ((pn + pnd).strip())]
-        pole = "-".join([p for p in parts if p]) if any(parts) else ""
+        # Build alpha part with dot separator: "A" + "2" → "A.2"
+        alpha_part = pa
+        if pad:
+            alpha_part = f"{pa}.{pad}" if pa else pad
+        # Build number part with dot separator: "33" + "5" → "33.5"
+        num_part = pn
+        if pnd:
+            num_part = f"{pn}.{pnd}" if pn else pnd
+        parts = [alpha_part.strip(), num_part.strip()]
+        pole = " - ".join([p for p in parts if p]) if any(parts) else ""
 
     # Optional: store caller location into Incidents.address if provided
     address = (data.get("address") or data.get("caller_location") or "").strip()
+
+    # Auto-detect shift from current time
+    shift = determine_current_shift()
 
     # Enforce the type catalog
     raw_type = (data.get("type") or "").strip()
@@ -2493,6 +2497,7 @@ async def save_incident(request: Request, incident_id: int):
                 location=?,
                 node=?,
                 pole=?,
+                shift=?,
                 caller_name=?,
                 caller_phone=?,
                 narrative=?,
@@ -2508,6 +2513,7 @@ async def save_incident(request: Request, incident_id: int):
                 data.get("location"),
                 data.get("node"),
                 pole,
+                shift,
                 caller_name,
                 caller_phone,
                 data.get("narrative"),
@@ -12462,12 +12468,14 @@ async def not_found_handler(request: Request, exc):
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
+    import traceback
     print(f"❌ Server error: {exc}")
+    traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={
             "ok": False,
-            "error": "Internal server error"
+            "error": str(exc)
         }
     )
 

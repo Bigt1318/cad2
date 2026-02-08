@@ -39,7 +39,7 @@ from .models import (
     ensure_artifact_dir,
 )
 from .config import get_config, get_local_now, format_time_for_display, get_timezone
-from .delivery import EmailDelivery, SMSDelivery, WebhookDelivery
+from .delivery import EmailDelivery, SMSDelivery, WebhookDelivery, SignalDelivery, WebexDelivery
 
 # Try to import the renderer; it may not exist yet.
 try:
@@ -3578,6 +3578,8 @@ class ReportEngine:
         self.email_delivery = EmailDelivery()
         self.sms_delivery = SMSDelivery()
         self.webhook_delivery = WebhookDelivery()
+        self.signal_delivery = SignalDelivery()
+        self.webex_delivery = WebexDelivery()
 
     # ------------------------------------------------------------------ #
     # NEW:  run_report  (template-driven)
@@ -3620,11 +3622,25 @@ class ReportEngine:
             extractor = get_extractor(template_key)
             data = extractor(filters)
 
+            # Ensure metadata carries template_key and title for the renderer
+            if "metadata" not in data:
+                data["metadata"] = {}
+            data["metadata"].setdefault("template_key", template_key)
+            data["metadata"].setdefault("title", title or f"Report: {template_key}")
+            # Store filters in data so the renderer can access them
+            if "filters" not in data:
+                data["filters"] = filters
+
             # 3. Render each format and persist artifacts.
             artifact_dir = ensure_artifact_dir(run_id)
             artifact_paths: Dict[str, str] = {}
 
-            for fmt in formats:
+            # Separate text-based vs file-based formats
+            text_formats = [f for f in formats if f in ("html", "txt", "json")]
+            file_formats = [f for f in formats if f in ("csv", "xlsx", "pdf")]
+
+            # Text-based formats: render to string, write as text
+            for fmt in text_formats:
                 rendered = self._render(fmt, data)
                 if rendered is not None:
                     ext = fmt if fmt != "html" else "html"
@@ -3632,6 +3648,23 @@ class ReportEngine:
                     artifact_path = artifact_dir / filename
                     artifact_path.write_text(rendered, encoding="utf-8")
                     artifact_paths[fmt] = str(artifact_path)
+
+            # File-based formats (csv, xlsx, pdf): use render_all() which
+            # writes files directly and handles binary formats correctly
+            if file_formats and ReportRenderer is not None:
+                try:
+                    renderer = ReportRenderer()
+                    file_results = renderer.render_all(
+                        run_id=run_id,
+                        template_key=template_key,
+                        title=title or f"Report: {template_key}",
+                        data=data,
+                        formats=file_formats,
+                        filters=filters,
+                    )
+                    artifact_paths.update(file_results)
+                except Exception:
+                    logger.error("render_all for file formats failed:\n%s", traceback.format_exc())
 
             # 4. Build summary text.
             stats = data.get("stats", {})
@@ -3771,6 +3804,19 @@ class ReportEngine:
                         recipient=destination,
                         subject=subject,
                         body_text=run.summary_text or "",
+                    )
+                elif channel_type == "signal":
+                    result = self.signal_delivery.send(
+                        recipient=destination,
+                        subject=subject,
+                        body_text=run.summary_text or "Report ready.",
+                    )
+                elif channel_type == "webex":
+                    result = self.webex_delivery.send(
+                        recipient=destination,
+                        subject=subject,
+                        body_text=run.summary_text or "",
+                        body_html=html_body or None,
                     )
                 else:
                     from .delivery.base import DeliveryResult

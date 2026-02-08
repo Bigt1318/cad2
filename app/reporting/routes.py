@@ -627,6 +627,9 @@ async def preview_report(
 async def deliver_report(request: Request, background_tasks: BackgroundTasks):
     """Deliver an existing report run via specified channels.
 
+    Delegates to ``engine.deliver_report()`` which supports all 5 channels:
+    email, sms, signal, webex, webhook.
+
     Expects JSON body:
     ```json
     {
@@ -645,75 +648,70 @@ async def deliver_report(request: Request, background_tasks: BackgroundTasks):
     if not run_id:
         raise HTTPException(status_code=400, detail="report_run_id is required")
 
-    run = RunRepository.get_by_id(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail=f"Report run {run_id} not found")
-
     channels = data.get("channels", [])
     if not channels:
         raise HTTPException(status_code=400, detail="At least one channel is required")
 
-    results: List[Dict[str, Any]] = []
+    engine = get_engine()
+    result = engine.deliver_report(run_id, channels, triggered_by=user)
 
-    for ch in channels:
-        channel_name = ch.get("channel", "email")
-        destination = ch.get("destination", "")
+    if not result.get("ok") and "not found" in result.get("error", ""):
+        raise HTTPException(status_code=404, detail=result["error"])
 
-        # Create delivery record
-        delivery = ReportDelivery(
-            report_run_id=run_id,
-            channel=channel_name,
-            destination=destination,
-            status="pending",
-        )
-        delivery_id = DeliveryRepository.create(delivery)
+    logger.info("Report delivery: run_id=%s, channels=%d, user=%s", run_id, len(channels), user)
+    return result
 
-        # Attempt delivery
-        try:
-            if channel_name == "email":
-                email_delivery = EmailDelivery()
-                # Load the HTML artifact if available
-                artifacts = _json_loads_safe(run.artifact_paths_json, {})
-                html_path = artifacts.get("html", "")
-                body_html = ""
-                body_text = run.summary_text or "Report attached."
-                if html_path:
-                    try:
-                        body_html = Path(html_path).read_text(encoding="utf-8")
-                    except Exception:
-                        pass
 
-                result = email_delivery.send(
-                    recipient=destination,
-                    subject=f"[FORD CAD] Report #{run_id} - {run.title}",
-                    body_text=body_text,
-                    body_html=body_html or None,
-                )
-
-                if result.success:
-                    DeliveryRepository.update_status(delivery_id, "sent", msg_id=result.message_id)
-                    results.append({"delivery_id": delivery_id, "status": "sent", "channel": channel_name})
-                else:
-                    DeliveryRepository.update_status(delivery_id, "failed", error=result.error)
-                    results.append({"delivery_id": delivery_id, "status": "failed", "error": result.error, "channel": channel_name})
-            else:
-                # For other channels, mark as unsupported for now
-                DeliveryRepository.update_status(delivery_id, "failed", error=f"Channel '{channel_name}' not yet implemented for ad-hoc delivery")
-                results.append({"delivery_id": delivery_id, "status": "failed", "error": f"Unsupported channel: {channel_name}", "channel": channel_name})
-
-        except Exception as exc:
-            DeliveryRepository.update_status(delivery_id, "failed", error=str(exc))
-            results.append({"delivery_id": delivery_id, "status": "failed", "error": str(exc), "channel": channel_name})
-
-    AuditRepository.log(
-        action="report_delivered",
-        category="delivery",
-        user_name=user,
-        details=f"Delivered run_id={run_id} to {len(channels)} channel(s)",
+@router.get("/delivery/status")
+async def delivery_channel_status():
+    """Return configuration status for each delivery channel."""
+    from .delivery import (
+        EmailDelivery, SMSDelivery, WebhookDelivery,
+        SignalDelivery, WebexDelivery,
     )
+    return {
+        "email": EmailDelivery().is_configured(),
+        "sms": SMSDelivery().is_configured(),
+        "webhook": WebhookDelivery().is_configured(),
+        "signal": SignalDelivery().is_configured(),
+        "webex": WebexDelivery().is_configured(),
+    }
 
-    logger.info("Report delivery: run_id=%d, channels=%d, user=%s", run_id, len(channels), user)
-    return {"ok": True, "run_id": run_id, "deliveries": results}
+
+# ============================================================================
+# Units list for filters  (/api/reporting/units)
+# ============================================================================
+
+@router.get("/units")
+async def reporting_units_list():
+    """Return unit_id and name for all apparatus units.
+
+    Used by the reporting modal to populate apparatus filter checkboxes
+    with actual unit IDs from the database.
+    """
+    import sqlite3
+    db = get_db()
+    db.row_factory = sqlite3.Row
+    try:
+        rows = db.execute("""
+            SELECT unit_id, name, unit_type, is_apparatus
+            FROM Units
+            ORDER BY display_order ASC, unit_id ASC
+        """).fetchall()
+    except Exception:
+        # If Units table doesn't exist or schema mismatch, return empty
+        rows = []
+    finally:
+        db.close()
+
+    return {
+        "ok": True,
+        "units": [
+            {"unit_id": r["unit_id"], "name": r["name"],
+             "unit_type": r["unit_type"], "is_apparatus": r["is_apparatus"]}
+            for r in rows
+        ],
+    }
 
 
 # ============================================================================

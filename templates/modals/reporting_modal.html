@@ -117,14 +117,7 @@
                         </span>
                     </div>
                     <div class="rpt-apparatus-checks" id="rpt-apparatus-checks">
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Engine1" checked> E1 - Engine 1</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Engine2" checked> E2 - Engine 2</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Medic1" checked> M1 - Medic 1</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Medic2" checked> M2 - Medic 2</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="Tower1" checked> T1 - Tower 1</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="SQ1" checked> SQ1 - Squirt 1</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="UTV1" checked> UTV1 - UTV 1</label>
-                        <label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="UTV2" checked> UTV2 - UTV 2</label>
+                        <span style="color:#6b7280;font-size:12px;">Loading units...</span>
                     </div>
                 </div>
 
@@ -1220,6 +1213,7 @@ window.REPORTING = {
         this._initTabs();
         this._setDefaultDates();
         this.loadTemplates();
+        this.loadUnits();
     },
 
     // ------------------------------------------------------------------ tabs
@@ -1349,6 +1343,26 @@ window.REPORTING = {
     },
 
     // ------------------------------------------------------------------ apparatus helpers
+    async loadUnits() {
+        const container = document.getElementById('rpt-apparatus-checks');
+        if (!container) return;
+        try {
+            const resp = await fetch('/api/reporting/units');
+            const data = await resp.json();
+            if (data.ok && data.units && data.units.length > 0) {
+                container.innerHTML = data.units.map(u => {
+                    const label = u.name || u.unit_id;
+                    return `<label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="${u.unit_id}" checked> ${u.unit_id} - ${label}</label>`;
+                }).join('');
+            } else {
+                container.innerHTML = '<span style="color:#6b7280;font-size:12px;">No units found</span>';
+            }
+        } catch (e) {
+            console.warn('Failed to load units for reporting:', e);
+            container.innerHTML = '<span style="color:#dc2626;font-size:12px;">Failed to load units</span>';
+        }
+    },
+
     selectAllApparatus() {
         document.querySelectorAll('#rpt-apparatus-checks input[type="checkbox"]').forEach(cb => { cb.checked = true; });
     },
