@@ -69,6 +69,18 @@
         while (tbody.children.length > 200) {
             tbody.removeChild(tbody.lastChild);
         }
+
+        // Browser notification for high-priority events when tab is hidden
+        if (document.hidden && window.LAYOUT && window.LAYOUT.browserNotify) {
+            var evType = (ev.event_type || '').toUpperCase();
+            if (evType === 'UNIT_DISPATCHED' || evType === 'INCIDENT_CREATED' || evType === 'EMERGENCY') {
+                window.LAYOUT.browserNotify(
+                    evType.replace(/_/g, ' '),
+                    (ev.summary || ev.event_type || '') + (ev.unit_id ? ' — ' + ev.unit_id : ''),
+                    { tag: 'cad-event-' + (ev.incident_id || Date.now()) }
+                );
+            }
+        }
     };
 
     /**

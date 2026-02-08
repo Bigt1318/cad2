@@ -6820,6 +6820,14 @@ async def clear_unit_api(request: Request, incident_id: int, unit_id: str):
     except Exception:
         pass
 
+    # --- Event Stream: UNIT_CLEARED ---
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("UNIT_CLEARED", incident_id=incident_id, unit_id=unit_id, user=user,
+                   summary=f"{unit_id} cleared ({disposition})")
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "unit_id": unit_id,
@@ -13471,6 +13479,14 @@ def api_unit_dispatch(unit_id: str, incident_id: int):
 
         log_master(unit_id, incident_id, "UNIT_DISPATCH", f"{unit_id} dispatched to {incident_id}")
         conn.commit()
+
+        try:
+            from app.eventstream.emitter import emit_event
+            emit_event("UNIT_DISPATCHED", incident_id=incident_id, unit_id=unit_id,
+                       summary=f"{unit_id} dispatched")
+        except Exception:
+            pass
+
         return {"ok": True}
 
     finally:
@@ -13580,6 +13596,14 @@ async def api_unit_status(request: Request, unit_id: str, status: str):
         c3.connection.commit()
         c3.connection.close()
 
+    # Emit event stream
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event(f"UNIT_{new_status}", incident_id=incident_id or None, unit_id=unit_id, user=user,
+                   summary=f"{unit_id} {new_status.lower()}")
+    except Exception:
+        pass
+
     # Apparatus mirrors to assigned crew
     if is_apparatus:
         crew = get_apparatus_crew(unit_id)
@@ -13675,6 +13699,14 @@ def api_unit_clear(unit_id: str, incident_id: int):
 
         log_master(unit_id, incident_id, "CLEAR", f"{unit_id} cleared {incident_id} with disposition {disposition}")
         conn.commit()
+
+        # Emit event stream
+        try:
+            from app.eventstream.emitter import emit_event
+            emit_event("UNIT_CLEARED", incident_id=incident_id, unit_id=unit_id,
+                       summary=f"{unit_id} cleared ({disposition})")
+        except Exception:
+            pass
 
         # Check if last unit
         remaining = c.execute("""
@@ -14513,6 +14545,26 @@ async def api_incident_edit(incident_id: int, request: Request):
 
         if changes:
             masterlog("INCIDENT_EDITED", user=user, incident_id=incident_id, details="; ".join(changes))
+
+            # Emit specific events for key field changes
+            try:
+                from app.eventstream.emitter import emit_event
+                if "priority" in updates:
+                    emit_event("PRIORITY_CHANGED", incident_id=incident_id, user=user,
+                               summary=f"Priority changed to {updates['priority']}")
+                if "location" in updates or "address" in updates:
+                    loc = updates.get("location") or updates.get("address", "")
+                    emit_event("LOCATION_UPDATED", incident_id=incident_id, user=user,
+                               summary=f"Location updated to {loc[:80]}")
+                if "type" in updates:
+                    emit_event("TYPE_CHANGED", incident_id=incident_id, user=user,
+                               summary=f"Incident type changed to {updates['type']}")
+                # Generic edit event for all other changes
+                if not any(f in updates for f in ("priority", "location", "address", "type")):
+                    emit_event("INCIDENT_EDITED", incident_id=incident_id, user=user,
+                               summary="; ".join(changes)[:120])
+            except Exception:
+                pass
 
         return {"ok": True, "updated_fields": list(updates.keys()), "changes": changes}
     except Exception as e:

@@ -585,6 +585,16 @@ export const SETTINGS = {
                         </div>
 
                         <div class="settings-group">
+                            <div class="settings-group-title">Browser Notifications</div>
+                            <label class="settings-toggle">
+                                <input type="checkbox" ${current.browserNotifications ? 'checked' : ''}
+                                    onchange="SETTINGS.set('browserNotifications', this.checked); if(this.checked && Notification && Notification.permission === 'default') Notification.requestPermission();">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Push notifications for dispatch & chat (when tab hidden)</span>
+                            </label>
+                        </div>
+
+                        <div class="settings-group">
                             <div class="settings-group-title">Auto-Refresh</div>
                             <label class="settings-toggle">
                                 <input type="checkbox" ${current.autoRefresh ? 'checked' : ''}

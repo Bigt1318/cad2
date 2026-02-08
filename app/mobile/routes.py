@@ -102,7 +102,7 @@ def register_mobile_routes(app: FastAPI):
                 rows = c.execute("""
                     SELECT * FROM chat_messages
                     WHERE channel_id IN (
-                        SELECT id FROM chat_channels WHERE name LIKE ?
+                        SELECT id FROM chat_channels WHERE key LIKE ?
                     )
                     ORDER BY created_at DESC LIMIT 30
                 """, (f"%{incident_id}%",)).fetchall()
@@ -244,7 +244,7 @@ def _render_mobile_messages(unit_id, incident_id, messages) -> str:
             msg_html += f"""<div style="display:flex;justify-content:{align};margin-bottom:8px;">
                 <div style="max-width:80%;background:{bg};padding:10px 14px;border-radius:12px;">
                     <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">{m.get('sender_id','')}</div>
-                    <div style="font-size:14px;color:#e2e8f0;">{m.get('content','')}</div>
+                    <div style="font-size:14px;color:#e2e8f0;">{m.get('body','') or m.get('content','')}</div>
                     <div style="font-size:10px;color:#64748b;text-align:right;margin-top:2px;">{m.get('created_at','')[-8:]}</div>
                 </div>
             </div>"""

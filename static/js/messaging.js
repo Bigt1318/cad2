@@ -12,8 +12,11 @@ const MessagingUI = {
     drawerOpen: false,
     drawerTab: 'inbox',
     reconnectAttempts: 0,
-    maxReconnectAttempts: 5,
+    maxReconnectAttempts: 20,
     reconnectDelay: 1000,
+    maxReconnectDelay: 30000,
+    _audioCtx: null,
+    _chatMuted: false,
     typingTimeout: null,
     searchDebounce: null,
     contextMenuMsgId: null,
@@ -36,6 +39,7 @@ const MessagingUI = {
         this.connectWebSocket();
         this.loadChannels();
         this.restoreOfflineQueue();
+        this._initVisibilityReconnect();
         console.log('[Chat] Initialized for user:', userId);
     },
 
@@ -53,9 +57,15 @@ const MessagingUI = {
 
             this.ws.onopen = () => {
                 console.log('[Chat] WebSocket connected');
+                const wasReconnect = this.reconnectAttempts > 0;
                 this.reconnectAttempts = 0;
                 this.startHeartbeat();
                 this.flushOfflineQueue();
+                if (wasReconnect) {
+                    this._showReconnectBanner('connected');
+                } else {
+                    this._hideReconnectBanner();
+                }
             };
 
             this.ws.onmessage = (event) => {
@@ -83,11 +93,16 @@ const MessagingUI = {
     attemptReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.log('[Chat] Max reconnects reached');
+            this._showReconnectBanner('offline');
             return;
         }
         this.reconnectAttempts++;
-        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-        console.log(`[Chat] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+        // Exponential backoff with jitter, capped at maxReconnectDelay
+        const base = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+        const jitter = Math.random() * 1000;
+        const delay = Math.min(base + jitter, this.maxReconnectDelay);
+        console.log(`[Chat] Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`);
+        this._showReconnectBanner('reconnecting');
         setTimeout(() => this.connectWebSocket(), delay);
     },
 
@@ -107,6 +122,131 @@ const MessagingUI = {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify(data));
         }
+    },
+
+    // =========================================================================
+    // VISIBILITY-BASED RECONNECT
+    // =========================================================================
+
+    _initVisibilityReconnect() {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && this.ws &&
+                this.ws.readyState !== WebSocket.OPEN &&
+                this.ws.readyState !== WebSocket.CONNECTING) {
+                console.log('[Chat] Tab regained focus — reconnecting');
+                this.reconnectAttempts = 0;
+                this.connectWebSocket();
+            }
+        });
+    },
+
+    // =========================================================================
+    // RECONNECT STATUS BANNER
+    // =========================================================================
+
+    _showReconnectBanner(state) {
+        let banner = document.getElementById('chat-reconnect-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'chat-reconnect-banner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;text-align:center;padding:6px 12px;font-size:13px;font-weight:600;transition:opacity 0.4s;';
+            document.body.appendChild(banner);
+        }
+        banner.style.opacity = '1';
+        banner.style.display = 'block';
+        if (state === 'reconnecting') {
+            banner.style.background = '#f59e0b';
+            banner.style.color = '#000';
+            banner.textContent = 'Chat reconnecting...';
+        } else if (state === 'offline') {
+            banner.style.background = '#ef4444';
+            banner.style.color = '#fff';
+            banner.textContent = 'Chat disconnected — check your connection';
+        } else if (state === 'connected') {
+            banner.style.background = '#22c55e';
+            banner.style.color = '#fff';
+            banner.textContent = 'Chat reconnected';
+            setTimeout(() => this._hideReconnectBanner(), 3000);
+        }
+    },
+
+    _hideReconnectBanner() {
+        const banner = document.getElementById('chat-reconnect-banner');
+        if (banner) {
+            banner.style.opacity = '0';
+            setTimeout(() => { banner.style.display = 'none'; }, 500);
+        }
+    },
+
+    // =========================================================================
+    // AUDIO NOTIFICATIONS
+    // =========================================================================
+
+    _getAudioCtx() {
+        if (!this._audioCtx) {
+            try { this._audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            catch (e) { return null; }
+        }
+        return this._audioCtx;
+    },
+
+    _playTone(freq, duration, type) {
+        if (this._chatMuted) return;
+        const ctx = this._getAudioCtx();
+        if (!ctx) return;
+        try {
+            if (ctx.state === 'suspended') ctx.resume();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (duration || 0.15));
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + (duration || 0.15));
+        } catch (e) { /* ignore audio errors */ }
+    },
+
+    playMessageBeep() {
+        this._playTone(880, 0.12, 'sine');
+    },
+
+    playMentionBeep() {
+        // Two-tone alert for @mentions
+        this._playTone(988, 0.1, 'sine');
+        setTimeout(() => this._playTone(1319, 0.15, 'sine'), 120);
+    },
+
+    _shouldNotify() {
+        // Only fire audio when tab not focused or chat drawer not visible
+        if (document.hidden) return true;
+        const drawer = document.getElementById('messaging-drawer');
+        if (drawer && !drawer.classList.contains('open') && !drawer.classList.contains('is-open')) return true;
+        return false;
+    },
+
+    toggleMute() {
+        this._chatMuted = !this._chatMuted;
+        const muteBtn = document.getElementById('chat-mute-btn');
+        if (muteBtn) {
+            muteBtn.textContent = this._chatMuted ? '\u{1F507}' : '\u{1F50A}';
+            muteBtn.title = this._chatMuted ? 'Unmute chat' : 'Mute chat';
+        }
+        return this._chatMuted;
+    },
+
+    _injectMuteButton() {
+        const header = document.querySelector('.chat-drawer-header');
+        if (!header || document.getElementById('chat-mute-btn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'chat-mute-btn';
+        btn.textContent = '\u{1F50A}';
+        btn.title = 'Mute chat';
+        btn.style.cssText = 'background:transparent;border:none;color:inherit;font-size:18px;cursor:pointer;padding:4px 6px;margin-left:4px;';
+        btn.onclick = () => MessagingUI.toggleMute();
+        header.appendChild(btn);
     },
 
     // =========================================================================
@@ -172,6 +312,26 @@ const MessagingUI = {
             this.wsSend({ type: 'read', channel_id: channelId });
         } else {
             this.showNotification(msg);
+        }
+
+        // Audio notification — only when tab not focused or chat not visible
+        if (this._shouldNotify() && msg.sender_id !== this.userId) {
+            const body = (msg.body || msg.content || '').toLowerCase();
+            const isMention = body.includes('@' + (this.userId || '').toLowerCase()) ||
+                              body.includes('@all') || body.includes('@everyone');
+            if (isMention) {
+                this.playMentionBeep();
+            } else {
+                this.playMessageBeep();
+            }
+            // Browser notification for chat
+            if (typeof LAYOUT !== 'undefined' && LAYOUT.browserNotify) {
+                LAYOUT.browserNotify(
+                    `Chat: ${msg.sender_id || 'Unknown'}`,
+                    (msg.body || msg.content || '').substring(0, 100),
+                    { tag: 'chat-' + channelId }
+                );
+            }
         }
 
         // Play sound for priority messages
@@ -252,6 +412,7 @@ const MessagingUI = {
                     setTimeout(() => {
                         this.drawerOpen = true;
                         document.getElementById('chat-drawer')?.classList.add('open');
+                        this._injectMuteButton();
                         this.loadChannels();
                     }, 50);
                 });
