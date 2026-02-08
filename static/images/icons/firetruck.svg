@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Fire truck side view silhouette -->
+  <g fill="#ef4444">
+    <!-- Cab -->
+    <path d="M34 14h6c2 0 4 2 4 4v10h-10V14z"/>
+    <!-- Body -->
+    <rect x="4" y="16" width="30" height="12" rx="1"/>
+    <!-- Ladder rack on top -->
+    <rect x="6" y="12" width="26" height="4" rx="1"/>
+    <rect x="8" y="10" width="22" height="2" rx="0.5"/>
+    <!-- Light bar -->
+    <rect x="36" y="11" width="6" height="3" rx="1" fill="#fbbf24"/>
+    <!-- Bumper -->
+    <rect x="2" y="28" width="42" height="2" rx="1"/>
+    <!-- Wheels -->
+    <circle cx="12" cy="32" r="4"/>
+    <circle cx="36" cy="32" r="4"/>
+    <circle cx="12" cy="32" r="2" fill="#1a1a1a"/>
+    <circle cx="36" cy="32" r="2" fill="#1a1a1a"/>
+    <!-- Wheel hubs -->
+    <circle cx="12" cy="32" r="1" fill="#ef4444"/>
+    <circle cx="36" cy="32" r="1" fill="#ef4444"/>
+    <!-- Hose compartments -->
+    <rect x="6" y="20" width="4" height="6" rx="0.5" fill="#dc2626"/>
+    <rect x="12" y="20" width="4" height="6" rx="0.5" fill="#dc2626"/>
+    <!-- Windshield -->
+    <path d="M35 15h4c1 0 2 1 2 2v4h-6V15z" fill="#93c5fd" opacity="0.6"/>
+  </g>
+</svg>

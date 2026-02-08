@@ -8,12 +8,8 @@
   {% for row in rows %}
     <tr class="history-row{% if row.issue_found %} issue-row{% endif %}" data-log-id="{{ row.id }}">
 
-      {# Issue Flag Column #}
-      <td>
-        {% if row.issue_found %}
-          <span class="issue-indicator" title="Issue flagged">!</span>
-        {% endif %}
-      </td>
+      {# DL Number Column #}
+      <td>{{ row.dl_number or "" }}</td>
 
       {# Timestamp #}
       <td>{{ row.timestamp or "" }}</td>

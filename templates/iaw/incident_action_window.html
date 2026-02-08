@@ -52,7 +52,14 @@
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
       <circle cx="12" cy="10" r="3"></circle>
     </svg>
-    <span class="iaw-location-text">{{ incident.location or "No location specified" }}</span>
+    <span class="iaw-location-text" id="iaw-location-display">{{ incident.location or "No location specified" }}</span>
+    <button class="iaw-edit-field-btn" type="button" title="Edit location"
+            onclick="IAW_EDIT.editField('location', '{{ (incident.location or '')|e }}', {{ incident.incident_id }})">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+    </button>
   </div>
 
   <!-- BODY -->
@@ -61,13 +68,13 @@
     <!-- INCIDENT INFO -->
     <div class="iaw-section">
       <div class="iaw-info-grid-v2">
-        <div class="iaw-info-item">
+        <div class="iaw-info-item iaw-editable" onclick="IAW_EDIT.editField('caller_name', '{{ (incident.caller_name or '')|e }}', {{ incident.incident_id }})" title="Click to edit">
           <span class="iaw-info-label">Caller</span>
-          <span class="iaw-info-value">{{ incident.caller_name or "—" }}</span>
+          <span class="iaw-info-value" id="iaw-caller-name">{{ incident.caller_name or "—" }}</span>
         </div>
-        <div class="iaw-info-item">
+        <div class="iaw-info-item iaw-editable" onclick="IAW_EDIT.editField('caller_phone', '{{ (incident.caller_phone or '')|e }}', {{ incident.incident_id }})" title="Click to edit">
           <span class="iaw-info-label">Phone</span>
-          <span class="iaw-info-value">{{ incident.caller_phone or "—" }}</span>
+          <span class="iaw-info-value" id="iaw-caller-phone">{{ incident.caller_phone or "—" }}</span>
         </div>
         <div class="iaw-info-item">
           <span class="iaw-info-label">Node</span>
@@ -487,7 +494,7 @@
         <button class="iaw-btn-v2 iaw-btn-primary-v2" onclick="IAW.reopenIncident({{ incident.incident_id }})">Reopen</button>
       {% endif %}
 
-      <button class="iaw-btn-v2" onclick="CAD_MODAL.close()">Dismiss</button>
+      <button class="iaw-btn-v2" onclick="CAD_MODAL.close()">Done</button>
     </div>
   </div>
 
@@ -500,7 +507,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 600px;
+  width: 800px;
   max-width: 95vw;
   max-height: 90vh;
   background: #ffffff;
@@ -720,11 +727,13 @@
 
 .iaw-unit-card {
   display: flex;
-  flex-direction: column;
-  padding: 10px 14px;
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 6px;
+  gap: 8px;
 }
 
 .iaw-unit-card.iaw-unit-cleared {
@@ -1342,4 +1351,108 @@
     justify-content: flex-end;
   }
 }
+
+/* Inline edit support */
+.iaw-edit-field-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #94a3b8);
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  opacity: 0.6;
+}
+.iaw-edit-field-btn:hover { opacity: 1; color: var(--ford-blue, #60a5fa); }
+
+.iaw-editable { cursor: pointer; }
+.iaw-editable:hover { background: rgba(96,165,250,0.08); border-radius: 4px; }
+
+.iaw-inline-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.iaw-inline-edit input {
+  background: var(--bg-surface, #1e293b);
+  border: 1px solid var(--ford-blue, #3b82f6);
+  color: var(--text-primary, #f1f5f9);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: inherit;
+  width: 100%;
+}
+.iaw-inline-edit button {
+  background: var(--ford-blue, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.iaw-inline-edit .iaw-edit-cancel {
+  background: var(--bg-elevated, #334155);
+  color: var(--text-secondary, #cbd5e1);
+}
 </style>
+
+<script>
+window.IAW_EDIT = {
+  editField(field, currentValue, incidentId) {
+    const fieldMap = {
+      location: 'iaw-location-display',
+      caller_name: 'iaw-caller-name',
+      caller_phone: 'iaw-caller-phone'
+    };
+    const elId = fieldMap[field];
+    if (!elId) return;
+    const el = document.getElementById(elId);
+    if (!el || el.querySelector('.iaw-inline-edit')) return;
+
+    const orig = el.textContent;
+    el.innerHTML = `<div class="iaw-inline-edit">
+      <input type="text" value="${(currentValue || '').replace(/"/g, '&quot;')}" id="iaw-edit-input-${field}" autofocus>
+      <button onclick="IAW_EDIT.saveField('${field}', ${incidentId})">Save</button>
+      <button class="iaw-edit-cancel" onclick="IAW_EDIT.cancelEdit('${elId}', '${orig.replace(/'/g, "\\'")}')">Cancel</button>
+    </div>`;
+    const inp = document.getElementById(`iaw-edit-input-${field}`);
+    if (inp) { inp.focus(); inp.select(); }
+  },
+
+  async saveField(field, incidentId) {
+    const inp = document.getElementById(`iaw-edit-input-${field}`);
+    if (!inp) return;
+    const newValue = inp.value.trim();
+
+    try {
+      const resp = await fetch(`/api/incident/${incidentId}/edit`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({[field]: newValue})
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        const fieldMap = {
+          location: 'iaw-location-display',
+          caller_name: 'iaw-caller-name',
+          caller_phone: 'iaw-caller-phone'
+        };
+        const el = document.getElementById(fieldMap[field]);
+        if (el) el.textContent = newValue || '—';
+        if (typeof TOAST !== 'undefined') TOAST.success?.('Field updated');
+      } else {
+        if (typeof TOAST !== 'undefined') TOAST.error?.(data.error || 'Update failed');
+      }
+    } catch (err) {
+      console.error('[IAW_EDIT]', err);
+      if (typeof TOAST !== 'undefined') TOAST.error?.('Update failed');
+    }
+  },
+
+  cancelEdit(elId, origText) {
+    const el = document.getElementById(elId);
+    if (el) el.textContent = origText;
+  }
+};
+</script>

@@ -84,7 +84,13 @@ const PANELS = {
     });
   },
 
+  _refreshing: false,
+
   refreshAll() {
+    // Prevent overlapping refresh calls (htmx outerHTML swaps are async)
+    if (this._refreshing) return;
+    this._refreshing = true;
+
     var activeEl = document.querySelector("#panel-active");
     var openEl = document.querySelector("#panel-open");
     var unitsEl = document.querySelector("#panel-units");
@@ -95,6 +101,7 @@ const PANELS = {
     var hx = window.htmx;
     if (!hx || typeof hx.ajax !== "function") {
       console.warn("[PANELS] refreshAll() skipped — window.htmx not available");
+      this._refreshing = false;
       return;
     }
 
@@ -111,6 +118,9 @@ const PANELS = {
     } catch (err3) {
       console.warn("[PANELS] refreshAll() failed:", err3);
     }
+
+    // Release lock after htmx has time to swap DOM
+    setTimeout(() => { this._refreshing = false; }, 500);
   },
 
   // -------------------------------------------------------------------------

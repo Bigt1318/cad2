@@ -109,6 +109,14 @@
             <div class="hist-results-header">
                 <span class="hist-result-count" id="hist-result-count">Loading...</span>
                 <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="hist-sort" class="hist-select hist-select-sm" style="min-width:130px;" onchange="HISTORY.setSort(this.value)">
+                        <option value="time-desc">Newest First</option>
+                        <option value="time-asc">Oldest First</option>
+                        <option value="incident-desc">Inc# Descending</option>
+                        <option value="incident-asc">Inc# Ascending</option>
+                        <option value="dl-desc">DL# Descending</option>
+                        <option value="dl-asc">DL# Ascending</option>
+                    </select>
                     <div class="hist-dropdown" id="hist-export-dropdown">
                         <button class="hist-btn hist-btn-sm" id="hist-export-btn">
                             Export / Send
@@ -674,6 +682,7 @@
         loading: false,
         hasMore: true,
         currentFilters: {},
+        currentSort: "time-desc",
         selectedIncidentId: null,
         selectedSource: null,
         events: [],
@@ -861,6 +870,11 @@
             this.loadEvents(1, true);
         },
 
+        setSort(value) {
+            this.currentSort = value || "time-desc";
+            this.applyFilters();
+        },
+
         // ============================
         // Load events
         // ============================
@@ -873,6 +887,7 @@
             const params = new URLSearchParams(this.currentFilters);
             params.set("page", page);
             params.set("per_page", this.perPage);
+            if (this.currentSort) params.set("sort", this.currentSort);
 
             try {
                 const resp = await fetch(`/api/history?${params.toString()}`);
@@ -1046,11 +1061,14 @@
         _hideDetail() {
             this.$detailPanel.style.display = "none";
             this.$detailContent.innerHTML = "";
-            this.selectedIncidentId = null;
-            this.selectedSource = null;
-            // Show table
+            // Restore list view without resetting filters or results
             document.getElementById("hist-table-wrap").style.display = "";
-            document.getElementById("hist-results-header") && (document.querySelector(".hist-results-header").style.display = "");
+            const hdr = document.querySelector(".hist-results-header");
+            if (hdr) hdr.style.display = "";
+            // Keep selectedIncidentId so the row stays highlighted
+            // Scroll the selected row into view
+            const sel = this.$tbody.querySelector("tr.hist-row-selected");
+            if (sel) sel.scrollIntoView({ block: "nearest" });
         },
 
         async openDetail(source, eventId) {
@@ -1695,6 +1713,8 @@ ${tableHtml}</table>
                         return;
                     }
                     if (self.$detailPanel.style.display !== "none") {
+                        e.stopPropagation();
+                        e.preventDefault();
                         self._hideDetail();
                         return;
                     }
@@ -1728,6 +1748,7 @@ ${tableHtml}</table>
 
     // Expose globally and init
     window.CALL_HISTORY = CALL_HISTORY;
+    window.HISTORY = CALL_HISTORY;
     CALL_HISTORY.init();
 })();
 </script>

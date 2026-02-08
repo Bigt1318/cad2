@@ -8,12 +8,14 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#003a8f">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FORD-CAD">
 
     <!-- Core Styles - V4 Professional Design System -->
+    <link rel="stylesheet" href="/static/fonts/fonts.css" />
     <link rel="stylesheet" href="/static/css/ford-cad-v4.css" />
+    <link rel="stylesheet" href="/static/css/theme-bridge.css" />
     <link rel="stylesheet" href="/static/modals.css" />
 
     <!-- HTMX -->
@@ -23,6 +25,83 @@
     <script>
         window.CAD_USER = "{{ unit|default('DISPATCH') }}";
         window.CAD_IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+    </script>
+
+    <!-- Theme loader (apply saved theme before render — localStorage for instant, then server sync) -->
+    <script>
+    (function(){
+        // Token map: --cad-* → original variable names
+        var TM = {
+            '--cad-bg-app':'--bg-app','--cad-bg-surface':'--bg-surface',
+            '--cad-bg-elevated':'--bg-elevated','--cad-bg-panel':'--bg-panel',
+            '--cad-bg-header':'--bg-header','--cad-bg-hover':'--bg-hover',
+            '--cad-bg-active':'--bg-active','--cad-text-primary':'--text-primary',
+            '--cad-text-secondary':'--text-secondary','--cad-text-muted':'--text-muted',
+            '--cad-text-on-dark':'--text-on-dark','--cad-text-on-brand':'--text-on-brand',
+            '--cad-text-link':'--text-link','--cad-border-default':'--border-default',
+            '--cad-border-light':'--border-light','--cad-border-emphasis':'--border-emphasis',
+            '--cad-success':'--success','--cad-success-bg':'--success-bg',
+            '--cad-warning':'--warning','--cad-warning-bg':'--warning-bg',
+            '--cad-danger':'--danger','--cad-danger-bg':'--danger-bg',
+            '--cad-info':'--info','--cad-info-bg':'--info-bg',
+            '--cad-shadow-sm':'--shadow-sm','--cad-shadow-md':'--shadow-md',
+            '--cad-font-ui':'--font-sans','--cad-font-mono':'--font-mono'
+        };
+
+        // Phase 1: instant apply from localStorage (blocks render, prevents flash)
+        try {
+            var saved = localStorage.getItem('cad_theme_tokens');
+            if (saved) {
+                var tokens = JSON.parse(saved);
+                var root = document.documentElement;
+                for (var k in tokens) {
+                    if (tokens.hasOwnProperty(k) && k.startsWith('--cad-')) {
+                        root.style.setProperty(k, tokens[k]);
+                        if (TM[k]) root.style.setProperty(TM[k], tokens[k]);
+                    }
+                }
+            }
+        } catch(e) { /* ignore */ }
+
+        // Phase 2: async server sync (deferred, updates localStorage if server differs)
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                fetch('/api/themes/active', { credentials: 'same-origin' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data.ok) return;
+                        var root = document.documentElement;
+                        if (data.slot === 0 || !data.tokens || Object.keys(data.tokens).length === 0) {
+                            // Server says default — clear localStorage and custom inline props
+                            var hadTheme = localStorage.getItem('cad_theme_tokens');
+                            localStorage.removeItem('cad_theme_tokens');
+                            if (hadTheme) {
+                                // Remove any inline style properties we set
+                                try {
+                                    var oldTokens = JSON.parse(hadTheme);
+                                    for (var k2 in oldTokens) {
+                                        if (oldTokens.hasOwnProperty(k2)) {
+                                            root.style.removeProperty(k2);
+                                            if (TM[k2]) root.style.removeProperty(TM[k2]);
+                                        }
+                                    }
+                                } catch(e2) {}
+                            }
+                        } else {
+                            // Apply server tokens + mapped originals
+                            for (var k in data.tokens) {
+                                if (data.tokens.hasOwnProperty(k) && k.startsWith('--cad-')) {
+                                    root.style.setProperty(k, data.tokens[k]);
+                                    if (TM[k]) root.style.setProperty(TM[k], data.tokens[k]);
+                                }
+                            }
+                            localStorage.setItem('cad_theme_tokens', JSON.stringify(data.tokens));
+                        }
+                    })
+                    .catch(function() { /* ignore — offline or not logged in */ });
+            }, 1500);
+        });
+    })();
     </script>
 
     <!-- Bootloader (cache bust on deploy) -->
@@ -238,7 +317,7 @@
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
             </svg>
-            Settings
+            Preferences
         </a>
         <button class="drawer-item" type="button" data-drawer-action="keyboard_help">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -320,7 +399,7 @@
             Held
             <span id="held-count-badge"></span>
         </button>
-        <button class="pill-btn secondary" id="btn-settings" type="button" title="Settings" onclick="window.location.href='/settings?user={{ unit }}'">
+        <button class="pill-btn secondary" id="btn-settings" type="button" title="Preferences" onclick="window.location.href='/settings?user={{ unit }}'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>

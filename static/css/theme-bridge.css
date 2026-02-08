@@ -1,0 +1,88 @@
+/* ============================================================================
+   FORD-CAD — THEME BRIDGE
+   Maps --cad-* theme tokens to existing CSS variable names
+   Loaded AFTER ford-cad-v4.css so theme overrides cascade properly
+   ============================================================================ */
+
+:root {
+    /* === BACKGROUND BRIDGE === */
+    --bg-app:       var(--cad-bg-app, #f1f5f9);
+    --bg-surface:   var(--cad-bg-surface, #ffffff);
+    --bg-elevated:  var(--cad-bg-elevated, #f8fafc);
+    --bg-panel:     var(--cad-bg-panel, #ffffff);
+    --bg-header:    var(--cad-bg-header, linear-gradient(135deg, #003478 0%, #1351a3 100%));
+    --bg-hover:     var(--cad-bg-hover, #e2e8f0);
+    --bg-active:    var(--cad-bg-active, #dbeafe);
+
+    /* === TEXT BRIDGE === */
+    --text-primary:   var(--cad-text-primary, #0f172a);
+    --text-secondary: var(--cad-text-secondary, #475569);
+    --text-muted:     var(--cad-text-muted, #64748b);
+    --text-on-dark:   var(--cad-text-on-dark, #ffffff);
+    --text-on-brand:  var(--cad-text-on-brand, #ffffff);
+    --text-link:      var(--cad-text-link, #1d4ed8);
+
+    /* === BORDER BRIDGE === */
+    --border-default:  var(--cad-border-default, #cbd5e1);
+    --border-light:    var(--cad-border-light, #e2e8f0);
+    --border-emphasis: var(--cad-border-emphasis, #94a3b8);
+
+    /* === SEMANTIC BRIDGE === */
+    --success:     var(--cad-success, #16a34a);
+    --success-bg:  var(--cad-success-bg, #dcfce7);
+    --warning:     var(--cad-warning, #ca8a04);
+    --warning-bg:  var(--cad-warning-bg, #fef9c3);
+    --danger:      var(--cad-danger, #dc2626);
+    --danger-bg:   var(--cad-danger-bg, #fee2e2);
+    --info:        var(--cad-info, #2563eb);
+    --info-bg:     var(--cad-info-bg, #dbeafe);
+
+    /* === ACCENT BRIDGE === */
+    --ford-blue-lighter: var(--cad-accent-primary, #2563eb);
+
+    /* === SHADOW BRIDGE === */
+    --shadow-sm: var(--cad-shadow-sm, 0 1px 2px rgba(0,0,0,0.05));
+    --shadow-md: var(--cad-shadow-md, 0 4px 6px rgba(0,0,0,0.07));
+
+    /* === FONT BRIDGE === */
+    --font-sans: var(--cad-font-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+    --font-mono: var(--cad-font-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace);
+
+    /* === FONT ROLE VARIABLES (for direct use) === */
+    --cad-font-ui:        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --cad-font-header:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --cad-font-unit:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --cad-font-incident:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --cad-font-narrative: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --cad-font-mono:      ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* === FONT ROLE SELECTORS === */
+/* Header elements use --cad-font-header */
+#cad-header .header-title,
+#cad-header .header-subtitle,
+.cad-modal-title {
+    font-family: var(--cad-font-header);
+}
+
+/* Unit labels use --cad-font-unit */
+.unit-row .unit-id,
+.unit-row .unit-callsign,
+.unit-label,
+.dispatch-unit-id {
+    font-family: var(--cad-font-unit);
+}
+
+/* Incident rows use --cad-font-incident */
+.incident-row .inc-nature,
+.incident-row .inc-address,
+.inc-id {
+    font-family: var(--cad-font-incident);
+}
+
+/* Narrative text uses --cad-font-narrative */
+.narrative-entry,
+.narrative-text,
+.iaw-narrative-row td {
+    font-family: var(--cad-font-narrative);
+}

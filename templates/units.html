@@ -190,10 +190,22 @@
                             {% endif %}
                         {% endfor %}
 
+                        {% if mutual_units|length > 0 %}
+                        <div class="unit-ma-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('collapsed');">
+                            <span class="unit-ma-arrow">&#9654;</span> Mutual Aid ({{ mutual_units|length }})
+                        </div>
+                        <div class="unit-ma-body collapsed">
+                        {% set ns_ma = namespace(current_dept='') %}
                         {% for u in mutual_units %}
+                            {% set dept = u.department or 'Other' %}
+                            {% if dept != ns_ma.current_dept %}
+                                {% set ns_ma.current_dept = dept %}
+                                <div class="unit-dept-label">{{ dept }}</div>
+                            {% endif %}
                             <div class="unit-row" draggable="true" tabindex="0"
                                  data-unit-id="{{ u.unit_id }}"
                                  data-is-apparatus="0"
+                                 data-is-mutual-aid="1"
                                  data-has-coverage="{{ '1' if u.has_coverage else '0' }}"
                                  onclick="UAW.open('{{ u.unit_id }}', this)"
                                  oncontextmenu="CAD_CONTEXTMENU.showForUnit(event, '{{ u.unit_id }}', this)">
@@ -211,6 +223,8 @@
                                 </div>
                             </div>
                         {% endfor %}
+                        </div>
+                        {% endif %}
                         </div><!-- /.units-col-content -->
                     </div>
 

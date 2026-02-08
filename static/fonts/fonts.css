@@ -1,0 +1,443 @@
+/* ====== Fire / Industrial ====== */
+
+@font-face {
+  font-family: 'Anton';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Anton/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'BebasNeue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/BebasNeue/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'BlackOpsOne';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/BlackOpsOne/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Oswald/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Oswald/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Teko/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Teko/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Rajdhani/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rajdhani';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Rajdhani/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Staatliches';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Staatliches/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Kanit';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Kanit/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Kanit';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Kanit/700.woff2') format('woff2');
+}
+
+/* ====== EMS / Clean ====== */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Inter/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Inter/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DMSans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/DMSans/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DMSans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/DMSans/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'PublicSans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/PublicSans/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'PublicSans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/PublicSans/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'NunitoSans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/NunitoSans/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'NunitoSans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/NunitoSans/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SourceSans3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/SourceSans3/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SourceSans3';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/SourceSans3/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBMPlexSans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/IBMPlexSans/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBMPlexSans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/IBMPlexSans/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Poppins/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Poppins/700.woff2') format('woff2');
+}
+
+/* ====== Police / Tactical ====== */
+
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Orbitron/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Orbitron/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Exo2';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Exo2/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Exo2';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Exo2/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'BarlowCondensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/BarlowCondensed/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'BarlowCondensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/BarlowCondensed/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'ArchivoBlack';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/ArchivoBlack/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'RussoOne';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/RussoOne/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'LeagueSpartan';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/LeagueSpartan/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'LeagueSpartan';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/LeagueSpartan/700.woff2') format('woff2');
+}
+
+/* ====== Feminine / Soft ====== */
+
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Quicksand/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Quicksand';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Quicksand/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Comfortaa';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Comfortaa/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Comfortaa';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Comfortaa/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'MPLUSRounded1c';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/MPLUSRounded1c/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'MPLUSRounded1c';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/MPLUSRounded1c/700.woff2') format('woff2');
+}
+
+/* ====== Script / Hand ====== */
+
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Caveat/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/Caveat/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'PatrickHand';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/PatrickHand/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Handlee';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Handlee/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Satisfy';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Satisfy/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Pacifico';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/Pacifico/400.woff2') format('woff2');
+}
+
+/* ====== Mono / CLI ====== */
+
+@font-face {
+  font-family: 'JetBrainsMono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/JetBrainsMono/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrainsMono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/JetBrainsMono/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SourceCodePro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/SourceCodePro/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'SourceCodePro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/SourceCodePro/700.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBMPlexMono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/static/fonts/IBMPlexMono/400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBMPlexMono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/static/fonts/IBMPlexMono/700.woff2') format('woff2');
+}

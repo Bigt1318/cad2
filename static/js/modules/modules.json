@@ -22,5 +22,7 @@
   "/static/js/modules/disposition.js?v=20260202a",
   "/static/js/modules/issue.js?v=20260202a",
   "/static/js/modules/eventlog.js?v=20260202a",
-  "/static/js/modules/calendar.js?v=20260204b"
+  "/static/js/modules/calendar.js?v=20260204b",
+  "/static/js/modules/eventstream.js?v=20260207a",
+  "/static/js/modules/playbooks.js?v=20260207a"
 ]

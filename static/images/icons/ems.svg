@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Star of Life -->
+  <g fill="#3b82f6">
+    <!-- 6 arms of the star -->
+    <rect x="19" y="2" width="10" height="17" rx="1"/>
+    <rect x="19" y="29" width="10" height="17" rx="1"/>
+    <rect x="19" y="2" width="10" height="17" rx="1" transform="rotate(60 24 24)"/>
+    <rect x="19" y="29" width="10" height="17" rx="1" transform="rotate(60 24 24)"/>
+    <rect x="19" y="2" width="10" height="17" rx="1" transform="rotate(120 24 24)"/>
+    <rect x="19" y="29" width="10" height="17" rx="1" transform="rotate(120 24 24)"/>
+    <!-- Center circle -->
+    <circle cx="24" cy="24" r="7" fill="#3b82f6"/>
+  </g>
+  <!-- Staff of Asclepius -->
+  <g fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+    <!-- Staff -->
+    <line x1="24" y1="17" x2="24" y2="32"/>
+    <!-- Snake body wrapping around staff -->
+    <path d="M24 30c2-1 3-2 3-3s-1-2-3-3c-2-1-3-2-3-3s1-2 3-3" fill="none"/>
+    <!-- Snake head -->
+    <circle cx="26" cy="19" r="1" fill="white" stroke="none"/>
+  </g>
+</svg>

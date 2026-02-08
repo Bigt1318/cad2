@@ -6,9 +6,19 @@
 const TIMERS = {
     _interval: null,
     _updateFrequency: 10000, // 10 seconds
+    _resetTimers: new Set(),  // Track reset/acknowledged timer elements
 
     init() {
         this.startUpdates();
+        // Click-to-reset on critical/warning timers
+        document.addEventListener("click", (e) => {
+            const el = e.target.closest(".incident-age");
+            if (el && (el.classList.contains("age-critical") || el.classList.contains("age-warning"))) {
+                el.classList.remove("age-critical", "age-warning");
+                el.classList.add("age-reset");
+                this._resetTimers.add(el);
+            }
+        });
     },
 
     startUpdates() {
@@ -99,12 +109,15 @@ const TIMERS = {
      * Apply urgency styling based on age
      */
     applyUrgencyClass(el, timestamp) {
+        // Skip if user has manually reset/acknowledged this timer
+        if (this._resetTimers.has(el)) return;
+
         try {
             const date = new Date(timestamp.replace(" ", "T"));
             const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
-            
+
             el.classList.remove("age-normal", "age-warning", "age-critical");
-            
+
             if (diffMin >= 30) {
                 el.classList.add("age-critical");
             } else if (diffMin >= 15) {

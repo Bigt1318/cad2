@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Police car side view silhouette -->
+  <g fill="#6366f1">
+    <!-- Car body lower -->
+    <path d="M4 24h40v6c0 1-1 2-2 2H6c-1 0-2-1-2-2V24z"/>
+    <!-- Car body upper / cabin -->
+    <path d="M12 24V18c0-1 1-2 2-2h8l4-4h6l2 4h2c1 0 2 1 2 2v6H12z"/>
+    <!-- Hood -->
+    <path d="M4 24h8v-2c0-1-1-2-2-2H4v4z"/>
+    <!-- Trunk -->
+    <path d="M36 24h8v-4h-4c-1 0-2 1-2 2v2z"/>
+    <!-- Light bar -->
+    <rect x="18" y="10" width="12" height="3" rx="1.5"/>
+    <!-- Red light -->
+    <rect x="18" y="10" width="5" height="3" rx="1.5" fill="#ef4444"/>
+    <!-- Blue light -->
+    <rect x="25" y="10" width="5" height="3" rx="1.5" fill="#60a5fa"/>
+    <!-- Windshield -->
+    <path d="M14 17l3-3h6l1 3H14z" fill="#93c5fd" opacity="0.5"/>
+    <!-- Rear window -->
+    <path d="M30 17l2-3h2l1 3h-5z" fill="#93c5fd" opacity="0.5"/>
+    <!-- Door line -->
+    <line x1="24" y1="16" x2="24" y2="28" stroke="#4f46e5" stroke-width="0.5"/>
+    <!-- Wheels -->
+    <circle cx="12" cy="34" r="4"/>
+    <circle cx="36" cy="34" r="4"/>
+    <circle cx="12" cy="34" r="2" fill="#1a1a1a"/>
+    <circle cx="36" cy="34" r="2" fill="#1a1a1a"/>
+    <circle cx="12" cy="34" r="1" fill="#6366f1"/>
+    <circle cx="36" cy="34" r="1" fill="#6366f1"/>
+    <!-- Side stripe -->
+    <rect x="6" y="26" width="36" height="1.5" rx="0.5" fill="white" opacity="0.3"/>
+  </g>
+</svg>

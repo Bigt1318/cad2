@@ -149,7 +149,7 @@
             </div>
 
             <!-- ====================================================
-                 SECTION 4 — MUTUAL AID (COLLAPSIBLE)
+                 SECTION 4 — MUTUAL AID (COLLAPSIBLE BY DEPARTMENT)
             ====================================================== -->
             <div class="dp-section">
 
@@ -164,23 +164,38 @@
                     {% if mutual_aid_units|length == 0 %}
                         <div class="dp-empty">No mutual-aid units.</div>
                     {% else %}
+                        {% set ns = namespace(current_dept='') %}
                         {% for u in mutual_aid_units %}
-                        <div class="dp-unit-row"
-                             onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
+                            {% set dept = u.department or 'Other' %}
+                            {% if dept != ns.current_dept %}
+                                {% if ns.current_dept %}
+                                  </div>
+                                {% endif %}
+                                {% set ns.current_dept = dept %}
+                                <div class="dp-dept-header" onclick="this.nextElementSibling.classList.toggle('collapsed'); this.querySelector('.dp-dept-arrow').textContent = this.nextElementSibling.classList.contains('collapsed') ? '▶' : '▼'">
+                                    <span class="dp-dept-arrow">▼</span> {{ dept }}
+                                </div>
+                                <div class="dp-dept-units">
+                            {% endif %}
+                            <div class="dp-unit-row"
+                                 onclick="PICKER.dispatchUnit('{{ u.unit_id }}', {{ incident_id }})">
 
-                            <img src="/static/images/{{ u.icon }}"
-                                 class="dp-unit-icon"
-                                 alt="{{ u.unit_id }}">
+                                <img src="/static/images/{{ u.icon }}"
+                                     class="dp-unit-icon"
+                                     alt="{{ u.unit_id }}">
 
-                            <div class="dp-unit-id">{{ u.unit_id }}</div>
+                                <div class="dp-unit-id">{{ u.unit_id }}</div>
 
-                            <div class="dp-unit-status">
-                                <span class="status-badge status-{{ (u.status or '')|lower }}">
-                                    {{ u.status }}
-                                </span>
+                                <div class="dp-unit-status">
+                                    <span class="status-badge status-{{ (u.status or '')|lower }}">
+                                        {{ u.status }}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
                         {% endfor %}
+                        {% if ns.current_dept %}
+                          </div>
+                        {% endif %}
                     {% endif %}
                 </div>
 
@@ -310,6 +325,22 @@
 #mutual-aid-container.collapsed {
     display: none;
 }
+
+.dp-dept-header {
+    padding: 6px 12px;
+    background: var(--bg-elevated, #334155);
+    color: var(--text-secondary, #94a3b8);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-default, #475569);
+    user-select: none;
+}
+.dp-dept-header:hover { background: var(--bg-hover, #3b4d66); }
+.dp-dept-arrow { display: inline-block; width: 14px; }
+.dp-dept-units.collapsed { display: none; }
 
 /* RECOMMENDED SECTION */
 .dp-recommended {

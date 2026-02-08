@@ -487,15 +487,15 @@ export const SETTINGS = {
                         <div class="settings-group">
                             <div class="settings-group-title">Display Density</div>
                             <div class="settings-density-grid">
-                                <button class="density-option ${current.density === 'compact' ? 'selected' : ''}" onclick="SETTINGS.set('density', 'compact')">
+                                <button class="density-option ${current.density === 'compact' ? 'selected' : ''}" onclick="SETTINGS.setDensity('compact')">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="2"/><rect x="3" y="11" width="18" height="2"/><rect x="3" y="17" width="18" height="2"/></svg>
                                     <span>Compact</span>
                                 </button>
-                                <button class="density-option ${(current.density === 'normal' || !current.density) ? 'selected' : ''}" onclick="SETTINGS.set('density', 'normal')">
+                                <button class="density-option ${(current.density === 'normal' || !current.density) ? 'selected' : ''}" onclick="SETTINGS.setDensity('normal')">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="3"/><rect x="3" y="10.5" width="18" height="3"/><rect x="3" y="17" width="18" height="3"/></svg>
                                     <span>Normal</span>
                                 </button>
-                                <button class="density-option ${current.density === 'spacious' ? 'selected' : ''}" onclick="SETTINGS.set('density', 'spacious')">
+                                <button class="density-option ${current.density === 'spacious' ? 'selected' : ''}" onclick="SETTINGS.setDensity('spacious')">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="17" width="18" height="4"/></svg>
                                     <span>Spacious</span>
                                 </button>
@@ -814,10 +814,23 @@ export const SETTINGS = {
 
     setTheme(theme) {
         this.set("theme", theme);
+        // Update visual selection in modal
+        document.querySelectorAll(".theme-option").forEach(btn => {
+            btn.classList.toggle("selected", btn.textContent.trim().toLowerCase().replace(" ", "-") === theme);
+        });
     },
 
     setFontSize(size) {
         this.set("fontSize", size);
+    },
+
+    setDensity(density) {
+        this.set("density", density);
+        // Update visual selection in modal
+        document.querySelectorAll(".density-option").forEach(btn => {
+            const btnDensity = btn.querySelector("span")?.textContent?.trim()?.toLowerCase();
+            btn.classList.toggle("selected", btnDensity === density);
+        });
     },
 };
 

@@ -558,13 +558,13 @@ const IAW = {
    */
   async openDeterminantPicker(incidentId) {
     try {
-      const html = await CAD_UTIL.fetchText(`/incident/${incidentId}/determinant_picker`);
+      const html = await CAD_UTIL.safeFetch(`/incident/${incidentId}/determinant_picker`);
       if (html) {
         CAD_MODAL.openRaw(html);
       }
     } catch (err) {
       console.error("[IAW] openDeterminantPicker failed:", err);
-      window.TOAST?.error?.("Failed to open determinant picker");
+      window.TOAST?.error?.("Determinant picker not available");
     }
   }
 };

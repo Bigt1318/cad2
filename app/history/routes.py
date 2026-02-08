@@ -95,6 +95,7 @@ async def api_history_list(
     calltaker: Optional[str] = Query(None),
     has_narrative: Optional[bool] = Query(None),
     issue_found: Optional[bool] = Query(None),
+    sort: Optional[str] = Query(None),
 ):
     """Filtered, paginated event list (incidents + daily log)."""
     filters = {}
@@ -120,6 +121,9 @@ async def api_history_list(
         filters["has_narrative"] = True
     if issue_found:
         filters["issue_found"] = True
+
+    if sort:
+        filters["sort"] = sort
 
     try:
         result = fetch_unified_events(filters=filters, page=page, per_page=per_page)

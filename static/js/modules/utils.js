@@ -125,52 +125,48 @@ function refreshPanels(detail = null, opts = {}) {
 
   _refreshInProgress = true;
 
-  try {
-    // 1) Preferred: event-driven refresh (PANELS listens for this)
+  // Small delay to ensure backend DB commit is fully flushed before we fetch
+  setTimeout(() => {
     try {
-      const ev = new CustomEvent(REFRESH_EVENT, {
-        bubbles: true,
-        detail: detail || {},
-      });
-      document.dispatchEvent(ev);
-    } catch (err) {
-      console.warn("[UTIL] Unable to dispatch refresh event:", err);
+      _doRefresh();
+    } finally {
+      // Release lock after htmx requests have been queued
+      setTimeout(() => { _refreshInProgress = false; }, 300);
     }
+  }, 50);
+}
 
-    // 2) Fallback: if PANELS module is present, call it directly (once)
-    const panels = window.CAD?.panels || window.PANELS;
-    if (panels && typeof panels.refreshAll === "function") {
-      try { panels.refreshAll(); } catch (err) { console.warn("[UTIL] panels.refreshAll failed:", err); }
-      return;
-    }
-
-    // 3) Last-resort fallback: direct htmx ajax (existence-safe)
-    if (typeof window.htmx === "undefined") {
-      console.warn("[UTIL] Panels engine not ready — refresh skipped (htmx missing)");
-      return;
-    }
-
-    const first = (...sels) => {
-      for (const s of sels) {
-        const el = document.querySelector(s);
-        if (el) return el;
-      }
-      return null;
-    };
-
-    const refresh = (el, url) => {
-      if (!el) return;
-      if (!el.isConnected) return;
-      window.htmx.ajax("GET", url, { target: el, swap: "outerHTML" });
-    };
-
-    refresh(first("#panel-active"), "/panel/active");
-    refresh(first("#panel-open"), "/panel/open");
-    refresh(first("#panel-units"), "/panel/units");
-
-  } finally {
-    _refreshInProgress = false;
+function _doRefresh() {
+  // 1) If PANELS module is present, use it (single call — no double-firing)
+  const panels = window.CAD?.panels || window.PANELS;
+  if (panels && typeof panels.refreshAll === "function") {
+    try { panels.refreshAll(); } catch (err) { console.warn("[UTIL] panels.refreshAll failed:", err); }
+    return;
   }
+
+  // 2) Direct htmx ajax fallback
+  if (typeof window.htmx === "undefined") {
+    console.warn("[UTIL] Panels engine not ready — refresh skipped (htmx missing)");
+    return;
+  }
+
+  const first = (...sels) => {
+    for (const s of sels) {
+      const el = document.querySelector(s);
+      if (el) return el;
+    }
+    return null;
+  };
+
+  const refresh = (el, url) => {
+    if (!el) return;
+    if (!el.isConnected) return;
+    window.htmx.ajax("GET", url, { target: el, swap: "outerHTML" });
+  };
+
+  refresh(first("#panel-active"), "/panel/active");
+  refresh(first("#panel-open"), "/panel/open");
+  refresh(first("#panel-units"), "/panel/units");
 }
 
 // Legacy alias

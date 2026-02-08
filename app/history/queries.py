@@ -193,10 +193,22 @@ def fetch_unified_events(
     if not parts:
         return {"events": [], "total": 0, "page": page, "per_page": per_page, "pages": 0}
 
+    # Sort logic
+    sort_key = filters.get("sort", "time-desc")
+    sort_map = {
+        "time-desc": "timestamp DESC",
+        "time-asc": "timestamp ASC",
+        "incident-desc": "CAST(COALESCE(NULLIF(ref_number,''), '0') AS INTEGER) DESC, timestamp DESC",
+        "incident-asc": "CAST(COALESCE(NULLIF(ref_number,''), '0') AS INTEGER) ASC, timestamp ASC",
+        "dl-desc": "ref_number DESC, timestamp DESC",
+        "dl-asc": "ref_number ASC, timestamp ASC",
+    }
+    order_clause = sort_map.get(sort_key, "timestamp DESC")
+
     union_sql = " UNION ALL ".join(parts)
     full_sql = f"""
         SELECT * FROM ({union_sql})
-        ORDER BY timestamp DESC
+        ORDER BY {order_clause}
         LIMIT ? OFFSET ?
     """
     offset = (page - 1) * per_page

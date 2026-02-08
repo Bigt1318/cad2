@@ -95,6 +95,67 @@ except ImportError as e:
 except Exception as e:
     print(f"[MAIN] History module error: {e}")
 
+# ================================================================
+# EVENT STREAM MODULE (Operational Event Timeline)
+# ================================================================
+try:
+    from app.eventstream import register_eventstream_routes
+    register_eventstream_routes(app)
+    print("[MAIN] Event Stream module loaded")
+except ImportError as e:
+    print(f"[MAIN] Event Stream module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Event Stream module error: {e}")
+
+# ================================================================
+# REMINDERS MODULE (Smart Reminders & Cross-Shift Awareness)
+# ================================================================
+try:
+    from app.reminders import register_reminder_routes, init_reminder_scheduler
+    register_reminder_routes(app)
+    init_reminder_scheduler()
+    print("[MAIN] Reminders module loaded")
+except ImportError as e:
+    print(f"[MAIN] Reminders module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Reminders module error: {e}")
+
+# ================================================================
+# MOBILE MODULE (Extended Mobile MDT)
+# ================================================================
+try:
+    from app.mobile import register_mobile_routes
+    register_mobile_routes(app)
+    print("[MAIN] Mobile module loaded")
+except ImportError as e:
+    print(f"[MAIN] Mobile module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Mobile module error: {e}")
+
+# ================================================================
+# PLAYBOOKS MODULE (Workflow Automation Engine)
+# ================================================================
+try:
+    from app.playbooks import register_playbook_routes
+    register_playbook_routes(app)
+    print("[MAIN] Playbooks module loaded")
+except ImportError as e:
+    print(f"[MAIN] Playbooks module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Playbooks module error: {e}")
+
+# ================================================================
+# THEMES MODULE (User Theme System)
+# ================================================================
+try:
+    from app.themes import register_theme_routes
+    register_theme_routes(app)
+    print("[MAIN] Themes module loaded")
+except ImportError as e:
+    print(f"[MAIN] Themes module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Themes module error: {e}")
+
 # ------------------------------------------------
 # Middleware: guarantee every mutation is written to MasterLog
 # ------------------------------------------------
@@ -687,7 +748,8 @@ def ensure_dailylog_schema():
                 action TEXT,
                 event_type TEXT,
                 details TEXT,
-                user TEXT
+                user TEXT,
+                dl_number TEXT
             )
         """)
         conn.commit()
@@ -724,7 +786,8 @@ def ensure_dailylog_schema():
                 action TEXT,
                 event_type TEXT,
                 details TEXT,
-                user TEXT
+                user TEXT,
+                dl_number TEXT
             )
         """)
 
@@ -790,6 +853,29 @@ def ensure_dailylog_schema():
 # ================================================================
 
 
+def _next_dl_number(cursor, year: int | None = None) -> str:
+    """
+    Generate the next Daily Log number for the given year.
+    Format: YYYY-NNNN (e.g. 2026-0001, 2026-0002, ...)
+    Uses the DailyLog table to find the current max sequence for the year.
+    """
+    if year is None:
+        year = int(datetime.now().strftime("%Y"))
+    prefix = f"{year}-"
+    row = cursor.execute(
+        "SELECT dl_number FROM DailyLog WHERE dl_number LIKE ? ORDER BY dl_number DESC LIMIT 1",
+        (f"{prefix}%",),
+    ).fetchone()
+    if row and row[0]:
+        try:
+            seq = int(row[0].split("-", 1)[1]) + 1
+        except (ValueError, IndexError):
+            seq = 1
+    else:
+        seq = 1
+    return f"{year}-{seq:04d}"
+
+
 def dailylog_event(
     action: str | None = None,
     event_type: str | None = None,
@@ -803,6 +889,7 @@ def dailylog_event(
     DAILY LOG JOURNAL ONLY.
     Inserts ONLY when action == 'DAILYLOG'.
     Subtype is stored in event_type (Canon).
+    Auto-assigns dl_number in YYYY-NNNN format.
     """
 
     # Hard gate: this table is not the MasterLog.
@@ -821,12 +908,14 @@ def dailylog_event(
     conn = get_conn()
     c = conn.cursor()
 
+    dl_number = _next_dl_number(c)
+
     c.execute(
         """
-        INSERT INTO DailyLog (timestamp, user, incident_id, unit_id, action, event_type, details)
-        VALUES (?, ?, ?, ?, 'DAILYLOG', ?, ?)
+        INSERT INTO DailyLog (timestamp, user, incident_id, unit_id, action, event_type, details, dl_number)
+        VALUES (?, ?, ?, ?, 'DAILYLOG', ?, ?, ?)
         """,
-        (ts, user, incident_id, unit_id, subtype, text),
+        (ts, user, incident_id, unit_id, subtype, text, dl_number),
     )
 
     conn.commit()
@@ -878,6 +967,13 @@ def add_narrative(
         ev = f"NARRATIVE_{(entry_type or 'REMARK').upper().strip()}"
         masterlog(event_type=ev, user=user, incident_id=incident_id, unit_id=unit_id, details=text, ok=1, reason=None)
         incident_history(incident_id=incident_id, event_type=ev, user=user, unit_id=unit_id, details=text)
+    except Exception:
+        pass
+
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("NARRATIVE_ADDED", incident_id=incident_id, unit_id=unit_id, user=user,
+                   summary=text[:120] if text else "Narrative added", category="narrative")
     except Exception:
         pass
 
@@ -1784,6 +1880,8 @@ def ensure_phase3_schema():
         _add_col("ALTER TABLE DailyLog ADD COLUMN details TEXT")
     if "issue_found" not in dl_cols:
         _add_col("ALTER TABLE DailyLog ADD COLUMN issue_found INTEGER DEFAULT 0")
+    if "dl_number" not in dl_cols:
+        _add_col("ALTER TABLE DailyLog ADD COLUMN dl_number TEXT")
 
 
 
@@ -1832,6 +1930,7 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Units ADD COLUMN custom_status TEXT")
     _add_col("ALTER TABLE Units ADD COLUMN aliases TEXT")  # CSV list of aliases, e.g. "e1,eng1,engine1"
     _add_col("ALTER TABLE Units ADD COLUMN display_order INTEGER DEFAULT 999")  # For sorting units in panels
+    _add_col("ALTER TABLE Units ADD COLUMN department TEXT")  # Department name for mutual aid grouping
 
     # --------------------------------------------------
     # SYSTEM SETTINGS (Key-Value store for preferences)
@@ -2247,6 +2346,12 @@ async def create_incident(request: Request):
         details="Draft incident created"
     )
 
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_DRAFT_CREATED", incident_id=incident_id, summary="Draft incident created")
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "incident_id": incident_id
@@ -2429,6 +2534,13 @@ async def save_incident(request: Request, incident_id: int):
         details=f"Issued {incident_number}" if incident_number else "Opened (no number)",
         user=user,
     )
+
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_CREATED", incident_id=incident_id, user=user,
+                   summary=f"Issued {incident_number}" if incident_number else "Opened")
+    except Exception:
+        pass
 
     # DailyLog table must contain ONLY Daily Log Journal entries.
     # So: DO NOT write INCIDENT_OPENED, DISPATCH, STATUS_CHANGE, etc. into DailyLog.
@@ -3733,7 +3845,8 @@ def fetch_units() -> list[dict]:
                COALESCE(is_command,0) AS is_command,
                COALESCE(is_mutual_aid,0) AS is_mutual_aid,
                COALESCE(custom_status,'') AS custom_status,
-               COALESCE(display_order, 999) AS display_order
+               COALESCE(display_order, 999) AS display_order,
+               COALESCE(department,'') AS department
         FROM Units
     """).fetchall()
     conn.close()
@@ -3831,7 +3944,12 @@ def split_units_for_picker(units: list[dict]) -> dict:
         key=lambda x: apparatus_index.get((x.get("unit_id") or "").strip(), 999)
     )
 
-    mutual_aid_sorted = sorted(mutual_aid, key=lambda x: (x.get("unit_id") or ""))
+    _ma_type_order = {"fire": 0, "ems": 1, "helicopter": 2, "police": 3, "ema": 4, "animal_control": 5}
+    mutual_aid_sorted = sorted(mutual_aid, key=lambda x: (
+        _ma_type_order.get((x.get("unit_type") or "").lower(), 99),
+        (x.get("department") or ""),
+        (x.get("unit_id") or "")
+    ))
 
     return {
         "command": command_sorted,
@@ -3846,7 +3964,7 @@ def split_units_for_picker(units: list[dict]) -> dict:
 def get_units_for_panel() -> list[dict]:
     """
     FORD-CAD Units Panel order (CANON):
-      1) Command units pinned (by display_order or fixed order): 1578, Car1, Batt1–Batt4
+      1) Command units pinned (canonical fixed order): 1578, Car1, Batt1–Batt4
       2) Personnel (two-digit IDs) - sorted by display_order, then by unit_id
       3) Apparatus - sorted by display_order, then by APPARATUS_ORDER fallback
       4) Mutual aid last
@@ -3895,12 +4013,9 @@ def get_units_for_panel() -> list[dict]:
 
     def _cmd_sort_key(x: dict) -> tuple:
         uid = (x.get("unit_id") or "").strip()
-        display_order = _get_display_order(x)
-        legacy_order = command_index.get(uid, 999)
-        # If display_order is custom (< 999), use it; otherwise use legacy
-        if display_order < 999:
-            return (display_order, legacy_order)
-        return (legacy_order, 0)
+        # Command units ALWAYS sort by canonical COMMAND_IDS order
+        # (1578=0, Car1=1, Batt1=2, Batt2=3, Batt3=4, Batt4=5)
+        return (command_index.get(uid, 999),)
 
     cmd.sort(key=_cmd_sort_key)
 
@@ -3925,7 +4040,12 @@ def get_units_for_panel() -> list[dict]:
         return (legacy_order, 0)
 
     apparatus.sort(key=_apparatus_sort_key)
-    mutual.sort(key=lambda x: (_get_display_order(x), x.get("unit_id") or ""))
+    _ma_type_order_panel = {"fire": 0, "ems": 1, "helicopter": 2, "police": 3, "ema": 4, "animal_control": 5}
+    mutual.sort(key=lambda x: (
+        _ma_type_order_panel.get((x.get("unit_type") or "").lower(), 99),
+        (x.get("department") or ""),
+        (x.get("unit_id") or "")
+    ))
     other.sort(key=lambda x: (_get_display_order(x), x.get("unit_id") or ""))
 
     ordered: list[dict] = []
@@ -5018,6 +5138,15 @@ async def unit_status_update(
         except Exception:
             pass
 
+    # --- Event Stream helper (never breaks caller) ---
+    def _emit_status(evt):
+        try:
+            from app.eventstream.emitter import emit_event
+            emit_event(evt, incident_id=incident_id, unit_id=unit_id, user=user,
+                       summary=f"{unit_id} {evt.lower()}")
+        except Exception:
+            pass
+
     # DISPATCHED
     if new_status == "DISPATCHED":
         set_unit_status_pipeline(unit_id, "DISPATCHED")
@@ -5025,6 +5154,7 @@ async def unit_status_update(
         incident_history(incident_id, "DISPATCHED", user=user, unit_id=unit_id)
         _mirror_to_crew("dispatched")
         _chat_event("DISPATCH")
+        _emit_status("DISPATCHED")
         return {"ok": True}
 
     if new_status == "ENROUTE":
@@ -5033,6 +5163,7 @@ async def unit_status_update(
         incident_history(incident_id, "ENROUTE", user=user, unit_id=unit_id)
         _mirror_to_crew("enroute")
         _chat_event("ENROUTE")
+        _emit_status("ENROUTE")
 
     elif new_status == "ARRIVED":
         set_unit_status_pipeline(unit_id, "ARRIVED")
@@ -5040,6 +5171,7 @@ async def unit_status_update(
         incident_history(incident_id, "ARRIVED", user=user, unit_id=unit_id)
         _mirror_to_crew("arrived")
         _chat_event("ARRIVED")
+        _emit_status("ARRIVED")
 
         # Auto-command: first ARRIVED unit becomes command (if supported)
         conn = get_conn()
@@ -5082,22 +5214,26 @@ async def unit_status_update(
         mark_assignment(incident_id, unit_id, "transporting")
         incident_history(incident_id, "TRANSPORTING", user=user, unit_id=unit_id)
         _mirror_to_crew("transporting")
+        _emit_status("TRANSPORTING")
 
     elif new_status == "AT_MEDICAL":
         set_unit_status_pipeline(unit_id, "AT_MEDICAL")
         mark_assignment(incident_id, unit_id, "at_medical")
         incident_history(incident_id, "AT_MEDICAL", user=user, unit_id=unit_id)
         _mirror_to_crew("at_medical")
+        _emit_status("AT_MEDICAL")
 
     elif new_status == "EMERGENCY":
         set_unit_status_pipeline(unit_id, "EMERGENCY")
         incident_history(incident_id, "EMERGENCY", user=user, unit_id=unit_id)
         _mirror_to_crew()
+        _emit_status("EMERGENCY")
 
     elif new_status == "UNAVAILABLE":
         set_unit_status_pipeline(unit_id, "UNAVAILABLE")
         incident_history(incident_id, "UNAVAILABLE", user=user, unit_id=unit_id)
         _mirror_to_crew()
+        _emit_status("UNAVAILABLE")
 
     elif new_status == "CLEARED":
         conn = get_conn()
@@ -5140,6 +5276,7 @@ async def unit_status_update(
         mark_assignment(incident_id, unit_id, "cleared")
         set_unit_status_pipeline(unit_id, "AVAILABLE")
         incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id)
+        _emit_status("CLEARED")
 
         if int(remaining_after) == 0:
             return {"ok": True, "last_unit_cleared": True, "requires_event_disposition": True}
@@ -5481,6 +5618,31 @@ async def submit_incident_disposition(incident_id: int, request: Request):
             tuple(params),
         )
 
+        # ---- Auto-clear all remaining units with this disposition -----------
+        import datetime as _dt
+        now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if dispo != "H":
+            # Clear all uncleared units and set their disposition
+            if "cleared" in ua_cols:
+                c.execute(f"""
+                    UPDATE UnitAssignments
+                    SET cleared = ?, disposition = ?
+                    WHERE incident_id = ? AND {cleared_expr}
+                """, (now, dispo, incident_id))
+            elif "cleared_at" in ua_cols:
+                c.execute(f"""
+                    UPDATE UnitAssignments
+                    SET cleared_at = ?, disposition = ?
+                    WHERE incident_id = ? AND {cleared_expr}
+                """, (now, dispo, incident_id))
+            # Reset unit statuses to AVAILABLE
+            c.execute("""
+                UPDATE Units SET status = 'AVAILABLE', last_updated = ?
+                WHERE unit_id IN (
+                    SELECT unit_id FROM UnitAssignments WHERE incident_id = ?
+                )
+            """, (now, incident_id))
+
         # ---- Count remaining uncleared unit assignments ---------------------
         remaining = c.execute(
             f"""
@@ -5498,10 +5660,6 @@ async def submit_incident_disposition(incident_id: int, request: Request):
             resulting_status = "HELD"
         else:
             if int(remaining) == 0:
-                # Bulletproof timestamp: do not depend on how datetime was imported elsewhere
-                import datetime as _dt
-                now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
                 if "closed_at" in inc_cols:
                     c.execute(
                         "UPDATE Incidents SET status='CLOSED', closed_at=? WHERE incident_id=?",
@@ -5832,7 +5990,8 @@ async def panel_dailylog(request: Request):
                 action,
                 event_type,
                 details,
-                user
+                user,
+                dl_number
             FROM DailyLog
             WHERE action = 'DAILYLOG'
               AND substr(timestamp, 1, 10) = ?
@@ -5849,7 +6008,8 @@ async def panel_dailylog(request: Request):
                 action,
                 event_type,
                 details,
-                user
+                user,
+                dl_number
             FROM DailyLog
             WHERE action = 'DAILYLOG'
             ORDER BY id DESC
@@ -5864,7 +6024,7 @@ async def panel_dailylog(request: Request):
         "partials/dailylog_rows.html",
         {
             "request": request,
-            "log_entries": entries,
+            "rows": entries,
         },
     )
 
@@ -5885,7 +6045,7 @@ def unit_is_dispatchable(unit: dict) -> bool:
     return status in ("AVAILABLE", "A", "AVL")
 
 
-def dispatch_units_to_incident(incident_id: int, units: list[str], user: str):
+def dispatch_units_to_incident(incident_id: int, units: list[str], user: str, force: bool = False):
     ts = _ts()
 
     conn = get_conn()
@@ -5986,8 +6146,15 @@ def dispatch_units_to_incident(incident_id: int, units: list[str], user: str):
                 return False
 
             if _is_committed_elsewhere_tx(unit_id):
-                skipped.append(f"{unit_id} (already assigned)")
-                return False
+                if force:
+                    # Auto-clear from previous incident (self-initiate / reassign)
+                    c.execute("""
+                        UPDATE UnitAssignments SET cleared = ?
+                        WHERE unit_id = ? AND cleared IS NULL AND incident_id <> ?
+                    """, (ts, unit_id, incident_id))
+                else:
+                    skipped.append(f"{unit_id} (already assigned)")
+                    return False
 
             c.execute(
                 """
@@ -6050,6 +6217,14 @@ def dispatch_units_to_incident(incident_id: int, units: list[str], user: str):
     unit_list = ", ".join(assigned)
     incident_history(incident_id, "DISPATCH", user=user, details=f"Units dispatched: {unit_list}")
     dailylog_event(action="DISPATCH", details=f"{user} dispatched {unit_list}", incident_id=incident_id)
+
+    try:
+        from app.eventstream.emitter import emit_event
+        for u in assigned:
+            emit_event("UNIT_DISPATCHED", incident_id=incident_id, unit_id=u, user=user,
+                       summary=f"{u} dispatched")
+    except Exception:
+        pass
 
     return {"ok": True, "assigned": assigned, "skipped": skipped}
 
@@ -7135,6 +7310,7 @@ def fetch_daily_log_feed(
             dl.action,
             dl.event_type,
             dl.details,
+            dl.dl_number,
             {label_expr} AS label,
             i.incident_number,
             i.status AS incident_status
@@ -7650,6 +7826,13 @@ def finalize_incident_if_clear(incident_id: int):
         incident_id=incident_id
     )
 
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_CLOSED", incident_id=incident_id,
+                   summary="Incident automatically closed (all units cleared)")
+    except Exception:
+        pass
+
 
 def process_remark(user: str, text: str, unit_id: str = None, incident_id: int = None) -> dict:
     """
@@ -8090,6 +8273,13 @@ async def api_clear_all_and_close(incident_id: int, request: Request):
 
     conn.close()
 
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_CLOSED_MANUAL", incident_id=incident_id, user=user,
+                   summary=f"Closed with disposition: {disposition}, {len(units)} units cleared")
+    except Exception:
+        pass
+
     return {
         "ok": True,
         "incident_id": incident_id,
@@ -8351,8 +8541,9 @@ async def api_cli_dispatch(request: Request):
 
     conn.close()
 
-    # Dispatch
-    res = dispatch_units_to_incident(int(incident_id), units, user="CLI")
+    # Dispatch (force=True allows reassignment for self-initiated/CLI dispatch)
+    force = mode in ("D", "SI", "F", "FORCE")
+    res = dispatch_units_to_incident(int(incident_id), units, user="CLI", force=force)
 
     # If the dispatch failed (or dispatched nothing), propagate failure to the UI.
     if not isinstance(res, dict) or not res.get("ok"):
@@ -8581,6 +8772,13 @@ async def uaw_clear_unit(request: Request):
     mark_assignment(incident_id, unit_id, "cleared")
     set_unit_status_pipeline(unit_id, "AVAILABLE")
     incident_history(incident_id, "CLEARED", user=user, unit_id=unit_id, details=f"Disposition: {disposition}" if disposition else "")
+
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("UNIT_CLEARED", incident_id=incident_id, unit_id=unit_id, user=user,
+                   summary=f"{unit_id} cleared" + (f" ({disposition})" if disposition else ""))
+    except Exception:
+        pass
 
     # If you have finalize logic, keep it
     try:
@@ -9055,6 +9253,25 @@ def _build_units_panel_context(request: Request) -> dict:
         expire_stale_shift_overrides()
     except Exception:
         pass  # Don't fail panel load if cleanup fails
+
+    # Ghost assignment cleanup: clear assignments on closed incidents, reset unit status
+    try:
+        _gc = get_conn()
+        _gc_ts = _ts()
+        _gc.execute("""
+            UPDATE UnitAssignments SET cleared = ?
+            WHERE cleared IS NULL
+              AND incident_id IN (SELECT incident_id FROM Incidents WHERE status = 'CLOSED')
+        """, (_gc_ts,))
+        _gc.execute("""
+            UPDATE Units SET status = 'AVAILABLE', last_updated = ?
+            WHERE status != 'AVAILABLE'
+              AND unit_id NOT IN (SELECT unit_id FROM UnitAssignments WHERE cleared IS NULL)
+        """, (_gc_ts,))
+        _gc.commit()
+        _gc.close()
+    except Exception:
+        pass
 
     ensure_phase3_schema()
     conn = get_conn()
@@ -9968,7 +10185,8 @@ async def panel_eventlog_rows(
             dl.event_type,
             dl.details,
             dl.issue_found,
-            CASE 
+            dl.dl_number,
+            CASE
                 WHEN dl.action = 'REMARK' THEN 'REMARK'
                 ELSE COALESCE(NULLIF(dl.event_type, ''), 'OTHER')
             END AS category,
@@ -10319,6 +10537,13 @@ async def api_hold_incident(incident_id: int, request: Request):
     except Exception:
         pass
 
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_HELD", incident_id=incident_id, user=user,
+                   summary=f"Held: {reason}", severity="alert")
+    except Exception:
+        pass
+
     return {"ok": True}
 
 @app.post("/api/incident/{incident_id}/hold")
@@ -10359,6 +10584,12 @@ async def api_unhold_incident(incident_id: int, request: Request):
 
     masterlog(event_type="UNHOLD", user=user, incident_id=incident_id, details=details, unit_id=None, ok=1, reason=None)
     incident_history(incident_id=incident_id, event_type="UNHOLD", user=user, unit_id=None, details=details)
+
+    try:
+        from app.eventstream.emitter import emit_event
+        emit_event("INCIDENT_UNHOLD", incident_id=incident_id, user=user, summary=details)
+    except Exception:
+        pass
 
     return {"ok": True}
 
@@ -12544,36 +12775,36 @@ def api_transfer_command(unit_id: str, new_command_unit: str):
 
 @app.get("/api/units_on_scene/{unit_id}")
 def api_units_on_scene(unit_id: str):
+    """Return all on-scene (arrived but not cleared) units for this unit's active incident."""
     conn = get_conn()
     c = conn.cursor()
 
     try:
-        c.execute(
-            """
+        row = c.execute("""
             SELECT incident_id
             FROM UnitAssignments
-            WHERE unit_id=?
-            """,
-            (unit_id,),
-        )
-        row = c.fetchone()
+            WHERE unit_id = ? AND cleared IS NULL
+            ORDER BY dispatched DESC LIMIT 1
+        """, (unit_id,)).fetchone()
 
         if not row:
-            return []
+            return {"ok": True, "units": [], "incident_id": None}
 
-        incident_id = row[0]
+        incident_id = row["incident_id"]
 
-        c.execute(
-            """
-            SELECT unit_id, unit_id AS unit_name
+        rows = c.execute("""
+            SELECT unit_id, unit_id AS unit_name,
+                   CASE WHEN commanding_unit = 1 THEN 1 ELSE 0 END AS is_command
             FROM UnitAssignments
-            WHERE incident_id=?
-              AND status='ARRIVED'
-            """,
-            (incident_id,),
-        )
+            WHERE incident_id = ?
+              AND arrived IS NOT NULL
+              AND cleared IS NULL
+        """, (incident_id,)).fetchall()
 
-        return [dict(r) for r in c.fetchall()]
+        return {"ok": True, "units": [dict(r) for r in rows], "incident_id": incident_id}
+
+    except Exception as e:
+        return {"ok": False, "units": [], "error": str(e)}
 
     finally:
         conn.close()
@@ -13243,6 +13474,71 @@ async def set_incident_determinant(incident_id: int, request: Request):
         )
 
         return {"ok": True, "code": code, "protocol": protocol}
+    finally:
+        conn.close()
+
+
+@app.post("/api/incident/{incident_id}/edit")
+async def api_incident_edit(incident_id: int, request: Request):
+    """
+    Edit incident fields after creation.
+    Accepts JSON with any of: location, address, caller_name, caller_phone, type, priority, notes.
+    Logs all changes to IncidentHistory for audit trail.
+    """
+    ensure_phase3_schema()
+    data = await request.json()
+
+    editable_fields = ["location", "address", "caller_name", "caller_phone", "type", "priority", "notes"]
+    updates = {}
+    for field in editable_fields:
+        if field in data:
+            updates[field] = (data[field] or "").strip()
+
+    if not updates:
+        return {"ok": False, "error": "No editable fields provided"}
+
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        # Fetch current values for audit
+        row = c.execute("SELECT * FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "Incident not found"}
+        old_vals = dict(row)
+
+        # Build SET clause
+        set_parts = []
+        params = []
+        for field, val in updates.items():
+            set_parts.append(f"{field} = ?")
+            params.append(val)
+        set_parts.append("updated = ?")
+        params.append(_ts())
+        params.append(incident_id)
+
+        c.execute(f"UPDATE Incidents SET {', '.join(set_parts)} WHERE incident_id = ?", params)
+        conn.commit()
+
+        # Audit: log each changed field
+        user = "DISPATCH"
+        try:
+            user = request.session.get("username") or request.session.get("user") or "DISPATCH"
+        except Exception:
+            pass
+
+        changes = []
+        for field, val in updates.items():
+            old = str(old_vals.get(field) or "")
+            if old != val:
+                changes.append(f"{field}: '{old}' -> '{val}'")
+                incident_history(incident_id, "FIELD_EDITED", user=user, details=f"{field} changed from '{old}' to '{val}'")
+
+        if changes:
+            masterlog("INCIDENT_EDITED", user=user, incident_id=incident_id, details="; ".join(changes))
+
+        return {"ok": True, "updated_fields": list(updates.keys()), "changes": changes}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
     finally:
         conn.close()
 

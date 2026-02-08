@@ -1,5 +1,5 @@
 <!-- ============================================================
-     FORD-CAD — UNIFIED SETTINGS CENTER
+     FORD-CAD — UNIFIED PREFERENCES CENTER
      Comprehensive User Preferences & System Configuration
      templates/settings.html
 ============================================================ -->
@@ -9,7 +9,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - FORD CAD</title>
+    <title>Preferences - FORD CAD</title>
+    <link rel="stylesheet" href="/static/fonts/fonts.css" />
+    <link rel="stylesheet" href="/static/css/theme-bridge.css" />
+    <link rel="stylesheet" href="/static/modals.css" />
     <style>
         :root {
             --ford-blue: #003a8f;
@@ -493,7 +496,7 @@
             </svg>
             Back to CAD
         </a>
-        <h1>Settings</h1>
+        <h1>Preferences</h1>
     </div>
     <div class="user-badge">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -636,7 +639,31 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="setting-row" style="border-top: 2px solid var(--ford-blue-light, #e9f0fb); padding-top: 16px; margin-top: 8px;">
+                    <div class="setting-info">
+                        <div class="setting-label" style="font-size: 15px; font-weight: 700; color: var(--ford-blue, #003a8f);">Customize Theme</div>
+                        <div class="setting-desc">Open the full theme editor to customize colors, fonts, shadows, and more. Save up to 5 custom themes with 34 bundled fonts and 5 built-in presets.</div>
+                    </div>
+                    <div class="setting-control">
+                        <button type="button" id="btn-open-theme-editor"
+                            style="padding: 10px 20px; background: linear-gradient(135deg, var(--ford-blue-dark, #002a6b), var(--ford-blue, #003a8f)); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; white-space: nowrap; transition: all 0.2s;"
+                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(0,58,143,0.3)'"
+                            onmouseout="this.style.transform=''; this.style.boxShadow=''"
+                            onclick="loadThemeEditor();">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="13.5" cy="6.5" r="2.5"></circle>
+                                <circle cx="19" cy="13.5" r="2.5"></circle>
+                                <circle cx="6.5" cy="12.5" r="2.5"></circle>
+                                <circle cx="10" cy="19.5" r="2.5"></circle>
+                                <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10c.55 0 1-.45 1-1v-1.5c0-.28.22-.5.5-.5h1.5c2.76 0 5-2.24 5-5 0-4.96-4.49-8-8-8z"></path>
+                            </svg>
+                            Open Theme Editor
+                        </button>
+                    </div>
+                </div>
             </div>
+
 
             <div class="card">
                 <div class="card-header">
@@ -2524,7 +2551,85 @@ loadAdminList();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', loadSettings);
+
+// ── Theme Editor — Modal Container and Loader ─────────────
+// Uses an overlay modal (same approach as the main CAD console)
+window.CAD_MODAL = {
+    _container: null,
+    open: function(url) {
+        if (!this._container) {
+            this._container = document.getElementById('pref-modal-container');
+        }
+        var c = this._container;
+        c.innerHTML = '<div style="padding:60px;text-align:center;color:#94a3b8;font-size:16px;">Loading...</div>';
+        c.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                c.innerHTML = html;
+                // Scripts inserted via innerHTML don't execute — re-create them
+                c.querySelectorAll('script').forEach(function(old) {
+                    var s = document.createElement('script');
+                    s.textContent = old.textContent;
+                    old.parentNode.replaceChild(s, old);
+                });
+            })
+            .catch(function(err) {
+                c.innerHTML = '<div style="padding:60px;text-align:center;color:#ef4444;">Error: ' + err.message + '</div>';
+            });
+    },
+    close: function() {
+        if (!this._container) {
+            this._container = document.getElementById('pref-modal-container');
+        }
+        this._container.style.display = 'none';
+        this._container.innerHTML = '';
+        document.body.style.overflow = '';
+    }
+};
+
+function loadThemeEditor() {
+    CAD_MODAL.open('/modals/themes');
+}
+
+// Apply saved theme on preferences page too
+(function() {
+    try {
+        var saved = localStorage.getItem('cad_theme_tokens');
+        if (saved) {
+            var TM = {
+                '--cad-bg-app':'--bg-app','--cad-bg-surface':'--bg-surface',
+                '--cad-bg-elevated':'--bg-elevated','--cad-bg-panel':'--bg-panel',
+                '--cad-bg-header':'--bg-header','--cad-bg-hover':'--bg-hover',
+                '--cad-bg-active':'--bg-active','--cad-text-primary':'--text-primary',
+                '--cad-text-secondary':'--text-secondary','--cad-text-muted':'--text-muted',
+                '--cad-text-on-dark':'--text-on-dark','--cad-text-on-brand':'--text-on-brand',
+                '--cad-text-link':'--text-link','--cad-border-default':'--border-default',
+                '--cad-border-light':'--border-light','--cad-border-emphasis':'--border-emphasis',
+                '--cad-success':'--success','--cad-success-bg':'--success-bg',
+                '--cad-warning':'--warning','--cad-warning-bg':'--warning-bg',
+                '--cad-danger':'--danger','--cad-danger-bg':'--danger-bg',
+                '--cad-info':'--info','--cad-info-bg':'--info-bg',
+                '--cad-shadow-sm':'--shadow-sm','--cad-shadow-md':'--shadow-md',
+                '--cad-font-ui':'--font-sans','--cad-font-mono':'--font-mono'
+            };
+            var tokens = JSON.parse(saved);
+            var root = document.documentElement;
+            for (var k in tokens) {
+                if (tokens.hasOwnProperty(k) && k.startsWith('--cad-')) {
+                    root.style.setProperty(k, tokens[k]);
+                    if (TM[k]) root.style.setProperty(TM[k], tokens[k]);
+                }
+            }
+        }
+    } catch(e) { /* ignore */ }
+})();
 </script>
+
+<!-- Modal container for theme editor and other overlays -->
+<div id="pref-modal-container" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; overflow-y:auto; padding:20px;"></div>
 
 </body>
 </html>

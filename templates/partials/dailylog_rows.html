@@ -2,16 +2,19 @@
    FILE: templates/partials/dailylog_rows.html
    FORD-CAD — DAILY LOG ROWS (PARTIAL)
    Canon: ONLY DAILYLOG journal entries (dl.action='DAILYLOG')
-   Columns: Timestamp | Subtype | Unit | Incident | Details
+   Columns: DL# | Timestamp | Subtype | Unit | Incident | Details
    FIXES:
      • Always show an incident reference if present (even if join fails)
      • Only show IAW/Hist/Reopen when a resolved internal incident_id exists
      • Remove dependency on row.label (DailyLog subtype is event_type)
+     • Added dl_number column (YYYY-NNNN format)
    ============================================================ #}
 
 {% if rows and rows|length %}
   {% for row in rows %}
     <tr>
+      <td class="dl-num">{{ row.dl_number or "" }}</td>
+
       <td class="ts">{{ row.timestamp or "" }}</td>
 
       <td>{{ row.event_type or "OTHER" }}</td>
@@ -59,6 +62,6 @@
   {% endfor %}
 {% else %}
   <tr>
-    <td colspan="5" class="log-empty">No Daily Log entries.</td>
+    <td colspan="6" class="log-empty">No Daily Log entries.</td>
   </tr>
 {% endif %}

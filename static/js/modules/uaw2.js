@@ -2192,11 +2192,16 @@ export const UAW = {
           return;
         }
 
-        await CAD_UTIL.postJSON("/api/cli/dispatch", {
-          units,
-          incident_id: Number(newId),
-          mode: "D"
-        });
+        try {
+          await CAD_UTIL.postJSON("/api/cli/dispatch", {
+            units,
+            incident_id: Number(newId),
+            mode: "D"
+          });
+        } catch (dispatchErr) {
+          // Dispatch may fail if unit is already assigned; don't abort the save
+          console.warn("[UAW] dispatch step:", dispatchErr?.message || dispatchErr);
+        }
 
         try {
           await CAD_UTIL.postJSON("/remark", {

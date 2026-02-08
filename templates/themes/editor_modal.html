@@ -1,0 +1,1915 @@
+<!-- Theme Editor Modal -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal theme-editor-modal" role="dialog" aria-modal="true" aria-label="Theme Editor">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="13.5" cy="6.5" r="2.5"></circle>
+                <circle cx="19" cy="13.5" r="2.5"></circle>
+                <circle cx="6.5" cy="12.5" r="2.5"></circle>
+                <circle cx="10" cy="19.5" r="2.5"></circle>
+                <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10c.55 0 1-.45 1-1v-1.5c0-.28.22-.5.5-.5h1.5c2.76 0 5-2.24 5-5 0-4.96-4.49-8-8-8z"></path>
+            </svg>
+            Theme Editor
+        </div>
+        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+    <div class="cad-modal-body" style="padding: 0;">
+        <div class="te-container">
+            <!-- Slot Bar -->
+            <div class="te-slot-bar">
+                <div class="te-slot-row">
+                    <div class="te-slot-group">
+                        <span class="te-slot-label">Built-in:</span>
+                        <div class="te-slots">
+                            <button class="te-preset-btn" data-preset="Ford Light" title="Light theme">Light</button>
+                            <button class="te-preset-btn" data-preset="Ford Dark" title="Dark theme">Dark</button>
+                            <button class="te-preset-btn" data-preset="High Contrast" title="High contrast theme">Hi-Con</button>
+                        </div>
+                        <span class="te-slot-divider"></span>
+                        <span class="te-slot-label">Custom:</span>
+                        <div class="te-slots" id="te-slots">
+                            <button class="te-slot" data-slot="1">1</button>
+                            <button class="te-slot" data-slot="2">2</button>
+                            <button class="te-slot" data-slot="3">3</button>
+                            <button class="te-slot" data-slot="4">4</button>
+                            <button class="te-slot" data-slot="5">5</button>
+                        </div>
+                        <span class="te-active-dot" id="te-active-dot" title="This slot is active"></span>
+                    </div>
+                </div>
+                <div class="te-name-row">
+                    <label class="te-name-label" for="te-theme-name">Name:</label>
+                    <input type="text" id="te-theme-name" class="te-name-input" placeholder="My Theme" maxlength="40">
+                    <select id="te-preset-select" class="te-preset-select" title="Load preset">
+                        <option value="">Preset...</option>
+                        {% for p in presets %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="te-action-btn" id="te-btn-duplicate" title="Duplicate to next empty slot">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                        </svg>
+                    </button>
+                    <button class="te-action-btn te-action-danger" id="te-btn-delete" title="Delete this theme slot">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3,6 5,6 21,6"></polyline>
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                        </svg>
+                    </button>
+                    <button class="te-action-btn" id="te-btn-export" title="Export theme as JSON">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                            <polyline points="7,10 12,15 17,10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Content -->
+            <div class="te-scroll-area">
+
+                <!-- Colors Section -->
+                <div class="te-section">
+                    <div class="te-section-title">Colors</div>
+
+                    <!-- Page Colors -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Page Colors</div>
+                        <div class="te-group-desc">These control the main background colors of the interface</div>
+                    </div>
+                    <div class="te-color-grid">
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Main Background</label>
+                                <span class="te-color-hint">Overall page background color</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-app" value="#0f172a">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Card Background</label>
+                                <span class="te-color-hint">Background of panels and cards</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-surface" value="#1e293b">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Panel Background</label>
+                                <span class="te-color-hint">Side panel background</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-panel" value="#1e293b">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Raised Areas</label>
+                                <span class="te-color-hint">Headers and raised sections</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-elevated" value="#334155">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Hover Highlight</label>
+                                <span class="te-color-hint">Color when hovering over rows</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-hover" value="#334155">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Selected Item</label>
+                                <span class="te-color-hint">Currently selected item highlight</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-bg-active" value="#1e3a5f">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Text Colors -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Text Colors</div>
+                        <div class="te-group-desc">Control how text appears throughout the interface</div>
+                    </div>
+                    <div class="te-color-grid">
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Main Text</label>
+                                <span class="te-color-hint">Primary text for all content</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-primary" value="#e2e8f0">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Secondary Text</label>
+                                <span class="te-color-hint">Less important text and descriptions</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-secondary" value="#94a3b8">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Dimmed Text</label>
+                                <span class="te-color-hint">Timestamps, labels, and faint text</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-muted" value="#64748b">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Links</label>
+                                <span class="te-color-hint">Clickable link text color</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-link" value="#60a5fa">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Text on Dark</label>
+                                <span class="te-color-hint">Text shown on dark backgrounds</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-on-dark" value="#ffffff">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Text on Blue</label>
+                                <span class="te-color-hint">Text shown on the blue header</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-text-on-brand" value="#ffffff">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Borders & Lines -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Borders &amp; Lines</div>
+                        <div class="te-group-desc">Lines and dividers between sections</div>
+                    </div>
+                    <div class="te-color-grid">
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Standard Border</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-border-default" value="#475569">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Light Divider</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-border-light" value="#334155">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Bold Border</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-border-emphasis" value="#64748b">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Accent Colors -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Accent Colors</div>
+                        <div class="te-group-desc">Highlight and button colors</div>
+                    </div>
+                    <div class="te-color-grid">
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Primary Accent</label>
+                                <span class="te-color-hint">Buttons and active elements</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-accent-primary" value="#3b82f6">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Secondary Accent</label>
+                                <span class="te-color-hint">Secondary buttons and badges</span>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-accent-secondary" value="#6366f1">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Colors -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Alert Colors</div>
+                        <div class="te-group-desc">Colors for success, warning, danger, and info messages</div>
+                    </div>
+                    <div class="te-color-grid">
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Success</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-success" value="#22c55e">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Success Background</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-success-bg" value="#14532d">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Warning</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-warning" value="#eab308">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Warning Background</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-warning-bg" value="#422006">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Danger</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-danger" value="#ef4444">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Danger Background</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-danger-bg" value="#450a0a">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Info</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-info" value="#3b82f6">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                        <div class="te-color-item">
+                            <div class="te-color-info">
+                                <label>Info Background</label>
+                            </div>
+                            <div class="te-color-wrap">
+                                <input type="color" data-token="--cad-info-bg" value="#1e3a5f">
+                                <span class="te-hex">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Header & Effects -->
+                    <div class="te-group-header">
+                        <div class="te-group-name">Header &amp; Effects</div>
+                        <div class="te-group-desc">Header bar and shadow effects</div>
+                    </div>
+                    <div class="te-header-row">
+                        <label>Header Gradient</label>
+                        <input type="text" id="te-header-bg" class="te-text-input"
+                               data-token="--cad-bg-header"
+                               placeholder="linear-gradient(135deg, #003478 0%, #1351a3 100%)"
+                               value="linear-gradient(135deg, #003478 0%, #1351a3 100%)">
+                    </div>
+                    <div class="te-header-row" style="margin-top: 6px;">
+                        <label>Small Shadow</label>
+                        <input type="text" id="te-shadow-sm" class="te-text-input"
+                               data-token="--cad-shadow-sm"
+                               placeholder="0 1px 2px rgba(0,0,0,0.3)"
+                               value="0 1px 2px rgba(0,0,0,0.3)">
+                    </div>
+                    <div class="te-header-row" style="margin-top: 6px;">
+                        <label>Medium Shadow</label>
+                        <input type="text" id="te-shadow-md" class="te-text-input"
+                               data-token="--cad-shadow-md"
+                               placeholder="0 4px 6px rgba(0,0,0,0.4)"
+                               value="0 4px 6px rgba(0,0,0,0.4)">
+                    </div>
+
+                    <!-- Lock Status Colors -->
+                    <div class="te-lock-row">
+                        <label class="te-checkbox-label">
+                            <input type="checkbox" id="te-lock-status" checked>
+                            <span>Lock status colors (Available, Dispatched, Enroute, etc.)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Fonts Section -->
+                <div class="te-section">
+                    <div class="te-section-title">Fonts</div>
+                    <div class="te-font-grid">
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Interface Font</label>
+                                <span class="te-font-hint">Buttons, menus, and general interface text</span>
+                            </div>
+                            <select data-token="--cad-font-ui" class="te-font-select">
+                                <optgroup label="Fire / Industrial">
+                                    <option value="Anton, sans-serif" style="font-family: 'Anton'">Anton</option>
+                                    <option value="BebasNeue, sans-serif" style="font-family: 'BebasNeue'">Bebas Neue</option>
+                                    <option value="BlackOpsOne, sans-serif" style="font-family: 'BlackOpsOne'">Black Ops One</option>
+                                    <option value="Oswald, sans-serif" style="font-family: 'Oswald'">Oswald</option>
+                                    <option value="Teko, sans-serif" style="font-family: 'Teko'">Teko</option>
+                                    <option value="Rajdhani, sans-serif" style="font-family: 'Rajdhani'">Rajdhani</option>
+                                    <option value="Staatliches, sans-serif" style="font-family: 'Staatliches'">Staatliches</option>
+                                    <option value="Kanit, sans-serif" style="font-family: 'Kanit'">Kanit</option>
+                                </optgroup>
+                                <optgroup label="EMS / Clean">
+                                    <option value="Inter, sans-serif" style="font-family: 'Inter'">Inter</option>
+                                    <option value="DMSans, sans-serif" style="font-family: 'DMSans'">DM Sans</option>
+                                    <option value="PublicSans, sans-serif" style="font-family: 'PublicSans'">Public Sans</option>
+                                    <option value="NunitoSans, sans-serif" style="font-family: 'NunitoSans'">Nunito Sans</option>
+                                    <option value="SourceSans3, sans-serif" style="font-family: 'SourceSans3'">Source Sans 3</option>
+                                    <option value="IBMPlexSans, sans-serif" style="font-family: 'IBMPlexSans'">IBM Plex Sans</option>
+                                    <option value="Poppins, sans-serif" style="font-family: 'Poppins'">Poppins</option>
+                                </optgroup>
+                                <optgroup label="Police / Tactical">
+                                    <option value="Orbitron, sans-serif" style="font-family: 'Orbitron'">Orbitron</option>
+                                    <option value="Exo2, sans-serif" style="font-family: 'Exo2'">Exo 2</option>
+                                    <option value="BarlowCondensed, sans-serif" style="font-family: 'BarlowCondensed'">Barlow Condensed</option>
+                                    <option value="ArchivoBlack, sans-serif" style="font-family: 'ArchivoBlack'">Archivo Black</option>
+                                    <option value="RussoOne, sans-serif" style="font-family: 'RussoOne'">Russo One</option>
+                                    <option value="LeagueSpartan, sans-serif" style="font-family: 'LeagueSpartan'">League Spartan</option>
+                                </optgroup>
+                                <optgroup label="Soft / Rounded">
+                                    <option value="Quicksand, sans-serif" style="font-family: 'Quicksand'">Quicksand</option>
+                                    <option value="Comfortaa, sans-serif" style="font-family: 'Comfortaa'">Comfortaa</option>
+                                    <option value="MPLUSRounded1c, sans-serif" style="font-family: 'MPLUSRounded1c'">M PLUS Rounded</option>
+                                </optgroup>
+                                <optgroup label="Handwritten">
+                                    <option value="Caveat, cursive" style="font-family: 'Caveat'">Caveat</option>
+                                    <option value="PatrickHand, cursive" style="font-family: 'PatrickHand'">Patrick Hand</option>
+                                    <option value="Handlee, cursive" style="font-family: 'Handlee'">Handlee</option>
+                                    <option value="Satisfy, cursive" style="font-family: 'Satisfy'">Satisfy</option>
+                                    <option value="Pacifico, cursive" style="font-family: 'Pacifico'">Pacifico</option>
+                                </optgroup>
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Header Font</label>
+                                <span class="te-font-hint">Page titles and section headers</span>
+                            </div>
+                            <select data-token="--cad-font-header" class="te-font-select">
+                                <optgroup label="Fire / Industrial">
+                                    <option value="Anton, sans-serif" style="font-family: 'Anton'">Anton</option>
+                                    <option value="BebasNeue, sans-serif" style="font-family: 'BebasNeue'">Bebas Neue</option>
+                                    <option value="BlackOpsOne, sans-serif" style="font-family: 'BlackOpsOne'">Black Ops One</option>
+                                    <option value="Oswald, sans-serif" style="font-family: 'Oswald'">Oswald</option>
+                                    <option value="Teko, sans-serif" style="font-family: 'Teko'">Teko</option>
+                                    <option value="Rajdhani, sans-serif" style="font-family: 'Rajdhani'">Rajdhani</option>
+                                    <option value="Staatliches, sans-serif" style="font-family: 'Staatliches'">Staatliches</option>
+                                    <option value="Kanit, sans-serif" style="font-family: 'Kanit'">Kanit</option>
+                                </optgroup>
+                                <optgroup label="EMS / Clean">
+                                    <option value="Inter, sans-serif" style="font-family: 'Inter'">Inter</option>
+                                    <option value="DMSans, sans-serif" style="font-family: 'DMSans'">DM Sans</option>
+                                    <option value="PublicSans, sans-serif" style="font-family: 'PublicSans'">Public Sans</option>
+                                    <option value="NunitoSans, sans-serif" style="font-family: 'NunitoSans'">Nunito Sans</option>
+                                    <option value="SourceSans3, sans-serif" style="font-family: 'SourceSans3'">Source Sans 3</option>
+                                    <option value="IBMPlexSans, sans-serif" style="font-family: 'IBMPlexSans'">IBM Plex Sans</option>
+                                    <option value="Poppins, sans-serif" style="font-family: 'Poppins'">Poppins</option>
+                                </optgroup>
+                                <optgroup label="Police / Tactical">
+                                    <option value="Orbitron, sans-serif" style="font-family: 'Orbitron'">Orbitron</option>
+                                    <option value="Exo2, sans-serif" style="font-family: 'Exo2'">Exo 2</option>
+                                    <option value="BarlowCondensed, sans-serif" style="font-family: 'BarlowCondensed'">Barlow Condensed</option>
+                                    <option value="ArchivoBlack, sans-serif" style="font-family: 'ArchivoBlack'">Archivo Black</option>
+                                    <option value="RussoOne, sans-serif" style="font-family: 'RussoOne'">Russo One</option>
+                                    <option value="LeagueSpartan, sans-serif" style="font-family: 'LeagueSpartan'">League Spartan</option>
+                                </optgroup>
+                                <optgroup label="Soft / Rounded">
+                                    <option value="Quicksand, sans-serif" style="font-family: 'Quicksand'">Quicksand</option>
+                                    <option value="Comfortaa, sans-serif" style="font-family: 'Comfortaa'">Comfortaa</option>
+                                    <option value="MPLUSRounded1c, sans-serif" style="font-family: 'MPLUSRounded1c'">M PLUS Rounded</option>
+                                </optgroup>
+                                <optgroup label="Handwritten">
+                                    <option value="Caveat, cursive" style="font-family: 'Caveat'">Caveat</option>
+                                    <option value="PatrickHand, cursive" style="font-family: 'PatrickHand'">Patrick Hand</option>
+                                    <option value="Handlee, cursive" style="font-family: 'Handlee'">Handlee</option>
+                                    <option value="Satisfy, cursive" style="font-family: 'Satisfy'">Satisfy</option>
+                                    <option value="Pacifico, cursive" style="font-family: 'Pacifico'">Pacifico</option>
+                                </optgroup>
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Unit Labels</label>
+                                <span class="te-font-hint">Unit IDs like E11, L7, B1</span>
+                            </div>
+                            <select data-token="--cad-font-unit" class="te-font-select">
+                                <optgroup label="Fire / Industrial">
+                                    <option value="Anton, sans-serif" style="font-family: 'Anton'">Anton</option>
+                                    <option value="BebasNeue, sans-serif" style="font-family: 'BebasNeue'">Bebas Neue</option>
+                                    <option value="BlackOpsOne, sans-serif" style="font-family: 'BlackOpsOne'">Black Ops One</option>
+                                    <option value="Oswald, sans-serif" style="font-family: 'Oswald'">Oswald</option>
+                                    <option value="Teko, sans-serif" style="font-family: 'Teko'">Teko</option>
+                                    <option value="Rajdhani, sans-serif" style="font-family: 'Rajdhani'">Rajdhani</option>
+                                    <option value="Staatliches, sans-serif" style="font-family: 'Staatliches'">Staatliches</option>
+                                    <option value="Kanit, sans-serif" style="font-family: 'Kanit'">Kanit</option>
+                                </optgroup>
+                                <optgroup label="EMS / Clean">
+                                    <option value="Inter, sans-serif" style="font-family: 'Inter'">Inter</option>
+                                    <option value="DMSans, sans-serif" style="font-family: 'DMSans'">DM Sans</option>
+                                    <option value="PublicSans, sans-serif" style="font-family: 'PublicSans'">Public Sans</option>
+                                    <option value="NunitoSans, sans-serif" style="font-family: 'NunitoSans'">Nunito Sans</option>
+                                    <option value="SourceSans3, sans-serif" style="font-family: 'SourceSans3'">Source Sans 3</option>
+                                    <option value="IBMPlexSans, sans-serif" style="font-family: 'IBMPlexSans'">IBM Plex Sans</option>
+                                    <option value="Poppins, sans-serif" style="font-family: 'Poppins'">Poppins</option>
+                                </optgroup>
+                                <optgroup label="Police / Tactical">
+                                    <option value="Orbitron, sans-serif" style="font-family: 'Orbitron'">Orbitron</option>
+                                    <option value="Exo2, sans-serif" style="font-family: 'Exo2'">Exo 2</option>
+                                    <option value="BarlowCondensed, sans-serif" style="font-family: 'BarlowCondensed'">Barlow Condensed</option>
+                                    <option value="ArchivoBlack, sans-serif" style="font-family: 'ArchivoBlack'">Archivo Black</option>
+                                    <option value="RussoOne, sans-serif" style="font-family: 'RussoOne'">Russo One</option>
+                                    <option value="LeagueSpartan, sans-serif" style="font-family: 'LeagueSpartan'">League Spartan</option>
+                                </optgroup>
+                                <optgroup label="Soft / Rounded">
+                                    <option value="Quicksand, sans-serif" style="font-family: 'Quicksand'">Quicksand</option>
+                                    <option value="Comfortaa, sans-serif" style="font-family: 'Comfortaa'">Comfortaa</option>
+                                    <option value="MPLUSRounded1c, sans-serif" style="font-family: 'MPLUSRounded1c'">M PLUS Rounded</option>
+                                </optgroup>
+                                <optgroup label="Handwritten">
+                                    <option value="Caveat, cursive" style="font-family: 'Caveat'">Caveat</option>
+                                    <option value="PatrickHand, cursive" style="font-family: 'PatrickHand'">Patrick Hand</option>
+                                    <option value="Handlee, cursive" style="font-family: 'Handlee'">Handlee</option>
+                                    <option value="Satisfy, cursive" style="font-family: 'Satisfy'">Satisfy</option>
+                                    <option value="Pacifico, cursive" style="font-family: 'Pacifico'">Pacifico</option>
+                                </optgroup>
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Incident Text</label>
+                                <span class="te-font-hint">Incident numbers and addresses</span>
+                            </div>
+                            <select data-token="--cad-font-incident" class="te-font-select">
+                                <optgroup label="Fire / Industrial">
+                                    <option value="Anton, sans-serif" style="font-family: 'Anton'">Anton</option>
+                                    <option value="BebasNeue, sans-serif" style="font-family: 'BebasNeue'">Bebas Neue</option>
+                                    <option value="BlackOpsOne, sans-serif" style="font-family: 'BlackOpsOne'">Black Ops One</option>
+                                    <option value="Oswald, sans-serif" style="font-family: 'Oswald'">Oswald</option>
+                                    <option value="Teko, sans-serif" style="font-family: 'Teko'">Teko</option>
+                                    <option value="Rajdhani, sans-serif" style="font-family: 'Rajdhani'">Rajdhani</option>
+                                    <option value="Staatliches, sans-serif" style="font-family: 'Staatliches'">Staatliches</option>
+                                    <option value="Kanit, sans-serif" style="font-family: 'Kanit'">Kanit</option>
+                                </optgroup>
+                                <optgroup label="EMS / Clean">
+                                    <option value="Inter, sans-serif" style="font-family: 'Inter'">Inter</option>
+                                    <option value="DMSans, sans-serif" style="font-family: 'DMSans'">DM Sans</option>
+                                    <option value="PublicSans, sans-serif" style="font-family: 'PublicSans'">Public Sans</option>
+                                    <option value="NunitoSans, sans-serif" style="font-family: 'NunitoSans'">Nunito Sans</option>
+                                    <option value="SourceSans3, sans-serif" style="font-family: 'SourceSans3'">Source Sans 3</option>
+                                    <option value="IBMPlexSans, sans-serif" style="font-family: 'IBMPlexSans'">IBM Plex Sans</option>
+                                    <option value="Poppins, sans-serif" style="font-family: 'Poppins'">Poppins</option>
+                                </optgroup>
+                                <optgroup label="Police / Tactical">
+                                    <option value="Orbitron, sans-serif" style="font-family: 'Orbitron'">Orbitron</option>
+                                    <option value="Exo2, sans-serif" style="font-family: 'Exo2'">Exo 2</option>
+                                    <option value="BarlowCondensed, sans-serif" style="font-family: 'BarlowCondensed'">Barlow Condensed</option>
+                                    <option value="ArchivoBlack, sans-serif" style="font-family: 'ArchivoBlack'">Archivo Black</option>
+                                    <option value="RussoOne, sans-serif" style="font-family: 'RussoOne'">Russo One</option>
+                                    <option value="LeagueSpartan, sans-serif" style="font-family: 'LeagueSpartan'">League Spartan</option>
+                                </optgroup>
+                                <optgroup label="Soft / Rounded">
+                                    <option value="Quicksand, sans-serif" style="font-family: 'Quicksand'">Quicksand</option>
+                                    <option value="Comfortaa, sans-serif" style="font-family: 'Comfortaa'">Comfortaa</option>
+                                    <option value="MPLUSRounded1c, sans-serif" style="font-family: 'MPLUSRounded1c'">M PLUS Rounded</option>
+                                </optgroup>
+                                <optgroup label="Handwritten">
+                                    <option value="Caveat, cursive" style="font-family: 'Caveat'">Caveat</option>
+                                    <option value="PatrickHand, cursive" style="font-family: 'PatrickHand'">Patrick Hand</option>
+                                    <option value="Handlee, cursive" style="font-family: 'Handlee'">Handlee</option>
+                                    <option value="Satisfy, cursive" style="font-family: 'Satisfy'">Satisfy</option>
+                                    <option value="Pacifico, cursive" style="font-family: 'Pacifico'">Pacifico</option>
+                                </optgroup>
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Narrative Font</label>
+                                <span class="te-font-hint">Call notes and narrative entries</span>
+                            </div>
+                            <select data-token="--cad-font-narrative" class="te-font-select">
+                                <optgroup label="Fire / Industrial">
+                                    <option value="Anton, sans-serif" style="font-family: 'Anton'">Anton</option>
+                                    <option value="BebasNeue, sans-serif" style="font-family: 'BebasNeue'">Bebas Neue</option>
+                                    <option value="BlackOpsOne, sans-serif" style="font-family: 'BlackOpsOne'">Black Ops One</option>
+                                    <option value="Oswald, sans-serif" style="font-family: 'Oswald'">Oswald</option>
+                                    <option value="Teko, sans-serif" style="font-family: 'Teko'">Teko</option>
+                                    <option value="Rajdhani, sans-serif" style="font-family: 'Rajdhani'">Rajdhani</option>
+                                    <option value="Staatliches, sans-serif" style="font-family: 'Staatliches'">Staatliches</option>
+                                    <option value="Kanit, sans-serif" style="font-family: 'Kanit'">Kanit</option>
+                                </optgroup>
+                                <optgroup label="EMS / Clean">
+                                    <option value="Inter, sans-serif" style="font-family: 'Inter'">Inter</option>
+                                    <option value="DMSans, sans-serif" style="font-family: 'DMSans'">DM Sans</option>
+                                    <option value="PublicSans, sans-serif" style="font-family: 'PublicSans'">Public Sans</option>
+                                    <option value="NunitoSans, sans-serif" style="font-family: 'NunitoSans'">Nunito Sans</option>
+                                    <option value="SourceSans3, sans-serif" style="font-family: 'SourceSans3'">Source Sans 3</option>
+                                    <option value="IBMPlexSans, sans-serif" style="font-family: 'IBMPlexSans'">IBM Plex Sans</option>
+                                    <option value="Poppins, sans-serif" style="font-family: 'Poppins'">Poppins</option>
+                                </optgroup>
+                                <optgroup label="Police / Tactical">
+                                    <option value="Orbitron, sans-serif" style="font-family: 'Orbitron'">Orbitron</option>
+                                    <option value="Exo2, sans-serif" style="font-family: 'Exo2'">Exo 2</option>
+                                    <option value="BarlowCondensed, sans-serif" style="font-family: 'BarlowCondensed'">Barlow Condensed</option>
+                                    <option value="ArchivoBlack, sans-serif" style="font-family: 'ArchivoBlack'">Archivo Black</option>
+                                    <option value="RussoOne, sans-serif" style="font-family: 'RussoOne'">Russo One</option>
+                                    <option value="LeagueSpartan, sans-serif" style="font-family: 'LeagueSpartan'">League Spartan</option>
+                                </optgroup>
+                                <optgroup label="Soft / Rounded">
+                                    <option value="Quicksand, sans-serif" style="font-family: 'Quicksand'">Quicksand</option>
+                                    <option value="Comfortaa, sans-serif" style="font-family: 'Comfortaa'">Comfortaa</option>
+                                    <option value="MPLUSRounded1c, sans-serif" style="font-family: 'MPLUSRounded1c'">M PLUS Rounded</option>
+                                </optgroup>
+                                <optgroup label="Handwritten">
+                                    <option value="Caveat, cursive" style="font-family: 'Caveat'">Caveat</option>
+                                    <option value="PatrickHand, cursive" style="font-family: 'PatrickHand'">Patrick Hand</option>
+                                    <option value="Handlee, cursive" style="font-family: 'Handlee'">Handlee</option>
+                                    <option value="Satisfy, cursive" style="font-family: 'Satisfy'">Satisfy</option>
+                                    <option value="Pacifico, cursive" style="font-family: 'Pacifico'">Pacifico</option>
+                                </optgroup>
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="te-font-item">
+                            <div class="te-font-info">
+                                <label>Code Font</label>
+                                <span class="te-font-hint">Timestamps and technical data</span>
+                            </div>
+                            <select data-token="--cad-font-mono" class="te-font-select">
+                                <optgroup label="Monospace">
+                                    <option value="JetBrainsMono, monospace" style="font-family: 'JetBrainsMono'">JetBrains Mono</option>
+                                    <option value="SourceCodePro, monospace" style="font-family: 'SourceCodePro'">Source Code Pro</option>
+                                    <option value="IBMPlexMono, monospace" style="font-family: 'IBMPlexMono'">IBM Plex Mono</option>
+                                </optgroup>
+                                <optgroup label="System">
+                                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">System Default</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="te-section">
+                    <div class="te-section-title">Preview</div>
+                    <div class="te-preview-box" id="te-preview">
+                        <div class="te-preview-header" id="te-preview-header">
+                            <span>FORD CAD</span>
+                            <span style="font-size: 10px; opacity: 0.7;">Theme Preview</span>
+                        </div>
+                        <div class="te-preview-body" id="te-preview-body">
+                            <div class="te-preview-row">
+                                <div class="te-preview-card" id="te-preview-card1">
+                                    <div class="te-preview-unit" id="te-preview-unit">E1578</div>
+                                    <div class="te-preview-label" id="te-preview-label">Available</div>
+                                </div>
+                                <div class="te-preview-card" id="te-preview-card2">
+                                    <div class="te-preview-incident" id="te-preview-incident">INC-2026-001</div>
+                                    <div class="te-preview-narrative" id="te-preview-narrative">Structure fire reported at 123 Main St.</div>
+                                </div>
+                            </div>
+                            <div class="te-preview-row" style="gap: 6px; margin-top: 6px;">
+                                <span class="te-preview-badge" style="background: var(--cad-success, #22c55e); color: #fff;">Success</span>
+                                <span class="te-preview-badge" style="background: var(--cad-warning, #eab308); color: #000;">Warning</span>
+                                <span class="te-preview-badge" style="background: var(--cad-danger, #ef4444); color: #fff;">Danger</span>
+                                <span class="te-preview-badge" style="background: var(--cad-info, #3b82f6); color: #fff;">Info</span>
+                            </div>
+                            <div class="te-preview-link" id="te-preview-link">Sample link text</div>
+                            <div class="te-preview-muted" id="te-preview-muted">Muted secondary text</div>
+                            <div class="te-preview-mono" id="te-preview-mono">monospace: 0xCAD</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import/Export Section -->
+                <div class="te-section">
+                    <div class="te-section-title">Import / Export</div>
+                    <div class="te-io-row">
+                        <button class="te-btn te-btn-secondary" id="te-btn-export-json">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                                <polyline points="7,10 12,15 17,10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export JSON
+                        </button>
+                        <button class="te-btn te-btn-secondary" id="te-btn-import-json">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                                <polyline points="17,8 12,3 7,8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            Import JSON
+                        </button>
+                        <input type="file" id="te-import-file" accept=".json" style="display:none;">
+                    </div>
+                </div>
+
+            </div><!-- end scroll area -->
+        </div>
+    </div>
+    <div class="cad-modal-footer">
+        <button class="te-btn te-btn-ghost" id="te-btn-reset">Reset to Default</button>
+        <div style="flex: 1;"></div>
+        <button class="te-btn te-btn-primary" onclick="CAD_MODAL.close()">Apply &amp; Close</button>
+    </div>
+</div>
+
+<style>
+/* ── Theme Editor Modal ─────────────────────────────── */
+.theme-editor-modal {
+    min-width: 700px;
+    max-width: 800px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+.theme-editor-modal .cad-modal-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.te-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── Slot Bar ─────────────────────────────────────── */
+.te-slot-bar {
+    padding: 10px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #475569;
+    flex-shrink: 0;
+}
+.te-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.te-slot-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.te-slot-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.te-slots {
+    display: flex;
+    gap: 4px;
+}
+.te-slot {
+    width: 30px;
+    height: 28px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.te-slot:hover {
+    border-color: #60a5fa;
+    color: #e2e8f0;
+    background: #1e3a5f;
+}
+.te-slot.active {
+    background: #2563eb;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+.te-slot.has-theme {
+    border-color: #64748b;
+    color: #cbd5e1;
+}
+.te-preset-btn {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.te-preset-btn:hover {
+    border-color: #60a5fa;
+    color: #e2e8f0;
+    background: #1e3a5f;
+}
+.te-preset-btn.active {
+    background: #2563eb;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+.te-slot-divider {
+    width: 1px;
+    height: 22px;
+    background: #475569;
+    margin: 0 4px;
+    flex-shrink: 0;
+}
+.te-active-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    display: none;
+    box-shadow: 0 0 4px #22c55e;
+}
+.te-active-dot.visible {
+    display: inline-block;
+}
+.te-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.te-name-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+.te-name-input {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 8px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+.te-name-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+.te-preset-select {
+    width: 110px;
+    padding: 5px 6px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+.te-preset-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+.te-action-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+.te-action-btn:hover {
+    border-color: #60a5fa;
+    color: #e2e8f0;
+    background: #1e3a5f;
+}
+.te-action-btn.te-action-danger:hover {
+    border-color: #ef4444;
+    color: #fca5a5;
+    background: #450a0a;
+}
+
+/* ── Scroll Area ──────────────────────────────────── */
+.te-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    background: #1e293b;
+}
+.te-scroll-area::-webkit-scrollbar {
+    width: 6px;
+}
+.te-scroll-area::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+.te-scroll-area::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 3px;
+}
+
+/* ── Sections ─────────────────────────────────────── */
+.te-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+}
+.te-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #60a5fa;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #334155;
+}
+
+/* ── Group Headers ────────────────────────────────── */
+.te-group-header {
+    margin: 12px 0 8px 0;
+}
+.te-group-header:first-child {
+    margin-top: 0;
+}
+.te-group-name {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+}
+.te-group-desc {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+    font-style: italic;
+}
+
+/* ── Color Grid (3-column) ───────────────────────── */
+.te-color-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.te-color-item {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    transition: border-color 0.15s;
+}
+.te-color-item:hover {
+    border-color: #475569;
+}
+.te-color-info {
+    margin-bottom: 4px;
+}
+.te-color-info label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+    display: block;
+}
+.te-color-hint {
+    font-size: 9px;
+    color: #64748b;
+    display: block;
+    line-height: 1.3;
+}
+.te-color-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.te-color-wrap input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 22px;
+    border: 1px solid #475569;
+    border-radius: 3px;
+    cursor: pointer;
+    padding: 1px;
+    background: transparent;
+}
+.te-color-wrap input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.te-color-wrap input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+.te-color-wrap input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 2px;
+}
+.te-hex {
+    font-size: 10px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    color: #64748b;
+    min-width: 52px;
+    text-align: right;
+}
+
+/* ── Header / Shadow text inputs ──────────────────── */
+.te-header-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.te-header-row label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 100px;
+}
+.te-text-input {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-size: 11px;
+    font-family: "JetBrains Mono", "Consolas", monospace;
+    transition: border-color 0.15s;
+}
+.te-text-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* ── Lock Status Colors ───────────────────────────── */
+.te-lock-row {
+    margin-top: 10px;
+    padding: 8px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+}
+.te-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+.te-checkbox-label input[type="checkbox"] {
+    margin-top: 2px;
+    accent-color: #3b82f6;
+    flex-shrink: 0;
+}
+
+/* ── Font Grid (2-column) ────────────────────────── */
+.te-font-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.te-font-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 4px;
+}
+.te-font-info {
+    display: flex;
+    flex-direction: column;
+}
+.te-font-info label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+.te-font-hint {
+    font-size: 9px;
+    color: #64748b;
+    line-height: 1.3;
+}
+.te-font-select {
+    width: 100%;
+    padding: 5px 6px;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+.te-font-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* ── Preview ──────────────────────────────────────── */
+.te-preview-box {
+    border: 1px solid #334155;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.te-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: linear-gradient(135deg, #003478 0%, #1351a3 100%);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+}
+.te-preview-body {
+    padding: 8px 10px;
+    background: #0f172a;
+}
+.te-preview-row {
+    display: flex;
+    gap: 8px;
+}
+.te-preview-card {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #334155;
+    background: #1e293b;
+}
+.te-preview-unit {
+    font-size: 14px;
+    font-weight: 800;
+    color: #e2e8f0;
+}
+.te-preview-label {
+    font-size: 10px;
+    color: #22c55e;
+    font-weight: 600;
+}
+.te-preview-incident {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+.te-preview-narrative {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+.te-preview-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+.te-preview-link {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #60a5fa;
+    text-decoration: underline;
+}
+.te-preview-muted {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.te-preview-mono {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-family: "JetBrains Mono", monospace;
+}
+
+/* ── Import/Export ─────────────────────────────────── */
+.te-io-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* ── Buttons ──────────────────────────────────────── */
+.te-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+}
+.te-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+.te-btn-primary:hover {
+    background: #1d4ed8;
+}
+.te-btn-secondary {
+    background: #334155;
+    color: #e2e8f0;
+    border: 1px solid #475569;
+}
+.te-btn-secondary:hover {
+    background: #475569;
+    border-color: #64748b;
+}
+.te-btn-ghost {
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid #475569;
+}
+.te-btn-ghost:hover {
+    color: #ef4444;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* ── Footer ───────────────────────────────────────── */
+.theme-editor-modal .cad-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #1e293b;
+    border-top: 1px solid #475569;
+    flex-shrink: 0;
+}
+
+/* ── Status Toast (embedded) ──────────────────────── */
+.te-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    z-index: 10001;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    pointer-events: none;
+}
+.te-status.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+.te-status.ok { background: #16a34a; }
+.te-status.err { background: #dc2626; }
+</style>
+
+<script>
+(function() {
+    "use strict";
+
+    /* ── State ───────────────────────────────────────── */
+    let currentSlot = 1;
+    let themes = {};       // slot -> {name, tokens}
+    let activeSlot = 0;
+    let presets = {};       // name -> tokens
+    let saveTimer = null;
+    let lockStatus = true;
+
+    /* ── DOM refs ────────────────────────────────────── */
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    /* ── Hex display sync ────────────────────────────── */
+    function syncHexLabels() {
+        $$('.te-color-wrap input[type="color"]').forEach(inp => {
+            const hex = inp.closest('.te-color-wrap').querySelector('.te-hex');
+            if (hex) hex.textContent = inp.value.toUpperCase();
+        });
+    }
+
+    /* ── Collect all current tokens from UI ──────────── */
+    function collectTokens() {
+        const tokens = {};
+        // Color pickers
+        $$('.te-color-wrap input[type="color"]').forEach(inp => {
+            const token = inp.dataset.token;
+            if (token) tokens[token] = inp.value;
+        });
+        // Text inputs (header, shadows)
+        $$('.te-text-input[data-token]').forEach(inp => {
+            const token = inp.dataset.token;
+            if (token && inp.value.trim()) tokens[token] = inp.value.trim();
+        });
+        // Font selects
+        $$('.te-font-select[data-token]').forEach(sel => {
+            const token = sel.dataset.token;
+            if (token) tokens[token] = sel.value;
+        });
+        return tokens;
+    }
+
+    /* ── Load tokens into all pickers/selects ────────── */
+    function loadTokensToUI(tokens) {
+        if (!tokens || typeof tokens !== 'object') return;
+
+        // Color pickers
+        $$('.te-color-wrap input[type="color"]').forEach(inp => {
+            const token = inp.dataset.token;
+            if (token && tokens[token]) {
+                inp.value = tokens[token];
+            }
+        });
+
+        // Text inputs
+        $$('.te-text-input[data-token]').forEach(inp => {
+            const token = inp.dataset.token;
+            if (token && tokens[token] !== undefined) {
+                inp.value = tokens[token];
+            }
+        });
+
+        // Font selects
+        $$('.te-font-select[data-token]').forEach(sel => {
+            const token = sel.dataset.token;
+            if (token && tokens[token]) {
+                sel.value = tokens[token];
+                // If the exact value isn't found, try partial matching
+                if (!sel.value || sel.value !== tokens[token]) {
+                    const options = sel.querySelectorAll('option');
+                    for (const opt of options) {
+                        if (opt.value === tokens[token] || tokens[token].startsWith(opt.value.split(',')[0])) {
+                            sel.value = opt.value;
+                            break;
+                        }
+                    }
+                }
+                sel.style.fontFamily = sel.value;
+            }
+        });
+
+        syncHexLabels();
+    }
+
+    /* ── Token-to-variable mapping (--cad-* → existing var names) ── */
+    const TOKEN_MAP = {
+        '--cad-bg-app':          '--bg-app',
+        '--cad-bg-surface':      '--bg-surface',
+        '--cad-bg-elevated':     '--bg-elevated',
+        '--cad-bg-panel':        '--bg-panel',
+        '--cad-bg-header':       '--bg-header',
+        '--cad-bg-hover':        '--bg-hover',
+        '--cad-bg-active':       '--bg-active',
+        '--cad-text-primary':    '--text-primary',
+        '--cad-text-secondary':  '--text-secondary',
+        '--cad-text-muted':      '--text-muted',
+        '--cad-text-on-dark':    '--text-on-dark',
+        '--cad-text-on-brand':   '--text-on-brand',
+        '--cad-text-link':       '--text-link',
+        '--cad-border-default':  '--border-default',
+        '--cad-border-light':    '--border-light',
+        '--cad-border-emphasis':  '--border-emphasis',
+        '--cad-success':         '--success',
+        '--cad-success-bg':      '--success-bg',
+        '--cad-warning':         '--warning',
+        '--cad-warning-bg':      '--warning-bg',
+        '--cad-danger':          '--danger',
+        '--cad-danger-bg':       '--danger-bg',
+        '--cad-info':            '--info',
+        '--cad-info-bg':         '--info-bg',
+        '--cad-shadow-sm':       '--shadow-sm',
+        '--cad-shadow-md':       '--shadow-md',
+        '--cad-font-ui':         '--font-sans',
+        '--cad-font-mono':       '--font-mono'
+    };
+
+    /* ── Apply tokens live to the document ────────────── */
+    function applyTokensLive(tokens) {
+        const root = document.documentElement;
+        Object.entries(tokens).forEach(([token, value]) => {
+            // Skip status colors if locked
+            if (lockStatus && token.startsWith('--status-')) return;
+            // Set the --cad-* token
+            root.style.setProperty(token, value);
+            // Also set the mapped original variable (overrides dark theme etc.)
+            const mapped = TOKEN_MAP[token];
+            if (mapped) {
+                root.style.setProperty(mapped, value);
+            }
+        });
+        updatePreview(tokens);
+    }
+
+    /* ── Update the mini preview ─────────────────────── */
+    function updatePreview(tokens) {
+        const pvHeader = $('#te-preview-header');
+        const pvBody   = $('#te-preview-body');
+        const pvCard1  = $('#te-preview-card1');
+        const pvCard2  = $('#te-preview-card2');
+        const pvUnit   = $('#te-preview-unit');
+        const pvLabel  = $('#te-preview-label');
+        const pvInc    = $('#te-preview-incident');
+        const pvNarr   = $('#te-preview-narrative');
+        const pvLink   = $('#te-preview-link');
+        const pvMuted  = $('#te-preview-muted');
+        const pvMono   = $('#te-preview-mono');
+
+        if (!pvHeader) return;
+
+        const t = tokens || collectTokens();
+
+        pvHeader.style.background  = t['--cad-bg-header'] || 'linear-gradient(135deg, #003478 0%, #1351a3 100%)';
+        pvHeader.style.color       = t['--cad-text-on-dark'] || '#ffffff';
+        pvBody.style.background    = t['--cad-bg-app'] || '#0f172a';
+
+        pvCard1.style.background   = t['--cad-bg-surface'] || '#1e293b';
+        pvCard1.style.borderColor  = t['--cad-border-default'] || '#334155';
+        pvCard2.style.background   = t['--cad-bg-surface'] || '#1e293b';
+        pvCard2.style.borderColor  = t['--cad-border-default'] || '#334155';
+
+        pvUnit.style.color         = t['--cad-text-primary'] || '#e2e8f0';
+        pvUnit.style.fontFamily    = t['--cad-font-unit'] || 'Rajdhani, sans-serif';
+        pvLabel.style.color        = t['--cad-success'] || '#22c55e';
+
+        pvInc.style.color          = t['--cad-text-primary'] || '#e2e8f0';
+        pvInc.style.fontFamily     = t['--cad-font-incident'] || 'Inter, sans-serif';
+        pvNarr.style.color         = t['--cad-text-secondary'] || '#94a3b8';
+        pvNarr.style.fontFamily    = t['--cad-font-narrative'] || 'SourceSans3, sans-serif';
+
+        pvLink.style.color         = t['--cad-text-link'] || '#60a5fa';
+        pvMuted.style.color        = t['--cad-text-muted'] || '#64748b';
+        pvMono.style.color         = t['--cad-text-secondary'] || '#94a3b8';
+        pvMono.style.fontFamily    = t['--cad-font-mono'] || 'JetBrainsMono, monospace';
+
+        pvHeader.style.fontFamily  = t['--cad-font-header'] || 'Oswald, sans-serif';
+    }
+
+    /* ── Auto-save with debounce ─────────────────────── */
+    function scheduleSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(doSave, 800);
+    }
+
+    async function doSave() {
+        const tokens = collectTokens();
+        const name = $('#te-theme-name')?.value || 'My Theme';
+
+        try {
+            const res = await fetch('/api/themes/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: currentSlot, name, tokens })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                themes[currentSlot] = { name, tokens };
+                activeSlot = currentSlot;
+                updateSlotUI();
+                // Persist to localStorage for instant load on page refresh
+                try { localStorage.setItem('cad_theme_tokens', JSON.stringify(tokens)); } catch(e) {}
+                showStatus('Saved', 'ok');
+            } else {
+                showStatus(data.error || 'Save failed', 'err');
+            }
+        } catch (e) {
+            showStatus('Save error: ' + e.message, 'err');
+        }
+    }
+
+    /* ── Status flash ────────────────────────────────── */
+    let statusEl = null;
+    function showStatus(msg, type) {
+        if (!statusEl) {
+            statusEl = document.createElement('div');
+            statusEl.className = 'te-status';
+            document.body.appendChild(statusEl);
+        }
+        statusEl.textContent = msg;
+        statusEl.className = 'te-status ' + type + ' visible';
+        setTimeout(() => { statusEl.classList.remove('visible'); }, 1500);
+    }
+
+    /* ── Track active built-in preset (null = using custom slot) */
+    let activeBuiltIn = null;
+
+    /* ── Update slot button states ────────────────────── */
+    function updateSlotUI() {
+        $$('.te-slot').forEach(btn => {
+            const s = parseInt(btn.dataset.slot);
+            btn.classList.toggle('active', s === currentSlot && !activeBuiltIn);
+            btn.classList.toggle('has-theme', !!themes[s]);
+        });
+        $$('.te-preset-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.preset === activeBuiltIn);
+        });
+        const dot = $('#te-active-dot');
+        if (dot) {
+            dot.classList.toggle('visible', activeSlot === currentSlot && currentSlot > 0 && !activeBuiltIn);
+        }
+    }
+
+    /* ── Switch to a slot ────────────────────────────── */
+    function switchSlot(slot) {
+        activeBuiltIn = null;
+        currentSlot = slot;
+        const theme = themes[slot];
+        if (theme) {
+            $('#te-theme-name').value = theme.name || '';
+            loadTokensToUI(theme.tokens);
+            applyTokensLive(theme.tokens);
+        } else {
+            $('#te-theme-name').value = '';
+            // Load Ford Dark defaults for blank slots
+            const defaults = presets['Ford Dark'];
+            if (defaults) {
+                loadTokensToUI(defaults);
+            }
+        }
+        updateSlotUI();
+    }
+
+    /* ── On any color/font/text change ───────────────── */
+    function onTokenChange() {
+        const tokens = collectTokens();
+        applyTokensLive(tokens);
+        syncHexLabels();
+        scheduleSave();
+    }
+
+    /* ── Load a preset ───────────────────────────────── */
+    function loadPreset(name) {
+        const tokens = presets[name];
+        if (!tokens) return;
+        loadTokensToUI(tokens);
+        applyTokensLive(tokens);
+        syncHexLabels();
+        if (!$('#te-theme-name').value) {
+            $('#te-theme-name').value = name;
+        }
+        scheduleSave();
+    }
+
+    /* ── Apply a built-in preset directly ──────────── */
+    function applyBuiltIn(name) {
+        const tokens = presets[name];
+        if (!tokens) return;
+        activeBuiltIn = name;
+        loadTokensToUI(tokens);
+        applyTokensLive(tokens);
+        syncHexLabels();
+        $('#te-theme-name').value = name;
+        updateSlotUI();
+        scheduleSave();
+    }
+
+    /* ── Duplicate theme ─────────────────────────────── */
+    async function duplicateTheme() {
+        // Find first empty slot
+        let target = null;
+        for (let s = 1; s <= 5; s++) {
+            if (s !== currentSlot && !themes[s]) {
+                target = s;
+                break;
+            }
+        }
+        if (!target) {
+            // All full, overwrite next slot cyclically
+            target = (currentSlot % 5) + 1;
+            if (!confirm('All slots are full. Overwrite slot ' + target + '?')) return;
+        }
+
+        try {
+            const res = await fetch('/api/themes/duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from_slot: currentSlot, to_slot: target })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                themes[target] = {
+                    name: (themes[currentSlot]?.name || 'Theme') + ' (Copy)',
+                    tokens: { ...(themes[currentSlot]?.tokens || collectTokens()) }
+                };
+                switchSlot(target);
+                showStatus('Duplicated to slot ' + target, 'ok');
+            } else {
+                showStatus(data.error || 'Duplicate failed', 'err');
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, 'err');
+        }
+    }
+
+    /* ── Delete theme ────────────────────────────────── */
+    async function deleteTheme() {
+        if (!themes[currentSlot]) {
+            showStatus('Slot is already empty', 'err');
+            return;
+        }
+        if (!confirm('Delete theme "' + (themes[currentSlot]?.name || 'Slot ' + currentSlot) + '"? This cannot be undone.')) return;
+
+        try {
+            const res = await fetch('/api/themes/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: currentSlot })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                delete themes[currentSlot];
+                if (activeSlot === currentSlot) activeSlot = 0;
+                switchSlot(currentSlot);
+                showStatus('Theme deleted', 'ok');
+            } else {
+                showStatus(data.error || 'Delete failed', 'err');
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, 'err');
+        }
+    }
+
+    /* ── Export JSON ──────────────────────────────────── */
+    async function exportTheme() {
+        try {
+            const res = await fetch('/api/themes/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: currentSlot })
+            });
+            const data = await res.json();
+            if (!data.ok) {
+                showStatus(data.error || 'Nothing to export', 'err');
+                return;
+            }
+            const blob = new Blob([JSON.stringify(data.export, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (data.export.name || 'theme').replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showStatus('Exported', 'ok');
+        } catch (e) {
+            showStatus('Export error: ' + e.message, 'err');
+        }
+    }
+
+    /* ── Import JSON ─────────────────────────────────── */
+    function importTheme() {
+        $('#te-import-file').click();
+    }
+
+    async function handleImportFile(e) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            // Support both wrapped {name, tokens} and flat token objects
+            let name, tokens;
+            if (data.name && data.tokens) {
+                name = data.name;
+                tokens = data.tokens;
+            } else if (data.export && data.export.tokens) {
+                name = data.export.name || 'Imported';
+                tokens = data.export.tokens;
+            } else if (typeof data === 'object' && data['--cad-bg-app']) {
+                name = 'Imported Theme';
+                tokens = data;
+            } else {
+                showStatus('Invalid theme file', 'err');
+                return;
+            }
+
+            const res = await fetch('/api/themes/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: currentSlot, theme: { name, tokens } })
+            });
+            const result = await res.json();
+            if (result.ok) {
+                themes[currentSlot] = { name, tokens };
+                $('#te-theme-name').value = name;
+                loadTokensToUI(tokens);
+                applyTokensLive(tokens);
+                syncHexLabels();
+                updateSlotUI();
+                showStatus('Imported "' + name + '"', 'ok');
+            } else {
+                showStatus(result.error || 'Import failed', 'err');
+            }
+        } catch (e) {
+            showStatus('Import error: ' + e.message, 'err');
+        }
+
+        // Reset file input so same file can be re-imported
+        e.target.value = '';
+    }
+
+    /* ── Reset to Default ────────────────────────────── */
+    async function resetToDefault() {
+        if (!confirm('Reset to system default? This will deactivate your custom theme.')) return;
+
+        try {
+            const res = await fetch('/api/themes/active', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: 0 })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                activeSlot = 0;
+                // Clear all custom properties
+                const root = document.documentElement;
+                const tokens = collectTokens();
+                Object.keys(tokens).forEach(token => {
+                    root.style.removeProperty(token);
+                    // Also clear mapped original variable
+                    const mapped = TOKEN_MAP[token];
+                    if (mapped) root.style.removeProperty(mapped);
+                });
+                // Also clear header/shadow/font tokens + mapped vars
+                ['--cad-bg-header', '--cad-shadow-sm', '--cad-shadow-md',
+                 '--bg-header', '--shadow-sm', '--shadow-md',
+                 '--cad-font-ui', '--cad-font-header', '--cad-font-unit',
+                 '--cad-font-incident', '--cad-font-narrative', '--cad-font-mono',
+                 '--font-sans', '--font-mono'].forEach(p => root.style.removeProperty(p));
+                updateSlotUI();
+                // Clear localStorage theme
+                try { localStorage.removeItem('cad_theme_tokens'); } catch(e) {}
+                showStatus('Reset to default', 'ok');
+            }
+        } catch (e) {
+            showStatus('Error: ' + e.message, 'err');
+        }
+    }
+
+    /* ── Initialize ──────────────────────────────────── */
+    async function init() {
+        // Fetch theme data
+        try {
+            const res = await fetch('/api/themes');
+            const data = await res.json();
+            if (data.ok) {
+                activeSlot = data.active_slot || 0;
+
+                // Map themes by slot
+                (data.themes || []).forEach(t => {
+                    themes[t.slot] = { name: t.name, tokens: t.tokens };
+                });
+
+                // Map presets
+                (data.presets || []).forEach(p => {
+                    presets[p.name] = p.tokens;
+                });
+
+                // If user has an active slot, start there
+                if (activeSlot > 0 && themes[activeSlot]) {
+                    currentSlot = activeSlot;
+                } else {
+                    // Default to slot 1
+                    currentSlot = 1;
+                }
+
+                switchSlot(currentSlot);
+            }
+        } catch (e) {
+            console.error('[ThemeEditor] Failed to load themes:', e);
+            showStatus('Failed to load themes', 'err');
+        }
+
+        // ── Event Listeners ──────────────────────────── //
+
+        // Slot buttons (custom)
+        $$('.te-slot').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchSlot(parseInt(btn.dataset.slot));
+            });
+        });
+
+        // Built-in preset buttons
+        $$('.te-preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyBuiltIn(btn.dataset.preset);
+            });
+        });
+
+        // Color pickers — live preview on input, save on change
+        $$('.te-color-wrap input[type="color"]').forEach(inp => {
+            inp.addEventListener('input', onTokenChange);
+        });
+
+        // Text inputs (header gradient, shadows)
+        $$('.te-text-input[data-token]').forEach(inp => {
+            inp.addEventListener('input', onTokenChange);
+        });
+
+        // Font selects
+        $$('.te-font-select[data-token]').forEach(sel => {
+            sel.addEventListener('change', () => {
+                sel.style.fontFamily = sel.value;
+                onTokenChange();
+            });
+        });
+
+        // Theme name
+        $('#te-theme-name')?.addEventListener('input', () => {
+            scheduleSave();
+        });
+
+        // Preset selector
+        $('#te-preset-select')?.addEventListener('change', (e) => {
+            if (e.target.value) {
+                loadPreset(e.target.value);
+                e.target.value = '';
+            }
+        });
+
+        // Action buttons
+        $('#te-btn-duplicate')?.addEventListener('click', duplicateTheme);
+        $('#te-btn-delete')?.addEventListener('click', deleteTheme);
+        $('#te-btn-export')?.addEventListener('click', exportTheme);
+        $('#te-btn-export-json')?.addEventListener('click', exportTheme);
+        $('#te-btn-import-json')?.addEventListener('click', importTheme);
+        $('#te-import-file')?.addEventListener('change', handleImportFile);
+        $('#te-btn-reset')?.addEventListener('click', resetToDefault);
+
+        // Lock status colors checkbox
+        $('#te-lock-status')?.addEventListener('change', (e) => {
+            lockStatus = e.target.checked;
+        });
+
+        syncHexLabels();
+    }
+
+    // Initialize when loaded
+    setTimeout(init, 50);
+})();
+</script>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#003478">
   <title>MDT - {{ unit_id }} | FORD CAD</title>
@@ -656,5 +656,22 @@
       }).catch(() => {});
     }, 30000);
   </script>
+
+  <!-- Bottom Navigation Tabs -->
+  <nav style="position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0);">
+    <a href="/mobile/mdt/{{ unit_id }}" style="flex:1;text-align:center;padding:10px 4px;color:#60a5fa;text-decoration:none;font-size:11px;font-weight:600;">
+      <div style="font-size:18px;margin-bottom:2px;">&#x1F4CB;</div>MDT
+    </a>
+    <a href="/mobile/mdt/{{ unit_id }}/timeline" style="flex:1;text-align:center;padding:10px 4px;color:#94a3b8;text-decoration:none;font-size:11px;">
+      <div style="font-size:18px;margin-bottom:2px;">&#x23F1;</div>Timeline
+    </a>
+    <a href="/mobile/mdt/{{ unit_id }}/messages" style="flex:1;text-align:center;padding:10px 4px;color:#94a3b8;text-decoration:none;font-size:11px;">
+      <div style="font-size:18px;margin-bottom:2px;">&#x1F4AC;</div>Chat
+    </a>
+    <a href="/mobile/mdt/{{ unit_id }}/photos" style="flex:1;text-align:center;padding:10px 4px;color:#94a3b8;text-decoration:none;font-size:11px;">
+      <div style="font-size:18px;margin-bottom:2px;">&#x1F4F7;</div>Photos
+    </a>
+  </nav>
+  <div style="height:70px;"></div> <!-- Spacer for bottom nav -->
 </body>
 </html>
