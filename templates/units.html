@@ -13,18 +13,7 @@
 
     <div class="units-panel">
 
-        <div class="units-header">
-            <div class="units-title">Units</div>
-
-            <div class="units-subhint">
-                {% if login_required|default(false) %}
-                    Login Required
-                {% else %}
-                    Shift {{ shift_letter }} | {{ units|length }} units
-                    {% if roster_view_mode == 'ALL' %}<span class="view-mode-hint">(All)</span>{% endif %}
-                {% endif %}
-            </div>
-        </div>
+        <!-- units-header removed: shift/unit info now in main header -->
 
         {% if login_required|default(false) %}
             <div class="units-empty">
@@ -201,7 +190,7 @@
                         </div>
                         <div class="unit-ma-body collapsed">
                         {% set ns_ma = namespace(current_dept='') %}
-                        {% for u in mutual_units %}
+                        {% for u in mutual_units|sort(attribute='mutual_aid_priority,department,unit_id') %}
                             {% set dept = u.department or 'Other' %}
                             {% if dept != ns_ma.current_dept %}
                                 {% set ns_ma.current_dept = dept %}
@@ -238,10 +227,10 @@
                 <!-- OOS / OUT-OF-SERVICE SECTION -->
                 {% if oos_units|length > 0 %}
                 <div class="units-oos-section">
-                    <div class="unit-oos-toggle" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('collapsed');">
+                    <div class="unit-oos-toggle open" onclick="this.classList.toggle('open'); this.nextElementSibling.classList.toggle('collapsed');">
                         <span class="unit-ma-arrow">&#9654;</span> Out of Service ({{ oos_units|length }})
                     </div>
-                    <div class="unit-oos-body collapsed">
+                    <div class="unit-oos-body">
                         {% for u in oos_units %}
                         <div class="unit-row unit-row-oos" tabindex="0"
                              data-unit-id="{{ u.unit_id }}"

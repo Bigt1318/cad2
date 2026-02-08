@@ -38,6 +38,7 @@
     min-width: 400px;
     max-width: 90vw;
     max-height: 90vh;
+    max-height: 90dvh;
 
     background: var(--bg-surface, #161b22);
     color: var(--text-primary, #f0f6fc);

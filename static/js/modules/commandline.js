@@ -97,6 +97,7 @@ const CLI = {
         { key: "STATUS", aliases: ["ST"], desc: "Set status: ST <unit> <status>" },
         { key: "ENROUTE", aliases: ["E", "ENR", "ENROUTE", "ENRT", "ER", "RESPONDING"], desc: "Set ENROUTE" },
         { key: "ARRIVED", aliases: ["A", "ARR", "ARRIVE", "ARRIVED", "OS", "ONSCENE", "ONS", "10-23", "1023"], desc: "Set ARRIVED" },
+        { key: "AT_APPARATUS", aliases: ["AA", "ATAPP", "AT_APP", "STATION", "STA", "QTR", "QUARTERS"], desc: "Set AT APPARATUS (station)" },
         { key: "OPERATING", aliases: ["OPR", "OP", "OPERATING", "WORK"], desc: "Set OPERATING" },
         { key: "TRANSPORTING", aliases: ["T", "TR", "TRN", "TX", "TRANS", "TRANSPORT"], desc: "Set TRANSPORTING" },
         { key: "AT_MEDICAL", aliases: ["M", "MED", "ATMED", "AT_MED", "MEDICAL", "HOSP"], desc: "Set AT MEDICAL" },
@@ -1012,59 +1013,70 @@ DISPOSITION CODES
         }
     },
 
+    // --- Append remark after status command ---
+    // Posts remaining CLI text as a remark on each unit's active incident.
+    async _appendRemarkAfterStatus(units, text) {
+        if (!text) return;
+        const list = this._asUnitList(units);
+        for (const u of list) {
+            try {
+                await CAD_UTIL.postJSON("/remark", { unit_id: u, text });
+            } catch (_) {
+                // Best-effort; status already set
+            }
+        }
+    },
+
     // --- Self-Initiate ---
+    // Opens the UAW mini calltaker form so the user can fill in incident details,
+    // instead of auto-creating a blank incident.
     async _selfInitiate(unitId, incidentType = null) {
         try {
-            // Check if unit is currently assigned to an incident
+            // If unit is currently on an incident, auto-clear first
             const ctx = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(unitId)}`);
             const currentIncidentId = Number(ctx?.active_incident_id || 0);
 
-            // If unit is on an incident, auto-clear with SI disposition
             if (currentIncidentId) {
                 this._toast(`${unitId} clearing from incident ${currentIncidentId}...`, "info");
                 try {
                     await CAD_UTIL.postJSON(`/api/uaw/clear_unit`, {
                         unit_id: unitId,
                         incident_id: currentIncidentId,
-                        disposition: "R" // Resolved - unit is going to new call
+                        disposition: "R"
                     });
                 } catch (clearErr) {
                     console.warn(`[CLI] Auto-clear failed for ${unitId}:`, clearErr);
-                    // Continue anyway - maybe unit wasn't fully assigned
                 }
             }
 
-            // Create a new incident
-            const newRes = await fetch("/incident/new", { method: "POST" });
-            if (!newRes.ok) {
-                this._toast("Failed to create incident", "error");
-                return;
-            }
-            const newInc = await newRes.json();
-            const newIncidentId = newInc.incident_id;
+            // Open the UAW mini calltaker form instead of auto-creating
+            if (window.UAW?.openForSelfInitiate) {
+                await window.UAW.openForSelfInitiate(unitId);
+            } else {
+                // Fallback: auto-create if UAW mini calltaker not available
+                const newRes = await fetch("/incident/new", { method: "POST" });
+                if (!newRes.ok) {
+                    this._toast("Failed to create incident", "error");
+                    return;
+                }
+                const newInc = await newRes.json();
+                const newIncidentId = newInc.incident_id;
 
-            // Save incident with SI type and basic info
-            const saveData = {
-                type: incidentType || "SELF-INITIATED",
-                nature: "Self-initiated by " + unitId,
-                status: "OPEN"
-            };
+                const saveData = {
+                    type: incidentType || "SELF-INITIATED",
+                    nature: "Self-initiated by " + unitId,
+                    status: "OPEN"
+                };
+                await CAD_UTIL.postJSON(`/incident/save/${newIncidentId}`, saveData);
+                await CAD_UTIL.postJSON("/api/cli/dispatch", {
+                    incident_id: newIncidentId,
+                    units: [unitId],
+                    mode: "DE"
+                });
 
-            await CAD_UTIL.postJSON(`/incident/save/${newIncidentId}`, saveData);
-
-            // Dispatch unit to new incident
-            await CAD_UTIL.postJSON("/api/cli/dispatch", {
-                incident_id: newIncidentId,
-                units: [unitId],
-                mode: "DE" // Dispatch + Enroute
-            });
-
-            CAD_UTIL.refreshPanels();
-            this._toast(`${unitId} self-initiated → Incident ${newIncidentId}`, "success");
-
-            // Open the new incident in IAW
-            if (window.IAW?.open) {
-                window.IAW.open(newIncidentId);
+                CAD_UTIL.refreshPanels();
+                this._toast(`${unitId} self-initiated → Incident ${newIncidentId}`, "success");
+                if (window.IAW?.open) window.IAW.open(newIncidentId);
             }
         } catch (err) {
             console.error("[CLI] Self-initiate failed:", err);
@@ -1200,6 +1212,50 @@ DISPOSITION CODES
         m = lower.match(/^(?:add\s+)?note\s+(?:to\s+)?(\d+)[:\s]+(.+)$/i);
         if (m) return { action: "NOTE", incident: m[1], text: m[2] };
 
+        // Pattern: "<unit> is enroute" or "<unit> responding to <incident>"
+        m = lower.match(/^(.+?)\s+(?:is\s+)?(?:enroute|responding)(?:\s+to\s+(?:incident\s+)?(\d+))?$/i);
+        if (m) {
+            const units = m[1].split(/[\s,]+/);
+            if (m[2]) return { action: "DISPATCH_ENROUTE", incident: m[2], units };
+            return { action: "ENROUTE", units };
+        }
+
+        // Pattern: "<unit> is operating" or "<unit> working"
+        m = lower.match(/^(.+?)\s+(?:is\s+)?(?:operating|working)$/i);
+        if (m) return { action: "OPERATING", units: [m[1].trim()] };
+
+        // Pattern: "<unit> transporting" or "<unit> in transit"
+        m = lower.match(/^(.+?)\s+(?:is\s+)?(?:transporting|in\s+transit)$/i);
+        if (m) return { action: "TRANSPORTING", units: [m[1].trim()] };
+
+        // Pattern: "<unit> at hospital" or "<unit> at medical"
+        m = lower.match(/^(.+?)\s+(?:is\s+)?(?:at\s+(?:hospital|medical|hosp|med))$/i);
+        if (m) return { action: "AT_MEDICAL", units: [m[1].trim()] };
+
+        // Pattern: "<unit> at station" or "<unit> in quarters"
+        m = lower.match(/^(.+?)\s+(?:is\s+)?(?:at\s+(?:station|quarters|apparatus)|in\s+quarters)$/i);
+        if (m) return { action: "AT_APPARATUS", units: [m[1].trim()] };
+
+        // Pattern: "hold <incident> <reason>" or "hold incident <#> <reason>"
+        m = lower.match(/^hold\s+(?:incident\s+)?(\d+)[:\s]+(.+)$/i);
+        if (m) return { action: "HOLD", incident: m[1], text: m[2] };
+
+        // Pattern: "<unit> 10-7" or "<unit> out of service"
+        m = lower.match(/^(.+?)\s+(?:10-7|out\s+of\s+service|oos)$/i);
+        if (m) return { action: "OOS", units: m[1].split(/[\s,]+/) };
+
+        // Pattern: "<unit> 10-8" or "<unit> back in service"
+        m = lower.match(/^(.+?)\s+(?:10-8|back\s+in\s+service|available)$/i);
+        if (m) return { action: "AVAILABLE", units: m[1].split(/[\s,]+/) };
+
+        // Pattern: "<unit> self initiate" or "<unit> self-initiate"
+        m = lower.match(/^(.+?)\s+(?:self[\s-]?initiate[ds]?)$/i);
+        if (m) return { action: "SELF_INITIATE", units: [m[1].trim()] };
+
+        // Pattern: "dispatch <units> to <address>" (dispatch to location, not incident #)
+        m = lower.match(/^dispatch\s+(.+?)\s+to\s+(.+)$/i);
+        if (m && !/^\d+$/.test(m[2].trim())) return { action: "DISPATCH_LOCATION", units: m[1].split(/[\s,]+/), location: m[2].trim() };
+
         return null; // No NLP match
     },
 
@@ -1236,9 +1292,51 @@ DISPOSITION CODES
                 case "ARRIVED":
                     await this._setStatusForUnits(this.resolveAliases(nlp.units), "ARRIVED");
                     return;
+                case "ENROUTE":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "ENROUTE");
+                    return;
+                case "DISPATCH_ENROUTE":
+                    await this._dispatchToIncident(this.resolveAliases(nlp.units), nlp.incident, "DE");
+                    return;
+                case "OPERATING":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "OPERATING");
+                    return;
+                case "TRANSPORTING":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "TRANSPORTING");
+                    return;
+                case "AT_MEDICAL":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "AT_MEDICAL");
+                    return;
+                case "AT_APPARATUS":
+                    await this._setStatusForUnits(this.resolveAliases(nlp.units), "AT_APPARATUS");
+                    return;
+                case "OOS":
+                    await this._setUnitOOS(this.resolveAliases(nlp.units));
+                    return;
+                case "AVAILABLE":
+                    await this._setUnitAvailable(this.resolveAliases(nlp.units));
+                    return;
+                case "SELF_INITIATE":
+                    for (const u of this.resolveAliases(nlp.units)) {
+                        await this._selfInitiate(u);
+                    }
+                    return;
                 case "CLEAR":
                     await this._clearUnit(this.resolveAliases(nlp.units));
                     return;
+                case "HOLD": {
+                    const hIncId = this._normalizeIncidentRef(nlp.incident);
+                    try {
+                        await CAD_UTIL.postJSON(`/incident/${encodeURIComponent(hIncId)}/hold`, {
+                            reason: nlp.text
+                        });
+                        CAD_UTIL.refreshPanels();
+                        this._toast(`Incident ${hIncId} placed on HOLD`, "success");
+                    } catch (err) {
+                        this._toast(err?.message || "Hold failed", "error");
+                    }
+                    return;
+                }
                 case "NOTE": {
                     const incId = nlp.incident;
                     try {
@@ -1820,43 +1918,59 @@ DISPOSITION CODES
         }
 
         // --- Status Progression ---
+        // Any text after the status command is appended as a remark on the unit's active incident.
+        // Example: "14 A HEAVY SMOKE SHOWING" → set ARRIVED + remark "HEAVY SMOKE SHOWING"
         if (action === "ENROUTE") {
             await this._setStatusForUnits(units, "ENROUTE");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "ARRIVED") {
             await this._setStatusForUnits(units, "ARRIVED");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
+            return;
+        }
+
+        if (action === "AT_APPARATUS") {
+            await this._setStatusForUnits(units, "AT_APPARATUS");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "OPERATING") {
             await this._setStatusForUnits(units, "OPERATING");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "TRANSPORTING") {
             await this._setStatusForUnits(units, "TRANSPORTING");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "AT_MEDICAL") {
             await this._setStatusForUnits(units, "AT_MEDICAL");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "AVAILABLE") {
             await this._setUnitAvailable(units);
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "BUSY") {
             await this._setStatusForUnits(units, "BUSY");
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 
         if (action === "OOS") {
             await this._setUnitOOS(units);
+            if (rest.length) await this._appendRemarkAfterStatus(units, rest.join(" "));
             return;
         }
 

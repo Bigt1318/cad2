@@ -495,6 +495,13 @@ function _wireGlobalShortcuts() {
       return; // Don't process further if Alt was pressed
     }
 
+    // Ctrl+K / Cmd+K = Quick Search (works even in input fields)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      CAD_MODAL.open("/modals/search");
+      return;
+    }
+
     // Skip non-Alt shortcuts if typing in input fields
     if (isTyping) return;
 
@@ -546,6 +553,116 @@ function _wireGlobalShortcuts() {
 }
 
 // ---------------------------------------------------------------------------
+// Connection Status Indicator
+// ---------------------------------------------------------------------------
+let _connFailCount = 0;
+let _connState = "connected"; // connected | reconnecting | offline
+let _connTimer = null;
+
+function _updateConnectionDot(state) {
+  _connState = state;
+  const dot = document.getElementById("conn-status-dot");
+  if (!dot) return;
+  dot.className = "conn-dot conn-" + state;
+  dot.title = state === "connected" ? "Connected" :
+              state === "reconnecting" ? "Reconnecting..." : "Connection Lost";
+}
+
+async function _pingServer() {
+  try {
+    const res = await fetch("/api/ping", { method: "GET", signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      if (_connState !== "connected") {
+        _updateConnectionDot("connected");
+        window.TOAST?.success?.("Reconnected");
+        // Auto-refresh panels on reconnect
+        CAD_UTIL.refreshPanels?.();
+      }
+      _connFailCount = 0;
+      return;
+    }
+  } catch (e) {
+    // fetch failed
+  }
+  _connFailCount++;
+  if (_connFailCount >= 3) {
+    if (_connState !== "offline") {
+      _updateConnectionDot("offline");
+      window.TOAST?.error?.("Connection Lost");
+    }
+  } else {
+    if (_connState !== "reconnecting") {
+      _updateConnectionDot("reconnecting");
+    }
+  }
+}
+
+function _startConnectionMonitor() {
+  // Initial state
+  _updateConnectionDot("connected");
+  // Poll every 30s
+  _connTimer = setInterval(_pingServer, 30000);
+}
+
+// ---------------------------------------------------------------------------
+// Browser Notifications
+// ---------------------------------------------------------------------------
+function _initBrowserNotifications() {
+  // Check if setting is enabled
+  try {
+    const stored = localStorage.getItem("fordcad_settings");
+    if (stored) {
+      const s = JSON.parse(stored);
+      if (s.browserNotifications) {
+        if (Notification && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+/**
+ * Show a browser notification if the tab is hidden and permission granted.
+ * @param {string} title
+ * @param {string} body
+ * @param {object} [opts] - extra options (icon, tag, onclick)
+ */
+LAYOUT.browserNotify = (title, body, opts = {}) => {
+  // Only show when tab is not focused
+  if (!document.hidden) return;
+  // Check setting
+  try {
+    const stored = localStorage.getItem("fordcad_settings");
+    if (stored) {
+      const s = JSON.parse(stored);
+      if (!s.browserNotifications) return;
+    } else {
+      return; // default is off
+    }
+  } catch (e) { return; }
+
+  if (!Notification || Notification.permission !== "granted") return;
+
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: opts.icon || "/static/icons/ford-cad-icon.png",
+      tag: opts.tag || "ford-cad-" + Date.now(),
+    });
+    if (opts.onclick) {
+      n.onclick = () => {
+        window.focus();
+        opts.onclick();
+        n.close();
+      };
+    }
+    // Auto-close after 8s
+    setTimeout(() => n.close(), 8000);
+  } catch (e) { /* ignore */ }
+};
+
+// ---------------------------------------------------------------------------
 // Public init
 // ---------------------------------------------------------------------------
 LAYOUT.init = async () => {
@@ -554,6 +671,8 @@ LAYOUT.init = async () => {
   _wireSessionButtons();
   _wireGlobalShortcuts();
   _startHeldWatcher();
+  _startConnectionMonitor();
+  _initBrowserNotifications();
   await _refreshSessionStatus();
 };
 

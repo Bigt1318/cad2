@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
     highlightColor: "#fff3cd",
     flashTab: true,
     desktopNotify: false,
+    browserNotifications: false,
     volume: 70,
     statusColors: {          // customizable status colors
         dispatched: "#3b82f6",

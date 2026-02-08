@@ -1862,6 +1862,41 @@ export const UAW = {
     _focusFirst();
   },
 
+  // CLI helper: open UAW centered and jump directly to mini calltaker form
+  async openForSelfInitiate(unitId) {
+    if (!unitId) return;
+
+    await this.close();
+
+    _ensureStyles();
+    await _loadKnownUnits();
+
+    _unitId = unitId;
+    _incidentId = null;
+
+    _isApparatus = false;
+    _parentApparatusId = null;
+    _crew = [];
+
+    if (!_validateKnownUnitOrWarn(_unitId)) return;
+
+    // Create popup (no anchor - will center)
+    _popup = document.createElement("div");
+    _popup.className = "uaw-popup";
+    _popup.dataset.mode = "self-initiate";
+    _popup.style.visibility = "hidden";
+    _popup.style.left = "-9999px";
+    _popup.style.top = "-9999px";
+    document.body.appendChild(_popup);
+
+    // Jump directly to mini calltaker form
+    this._showMiniCalltaker();
+    _placePopup("center", true);
+
+    _setOutsideAndKeyHandlers();
+    _focusFirst();
+  },
+
   async close() {
     if (_popup) _popup.remove();
     _popup = null;

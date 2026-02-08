@@ -1,0 +1,284 @@
+<!-- Global Quick-Search Modal (Ctrl+K) -->
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal search-modal" role="dialog" aria-modal="true" aria-label="Quick Search">
+    <div class="search-modal-inner">
+        <div class="search-input-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="quick-search-input" placeholder="Search incidents, units, contacts, history..." autocomplete="off" autofocus>
+            <kbd class="search-kbd">ESC</kbd>
+        </div>
+        <div class="search-results" id="quick-search-results">
+            <div class="search-empty">Type to search across all CAD data</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-modal {
+    min-width: 560px;
+    max-width: 640px;
+    padding: 0;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.search-modal-inner {
+    display: flex;
+    flex-direction: column;
+    max-height: 480px;
+}
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-surface);
+}
+.search-input-wrapper .search-icon {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+#quick-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    color: var(--text-primary);
+    outline: none;
+}
+#quick-search-input::placeholder { color: var(--text-muted); }
+.search-kbd {
+    padding: 2px 6px;
+    font-size: 11px;
+    font-family: monospace;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    color: var(--text-secondary);
+}
+.search-results {
+    overflow-y: auto;
+    max-height: 380px;
+    padding: var(--space-2) 0;
+}
+.search-empty {
+    padding: var(--space-6) var(--space-4);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+.search-group-label {
+    padding: var(--space-1) var(--space-4);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+}
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+.search-result-item:hover, .search-result-item.active {
+    background: var(--bg-hover);
+}
+.search-result-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+}
+.search-result-icon.incident { background: #ef4444; }
+.search-result-icon.unit { background: #3b82f6; }
+.search-result-icon.contact { background: #22c55e; }
+.search-result-icon.history { background: #8b5cf6; }
+.search-result-body { flex: 1; min-width: 0; }
+.search-result-title {
+    font-weight: 600;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.search-result-meta {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.search-loading {
+    padding: var(--space-4);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+}
+</style>
+
+<script>
+(function() {
+    const input = document.getElementById('quick-search-input');
+    const resultsEl = document.getElementById('quick-search-results');
+    let debounceTimer = null;
+    let activeIndex = -1;
+    let currentResults = [];
+
+    // Focus input immediately
+    setTimeout(() => input?.focus(), 50);
+
+    function doSearch(query) {
+        if (!query || query.length < 2) {
+            resultsEl.innerHTML = '<div class="search-empty">Type to search across all CAD data</div>';
+            currentResults = [];
+            activeIndex = -1;
+            return;
+        }
+        resultsEl.innerHTML = '<div class="search-loading">Searching...</div>';
+
+        fetch(`/api/search?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) {
+                    resultsEl.innerHTML = '<div class="search-empty">Search failed</div>';
+                    return;
+                }
+                renderResults(data);
+            })
+            .catch(() => {
+                resultsEl.innerHTML = '<div class="search-empty">Search error</div>';
+            });
+    }
+
+    function renderResults(data) {
+        const groups = [];
+        currentResults = [];
+
+        if (data.incidents && data.incidents.length) {
+            groups.push({ label: 'Incidents', type: 'incident', items: data.incidents });
+        }
+        if (data.units && data.units.length) {
+            groups.push({ label: 'Units', type: 'unit', items: data.units });
+        }
+        if (data.contacts && data.contacts.length) {
+            groups.push({ label: 'Contacts', type: 'contact', items: data.contacts });
+        }
+        if (data.history && data.history.length) {
+            groups.push({ label: 'History', type: 'history', items: data.history });
+        }
+
+        if (groups.length === 0) {
+            resultsEl.innerHTML = '<div class="search-empty">No results found</div>';
+            return;
+        }
+
+        let html = '';
+        for (const group of groups) {
+            html += `<div class="search-group-label">${group.label} (${group.items.length})</div>`;
+            for (const item of group.items) {
+                const idx = currentResults.length;
+                currentResults.push({ type: group.type, ...item });
+                const icon = group.type === 'incident' ? 'INC' :
+                             group.type === 'unit' ? 'UNT' :
+                             group.type === 'contact' ? 'CON' : 'HIS';
+                html += `<div class="search-result-item" data-idx="${idx}" onclick="QUICK_SEARCH.select(${idx})">
+                    <div class="search-result-icon ${group.type}">${icon}</div>
+                    <div class="search-result-body">
+                        <div class="search-result-title">${escHtml(item.title || '')}</div>
+                        <div class="search-result-meta">${escHtml(item.subtitle || '')}</div>
+                    </div>
+                </div>`;
+            }
+        }
+        resultsEl.innerHTML = html;
+        activeIndex = -1;
+    }
+
+    function escHtml(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function highlightItem(idx) {
+        resultsEl.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('active'));
+        if (idx >= 0 && idx < currentResults.length) {
+            const el = resultsEl.querySelector(`[data-idx="${idx}"]`);
+            if (el) {
+                el.classList.add('active');
+                el.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }
+
+    // Input handler with debounce
+    input?.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => doSearch(input.value.trim()), 300);
+    });
+
+    // Keyboard navigation
+    input?.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentResults.length > 0) {
+                activeIndex = Math.min(activeIndex + 1, currentResults.length - 1);
+                highlightItem(activeIndex);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentResults.length > 0) {
+                activeIndex = Math.max(activeIndex - 1, 0);
+                highlightItem(activeIndex);
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex >= 0) {
+                window.QUICK_SEARCH.select(activeIndex);
+            }
+        }
+    });
+
+    window.QUICK_SEARCH = {
+        select(idx) {
+            const item = currentResults[idx];
+            if (!item) return;
+            CAD_MODAL.close();
+
+            if (item.type === 'incident' && item.id) {
+                // Open IAW for this incident
+                setTimeout(() => CAD_MODAL.open(`/incident/${item.id}/iaw`), 150);
+            } else if (item.type === 'unit' && item.unit_id) {
+                // Scroll to unit in units panel
+                const unitEl = document.querySelector(`[data-unit-id="${item.unit_id}"]`);
+                if (unitEl) {
+                    unitEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    unitEl.style.outline = '2px solid var(--ford-blue)';
+                    setTimeout(() => unitEl.style.outline = '', 2000);
+                }
+            } else if (item.type === 'contact') {
+                setTimeout(() => CAD_MODAL.open('/modals/contacts'), 150);
+            } else if (item.type === 'history' && item.id) {
+                setTimeout(() => CAD_MODAL.open(`/incident/${item.id}/iaw`), 150);
+            }
+        }
+    };
+})();
+</script>

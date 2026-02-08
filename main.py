@@ -1948,6 +1948,7 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Units ADD COLUMN aliases TEXT")  # CSV list of aliases, e.g. "e1,eng1,engine1"
     _add_col("ALTER TABLE Units ADD COLUMN display_order INTEGER DEFAULT 999")  # For sorting units in panels
     _add_col("ALTER TABLE Units ADD COLUMN department TEXT")  # Department name for mutual aid grouping
+    _add_col("ALTER TABLE Units ADD COLUMN mutual_aid_priority INTEGER DEFAULT 999")  # Lower = closer/preferred
 
     # --------------------------------------------------
     # SYSTEM SETTINGS (Key-Value store for preferences)
@@ -2086,6 +2087,7 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE UnitAssignments ADD COLUMN disposition TEXT")
     _add_col("ALTER TABLE UnitAssignments ADD COLUMN disposition_remark TEXT")
     _add_col("ALTER TABLE UnitAssignments ADD COLUMN commanding_unit INTEGER DEFAULT 0")
+    _add_col("ALTER TABLE UnitAssignments ADD COLUMN at_apparatus TEXT")
 
     # --------------------------------------------------
     # PERSONNEL ASSIGNMENTS (Crew Mirroring)
@@ -2254,6 +2256,14 @@ def ensure_phase3_schema():
     # ShiftOverrides - active override lookups
     _create_index("CREATE INDEX IF NOT EXISTS idx_shift_overrides_unit ON ShiftOverrides(unit_id)")
     _create_index("CREATE INDEX IF NOT EXISTS idx_shift_overrides_to_shift ON ShiftOverrides(to_shift_letter)")
+
+    # Wave 2 — additional performance indices
+    _create_index("CREATE INDEX IF NOT EXISTS idx_incidents_location ON Incidents(location)")
+    _create_index("CREATE INDEX IF NOT EXISTS idx_incidents_number ON Incidents(incident_number)")
+    _create_index("CREATE INDEX IF NOT EXISTS idx_incidents_type ON Incidents(incident_type)")
+    _create_index("CREATE INDEX IF NOT EXISTS idx_unit_assignments_composite ON UnitAssignments(unit_id, incident_id)")
+    _create_index("CREATE INDEX IF NOT EXISTS idx_contacts_name ON Contacts(name)")
+    _create_index("CREATE INDEX IF NOT EXISTS idx_incident_history_user ON IncidentHistory(user)")
 
     # --------------------------------------------------
     # CONTACTS (for messaging responders)
@@ -3888,7 +3898,8 @@ def fetch_units() -> list[dict]:
                COALESCE(is_mutual_aid,0) AS is_mutual_aid,
                COALESCE(custom_status,'') AS custom_status,
                COALESCE(display_order, 999) AS display_order,
-               COALESCE(department,'') AS department
+               COALESCE(department,'') AS department,
+               COALESCE(mutual_aid_priority, 999) AS mutual_aid_priority
         FROM Units
     """).fetchall()
     conn.close()
@@ -4084,6 +4095,7 @@ def get_units_for_panel() -> list[dict]:
     apparatus.sort(key=_apparatus_sort_key)
     _ma_type_order_panel = {"fire": 0, "ems": 1, "helicopter": 2, "police": 3, "ema": 4, "animal_control": 5}
     mutual.sort(key=lambda x: (
+        int(x.get("mutual_aid_priority") or 999),
         _ma_type_order_panel.get((x.get("unit_type") or "").lower(), 99),
         (x.get("department") or ""),
         (x.get("unit_id") or "")
@@ -5035,6 +5047,7 @@ VALID_UNIT_STATUSES = {
     "DISPATCHED",
     "ENROUTE",
     "ARRIVED",
+    "AT_APPARATUS",
     "TRANSPORTING",
     "AT_MEDICAL",
     "CLEARED",
@@ -6147,27 +6160,53 @@ async def api_incident_reopen(request: Request):
         conn.close()
         return JSONResponse({"ok": False, "error": f"Only CLOSED incidents can be reopened (current: {status or 'UNKNOWN'})"}, status_code=400)
 
+    # Accept optional location/type updates on reopen
+    new_location = (data.get("location") or "").strip()
+    new_type = (data.get("type") or "").strip()
+    reason = (data.get("reason") or "").strip()
+
+    ts = _ts()
+
     # Reopen to OPEN. Clear final_disposition so a new close requires a new event disposition.
-    c.execute("""
+    update_parts = ["status = 'OPEN'", "final_disposition = NULL", f"updated = ?"]
+    update_params = [ts]
+
+    if new_location:
+        update_parts.append("location = ?")
+        update_params.append(new_location)
+    if new_type:
+        update_parts.append("type = ?")
+        update_params.append(new_type)
+
+    update_params.append(incident_id)
+    c.execute(f"""
         UPDATE Incidents
-        SET status = 'OPEN', final_disposition = NULL, updated = ?
+        SET {", ".join(update_parts)}
         WHERE incident_id = ?
-    """, (_ts(), incident_id))
+    """, tuple(update_params))
 
     conn.commit()
     conn.close()
 
+    details = "Reopened"
+    if reason:
+        details += f" — {reason}"
+    if new_location:
+        details += f" | Location: {new_location}"
+    if new_type:
+        details += f" | Type: {new_type}"
+
     # Audit trails
     try:
-        incident_history(incident_id, "INCIDENT_REOPENED", user=user, details="Reopened")
+        incident_history(incident_id, "INCIDENT_REOPENED", user=user, details=details)
     except Exception:
         pass
     try:
-        masterlog(event_type="INCIDENT_REOPENED", user=user, incident_id=incident_id, details="Reopened")
+        masterlog(event_type="INCIDENT_REOPENED", user=user, incident_id=incident_id, details=details)
     except Exception:
         pass
     try:
-        dailylog_event(action="INCIDENT_REOPENED", user=user, incident_id=incident_id, details="Reopened")
+        dailylog_event(action="INCIDENT_REOPENED", user=user, incident_id=incident_id, details=details)
     except Exception:
         pass
 
@@ -8276,7 +8315,9 @@ async def update_unit_status_route(
         field_map = {
             "ENROUTE": "enroute",
             "ARRIVED": "arrived",
+            "AT_APPARATUS": "at_apparatus",
             "TRANSPORTING": "transporting",
+            "AT_MEDICAL": "at_medical",
             "CLEARED": "cleared"
         }
 
@@ -11072,8 +11113,23 @@ ADMIN_UNITS = {"1578", "CAR1", "BATT1", "BATT2", "BATT3", "BATT4", "17", "47"}
 SUPER_ADMIN_UNITS = {"1578", "17"}
 
 def _is_admin(user: str) -> bool:
-    """Check if user has admin access (operational admin)."""
-    return (user or "").upper() in ADMIN_UNITS
+    """Check if user has admin access (operational admin).
+    Checks both hardcoded ADMIN_UNITS and database UserAccounts.is_admin."""
+    user_upper = (user or "").upper()
+    if user_upper in ADMIN_UNITS:
+        return True
+    # Also check database
+    try:
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT is_admin FROM UserAccounts WHERE unit_id = ?", (user_upper,)
+        ).fetchone()
+        conn.close()
+        if row and row["is_admin"]:
+            return True
+    except Exception:
+        pass
+    return False
 
 def _is_super_admin(user: str) -> bool:
     """Check if user has super-admin access (system configuration)."""
@@ -11111,6 +11167,18 @@ def _get_user_permission_level(user: str) -> str:
 # ------------------------------------------------------
 
 ROLE_HIERARCHY = {"CALLTAKER": 1, "DISPATCHER": 2, "SUPERVISOR": 3, "ADMIN": 4}
+
+
+def _admin_audit(user: str, action: str, details: str = ""):
+    """Log admin action to MasterLog for audit trail."""
+    try:
+        masterlog(
+            event_type=f"ADMIN_{action}",
+            user=user,
+            details=details or action
+        )
+    except Exception:
+        pass
 
 
 def _get_user_role(user: str) -> str:
@@ -13055,8 +13123,10 @@ async def server_error_handler(request: Request, exc):
 
 
 # ================================================================
-# HEALTH CHECK
+# HEALTH CHECK & CONNECTIVITY
 # ================================================================
+
+_APP_START_TIME = datetime.datetime.now()
 
 @app.get("/health")
 async def health_check():
@@ -13067,6 +13137,300 @@ async def health_check():
         "database": str(DB_PATH),
         "schema_initialized": _SCHEMA_INIT_DONE
     }
+
+@app.get("/api/health")
+async def api_health():
+    """Detailed health check: DB connectivity, table count, uptime, active incidents, units, memory."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        # DB connectivity
+        db_ok = True
+        try:
+            conn.execute("SELECT 1").fetchone()
+        except Exception:
+            db_ok = False
+
+        # Table count
+        tables = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM sqlite_master WHERE type='table'"
+        ).fetchone()["cnt"]
+
+        # Active incidents
+        active = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM Incidents WHERE status IN ('OPEN','ACTIVE')"
+        ).fetchone()["cnt"]
+
+        # Total units
+        units = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM Units WHERE status != 'INACTIVE'"
+        ).fetchone()["cnt"]
+
+        # Uptime
+        uptime_sec = (datetime.datetime.now() - _APP_START_TIME).total_seconds()
+        hours = int(uptime_sec // 3600)
+        minutes = int((uptime_sec % 3600) // 60)
+        uptime_str = f"{hours}h {minutes}m"
+
+        # Memory usage (best-effort)
+        mem_mb = None
+        try:
+            import os as _os
+            import psutil
+            proc = psutil.Process(_os.getpid())
+            mem_mb = round(proc.memory_info().rss / 1024 / 1024, 1)
+        except Exception:
+            pass
+
+        return {
+            "ok": True,
+            "status": "healthy",
+            "timestamp": _ts(),
+            "db_connected": db_ok,
+            "table_count": tables,
+            "active_incidents": active,
+            "total_units": units,
+            "uptime": uptime_str,
+            "uptime_seconds": int(uptime_sec),
+            "memory_mb": mem_mb,
+            "schema_initialized": _SCHEMA_INIT_DONE
+        }
+    finally:
+        conn.close()
+
+@app.get("/api/ping")
+async def api_ping():
+    """Lightweight ping for connection status indicator."""
+    return {"ok": True, "ts": _ts()}
+
+# ================================================================
+# GLOBAL QUICK-SEARCH
+# ================================================================
+
+@app.get("/api/search")
+async def api_global_search(q: str = ""):
+    """Search across incidents, units, contacts, and history."""
+    ensure_phase3_schema()
+    q = q.strip()
+    if len(q) < 2:
+        return {"ok": True, "incidents": [], "units": [], "contacts": [], "history": []}
+
+    conn = get_conn()
+    try:
+        like = f"%{q}%"
+
+        # Search active incidents
+        incidents = []
+        rows = conn.execute("""
+            SELECT incident_id, incident_number, location, type, status, created
+            FROM Incidents
+            WHERE status IN ('OPEN','ACTIVE','HELD')
+            AND (
+                incident_number LIKE ? OR
+                location LIKE ? OR
+                type LIKE ? OR
+                caller_name LIKE ? OR
+                caller_phone LIKE ? OR
+                CAST(incident_id AS TEXT) LIKE ?
+            )
+            ORDER BY created DESC LIMIT 10
+        """, (like, like, like, like, like, like)).fetchall()
+        for r in rows:
+            incidents.append({
+                "id": r["incident_id"],
+                "title": f"{r['incident_number'] or 'DRAFT'} — {r['type'] or 'Unknown'}",
+                "subtitle": f"{r['location'] or 'No location'} | {r['status']} | {(r['created'] or '')[:16]}",
+            })
+
+        # Search units
+        units = []
+        rows = conn.execute("""
+            SELECT unit_id, status, current_incident_id
+            FROM Units
+            WHERE status != 'INACTIVE'
+            AND (unit_id LIKE ? OR status LIKE ?)
+            ORDER BY unit_id LIMIT 10
+        """, (like, like)).fetchall()
+        for r in rows:
+            inc_info = f" | Inc #{r['current_incident_id']}" if r['current_incident_id'] else ""
+            units.append({
+                "unit_id": r["unit_id"],
+                "title": r["unit_id"],
+                "subtitle": f"{r['status']}{inc_info}",
+            })
+
+        # Search contacts
+        contacts = []
+        rows = conn.execute("""
+            SELECT contact_id, name, phone, email, role
+            FROM Contacts
+            WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? OR role LIKE ?
+            ORDER BY name LIMIT 10
+        """, (like, like, like, like)).fetchall()
+        for r in rows:
+            contacts.append({
+                "id": r["contact_id"],
+                "title": r["name"] or "Unknown",
+                "subtitle": " | ".join(filter(None, [r["phone"], r["email"], r["role"]])),
+            })
+
+        # Search history (closed incidents)
+        history = []
+        rows = conn.execute("""
+            SELECT incident_id, incident_number, location, type, status, created
+            FROM Incidents
+            WHERE status = 'CLOSED'
+            AND (
+                incident_number LIKE ? OR
+                location LIKE ? OR
+                type LIKE ?
+            )
+            ORDER BY created DESC LIMIT 10
+        """, (like, like, like)).fetchall()
+        for r in rows:
+            history.append({
+                "id": r["incident_id"],
+                "title": f"{r['incident_number'] or 'DRAFT'} — {r['type'] or 'Unknown'}",
+                "subtitle": f"{r['location'] or ''} | {(r['created'] or '')[:16]}",
+            })
+
+        return {
+            "ok": True,
+            "incidents": incidents,
+            "units": units,
+            "contacts": contacts,
+            "history": history,
+        }
+    finally:
+        conn.close()
+
+@app.get("/modals/search", response_class=HTMLResponse)
+async def search_modal(request: Request):
+    """Global quick-search modal."""
+    return templates.TemplateResponse(
+        "modals/search_modal.html",
+        {"request": request},
+    )
+
+# ================================================================
+# ROSTER CRUD ENDPOINTS
+# ================================================================
+
+@app.get("/api/roster")
+async def api_roster_list():
+    """List all personnel from UnitRoster + PersonnelAssignments."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        # Get unit roster entries
+        roster = conn.execute("""
+            SELECT unit_id, shift_letter, home_shift_letter, updated
+            FROM UnitRoster
+            ORDER BY unit_id
+        """).fetchall()
+
+        # Get personnel assignments
+        personnel = conn.execute("""
+            SELECT apparatus_id, personnel_id, role, shift, updated
+            FROM PersonnelAssignments
+            ORDER BY apparatus_id, personnel_id
+        """).fetchall()
+
+        # Get apparatus (units)
+        apparatus = conn.execute("""
+            SELECT unit_id, status, station, unit_type
+            FROM Units
+            WHERE status != 'INACTIVE'
+            ORDER BY unit_id
+        """).fetchall()
+
+        return {
+            "ok": True,
+            "roster": [dict(r) for r in roster],
+            "personnel": [dict(r) for r in personnel],
+            "apparatus": [dict(r) for r in apparatus],
+        }
+    finally:
+        conn.close()
+
+@app.post("/api/roster")
+async def api_roster_add(request: Request):
+    """Add personnel to an apparatus."""
+    ensure_phase3_schema()
+    data = await request.json()
+    apparatus_id = str(data.get("apparatus_id", "")).strip()
+    personnel_id = str(data.get("personnel_id", "")).strip()
+    role = str(data.get("role", "")).strip() or None
+    shift = str(data.get("shift", "")).strip() or None
+
+    if not apparatus_id or not personnel_id:
+        return {"ok": False, "error": "apparatus_id and personnel_id required"}
+
+    conn = get_conn()
+    try:
+        conn.execute("""
+            INSERT OR REPLACE INTO PersonnelAssignments
+            (apparatus_id, personnel_id, role, shift, updated)
+            VALUES (?, ?, ?, ?, ?)
+        """, (apparatus_id, personnel_id, role, shift, _ts()))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.put("/api/roster/{apparatus_id}/{personnel_id}")
+async def api_roster_update(apparatus_id: str, personnel_id: str, request: Request):
+    """Update a personnel assignment."""
+    ensure_phase3_schema()
+    data = await request.json()
+    conn = get_conn()
+    try:
+        existing = conn.execute(
+            "SELECT * FROM PersonnelAssignments WHERE apparatus_id=? AND personnel_id=?",
+            (apparatus_id, personnel_id)
+        ).fetchone()
+        if not existing:
+            return {"ok": False, "error": "Personnel assignment not found"}
+
+        role = str(data.get("role", existing["role"] or "")).strip() or None
+        shift = str(data.get("shift", existing["shift"] or "")).strip() or None
+        new_apparatus = str(data.get("apparatus_id", apparatus_id)).strip()
+        new_personnel = str(data.get("personnel_id", personnel_id)).strip()
+
+        # If keys changed, delete old and insert new
+        if new_apparatus != apparatus_id or new_personnel != personnel_id:
+            conn.execute(
+                "DELETE FROM PersonnelAssignments WHERE apparatus_id=? AND personnel_id=?",
+                (apparatus_id, personnel_id)
+            )
+            conn.execute("""
+                INSERT INTO PersonnelAssignments (apparatus_id, personnel_id, role, shift, updated)
+                VALUES (?, ?, ?, ?, ?)
+            """, (new_apparatus, new_personnel, role, shift, _ts()))
+        else:
+            conn.execute("""
+                UPDATE PersonnelAssignments SET role=?, shift=?, updated=?
+                WHERE apparatus_id=? AND personnel_id=?
+            """, (role, shift, _ts(), apparatus_id, personnel_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+@app.delete("/api/roster/{apparatus_id}/{personnel_id}")
+async def api_roster_delete(apparatus_id: str, personnel_id: str):
+    """Remove a personnel assignment."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        conn.execute(
+            "DELETE FROM PersonnelAssignments WHERE apparatus_id=? AND personnel_id=?",
+            (apparatus_id, personnel_id)
+        )
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
 
 # Deferred bindings (do not alter logic)
 _original_panel_active = panel_active

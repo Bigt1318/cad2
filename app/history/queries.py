@@ -56,7 +56,7 @@ def fetch_unified_events(
 
     # ----- Incidents sub-query -----
     if mode in ("all", "incidents"):
-        inc_where = ["i.is_draft = 0"]
+        inc_where = ["i.is_draft = 0", "i.type != 'DAILY LOG'"]
         inc_params: List[Any] = []
 
         if date_start:

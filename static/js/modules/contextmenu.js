@@ -55,7 +55,7 @@ function _renderItems(items) {
       `;
     } else {
       html += `
-        <div class="cad-context-menu-item ${item.disabled ? 'disabled' : ''}"
+        <div class="cad-context-menu-item ${item.disabled ? 'disabled' : ''} ${item.cssClass || ''}"
              role="menuitem"
              data-index="${idx}"
              data-action="${item.action || ''}">
@@ -384,22 +384,49 @@ async function _executeAction(action, value) {
         }
         break;
 
-      // Transfer Command
+      // Transfer Command — show picker of other units on the same incident
       case "transfer_command":
         if (unitId) {
-          // Find unit's active incident
           const ctx2 = await CAD_UTIL.getJSON(`/api/uaw/context/${encodeURIComponent(unitId)}`);
           const incId2 = Number(ctx2?.active_incident_id || 0);
           if (!incId2) {
             window.TOAST?.error?.(`${unitId} is not on an active incident`);
             break;
           }
-          await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
-            incident_id: incId2,
-            unit_id: unitId
-          });
-          CAD_UTIL.refreshPanels();
-          window.TOAST?.success?.(`Command transferred to ${unitId}`);
+          // Get other units on scene
+          try {
+            const sceneRes = await CAD_UTIL.getJSON(`/api/uaw/scene_units/${encodeURIComponent(incId2)}`);
+            const sceneUnits = (sceneRes?.units || []).filter(u => u.unit_id !== unitId);
+            if (sceneUnits.length === 0) {
+              // Only unit on scene — transfer command to self (make self command)
+              await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
+                incident_id: incId2,
+                unit_id: unitId
+              });
+              CAD_UTIL.refreshPanels();
+              window.TOAST?.success?.(`${unitId} assigned as command`);
+            } else {
+              // Show picker
+              const choices = sceneUnits.map(u => u.unit_id).join(", ");
+              const target = prompt(`Transfer command from ${unitId} to which unit?\nUnits on scene: ${choices}`);
+              if (target && target.trim()) {
+                const targetUnit = target.trim().toUpperCase();
+                const validUnit = sceneUnits.find(u => u.unit_id.toUpperCase() === targetUnit);
+                if (!validUnit) {
+                  window.TOAST?.error?.(`${targetUnit} is not on this incident`);
+                  break;
+                }
+                await CAD_UTIL.postJSON("/api/uaw/transfer_command", {
+                  incident_id: incId2,
+                  unit_id: validUnit.unit_id
+                });
+                CAD_UTIL.refreshPanels();
+                window.TOAST?.success?.(`Command transferred to ${validUnit.unit_id}`);
+              }
+            }
+          } catch (e) {
+            window.TOAST?.error?.(`Transfer failed: ${e.message || e}`);
+          }
         }
         break;
 
@@ -808,6 +835,21 @@ function getUnitMenuItems(unitId, context = {}) {
 
   const items = [];
 
+  // Add Remark — FIRST and prominent
+  items.push({
+    label: "Add Remark",
+    action: "add_remark",
+    cssClass: "menu-item-primary"
+  });
+
+  items.push({ separator: true });
+
+  // Dispatch - available for all dispatchable units
+  items.push({
+    label: "Dispatch",
+    action: "dispatch"
+  });
+
   // Coverage options (for all units not on current shift)
   if (!hasCoverage) {
     items.push({
@@ -820,14 +862,6 @@ function getUnitMenuItems(unitId, context = {}) {
       action: "coverage_remove"
     });
   }
-
-  items.push({ separator: true });
-
-  // Dispatch - available for all dispatchable units
-  items.push({
-    label: "Dispatch",
-    action: "dispatch"
-  });
 
   // Status submenu
   items.push({
@@ -881,11 +915,6 @@ function getUnitMenuItems(unitId, context = {}) {
   items.push({ separator: true });
 
   items.push({
-    label: "Add Remark",
-    action: "add_remark"
-  });
-
-  items.push({
     label: "View Details",
     action: "view_details"
   });
@@ -898,9 +927,9 @@ function getIncidentMenuItems(incidentId, context = {}) {
   const isHeld = status.toUpperCase() === "HELD";
 
   const items = [
-    { label: "Open Incident", action: "view_incident" },
+    { label: "Add Remark", action: "incident_add_remark", cssClass: "menu-item-primary" },
     { separator: true },
-    { label: "Add Remark", action: "incident_add_remark" },
+    { label: "Open Incident", action: "view_incident" },
     { label: "Dispatch Units", action: "dispatch" },
     { separator: true }
   ];

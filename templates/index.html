@@ -127,22 +127,22 @@
     </div>
 
     <div class="header-center">
+        {% if shift %}
+        <div class="header-title-row">
+            <span class="header-title">{{ shift }} Shift</span>
+            <span class="header-sep">&mdash;</span>
+            <span class="header-subtitle">{{ unit }}</span>
+            <span class="header-sep">&mdash;</span>
+            <span class="header-subtitle">{{ user }}</span>
+        </div>
+        {% else %}
         <div class="header-title-row">
             <span class="header-title">FORD CAD</span>
-            <span class="header-sep">&mdash;</span>
-            <span class="header-subtitle">Fire & EMS Dispatch</span>
         </div>
         <div id="header-userline" class="header-userline">
-            {% if shift %}
-                <span class="shift-indicator">{{ shift }} Shift</span>
-                <span class="header-sep-sm">&bull;</span>
-                <span>{{ unit }}</span>
-                <span class="header-sep-sm">&bull;</span>
-                <span>{{ user }}</span>
-            {% else %}
-                <span class="login-required">Authentication Required</span>
-            {% endif %}
+            <span class="login-required">Authentication Required</span>
         </div>
+        {% endif %}
     </div>
 
     <div class="header-right">
@@ -367,27 +367,12 @@
     </div>
 
     <div class="toolbar-center">
-        <button class="pill-btn secondary" id="btn-dailylog" type="button" title="Open Daily Log (D)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
-                <polyline points="14,2 14,8 20,8"></polyline>
-            </svg>
-            Daily Log
-        </button>
         <button class="pill-btn secondary" id="btn-history" type="button" title="View incident history (H)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12,6 12,12 16,14"></polyline>
             </svg>
             History
-        </button>
-        <button class="pill-btn secondary" id="btn-reports" type="button" title="Reports & Delivery (R)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
-                <polyline points="17,8 12,3 7,8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            Reports
         </button>
     </div>
 
@@ -413,16 +398,9 @@
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path>
             </svg>
         </button>
+        <div id="conn-status-dot" class="conn-dot conn-connected" title="Connected"></div>
     </div>
 </nav>
-
-<!-- DASHBOARD STATS BAR -->
-<div id="dashboard-stats" class="dashboard-stats">
-    <span class="stat"><strong id="stat-today">-</strong> Today</span>
-    <span class="stat"><strong id="stat-active">-</strong> Active</span>
-    <span class="stat"><strong id="stat-response">-</strong> min Avg</span>
-    <span class="stat"><strong id="stat-available">-</strong>/<span id="stat-total">-</span> Available</span>
-</div>
 
 <!-- MAIN WORKSPACE -->
 <main id="workspace">
@@ -478,20 +456,6 @@
     </div>
 </footer>
 
-<!-- Dashboard Stats Refresh -->
-<script>
-function refreshStats() {
-    fetch('/api/dashboard/stats').then(r => r.json()).then(d => {
-        document.getElementById('stat-today').textContent = d.today_count || 0;
-        document.getElementById('stat-active').textContent = d.active_count || 0;
-        document.getElementById('stat-response').textContent = (d.avg_response_min || 0).toFixed(1);
-        document.getElementById('stat-available').textContent = d.units_available || 0;
-        document.getElementById('stat-total').textContent = d.units_total || 0;
-    }).catch(() => {});
-}
-refreshStats();
-setInterval(refreshStats, 30000);
-</script>
 
 </body>
 </html>

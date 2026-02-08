@@ -501,12 +501,27 @@ const IAW = {
   // ---------------------------------------------------------------------
   // REOPEN / ISSUE FOUND
   // ---------------------------------------------------------------------
-  async reopenIncident() {
-    if (!_currentIncidentId) return;
+  async reopenIncident(incidentId) {
+    const id = incidentId || _currentIncidentId;
+    if (!id) return;
 
-    await CAD_UTIL.postJSON(`/incident/${_currentIncidentId}/reopen`, {});
-    CAD_UTIL.refreshPanels();
-    this.reopen();
+    const reason = (prompt("Reason for reopening (optional):") || "").trim();
+    const location = (prompt("Update location? (leave blank to keep current):") || "").trim();
+    const type = (prompt("Update incident type? (leave blank to keep current):") || "").trim();
+
+    try {
+      await CAD_UTIL.postJSON("/api/incident/reopen", {
+        incident_id: Number(id),
+        reason,
+        location: location || undefined,
+        type: type || undefined,
+      });
+      CAD_UTIL.refreshPanels();
+      window.TOAST?.success?.(`Incident ${id} reopened`);
+      this.reopen();
+    } catch (err) {
+      window.TOAST?.error?.(err?.message || "Reopen failed");
+    }
   },
 
   async markIssueFound() {

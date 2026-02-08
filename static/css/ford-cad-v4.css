@@ -173,8 +173,8 @@ html[data-font-size="small"] {
 html, html[data-font-size="medium"] {
     font-size: 15px;
     --scale-factor: 1;
-    --header-height: 3em;
-    --toolbar-height: 2.5em;
+    --header-height: 3.5em;
+    --toolbar-height: 2.8em;
     --command-height: 2.3em;
     --icon-size-sm: 1em;
     --icon-size-md: 1.4em;
@@ -491,6 +491,7 @@ body {
     background: var(--bg-app);
     overflow: hidden;
     height: 100vh;
+    height: 100dvh;
 }
 
 a {
@@ -826,8 +827,10 @@ a {
 #workspace {
     display: flex;
     height: calc(100vh - var(--header-height) - var(--toolbar-height) - var(--command-height));
+    height: calc(100dvh - var(--header-height) - var(--toolbar-height) - var(--command-height));
     gap: 4px;
     background: var(--border-default);
+    overflow: hidden;
 }
 
 .workspace-panel {
@@ -1307,6 +1310,7 @@ textarea {
 .status-dispatched { background: var(--status-dispatched); }
 .status-enroute { background: var(--status-enroute); }
 .status-arrived, .status-on_scene, .status-onscene { background: var(--status-arrived); }
+.status-at_apparatus { background: var(--status-onscene); }
 .status-transporting { background: var(--status-transporting); }
 .status-at_medical, .status-at_destination { background: var(--accent-pink); }
 .status-oos, .status-unavailable { background: var(--status-oos); }
@@ -1671,6 +1675,8 @@ textarea {
 .unit-chip-status[data-status="ON SCENE"],
 .unit-chip-status[data-status="ONS"] { background: var(--status-arrived); }
 .unit-chip-status[data-status="OPERATING"] { background: var(--status-onscene); }
+.unit-chip-status[data-status="AT_APPARATUS"],
+.unit-chip-status[data-status="AT APPARATUS"] { background: var(--status-onscene); }
 .unit-chip-status[data-status="TRANSPORTING"] { background: var(--status-transporting); }
 .unit-chip-status[data-status="CLEARED"] { background: var(--status-oos); }
 
@@ -1970,6 +1976,12 @@ textarea {
     opacity: 0.4;
     pointer-events: none;
 }
+.cad-context-menu-item.menu-item-primary {
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px var(--space-3);
+    color: var(--ford-blue, #2563eb);
+}
 
 .cad-context-menu-separator {
     height: 1px;
@@ -2252,12 +2264,8 @@ textarea {
     .panel-units { flex: 0 0 25% !important; }
     .panel-incidents { flex: 1 1 auto !important; }
 
-    /* Slightly smaller toolbar text */
-    #cad-toolbar .pill-btn { font-size: 12px; padding: 4px 10px; }
-
-    /* Reduce header padding */
-    #cad-header { padding: 4px 12px; }
 }
+
 
 @media (max-width: 900px) {
     .header-center {
@@ -3663,4 +3671,92 @@ textarea {
 .dashboard-stats .stat strong {
     color: #4da3ff;
     margin-right: 3px;
+}
+
+/* ================================================================
+   CONNECTION STATUS DOT
+   ================================================================ */
+.conn-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 6px;
+    align-self: center;
+    transition: background-color 0.3s ease;
+}
+.conn-dot.conn-connected { background: #22c55e; box-shadow: 0 0 4px #22c55e80; }
+.conn-dot.conn-reconnecting { background: #f59e0b; box-shadow: 0 0 4px #f59e0b80; animation: conn-pulse 1.5s ease-in-out infinite; }
+.conn-dot.conn-offline { background: #ef4444; box-shadow: 0 0 4px #ef444480; }
+@keyframes conn-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ================================================================
+   PRINT STYLES — INCIDENT ACTION WINDOW
+   ================================================================ */
+@media print {
+    /* Hide everything except the IAW modal */
+    body > *:not(.cad-modal-target):not(#iaw-print-frame) { display: none !important; }
+    nav, footer, .cad-toolbar, #cad-toolbar, .drawer, .cmdline,
+    .cad-modal-overlay, .toast-container,
+    .messaging-drawer, .conn-dot { display: none !important; }
+
+    /* The IAW should fill the page */
+    .iaw-modal-v2 {
+        position: static !important;
+        width: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        height: auto !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Hide interactive elements */
+    .iaw-close-btn, .iaw-print-btn,
+    .iaw-edit-field-btn, .iaw-tab-nav,
+    .iaw-btn-determinant, .iaw-chat-input,
+    .iaw-actions, .cad-modal-footer,
+    .iaw-dispatch-picker, button[onclick] { display: none !important; }
+
+    /* Expand all sections */
+    .iaw-section, .iaw-tab-content { display: block !important; height: auto !important; overflow: visible !important; }
+    .iaw-collapse-content { display: block !important; max-height: none !important; }
+
+    /* Print-friendly colors */
+    .iaw-header-v2 {
+        background: #1a365d !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .iaw-location-bar, .iaw-info-grid, .iaw-unit-cards,
+    .iaw-remarks, .iaw-timeline {
+        background: white !important;
+        color: black !important;
+        border-color: #ddd !important;
+    }
+    .iaw-info-grid .field-label { color: #555 !important; font-weight: bold !important; }
+    .iaw-info-grid .field-value { color: black !important; }
+
+    /* Unit cards in print */
+    .iaw-unit-card {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        color: black !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Page header */
+    .iaw-header-main { justify-content: flex-start !important; }
+
+    /* Timestamps in print */
+    .iaw-timestamps { color: #333 !important; }
 }

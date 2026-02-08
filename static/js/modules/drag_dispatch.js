@@ -209,7 +209,7 @@ async function _dispatchUnitToIncident(unitId, incidentId) {
   await CAD_UTIL.postJSON("/api/cli/dispatch", {
     units: [String(unitId)],
     incident_id: Number(incidentId),
-    mode: "D",
+    mode: "DE",
   });
 
   // Play dispatch sound

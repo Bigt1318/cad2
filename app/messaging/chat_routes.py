@@ -30,8 +30,14 @@ def register_chat_routes(app: FastAPI, templates, get_conn):
         return get_chat_engine()
 
     def _user(request: Request):
-        """Extract current user from session."""
-        uid = request.session.get("unit_id") or request.session.get("user") or "DISPATCH"
+        """Extract current user from session. Prioritize dispatcher_unit for proper attribution."""
+        uid = (
+            request.session.get("dispatcher_unit")
+            or request.session.get("unit_id")
+            or request.session.get("unit")
+            or request.session.get("user")
+            or "DISPATCH"
+        )
         return str(uid)
 
     def _is_dispatcher(request: Request):
@@ -420,6 +426,59 @@ def register_chat_routes(app: FastAPI, templates, get_conn):
         """Remove a member from a channel."""
         ok = engine().remove_member(channel_id, "unit", member_id)
         return {"ok": ok}
+
+    # ================================================================
+    # CHANNEL ADMIN (archive, rename, set topic)
+    # ================================================================
+
+    @app.post("/api/chat/channel/{channel_id}/archive")
+    async def archive_channel(request: Request, channel_id: int):
+        """Archive a channel (admin/dispatcher only)."""
+        if not _is_dispatcher(request):
+            raise HTTPException(403, "Dispatcher access required")
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE chat_channels SET is_archived = 1, updated_at = ? WHERE id = ?",
+                (datetime.now().isoformat(), channel_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "channel_id": channel_id, "archived": True}
+
+    @app.post("/api/chat/channel/{channel_id}/restore")
+    async def restore_channel(request: Request, channel_id: int):
+        """Restore an archived channel."""
+        if not _is_dispatcher(request):
+            raise HTTPException(403, "Dispatcher access required")
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE chat_channels SET is_archived = 0, updated_at = ? WHERE id = ?",
+                (datetime.now().isoformat(), channel_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True, "channel_id": channel_id, "archived": False}
+
+    @app.put("/api/chat/channel/{channel_id}")
+    async def update_channel(request: Request, channel_id: int):
+        """Update channel title (admin/creator only)."""
+        data = await request.json()
+        title = data.get("title")
+        conn = get_conn()
+        try:
+            if title:
+                conn.execute(
+                    "UPDATE chat_channels SET title = ?, updated_at = ? WHERE id = ?",
+                    (title, datetime.now().isoformat(), channel_id)
+                )
+                conn.commit()
+        finally:
+            conn.close()
+        return {"ok": True}
 
     # ================================================================
     # CHAT WEBSOCKET ENDPOINT

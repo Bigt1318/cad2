@@ -43,6 +43,13 @@
       {% endif %}
       <div class="iaw-status-badge iaw-status-{{ (incident.status or 'OPEN')|lower }}">{{ incident.status or "OPEN" }}</div>
     </div>
+    <button class="iaw-print-btn" onclick="window.print()" title="Print Incident">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6,9 6,2 18,2 18,9"></polyline>
+        <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"></path>
+        <rect x="6" y="14" width="12" height="8"></rect>
+      </svg>
+    </button>
     <button class="iaw-close-btn" onclick="CAD_MODAL.close()" title="Close (Esc)">&times;</button>
   </div>
 
@@ -52,7 +59,7 @@
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
       <circle cx="12" cy="10" r="3"></circle>
     </svg>
-    <span class="iaw-location-text" id="iaw-location-display">{{ incident.location or "No location specified" }}</span>
+    <span class="iaw-location-text" id="iaw-location-display">{{ incident.location or "No location specified" }}{% if incident.node %} &bull; Node {{ incident.node }}{% endif %}{% if incident.pole %} &bull; Pole {{ incident.pole }}{% endif %}</span>
     <button class="iaw-edit-field-btn" type="button" title="Edit location"
             onclick="IAW_EDIT.editField('location', '{{ (incident.location or '')|e }}', {{ incident.incident_id }})">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -587,6 +594,21 @@
 .iaw-status-active { background: #3b82f6; }
 .iaw-status-held { background: #f59e0b; }
 .iaw-status-closed { background: #64748b; }
+
+.iaw-print-btn {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.iaw-print-btn:hover { background: rgba(255,255,255,0.25); }
 
 .iaw-close-btn {
   background: rgba(255,255,255,0.1);
