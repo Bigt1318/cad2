@@ -7903,8 +7903,8 @@ async def api_dailylog_add(request: Request):
 
     ok, err = _dailylog_add_entry(
         request=request,
-        subtype=(data.get("subtype") or data.get("event_type") or "OTHER"),
-        details=data.get("details"),
+        subtype=(data.get("subtype") or data.get("event_type") or data.get("type") or "OTHER"),
+        details=(data.get("details") or data.get("notes") or data.get("description") or ""),
         user=data.get("user"),
         unit_id=data.get("unit_id"),
         incident_id=data.get("incident_id"),
@@ -13454,26 +13454,33 @@ _IMPORT_PHASE = False
 def api_unit_dispatch(unit_id: str, incident_id: int):
     conn = get_conn()
     c = conn.cursor()
+    ts = _ts()
 
     try:
+        # UnitAssignments uses timestamp columns, not a 'status' column
         c.execute(
             """
-            INSERT INTO UnitAssignments (unit_id, incident_id, status)
-            VALUES (?, ?, 'ENROUTE')
-            ON CONFLICT(unit_id, incident_id)
-            DO UPDATE SET status='ENROUTE'
+            INSERT OR IGNORE INTO UnitAssignments (unit_id, incident_id, dispatched, enroute)
+            VALUES (?, ?, ?, ?)
             """,
-            (unit_id, incident_id),
+            (unit_id, incident_id, ts, ts),
+        )
+        # If row already existed, stamp enroute
+        c.execute(
+            """
+            UPDATE UnitAssignments SET enroute = ?
+            WHERE unit_id = ? AND incident_id = ? AND cleared IS NULL
+            """,
+            (ts, unit_id, incident_id),
         )
 
-        # NOTE: If you later want DISPATCHED (not ENROUTE) on dispatch, change here.
         c.execute(
             """
             UPDATE Units
             SET status='ENROUTE', last_updated=?
             WHERE unit_id=?
             """,
-            (_ts(), unit_id),
+            (ts, unit_id),
         )
 
         log_master(unit_id, incident_id, "UNIT_DISPATCH", f"{unit_id} dispatched to {incident_id}")
@@ -13488,6 +13495,8 @@ def api_unit_dispatch(unit_id: str, incident_id: int):
 
         return {"ok": True}
 
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
     finally:
         conn.close()
 
@@ -13500,138 +13509,142 @@ async def api_unit_status(request: Request, unit_id: str, status: str):
       • If unit is currently on an active incident, stamp UnitAssignments so panels reflect display_status.
       • Apparatus status mirrors to assigned personnel automatically.
     """
-    ensure_phase3_schema()
-
-    # Role check: DISPATCHER minimum to change unit status
-    if not require_role(request, "DISPATCHER"):
-        return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: DISPATCHER required"})
-
-    new_status = (status or "").upper().strip()
-    user = request.session.get("user", "Dispatcher")
-
-    allowed = {
-        "AVAILABLE",
-        "UNAVAILABLE",
-        "DISPATCHED",
-        "ENROUTE",
-        "ARRIVED",
-        "TRANSPORTING",
-        "AT_MEDICAL",
-        "EMERGENCY",
-    }
-    if new_status not in allowed:
-        return {"ok": False, "error": f"Invalid status {new_status}"}
-
-    # Confirm unit exists + detect apparatus
-    conn = get_conn()
-    c = conn.cursor()
-    row = c.execute(
-        "SELECT unit_id, COALESCE(is_apparatus,0) AS is_apparatus FROM Units WHERE unit_id = ?",
-        (unit_id,),
-    ).fetchone()
-    if not row:
-        conn.close()
-        return {"ok": False, "error": f"Unknown unit {unit_id}"}
-    is_apparatus = int(row["is_apparatus"] or 0)
-
-    # Update unit status
-    update_unit_status(unit_id, new_status)
-    log_master(unit_id, None, "STATUS_UPDATE", f"{unit_id} → {new_status}")
-
-    # If unit is on an active incident, stamp assignment column (if present)
-    active = c.execute(
-        """
-        SELECT incident_id
-        FROM UnitAssignments
-        WHERE unit_id = ?
-          AND cleared IS NULL
-        ORDER BY assigned DESC
-        LIMIT 1
-        """,
-        (unit_id,),
-    ).fetchone()
-    incident_id = int(active["incident_id"]) if active else 0
-
-    # Column-safe stamping
-    ua_cols = {r["name"] for r in c.execute("PRAGMA table_info(UnitAssignments)").fetchall()}
-    field_map = {
-        "DISPATCHED": "dispatched",
-        "ENROUTE": "enroute",
-        "ARRIVED": "arrived",
-        "TRANSPORTING": "transporting",
-        "AT_MEDICAL": "at_medical",
-    }
-    field = field_map.get(new_status)
-
-    conn.close()
-
-    if incident_id and field and field in ua_cols:
-        ensure_assignment_row(incident_id, unit_id)
-        mark_assignment(incident_id, unit_id, field)
-        incident_history(incident_id, new_status, user=user, unit_id=unit_id)
-
-    # First-arrival tracking + auto-ACTIVE on ARRIVED
-    if incident_id and new_status == "ARRIVED":
-        conn3 = get_conn()
-        c3 = conn3.cursor()
-        ts_now = _ts()
-        inc_cols2 = {r["name"] for r in c3.execute("PRAGMA table_info(Incidents)").fetchall()}
-        if "first_unit_arrived" in inc_cols2:
-            existing = c3.execute(
-                "SELECT first_unit_arrived FROM Incidents WHERE incident_id = ?",
-                (incident_id,)
-            ).fetchone()
-            if existing and not (existing["first_unit_arrived"] or "").strip():
-                c3.execute("""
-                    UPDATE Incidents
-                    SET first_unit_arrived = ?, first_arrival_time = ?, arrival_time = ?
-                    WHERE incident_id = ?
-                """, (unit_id, ts_now, ts_now, incident_id))
-        inc_st = c3.execute("SELECT status FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
-        if inc_st and (inc_st["status"] or "").upper() in ("OPEN", "DISPATCHED"):
-            c3.execute("UPDATE Incidents SET status = 'ACTIVE', updated = ? WHERE incident_id = ?", (ts_now, incident_id))
-            incident_history(incident_id, "AUTO_ACTIVE", user="SYSTEM", unit_id=unit_id,
-                             details=f"First arrival by {unit_id}")
-        c3.connection.commit()
-        c3.connection.close()
-
-    # Emit event stream
     try:
-        from app.eventstream.emitter import emit_event
-        emit_event(f"UNIT_{new_status}", incident_id=incident_id or None, unit_id=unit_id, user=user,
-                   summary=f"{unit_id} {new_status.lower()}")
-    except Exception:
-        pass
+        ensure_phase3_schema()
 
-    # Apparatus mirrors to assigned crew
-    if is_apparatus:
-        crew = get_apparatus_crew(unit_id)
-        for pid in crew:
-            update_unit_status(pid, new_status)
+        # Role check: DISPATCHER minimum to change unit status
+        if not require_role(request, "DISPATCHER"):
+            return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: DISPATCHER required"})
 
-            if incident_id and field and field in ua_cols:
-                # Only stamp if that crew member is already assigned to this incident
-                conn2 = get_conn()
-                c2 = conn2.cursor()
-                exists = c2.execute(
-                    """
-                    SELECT 1
-                    FROM UnitAssignments
-                    WHERE incident_id = ?
-                      AND unit_id = ?
-                      AND cleared IS NULL
-                    LIMIT 1
-                    """,
-                    (incident_id, pid),
+        new_status = (status or "").upper().strip()
+        user = request.session.get("user", "Dispatcher")
+
+        allowed = {
+            "AVAILABLE",
+            "UNAVAILABLE",
+            "DISPATCHED",
+            "ENROUTE",
+            "ARRIVED",
+            "TRANSPORTING",
+            "AT_MEDICAL",
+            "EMERGENCY",
+        }
+        if new_status not in allowed:
+            return {"ok": False, "error": f"Invalid status {new_status}"}
+
+        # Confirm unit exists + detect apparatus
+        conn = get_conn()
+        c = conn.cursor()
+        row = c.execute(
+            "SELECT unit_id, COALESCE(is_apparatus,0) AS is_apparatus FROM Units WHERE unit_id = ?",
+            (unit_id,),
+        ).fetchone()
+        if not row:
+            conn.close()
+            return {"ok": False, "error": f"Unknown unit {unit_id}"}
+        is_apparatus = int(row["is_apparatus"] or 0)
+
+        # Update unit status
+        update_unit_status(unit_id, new_status)
+        log_master(unit_id, None, "STATUS_UPDATE", f"{unit_id} → {new_status}")
+
+        # If unit is on an active incident, stamp assignment column (if present)
+        active = c.execute(
+            """
+            SELECT incident_id
+            FROM UnitAssignments
+            WHERE unit_id = ?
+              AND cleared IS NULL
+            ORDER BY assigned DESC
+            LIMIT 1
+            """,
+            (unit_id,),
+        ).fetchone()
+        incident_id = int(active["incident_id"]) if active else 0
+
+        # Column-safe stamping
+        ua_cols = {r["name"] for r in c.execute("PRAGMA table_info(UnitAssignments)").fetchall()}
+        field_map = {
+            "DISPATCHED": "dispatched",
+            "ENROUTE": "enroute",
+            "ARRIVED": "arrived",
+            "TRANSPORTING": "transporting",
+            "AT_MEDICAL": "at_medical",
+        }
+        field = field_map.get(new_status)
+
+        conn.close()
+
+        if incident_id and field and field in ua_cols:
+            ensure_assignment_row(incident_id, unit_id)
+            mark_assignment(incident_id, unit_id, field)
+            incident_history(incident_id, new_status, user=user, unit_id=unit_id)
+
+        # First-arrival tracking + auto-ACTIVE on ARRIVED
+        if incident_id and new_status == "ARRIVED":
+            conn3 = get_conn()
+            c3 = conn3.cursor()
+            ts_now = _ts()
+            inc_cols2 = {r["name"] for r in c3.execute("PRAGMA table_info(Incidents)").fetchall()}
+            if "first_unit_arrived" in inc_cols2:
+                existing = c3.execute(
+                    "SELECT first_unit_arrived FROM Incidents WHERE incident_id = ?",
+                    (incident_id,)
                 ).fetchone()
-                conn2.close()
+                if existing and not (existing["first_unit_arrived"] or "").strip():
+                    c3.execute("""
+                        UPDATE Incidents
+                        SET first_unit_arrived = ?, first_arrival_time = ?, arrival_time = ?
+                        WHERE incident_id = ?
+                    """, (unit_id, ts_now, ts_now, incident_id))
+            inc_st = c3.execute("SELECT status FROM Incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+            if inc_st and (inc_st["status"] or "").upper() in ("OPEN", "DISPATCHED"):
+                c3.execute("UPDATE Incidents SET status = 'ACTIVE', updated = ? WHERE incident_id = ?", (ts_now, incident_id))
+                incident_history(incident_id, "AUTO_ACTIVE", user="SYSTEM", unit_id=unit_id,
+                                 details=f"First arrival by {unit_id}")
+            c3.connection.commit()
+            c3.connection.close()
 
-                if exists:
-                    ensure_assignment_row(incident_id, pid)
-                    mark_assignment(incident_id, pid, field)
-                    incident_history(incident_id, new_status, user=user, unit_id=pid)
+        # Emit event stream
+        try:
+            from app.eventstream.emitter import emit_event
+            emit_event(f"UNIT_{new_status}", incident_id=incident_id or None, unit_id=unit_id, user=user,
+                       summary=f"{unit_id} {new_status.lower()}")
+        except Exception:
+            pass
 
-    return {"ok": True}
+        # Apparatus mirrors to assigned crew
+        if is_apparatus:
+            crew = get_apparatus_crew(unit_id)
+            for pid in crew:
+                update_unit_status(pid, new_status)
+
+                if incident_id and field and field in ua_cols:
+                    # Only stamp if that crew member is already assigned to this incident
+                    conn2 = get_conn()
+                    c2 = conn2.cursor()
+                    exists = c2.execute(
+                        """
+                        SELECT 1
+                        FROM UnitAssignments
+                        WHERE incident_id = ?
+                          AND unit_id = ?
+                          AND cleared IS NULL
+                        LIMIT 1
+                        """,
+                        (incident_id, pid),
+                    ).fetchone()
+                    conn2.close()
+
+                    if exists:
+                        ensure_assignment_row(incident_id, pid)
+                        mark_assignment(incident_id, pid, field)
+                        incident_history(incident_id, new_status, user=user, unit_id=pid)
+
+        return {"ok": True}
+
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 # NOTE: Duplicate /api/unit_status endpoint was removed - using the one above with full validation
