@@ -13253,18 +13253,17 @@ async def api_global_search(q: str = ""):
         # Search units
         units = []
         rows = conn.execute("""
-            SELECT unit_id, status, current_incident_id
+            SELECT unit_id, status, unit_type
             FROM Units
             WHERE status != 'INACTIVE'
             AND (unit_id LIKE ? OR status LIKE ?)
             ORDER BY unit_id LIMIT 10
         """, (like, like)).fetchall()
         for r in rows:
-            inc_info = f" | Inc #{r['current_incident_id']}" if r['current_incident_id'] else ""
             units.append({
                 "unit_id": r["unit_id"],
                 "title": r["unit_id"],
-                "subtitle": f"{r['status']}{inc_info}",
+                "subtitle": f"{r['status']} | {r['unit_type'] or ''}",
             })
 
         # Search contacts
@@ -13346,7 +13345,7 @@ async def api_roster_list():
 
         # Get apparatus (units)
         apparatus = conn.execute("""
-            SELECT unit_id, status, station, unit_type
+            SELECT unit_id, status, unit_type, department
             FROM Units
             WHERE status != 'INACTIVE'
             ORDER BY unit_id
@@ -14502,7 +14501,13 @@ async def api_incident_edit(incident_id: int, request: Request):
     updates = {}
     for field in editable_fields:
         if field in data:
-            updates[field] = (data[field] or "").strip()
+            val = data[field]
+            if isinstance(val, str):
+                updates[field] = val.strip()
+            elif val is None:
+                updates[field] = ""
+            else:
+                updates[field] = val
 
     if not updates:
         return {"ok": False, "error": "No editable fields provided"}
