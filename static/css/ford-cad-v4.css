@@ -1841,6 +1841,7 @@ textarea {
     height: 40px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-full);
+    overflow: hidden;
 }
 
 .drawer-user {

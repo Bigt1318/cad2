@@ -286,6 +286,8 @@ async def root_view(request: Request):
             "shift_effective": shift_effective,
             "unit": unit,
             "user": user,
+            "display_name": request.session.get("display_name") or user,
+            "headshot": request.session.get("headshot") or "",
             "is_admin": bool(request.session.get("is_admin") or False),
         }
     )
@@ -446,6 +448,8 @@ async def login_submit(request: Request):
     request.session["shift_start_ts"] = _ts()
     request.session["is_admin"] = bool(is_admin)
     request.session["role"] = _get_user_role(dispatcher_unit)
+    request.session["display_name"] = display_name
+    request.session["headshot"] = _resolve_headshot(display_name)
 
     # Legacy compatibility keys
     request.session["shift"] = shift_letter
@@ -3411,6 +3415,17 @@ def _get_user_account(unit_id: str) -> dict | None:
         return dict(row) if row else None
     finally:
         conn.close()
+
+
+def _resolve_headshot(display_name: str) -> str:
+    """Return URL path to headshot image if it exists on disk, else empty string."""
+    if not display_name:
+        return ""
+    slug = "".join(ch for ch in display_name.lower() if ch.isalpha())
+    path = os.path.join("static", "images", "headshots", f"{slug}.jpg")
+    if os.path.isfile(path):
+        return f"/static/images/headshots/{slug}.jpg"
+    return ""
 
 
 def _upsert_user_account(unit_id: str, display_name: str, is_admin: bool, require_password: bool, password: str | None) -> dict:

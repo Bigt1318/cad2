@@ -186,9 +186,13 @@
 <div id="left-drawer-backdrop" class="ford-drawer-backdrop" aria-hidden="true"></div>
 <aside id="left-drawer" class="ford-drawer" aria-hidden="true">
     <div class="drawer-top">
-        <div class="drawer-avatar"></div>
+        <div class="drawer-avatar">
+          {% if headshot %}
+            <img src="{{ headshot }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+          {% endif %}
+        </div>
         <div class="drawer-user">
-            <div id="drawer-name" class="drawer-name">{% if user %}{{ user }}{% else %}Dispatcher{% endif %}</div>
+            <div id="drawer-name" class="drawer-name">{{ display_name or user or 'Dispatcher' }}</div>
             <div class="drawer-meta">FORD CAD Console</div>
         </div>
         <button id="btn-drawer-close" class="drawer-close" title="Close" type="button">&times;</button>
