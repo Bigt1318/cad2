@@ -1,0 +1,324 @@
+<!-- Dashboard Modal — KPIs + Charts + Response Table -->
+<div class="modal-content" style="max-width:1100px;width:95vw;max-height:90vh;overflow-y:auto;padding:24px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border-radius:12px;font-family:var(--font-sans,system-ui,sans-serif);">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+    <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:var(--text-primary,#fff);">Dashboard</h2>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div id="dash-period-btns" style="display:flex;gap:4px;">
+        <button class="dash-period-btn active" data-period="today" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-active,#2563eb);color:#fff;border-radius:6px;cursor:pointer;font-size:.8rem;">Today</button>
+        <button class="dash-period-btn" data-period="week" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">7 Days</button>
+        <button class="dash-period-btn" data-period="month" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">30 Days</button>
+        <button class="dash-period-btn" data-period="year" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">Year</button>
+      </div>
+      <span id="dash-refresh-indicator" style="font-size:.7rem;color:var(--text-muted,#666);margin-left:6px;">Auto-refresh: 30s</span>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div id="dash-kpi-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
+    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #2563eb;">
+      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Total Incidents</div>
+      <div id="kpi-total" style="font-size:1.8rem;font-weight:700;color:#2563eb;margin-top:4px;">--</div>
+    </div>
+    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #f59e0b;">
+      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Active Incidents</div>
+      <div id="kpi-active" style="font-size:1.8rem;font-weight:700;color:#f59e0b;margin-top:4px;">--</div>
+    </div>
+    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #10b981;">
+      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Avg Response</div>
+      <div id="kpi-response" style="font-size:1.8rem;font-weight:700;color:#10b981;margin-top:4px;">--</div>
+    </div>
+    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #8b5cf6;">
+      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Units Available</div>
+      <div id="kpi-units" style="font-size:1.8rem;font-weight:700;color:#8b5cf6;margin-top:4px;">--</div>
+    </div>
+    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #ef4444;">
+      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Transports</div>
+      <div id="kpi-transports" style="font-size:1.8rem;font-weight:700;color:#ef4444;margin-top:4px;">--</div>
+    </div>
+  </div>
+
+  <!-- Charts 2x2 grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:8px;">Incident Timeline</div>
+      <canvas id="chart-timeline" height="180"></canvas>
+    </div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:8px;">Incidents by Type</div>
+      <canvas id="chart-types" height="180"></canvas>
+    </div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:8px;">Hourly Distribution</div>
+      <canvas id="chart-hourly" height="180"></canvas>
+    </div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:8px;">Unit Utilization (Top 10)</div>
+      <canvas id="chart-units" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Response Time Table -->
+  <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
+    <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:10px;">Response Times by Type</div>
+    <div style="overflow-x:auto;">
+      <table id="dash-response-table" style="width:100%;border-collapse:collapse;font-size:.8rem;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border-default,#333);">
+            <th style="text-align:left;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Type</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Count</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg D&rarr;E</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg E&rarr;A</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg Total</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">90th %ile</th>
+          </tr>
+        </thead>
+        <tbody id="dash-response-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted,#666);">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Chart instances for cleanup
+  let charts = {};
+  let refreshTimer = null;
+  let currentPeriod = 'today';
+
+  // Period button wiring
+  const periodBtns = document.querySelectorAll('.dash-period-btn');
+  periodBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      periodBtns.forEach(function(b) {
+        b.style.background = 'var(--bg-elevated,#22252b)';
+        b.style.color = 'var(--text-secondary,#aaa)';
+        b.classList.remove('active');
+      });
+      btn.style.background = 'var(--bg-active,#2563eb)';
+      btn.style.color = '#fff';
+      btn.classList.add('active');
+      currentPeriod = btn.dataset.period;
+      loadDashboard(currentPeriod);
+    });
+  });
+
+  function fmtSec(s) {
+    if (!s && s !== 0) return '--';
+    var m = Math.floor(s / 60);
+    var sec = Math.round(s % 60);
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function destroyCharts() {
+    Object.keys(charts).forEach(function(k) {
+      if (charts[k]) { try { charts[k].destroy(); } catch(e){} }
+      charts[k] = null;
+    });
+  }
+
+  function renderKPIs(stats, analytics) {
+    document.getElementById('kpi-total').textContent = analytics.total_incidents != null ? analytics.total_incidents : '--';
+    document.getElementById('kpi-active').textContent = stats.active_count != null ? stats.active_count : '--';
+
+    var resp = stats.avg_response_min;
+    document.getElementById('kpi-response').textContent = (resp != null && resp > 0) ? (resp + ' min') : '--';
+
+    document.getElementById('kpi-units').textContent = (stats.units_available != null)
+      ? stats.units_available + '/' + stats.units_total
+      : '--';
+
+    document.getElementById('kpi-transports').textContent = analytics.total_transports != null ? analytics.total_transports : '--';
+  }
+
+  function renderCharts(data) {
+    destroyCharts();
+
+    var chartDefaults = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' } },
+        y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true }
+      }
+    };
+
+    // Timeline (line)
+    var ctxTL = document.getElementById('chart-timeline');
+    if (ctxTL) {
+      charts.timeline = new Chart(ctxTL, {
+        type: 'line',
+        data: {
+          labels: data.timeline_labels || [],
+          datasets: [{
+            data: data.timeline_data || [],
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.15)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 3,
+            pointBackgroundColor: '#2563eb'
+          }]
+        },
+        options: chartDefaults
+      });
+    }
+
+    // Types (doughnut)
+    var ctxTy = document.getElementById('chart-types');
+    if (ctxTy) {
+      var typeColors = ['#2563eb','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+      charts.types = new Chart(ctxTy, {
+        type: 'doughnut',
+        data: {
+          labels: data.type_labels || [],
+          datasets: [{
+            data: data.type_data || [],
+            backgroundColor: typeColors.slice(0, (data.type_labels || []).length),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'right',
+              labels: { color: '#aaa', font: { size: 10 }, boxWidth: 12, padding: 8 }
+            }
+          }
+        }
+      });
+    }
+
+    // Hourly (bar)
+    var ctxH = document.getElementById('chart-hourly');
+    if (ctxH) {
+      var hourLabels = [];
+      for (var i = 0; i < 24; i++) hourLabels.push(i + ':00');
+      charts.hourly = new Chart(ctxH, {
+        type: 'bar',
+        data: {
+          labels: hourLabels,
+          datasets: [{
+            data: data.hourly_data || [],
+            backgroundColor: 'rgba(16,185,129,0.6)',
+            borderRadius: 3
+          }]
+        },
+        options: chartDefaults
+      });
+    }
+
+    // Unit utilization (horizontal bar, top 10)
+    var ctxU = document.getElementById('chart-units');
+    if (ctxU) {
+      charts.units = new Chart(ctxU, {
+        type: 'bar',
+        data: {
+          labels: (data.unit_labels || []).slice(0, 10),
+          datasets: [{
+            data: (data.unit_data || []).slice(0, 10),
+            backgroundColor: 'rgba(139,92,246,0.6)',
+            borderRadius: 3
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true },
+            y: { ticks: { color: '#ccc', font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+  }
+
+  function renderResponseTable(data) {
+    var tbody = document.getElementById('dash-response-tbody');
+    if (!tbody) return;
+    var rows = data.response_by_type || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted,#666);">No response data for this period</td></tr>';
+      return;
+    }
+    var html = '';
+    rows.forEach(function(r) {
+      html += '<tr style="border-bottom:1px solid var(--border-light,#2a2d33);">'
+        + '<td style="padding:6px 10px;color:var(--text-primary,#e0e0e0);">' + (r.type || 'Unknown') + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + r.count + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_dispatch_to_enroute) + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_enroute_to_arrived) + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_total) + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.percentile_90) + '</td>'
+        + '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function loadDashboard(period) {
+    Promise.all([
+      fetch('/api/dashboard/stats').then(function(r) { return r.json(); }),
+      fetch('/api/analytics?period=' + encodeURIComponent(period)).then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var stats = results[0];
+      var analytics = results[1];
+      renderKPIs(stats, analytics);
+      renderCharts(analytics);
+      renderResponseTable(analytics);
+    }).catch(function(err) {
+      console.error('[Dashboard] Load error:', err);
+    });
+  }
+
+  // Load Chart.js dynamically if not already present
+  function ensureChartJS(cb) {
+    if (typeof Chart !== 'undefined') { cb(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
+    s.onload = cb;
+    s.onerror = function() { console.error('[Dashboard] Failed to load Chart.js'); };
+    document.head.appendChild(s);
+  }
+
+  // Auto-refresh (30s)
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    refreshTimer = setInterval(function() {
+      loadDashboard(currentPeriod);
+    }, 30000);
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  }
+
+  // Cleanup when modal is removed from DOM
+  var modalContainer = document.getElementById('fordcad-modal-container');
+  if (modalContainer) {
+    var observer = new MutationObserver(function(mutations) {
+      // If our chart canvases are gone, the modal was closed
+      if (!document.getElementById('chart-timeline')) {
+        stopAutoRefresh();
+        destroyCharts();
+        observer.disconnect();
+      }
+    });
+    observer.observe(modalContainer, { childList: true, subtree: true });
+  }
+
+  // Init
+  ensureChartJS(function() {
+    loadDashboard(currentPeriod);
+    startAutoRefresh();
+  });
+})();
+</script>

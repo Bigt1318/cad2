@@ -128,6 +128,9 @@ function _wireDrawer() {
         case "calendar":
           CAD_MODAL.open("/modals/calendar") || TOAST?.info?.("Calendar coming soon");
           break;
+        case "dashboard":
+          CAD_MODAL.open("/modals/dashboard");
+          break;
         case "keyboard_help":
           CAD_MODAL.open("/modals/keyboard_help");
           break;

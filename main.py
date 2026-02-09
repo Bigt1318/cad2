@@ -10079,6 +10079,15 @@ async def keyboard_help_modal(request: Request):
     )
 
 
+@app.get("/modals/dashboard", response_class=HTMLResponse)
+async def dashboard_modal(request: Request):
+    """Dashboard analytics modal."""
+    return templates.TemplateResponse(
+        "modals/dashboard_modal.html",
+        {"request": request},
+    )
+
+
 @app.get("/incident/{incident_id}/nfirs", response_class=HTMLResponse)
 async def nfirs_modal(request: Request, incident_id: int):
     """NFIRS/NERIS data entry modal for an incident."""
