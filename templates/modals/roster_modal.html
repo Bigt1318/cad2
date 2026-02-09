@@ -143,6 +143,8 @@
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 .btn-icon.danger:hover { color: #ef4444; }
 .roster-empty { text-align: center; padding: var(--space-4); color: var(--text-muted); }
+.roster-profile-link { color: var(--ford-blue); text-decoration: none; font-weight: 600; cursor: pointer; }
+.roster-profile-link:hover { text-decoration: underline; }
 .shift-group-header {
     font-weight: 700;
     padding: var(--space-2) var(--space-3);
@@ -200,7 +202,7 @@ window.ROSTER = (() => {
         </tr></thead><tbody>`;
         for (const p of items) {
             html += `<tr>
-                <td>${esc(p.personnel_id)}</td>
+                <td><a href="javascript:void(0)" class="roster-profile-link" onclick="CAD_MODAL.open('/modals/employee_profile?unit_id='+encodeURIComponent('${esc(p.apparatus_id)}'))">${esc(p.personnel_id)}</a></td>
                 <td>${esc(p.apparatus_id)}</td>
                 <td>${esc(p.role || '—')}</td>
                 <td>${esc(p.shift || '—')}</td>

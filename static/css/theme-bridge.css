@@ -61,6 +61,7 @@
 /* Header elements use --cad-font-header */
 #cad-header .header-title,
 #cad-header .header-subtitle,
+#cad-header .header-name-line,
 .cad-modal-title {
     font-family: var(--cad-font-header);
 }

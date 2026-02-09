@@ -2328,6 +2328,68 @@ def ensure_phase3_schema():
     """)
     _create_index("CREATE INDEX IF NOT EXISTS idx_incident_deliveries_incident ON incident_deliveries(incident_id)")
 
+    # --------------------------------------------------
+    # EMPLOYEE PROFILES
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmployeeProfiles (
+            unit_id TEXT PRIMARY KEY,
+            employee_number TEXT,
+            rank TEXT,
+            hire_date TEXT,
+            dob TEXT,
+            personal_phone TEXT,
+            personal_email TEXT,
+            address_line1 TEXT,
+            address_line2 TEXT,
+            address_city TEXT,
+            address_state TEXT,
+            address_zip TEXT,
+            blood_type TEXT,
+            notes TEXT,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+
+    # --------------------------------------------------
+    # EMERGENCY CONTACTS (for employee profiles)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmergencyContacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit_id TEXT NOT NULL,
+            name TEXT,
+            relationship TEXT,
+            phone TEXT,
+            email TEXT,
+            is_primary INTEGER DEFAULT 0,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+    _create_index("CREATE INDEX IF NOT EXISTS idx_emergency_contacts_unit ON EmergencyContacts(unit_id)")
+
+    # --------------------------------------------------
+    # EMPLOYEE CERTIFICATIONS
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmployeeCertifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit_id TEXT NOT NULL,
+            cert_name TEXT,
+            issuing_authority TEXT,
+            cert_number TEXT,
+            issue_date TEXT,
+            expiration_date TEXT,
+            status TEXT DEFAULT 'ACTIVE',
+            notes TEXT,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+    _create_index("CREATE INDEX IF NOT EXISTS idx_employee_certs_unit ON EmployeeCertifications(unit_id)")
+
     conn.commit()
     conn.close()
     _SCHEMA_INIT_DONE = True
@@ -14108,6 +14170,310 @@ async def api_contact_send_message(contact_id: int, request: Request):
 
     except ImportError:
         return {"ok": False, "error": "Reports module not available"}
+
+
+# ================================================================
+# EMPLOYEE PROFILE SYSTEM
+# ================================================================
+
+@app.get("/modals/employee_profile", response_class=HTMLResponse)
+async def employee_profile_modal(request: Request, unit_id: str = ""):
+    """Render the employee profile modal."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not unit_id:
+        unit_id = user
+    is_own_profile = (unit_id.upper() == user)
+    return templates.TemplateResponse(
+        "modals/employee_profile_modal.html",
+        {"request": request, "unit_id": unit_id, "is_admin": is_admin, "is_own_profile": is_own_profile}
+    )
+
+
+@app.get("/api/employees/{unit_id}")
+async def api_employee_get(unit_id: str, request: Request):
+    """Get full employee profile (joins UserAccounts + EmployeeProfiles + headshot + assignment + shift)."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        # UserAccounts
+        acct = conn.execute("SELECT * FROM UserAccounts WHERE unit_id = ?", (unit_id,)).fetchone()
+        acct = dict(acct) if acct else {}
+
+        # EmployeeProfiles
+        prof = conn.execute("SELECT * FROM EmployeeProfiles WHERE unit_id = ?", (unit_id,)).fetchone()
+        prof = dict(prof) if prof else {}
+
+        # Units table for name/type
+        unit_row = conn.execute("SELECT * FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+        unit_info = dict(unit_row) if unit_row else {}
+
+        # Current shift from UnitRoster
+        roster = conn.execute("SELECT shift_letter, home_shift_letter FROM UnitRoster WHERE unit_id = ?", (unit_id,)).fetchone()
+        shift_info = dict(roster) if roster else {}
+
+        # Current assignment
+        assignment = conn.execute(
+            "SELECT incident_id, assigned FROM UnitAssignments WHERE unit_id = ? AND cleared IS NULL ORDER BY assigned DESC LIMIT 1",
+            (unit_id,)
+        ).fetchone()
+        assign_info = dict(assignment) if assignment else {}
+
+        # Headshot
+        headshot = _resolve_headshot(acct.get("display_name") or unit_info.get("name") or unit_id)
+
+        return {
+            "ok": True,
+            "profile": {
+                "unit_id": unit_id,
+                "display_name": acct.get("display_name") or unit_info.get("name") or unit_id,
+                "employee_number": prof.get("employee_number", ""),
+                "rank": prof.get("rank", ""),
+                "hire_date": prof.get("hire_date", ""),
+                "dob": prof.get("dob", ""),
+                "personal_phone": prof.get("personal_phone", ""),
+                "personal_email": prof.get("personal_email", ""),
+                "address_line1": prof.get("address_line1", ""),
+                "address_line2": prof.get("address_line2", ""),
+                "address_city": prof.get("address_city", ""),
+                "address_state": prof.get("address_state", ""),
+                "address_zip": prof.get("address_zip", ""),
+                "blood_type": prof.get("blood_type", ""),
+                "notes": prof.get("notes", ""),
+                "unit_type": unit_info.get("unit_type", ""),
+                "status": unit_info.get("status", ""),
+                "shift_letter": shift_info.get("shift_letter", ""),
+                "home_shift_letter": shift_info.get("home_shift_letter", ""),
+                "current_incident": assign_info.get("incident_id"),
+                "headshot": headshot,
+                "role": acct.get("role", ""),
+            }
+        }
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}")
+async def api_employee_upsert(unit_id: str, request: Request):
+    """Create or update employee profile (upsert)."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        existing = conn.execute("SELECT unit_id FROM EmployeeProfiles WHERE unit_id = ?", (unit_id,)).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE EmployeeProfiles SET
+                    employee_number=?, rank=?, hire_date=?, dob=?,
+                    personal_phone=?, personal_email=?,
+                    address_line1=?, address_line2=?, address_city=?, address_state=?, address_zip=?,
+                    blood_type=?, notes=?, updated=?
+                WHERE unit_id=?
+            """, (
+                data.get("employee_number", ""), data.get("rank", ""), data.get("hire_date", ""), data.get("dob", ""),
+                data.get("personal_phone", ""), data.get("personal_email", ""),
+                data.get("address_line1", ""), data.get("address_line2", ""),
+                data.get("address_city", ""), data.get("address_state", ""), data.get("address_zip", ""),
+                data.get("blood_type", ""), data.get("notes", ""), now, unit_id
+            ))
+        else:
+            conn.execute("""
+                INSERT INTO EmployeeProfiles
+                    (unit_id, employee_number, rank, hire_date, dob,
+                     personal_phone, personal_email,
+                     address_line1, address_line2, address_city, address_state, address_zip,
+                     blood_type, notes, created, updated)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (
+                unit_id,
+                data.get("employee_number", ""), data.get("rank", ""), data.get("hire_date", ""), data.get("dob", ""),
+                data.get("personal_phone", ""), data.get("personal_email", ""),
+                data.get("address_line1", ""), data.get("address_line2", ""),
+                data.get("address_city", ""), data.get("address_state", ""), data.get("address_zip", ""),
+                data.get("blood_type", ""), data.get("notes", ""), now, now
+            ))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# --- Emergency Contacts ---
+
+@app.get("/api/employees/{unit_id}/emergency_contacts")
+async def api_emergency_contacts_list(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM EmergencyContacts WHERE unit_id=? ORDER BY is_primary DESC, name", (unit_id,)).fetchall()
+        return {"ok": True, "contacts": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}/emergency_contacts")
+async def api_emergency_contact_add(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            INSERT INTO EmergencyContacts (unit_id, name, relationship, phone, email, is_primary, created, updated)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (unit_id, data.get("name",""), data.get("relationship",""), data.get("phone",""),
+              data.get("email",""), int(data.get("is_primary", 0)), now, now))
+        conn.commit()
+        return {"ok": True, "id": conn.execute("SELECT last_insert_rowid()").fetchone()[0]}
+    finally:
+        conn.close()
+
+
+@app.put("/api/employees/{unit_id}/emergency_contacts/{contact_id}")
+async def api_emergency_contact_update(unit_id: str, contact_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            UPDATE EmergencyContacts SET name=?, relationship=?, phone=?, email=?, is_primary=?, updated=?
+            WHERE id=? AND unit_id=?
+        """, (data.get("name",""), data.get("relationship",""), data.get("phone",""),
+              data.get("email",""), int(data.get("is_primary", 0)), now, contact_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/employees/{unit_id}/emergency_contacts/{contact_id}")
+async def api_emergency_contact_delete(unit_id: str, contact_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM EmergencyContacts WHERE id=? AND unit_id=?", (contact_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# --- Employee Certifications ---
+
+@app.get("/api/employees/{unit_id}/certifications")
+async def api_certifications_list(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM EmployeeCertifications WHERE unit_id=? ORDER BY expiration_date", (unit_id,)).fetchall()
+        return {"ok": True, "certifications": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}/certifications")
+async def api_certification_add(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            INSERT INTO EmployeeCertifications
+                (unit_id, cert_name, issuing_authority, cert_number, issue_date, expiration_date, status, notes, created, updated)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (unit_id, data.get("cert_name",""), data.get("issuing_authority",""), data.get("cert_number",""),
+              data.get("issue_date",""), data.get("expiration_date",""),
+              data.get("status","ACTIVE"), data.get("notes",""), now, now))
+        conn.commit()
+        return {"ok": True, "id": conn.execute("SELECT last_insert_rowid()").fetchone()[0]}
+    finally:
+        conn.close()
+
+
+@app.put("/api/employees/{unit_id}/certifications/{cert_id}")
+async def api_certification_update(unit_id: str, cert_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            UPDATE EmployeeCertifications SET
+                cert_name=?, issuing_authority=?, cert_number=?, issue_date=?, expiration_date=?, status=?, notes=?, updated=?
+            WHERE id=? AND unit_id=?
+        """, (data.get("cert_name",""), data.get("issuing_authority",""), data.get("cert_number",""),
+              data.get("issue_date",""), data.get("expiration_date",""),
+              data.get("status","ACTIVE"), data.get("notes",""), now, cert_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/employees/{unit_id}/certifications/{cert_id}")
+async def api_certification_delete(unit_id: str, cert_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM EmployeeCertifications WHERE id=? AND unit_id=?", (cert_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
 
 
 # ------------------------------------------------------
