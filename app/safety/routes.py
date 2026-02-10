@@ -366,7 +366,41 @@ def _render_safety_modal() -> str:
 
     return f"""
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
-<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections" style="max-width:1000px;width:92vw;max-height:88vh;overflow:hidden;padding:0;background:#1a1d23;color:#e2e8f0;border-radius:10px;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;">
+<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections" style="max-width:1000px;width:92vw;max-height:88vh;overflow:hidden;padding:0;background:#1a1d23 !important;color:#e2e8f0 !important;border-radius:10px;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;">
+<style>
+  .cad-modal[aria-label="Safety Inspections"] {{
+    --bg-surface: #1a1d23 !important;
+    --bg-app: #1a1d23 !important;
+    --bg-elevated: #1a202c !important;
+    --bg-panel: #2d3748 !important;
+    --text-primary: #e2e8f0 !important;
+    --text-secondary: #a0aec0 !important;
+    --border-default: #2d3748 !important;
+    background: #1a1d23 !important;
+    color: #e2e8f0 !important;
+  }}
+  .cad-modal[aria-label="Safety Inspections"] input,
+  .cad-modal[aria-label="Safety Inspections"] select,
+  .cad-modal[aria-label="Safety Inspections"] textarea {{
+    background: #2d3748 !important;
+    color: #e2e8f0 !important;
+    border-color: #4a5568 !important;
+  }}
+  .cad-modal[aria-label="Safety Inspections"] label {{
+    color: #a0aec0 !important;
+  }}
+  .cad-modal[aria-label="Safety Inspections"] th {{
+    color: #718096 !important;
+    background: #1a202c !important;
+  }}
+  .cad-modal[aria-label="Safety Inspections"] td {{
+    color: #e2e8f0 !important;
+  }}
+  .cad-modal[aria-label="Safety Inspections"] select option {{
+    background: #2d3748 !important;
+    color: #e2e8f0 !important;
+  }}
+</style>
 <div id="safety-modal" style="color:#e2e8f0;max-height:82vh;display:flex;flex-direction:column;background:#1a1d23;">
     <!-- Header -->
     <div style="padding:12px 16px;border-bottom:1px solid #2d3748;display:flex;justify-content:space-between;align-items:center;">
