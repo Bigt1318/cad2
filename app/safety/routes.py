@@ -358,226 +358,263 @@ def _render_safety_modal() -> str:
         bar_color = "#48bb78" if t["pct"] >= 90 else ("#d69e2e" if t["pct"] >= 70 else "#e53e3e")
         by_type_rows += f"""
         <tr>
-            <td style="padding:4px 8px;font-size:12px;">{t["name"]}</td>
-            <td style="padding:4px 8px;font-size:12px;text-align:center;">{t["total"]}</td>
-            <td style="padding:4px 8px;font-size:12px;text-align:center;color:{bar_color};">{t["pct"]}%</td>
-            <td style="padding:4px 8px;font-size:12px;text-align:center;color:#e53e3e;">{t["overdue_count"]}</td>
+            <td>{t["name"]}</td>
+            <td style="text-align:center;">{t["total"]}</td>
+            <td style="text-align:center;color:{bar_color};">{t["pct"]}%</td>
+            <td style="text-align:center;color:#e53e3e;">{t["overdue_count"]}</td>
         </tr>"""
 
     return f"""
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
-<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections" style="max-width:1000px;width:92vw;max-height:88vh;overflow:hidden;padding:0;background:#1a1d23 !important;color:#e2e8f0 !important;border-radius:10px;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;">
+<div class="cad-modal safety-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections">
+    <div class="cad-modal-header">
+        <div class="cad-modal-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            Safety Inspections
+        </div>
+        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+    </div>
+    <div class="cad-modal-body" style="padding:0;display:flex;flex-direction:column;">
+        <!-- Tab Bar -->
+        <div class="safety-tabs">
+            <button class="safety-tab active" onclick="SAFETY.switchTab('dashboard')" data-tab="dashboard">Dashboard</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('assets')" data-tab="assets">Assets</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('inspections')" data-tab="inspections">Inspections</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('deficiencies')" data-tab="deficiencies">Deficiencies</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('scan')" data-tab="scan">Scan</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('locations')" data-tab="locations">Locations</button>
+            <button class="safety-tab" onclick="SAFETY.switchTab('settings')" data-tab="settings">Settings</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="safety-content">
+
+        <!-- ========== DASHBOARD TAB ========== -->
+        <div id="safety-tab-dashboard" class="safety-panel">
+            <div class="safety-kpi-grid">
+                <div class="safety-kpi">
+                    <div class="safety-kpi-value" style="color:var(--ford-blue,#63b3ed);">{stats["total_assets"]}</div>
+                    <div class="safety-kpi-label">Total Assets</div>
+                </div>
+                <div class="safety-kpi">
+                    <div class="safety-kpi-value" style="color:#48bb78;">{stats["compliant_pct"]}%</div>
+                    <div class="safety-kpi-label">Compliant</div>
+                </div>
+                <div class="safety-kpi">
+                    <div class="safety-kpi-value" style="color:{overdue_color};">{stats["overdue"]}</div>
+                    <div class="safety-kpi-label">Overdue</div>
+                </div>
+                <div class="safety-kpi">
+                    <div class="safety-kpi-value" style="color:{def_color};">{stats["open_deficiencies"]}</div>
+                    <div class="safety-kpi-label">Open Deficiencies</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                    <h4 class="safety-section-title">Compliance by Type</h4>
+                    <table class="safety-table">
+                        <thead><tr>
+                            <th style="text-align:left;">Type</th>
+                            <th>Total</th>
+                            <th>Compliant</th>
+                            <th>Overdue</th>
+                        </tr></thead>
+                        <tbody>{by_type_rows}</tbody>
+                    </table>
+                </div>
+                <div>
+                    <h4 class="safety-section-title">Recent Activity</h4>
+                    <div id="safety-recent-activity" style="padding:8px;text-align:center;color:var(--text-muted,#6e7681);">
+                        {stats["inspections_30d"]} inspections in last 30 days
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== ASSETS TAB ========== -->
+        <div id="safety-tab-assets" class="safety-panel" style="display:none;">
+            <div class="safety-filter-bar">
+                <select id="safety-filter-type" onchange="SAFETY.loadAssets()">
+                    <option value="">All Types</option>
+                    {types_options}
+                </select>
+                <select id="safety-filter-location" onchange="SAFETY.loadAssets()">
+                    <option value="">All Locations</option>
+                    {loc_options}
+                </select>
+                <select id="safety-filter-status" onchange="SAFETY.loadAssets()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="deficient">Deficient</option>
+                    <option value="out_of_service">Out of Service</option>
+                </select>
+                <input id="safety-search" placeholder="Search tag/serial..." onkeyup="SAFETY.debounceSearch()" style="width:160px;" />
+                <label style="font-size:var(--text-xs,11px);display:flex;align-items:center;gap:4px;">
+                    <input type="checkbox" id="safety-filter-overdue" onchange="SAFETY.loadAssets()" style="width:auto;"> Overdue Only
+                </label>
+                <div style="flex:1;"></div>
+                <button class="btn-primary" onclick="SAFETY.showAddAsset()">+ Add Asset</button>
+            </div>
+            <div id="safety-assets-table" class="safety-scroll-area">
+                <div class="safety-empty">Loading assets...</div>
+            </div>
+        </div>
+
+        <!-- ========== INSPECTIONS TAB ========== -->
+        <div id="safety-tab-inspections" class="safety-panel" style="display:none;">
+            <div style="display:flex;gap:var(--space-2,8px);margin-bottom:var(--space-3,12px);">
+                <button id="safety-insp-pending-btn" class="btn-primary" onclick="SAFETY.loadPending()">Pending</button>
+                <button id="safety-insp-history-btn" class="btn-secondary" onclick="SAFETY.loadHistory()">History</button>
+            </div>
+            <div id="safety-inspections-content" class="safety-scroll-area">
+                <div class="safety-empty">Select Pending or History</div>
+            </div>
+        </div>
+
+        <!-- ========== DEFICIENCIES TAB ========== -->
+        <div id="safety-tab-deficiencies" class="safety-panel" style="display:none;">
+            <div class="safety-filter-bar">
+                <select id="safety-def-status" onchange="SAFETY.loadDeficiencies()">
+                    <option value="">All Status</option>
+                    <option value="open" selected>Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="deferred">Deferred</option>
+                </select>
+                <select id="safety-def-severity" onchange="SAFETY.loadDeficiencies()">
+                    <option value="">All Severity</option>
+                    <option value="critical">Critical</option>
+                    <option value="major">Major</option>
+                    <option value="minor">Minor</option>
+                </select>
+            </div>
+            <div id="safety-deficiencies-content" class="safety-scroll-area">
+                <div class="safety-empty">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ========== SCAN TAB ========== -->
+        <div id="safety-tab-scan" class="safety-panel" style="display:none;">
+            <div style="text-align:center;padding:var(--space-3,12px);">
+                <div style="position:relative;width:320px;height:240px;margin:0 auto var(--space-3,12px);background:#000;border-radius:var(--radius-md,6px);overflow:hidden;">
+                    <video id="safety-scanner-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:2px solid var(--ford-blue,#3b82f6);border-radius:8px;pointer-events:none;"></div>
+                </div>
+                <button class="btn-primary" onclick="SAFETY.startScanner()" style="margin-right:8px;">Start Camera</button>
+                <button class="btn-secondary" onclick="SAFETY.stopScanner()">Stop</button>
+                <div style="margin-top:var(--space-3,12px);">
+                    <span style="font-size:var(--text-sm,12px);color:var(--text-secondary,#8b949e);">Or enter asset tag manually:</span>
+                    <div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">
+                        <input id="safety-manual-tag" placeholder="FE-001 or QR UUID" style="width:200px;" />
+                        <button class="btn-primary" onclick="SAFETY.manualLookup()">Lookup</button>
+                    </div>
+                </div>
+                <div id="safety-scan-result" style="margin-top:var(--space-4,16px);"></div>
+            </div>
+        </div>
+
+        <!-- ========== LOCATIONS TAB ========== -->
+        <div id="safety-tab-locations" class="safety-panel" style="display:none;">
+            <div style="display:flex;gap:var(--space-2,8px);margin-bottom:var(--space-3,12px);align-items:center;">
+                <h4 class="safety-section-title" style="flex:1;margin:0;">Locations</h4>
+                <button class="btn-primary" onclick="SAFETY.showAddLocation()">+ Add Location</button>
+            </div>
+            <div id="safety-locations-content" class="safety-scroll-area">
+                <div class="safety-empty">Loading...</div>
+            </div>
+        </div>
+
+        <!-- ========== SETTINGS TAB ========== -->
+        <div id="safety-tab-settings" class="safety-panel" style="display:none;">
+            <h4 class="safety-section-title">Asset Types</h4>
+            <div id="safety-settings-types" style="margin-bottom:var(--space-4,16px);">Loading...</div>
+
+            <h4 class="safety-section-title">Inspection Templates</h4>
+            <div id="safety-settings-templates">Loading...</div>
+
+            <h4 class="safety-section-title" style="margin-top:var(--space-4,16px);">QR Batch Tools</h4>
+            <div style="display:flex;gap:var(--space-2,8px);flex-wrap:wrap;">
+                <button class="btn-secondary" onclick="SAFETY.printAllQR()">Print All QR Labels</button>
+                <button class="btn-secondary" onclick="SAFETY.downloadQRZip()">Download QR ZIP</button>
+            </div>
+        </div>
+
+        </div><!-- end safety-content -->
+    </div><!-- end cad-modal-body -->
+
 <style>
-  .cad-modal[aria-label="Safety Inspections"] {{
-    --bg-surface: #1a1d23 !important;
-    --bg-app: #1a1d23 !important;
-    --bg-elevated: #1a202c !important;
-    --bg-panel: #2d3748 !important;
-    --text-primary: #e2e8f0 !important;
-    --text-secondary: #a0aec0 !important;
-    --border-default: #2d3748 !important;
-    background: #1a1d23 !important;
-    color: #e2e8f0 !important;
-  }}
-  .cad-modal[aria-label="Safety Inspections"] input,
-  .cad-modal[aria-label="Safety Inspections"] select,
-  .cad-modal[aria-label="Safety Inspections"] textarea {{
-    background: #2d3748 !important;
-    color: #e2e8f0 !important;
-    border-color: #4a5568 !important;
-  }}
-  .cad-modal[aria-label="Safety Inspections"] label {{
-    color: #a0aec0 !important;
-  }}
-  .cad-modal[aria-label="Safety Inspections"] th {{
-    color: #718096 !important;
-    background: #1a202c !important;
-  }}
-  .cad-modal[aria-label="Safety Inspections"] td {{
-    color: #e2e8f0 !important;
-  }}
-  .cad-modal[aria-label="Safety Inspections"] select option {{
-    background: #2d3748 !important;
-    color: #e2e8f0 !important;
-  }}
+.safety-modal {{ min-width: 700px; max-width: 1000px; width: 92vw; max-height: 88vh; }}
+.safety-tabs {{
+    display: flex; gap: var(--space-1, 4px);
+    border-bottom: 1px solid var(--border-default, #30363d);
+    padding: 0 var(--space-3, 12px);
+    background: var(--bg-elevated, #21262d);
+}}
+.safety-tab {{
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    background: transparent; border: none;
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--text-sm, 12px); font-weight: 600;
+    cursor: pointer; border-bottom: 2px solid transparent;
+}}
+.safety-tab.active {{ color: var(--ford-blue, #3b82f6); border-bottom-color: var(--ford-blue, #3b82f6); }}
+.safety-tab:hover {{ color: var(--text-primary, #f0f6fc); }}
+.safety-content {{ flex: 1; overflow-y: auto; padding: var(--space-4, 16px); }}
+.safety-kpi-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3, 12px); margin-bottom: var(--space-4, 16px); }}
+.safety-kpi {{
+    background: var(--bg-elevated, #21262d); border-radius: var(--radius-md, 6px);
+    padding: var(--space-3, 12px); text-align: center;
+    border: 1px solid var(--border-default, #30363d);
+}}
+.safety-kpi-value {{ font-size: 24px; font-weight: bold; }}
+.safety-kpi-label {{ font-size: var(--text-xs, 11px); color: var(--text-secondary, #8b949e); margin-top: 2px; }}
+.safety-section-title {{ margin: 0 0 var(--space-2, 8px); font-size: var(--text-sm, 12px); font-weight: 700; color: var(--text-secondary, #8b949e); text-transform: uppercase; }}
+.safety-table {{ width: 100%; border-collapse: collapse; }}
+.safety-table th {{
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    text-align: center; font-size: var(--text-xs, 11px);
+    font-weight: 700; color: var(--text-secondary, #8b949e);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-default, #30363d);
+}}
+.safety-table td {{
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    font-size: var(--text-sm, 12px); color: var(--text-primary, #f0f6fc);
+    border-bottom: 1px solid var(--border-light, rgba(48,54,61,0.5));
+}}
+.safety-filter-bar {{
+    display: flex; gap: var(--space-2, 8px); margin-bottom: var(--space-3, 12px);
+    flex-wrap: wrap; align-items: center;
+}}
+.safety-filter-bar select, .safety-filter-bar input {{
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    font-size: var(--text-sm, 12px);
+}}
+.safety-scroll-area {{ max-height: 55vh; overflow-y: auto; }}
+.safety-empty {{ text-align: center; color: var(--text-muted, #6e7681); padding: var(--space-6, 24px); }}
+.safety-form-panel {{
+    background: var(--bg-elevated, #21262d); border-radius: var(--radius-md, 6px);
+    padding: var(--space-3, 12px); border: 1px solid var(--border-default, #30363d);
+}}
+.safety-form-panel h4 {{ margin: 0 0 var(--space-3, 12px); color: var(--ford-blue, #3b82f6); }}
+.safety-form-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2, 8px); }}
+.safety-form-grid label {{ font-size: var(--text-xs, 11px); }}
+.safety-form-grid input, .safety-form-grid select {{ font-size: var(--text-sm, 12px); }}
+.safety-loc-group {{ margin-bottom: var(--space-3, 12px); }}
+.safety-loc-group h5 {{
+    margin: 0 0 var(--space-1, 4px); font-size: var(--text-sm, 12px);
+    color: var(--ford-blue, #3b82f6); border-bottom: 1px solid var(--border-default, #30363d);
+    padding-bottom: var(--space-1, 4px);
+}}
+.safety-loc-item {{
+    display: flex; align-items: center; gap: var(--space-2, 8px);
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+}}
+.safety-loc-item span {{ color: var(--text-secondary, #8b949e); }}
 </style>
-<div id="safety-modal" style="color:#e2e8f0;max-height:82vh;display:flex;flex-direction:column;background:#1a1d23;">
-    <!-- Header -->
-    <div style="padding:12px 16px;border-bottom:1px solid #2d3748;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-            <h3 style="margin:0;font-size:16px;color:#f6ad55;">Safety Inspections</h3>
-            <p style="margin:2px 0 0;font-size:11px;color:#888;">Equipment tracking &amp; compliance</p>
-        </div>
-    </div>
-
-    <!-- Tab Bar -->
-    <div id="safety-tabs" style="display:flex;border-bottom:1px solid #2d3748;background:#1a202c;padding:0 8px;">
-        <button class="stab active" onclick="SAFETY.switchTab('dashboard')" data-tab="dashboard" style="padding:8px 14px;border:none;background:none;color:#f6ad55;font-size:12px;cursor:pointer;border-bottom:2px solid #f6ad55;">Dashboard</button>
-        <button class="stab" onclick="SAFETY.switchTab('assets')" data-tab="assets" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Assets</button>
-        <button class="stab" onclick="SAFETY.switchTab('inspections')" data-tab="inspections" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Inspections</button>
-        <button class="stab" onclick="SAFETY.switchTab('deficiencies')" data-tab="deficiencies" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Deficiencies</button>
-        <button class="stab" onclick="SAFETY.switchTab('scan')" data-tab="scan" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Scan</button>
-        <button class="stab" onclick="SAFETY.switchTab('locations')" data-tab="locations" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Locations</button>
-        <button class="stab" onclick="SAFETY.switchTab('settings')" data-tab="settings" style="padding:8px 14px;border:none;background:none;color:#a0aec0;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;">Settings</button>
-    </div>
-
-    <!-- Tab Content -->
-    <div style="flex:1;overflow-y:auto;padding:12px 16px;">
-
-    <!-- ========== DASHBOARD TAB ========== -->
-    <div id="safety-tab-dashboard" class="safety-panel">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
-            <div style="background:#2d3748;border-radius:6px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:bold;color:#63b3ed;">{stats["total_assets"]}</div>
-                <div style="font-size:11px;color:#a0aec0;">Total Assets</div>
-            </div>
-            <div style="background:#2d3748;border-radius:6px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:bold;color:#48bb78;">{stats["compliant_pct"]}%</div>
-                <div style="font-size:11px;color:#a0aec0;">Compliant</div>
-            </div>
-            <div style="background:#2d3748;border-radius:6px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:bold;color:{overdue_color};">{stats["overdue"]}</div>
-                <div style="font-size:11px;color:#a0aec0;">Overdue</div>
-            </div>
-            <div style="background:#2d3748;border-radius:6px;padding:12px;text-align:center;">
-                <div style="font-size:24px;font-weight:bold;color:{def_color};">{stats["open_deficiencies"]}</div>
-                <div style="font-size:11px;color:#a0aec0;">Open Deficiencies</div>
-            </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div>
-                <h4 style="margin:0 0 8px;font-size:13px;color:#a0aec0;">Compliance by Type</h4>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead><tr style="background:#1a202c;">
-                        <th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Type</th>
-                        <th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Total</th>
-                        <th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Compliant</th>
-                        <th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Overdue</th>
-                    </tr></thead>
-                    <tbody>{by_type_rows}</tbody>
-                </table>
-            </div>
-            <div>
-                <h4 style="margin:0 0 8px;font-size:13px;color:#a0aec0;">Recent Activity</h4>
-                <div id="safety-recent-activity" style="font-size:12px;color:#888;">
-                    <div style="padding:8px;text-align:center;">{stats["inspections_30d"]} inspections in last 30 days</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ========== ASSETS TAB ========== -->
-    <div id="safety-tab-assets" class="safety-panel" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-            <select id="safety-filter-type" onchange="SAFETY.loadAssets()" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;">
-                <option value="">All Types</option>
-                {types_options}
-            </select>
-            <select id="safety-filter-location" onchange="SAFETY.loadAssets()" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;">
-                <option value="">All Locations</option>
-                {loc_options}
-            </select>
-            <select id="safety-filter-status" onchange="SAFETY.loadAssets()" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="deficient">Deficient</option>
-                <option value="out_of_service">Out of Service</option>
-            </select>
-            <input id="safety-search" placeholder="Search tag/serial..." onkeyup="SAFETY.debounceSearch()"
-                   style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;width:160px;" />
-            <label style="font-size:11px;color:#a0aec0;display:flex;align-items:center;gap:4px;">
-                <input type="checkbox" id="safety-filter-overdue" onchange="SAFETY.loadAssets()"> Overdue Only
-            </label>
-            <div style="flex:1;"></div>
-            <button onclick="SAFETY.showAddAsset()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">+ Add Asset</button>
-        </div>
-        <div id="safety-assets-table" style="max-height:50vh;overflow-y:auto;">
-            <div style="text-align:center;color:#888;padding:20px;">Loading assets...</div>
-        </div>
-    </div>
-
-    <!-- ========== INSPECTIONS TAB ========== -->
-    <div id="safety-tab-inspections" class="safety-panel" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <button id="safety-insp-pending-btn" onclick="SAFETY.loadPending()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">Pending</button>
-            <button id="safety-insp-history-btn" onclick="SAFETY.loadHistory()" style="background:#4a5568;color:#e2e8f0;border:none;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">History</button>
-        </div>
-        <div id="safety-inspections-content" style="max-height:55vh;overflow-y:auto;">
-            <div style="text-align:center;color:#888;padding:20px;">Select Pending or History</div>
-        </div>
-    </div>
-
-    <!-- ========== DEFICIENCIES TAB ========== -->
-    <div id="safety-tab-deficiencies" class="safety-panel" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <select id="safety-def-status" onchange="SAFETY.loadDeficiencies()" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;">
-                <option value="">All Status</option>
-                <option value="open" selected>Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="deferred">Deferred</option>
-            </select>
-            <select id="safety-def-severity" onchange="SAFETY.loadDeficiencies()" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px 8px;border-radius:4px;font-size:12px;">
-                <option value="">All Severity</option>
-                <option value="critical">Critical</option>
-                <option value="major">Major</option>
-                <option value="minor">Minor</option>
-            </select>
-        </div>
-        <div id="safety-deficiencies-content" style="max-height:55vh;overflow-y:auto;">
-            <div style="text-align:center;color:#888;padding:20px;">Loading...</div>
-        </div>
-    </div>
-
-    <!-- ========== SCAN TAB ========== -->
-    <div id="safety-tab-scan" class="safety-panel" style="display:none;">
-        <div style="text-align:center;padding:12px;">
-            <div id="safety-scanner-container" style="position:relative;width:320px;height:240px;margin:0 auto 12px;background:#000;border-radius:8px;overflow:hidden;">
-                <video id="safety-scanner-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:200px;border:2px solid #f6ad55;border-radius:8px;pointer-events:none;"></div>
-            </div>
-            <button onclick="SAFETY.startScanner()" style="background:#2b6cb0;color:#fff;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;margin-right:8px;">Start Camera</button>
-            <button onclick="SAFETY.stopScanner()" style="background:#4a5568;color:#e2e8f0;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;">Stop</button>
-            <div style="margin-top:12px;">
-                <span style="font-size:12px;color:#a0aec0;">Or enter asset tag manually:</span>
-                <div style="display:flex;gap:6px;justify-content:center;margin-top:6px;">
-                    <input id="safety-manual-tag" placeholder="FE-001 or QR UUID" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:5px 10px;border-radius:4px;font-size:12px;width:200px;" />
-                    <button onclick="SAFETY.manualLookup()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">Lookup</button>
-                </div>
-            </div>
-            <div id="safety-scan-result" style="margin-top:16px;"></div>
-        </div>
-    </div>
-
-    <!-- ========== LOCATIONS TAB ========== -->
-    <div id="safety-tab-locations" class="safety-panel" style="display:none;">
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
-            <h4 style="margin:0;font-size:13px;color:#a0aec0;flex:1;">Locations</h4>
-            <button onclick="SAFETY.showAddLocation()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">+ Add Location</button>
-        </div>
-        <div id="safety-locations-content" style="max-height:55vh;overflow-y:auto;">
-            <div style="text-align:center;color:#888;padding:20px;">Loading...</div>
-        </div>
-    </div>
-
-    <!-- ========== SETTINGS TAB ========== -->
-    <div id="safety-tab-settings" class="safety-panel" style="display:none;">
-        <h4 style="margin:0 0 12px;font-size:13px;color:#a0aec0;">Asset Types</h4>
-        <div id="safety-settings-types" style="margin-bottom:16px;">Loading...</div>
-
-        <h4 style="margin:0 0 12px;font-size:13px;color:#a0aec0;">Inspection Templates</h4>
-        <div id="safety-settings-templates">Loading...</div>
-
-        <h4 style="margin:16px 0 12px;font-size:13px;color:#a0aec0;">QR Batch Tools</h4>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="SAFETY.printAllQR()" style="background:#4a5568;color:#e2e8f0;border:none;padding:6px 14px;border-radius:4px;font-size:12px;cursor:pointer;">Print All QR Labels</button>
-            <button onclick="SAFETY.downloadQRZip()" style="background:#4a5568;color:#e2e8f0;border:none;padding:6px 14px;border-radius:4px;font-size:12px;cursor:pointer;">Download QR ZIP</button>
-        </div>
-    </div>
-
-    </div><!-- end tab content -->
-</div>
 
 <script>
 window.SAFETY = window.SAFETY || {{}};
@@ -585,14 +622,11 @@ window.SAFETY = window.SAFETY || {{}};
 /* ---- Tab switching ---- */
 SAFETY.switchTab = function(tab) {{
     document.querySelectorAll('.safety-panel').forEach(function(el) {{ el.style.display = 'none'; }});
-    document.querySelectorAll('.stab').forEach(function(el) {{
-        el.style.color = '#a0aec0';
-        el.style.borderBottom = '2px solid transparent';
-    }});
+    document.querySelectorAll('.safety-tab').forEach(function(el) {{ el.classList.remove('active'); }});
     var panel = document.getElementById('safety-tab-' + tab);
     if (panel) panel.style.display = 'block';
-    var btn = document.querySelector('.stab[data-tab="' + tab + '"]');
-    if (btn) {{ btn.style.color = '#f6ad55'; btn.style.borderBottom = '2px solid #f6ad55'; }}
+    var btn = document.querySelector('.safety-tab[data-tab="' + tab + '"]');
+    if (btn) btn.classList.add('active');
 
     if (tab === 'assets') SAFETY.loadAssets();
     else if (tab === 'inspections') SAFETY.loadPending();
@@ -626,18 +660,18 @@ SAFETY.loadAssets = function() {{
         var assets = data.assets;
         var today = new Date().toISOString().slice(0, 10);
         var soon = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;">';
-        html += '<th style="padding:5px 8px;text-align:left;font-size:11px;color:#718096;">Tag</th>';
-        html += '<th style="padding:5px 8px;text-align:left;font-size:11px;color:#718096;">Type</th>';
-        html += '<th style="padding:5px 8px;text-align:left;font-size:11px;color:#718096;">Location</th>';
-        html += '<th style="padding:5px 8px;text-align:center;font-size:11px;color:#718096;">Status</th>';
-        html += '<th style="padding:5px 8px;text-align:center;font-size:11px;color:#718096;">Last Inspected</th>';
-        html += '<th style="padding:5px 8px;text-align:center;font-size:11px;color:#718096;">Next Due</th>';
-        html += '<th style="padding:5px 8px;width:100px;"></th>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr>';
+        html += '<th style="text-align:left;">Tag</th>';
+        html += '<th style="text-align:left;">Type</th>';
+        html += '<th style="text-align:left;">Location</th>';
+        html += '<th>Status</th>';
+        html += '<th>Last Inspected</th>';
+        html += '<th>Next Due</th>';
+        html += '<th style="width:100px;"></th>';
         html += '</tr></thead><tbody>';
         if (assets.length === 0) {{
-            html += '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;">No assets found</td></tr>';
+            html += '<tr><td colspan="7" class="safety-empty">No assets found</td></tr>';
         }}
         assets.forEach(function(a) {{
             var rowColor = '';
@@ -646,20 +680,20 @@ SAFETY.loadAssets = function() {{
             else rowColor = 'border-left:3px solid #48bb78;';
 
             var statusBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:3px;';
-            if (a.status === 'active') statusBadge += 'background:#22543d;color:#48bb78;">Active</span>';
-            else if (a.status === 'deficient') statusBadge += 'background:#744210;color:#ecc94b;">Deficient</span>';
-            else statusBadge += 'background:#742a2a;color:#feb2b2;">OOS</span>';
+            if (a.status === 'active') statusBadge += 'background:#22543d20;color:#48bb78;">Active</span>';
+            else if (a.status === 'deficient') statusBadge += 'background:#ecc94b20;color:#ecc94b;">Deficient</span>';
+            else statusBadge += 'background:#ef444420;color:#ef4444;">OOS</span>';
 
             html += '<tr style="' + rowColor + 'cursor:pointer;" onclick="SAFETY.viewAsset(' + a.id + ')">';
-            html += '<td style="padding:5px 8px;font-size:12px;font-weight:bold;">' + (a.asset_tag || '') + '</td>';
-            html += '<td style="padding:5px 8px;font-size:12px;">' + (a.type_name || '') + '</td>';
-            html += '<td style="padding:5px 8px;font-size:12px;">' + (a.location_name || '') + '</td>';
-            html += '<td style="padding:5px 8px;text-align:center;">' + statusBadge + '</td>';
-            html += '<td style="padding:5px 8px;text-align:center;font-size:11px;color:#a0aec0;">' + (a.last_inspection_date || 'Never') + '</td>';
-            html += '<td style="padding:5px 8px;text-align:center;font-size:11px;">' + (a.next_inspection_due || '—') + '</td>';
-            html += '<td style="padding:5px 8px;text-align:center;">';
-            html += '<button onclick="event.stopPropagation();SAFETY.inspectAsset(' + a.id + ')" style="background:#2b6cb0;color:#fff;border:none;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer;">Inspect</button> ';
-            html += '<button onclick="event.stopPropagation();SAFETY.showQR(' + a.id + ')" style="background:#4a5568;color:#e2e8f0;border:none;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer;">QR</button>';
+            html += '<td style="font-weight:bold;">' + (a.asset_tag || '') + '</td>';
+            html += '<td>' + (a.type_name || '') + '</td>';
+            html += '<td>' + (a.location_name || '') + '</td>';
+            html += '<td style="text-align:center;">' + statusBadge + '</td>';
+            html += '<td style="text-align:center;color:var(--text-secondary);">' + (a.last_inspection_date || 'Never') + '</td>';
+            html += '<td style="text-align:center;">' + (a.next_inspection_due || '\u2014') + '</td>';
+            html += '<td style="text-align:center;">';
+            html += '<button onclick="event.stopPropagation();SAFETY.inspectAsset(' + a.id + ')" class="btn-primary" style="padding:2px 8px;font-size:10px;">Inspect</button> ';
+            html += '<button onclick="event.stopPropagation();SAFETY.showQR(' + a.id + ')" class="btn-secondary" style="padding:2px 8px;font-size:10px;">QR</button>';
             html += '</td></tr>';
         }});
         html += '</tbody></table>';
@@ -678,55 +712,55 @@ SAFETY.viewAsset = function(id) {{
         var histRows = '';
         hist.forEach(function(h) {{
             var rColor = h.result === 'pass' ? '#48bb78' : (h.result === 'partial' ? '#ecc94b' : '#e53e3e');
-            histRows += '<tr><td style="padding:3px 6px;font-size:11px;">' + (h.inspection_date || '') + '</td>';
-            histRows += '<td style="padding:3px 6px;font-size:11px;">' + (h.template_name || '') + '</td>';
-            histRows += '<td style="padding:3px 6px;font-size:11px;color:' + rColor + ';">' + (h.result || '') + '</td>';
-            histRows += '<td style="padding:3px 6px;font-size:11px;">' + (h.inspector_name || h.inspector_unit_id || '') + '</td></tr>';
+            histRows += '<tr><td>' + (h.inspection_date || '') + '</td>';
+            histRows += '<td>' + (h.template_name || '') + '</td>';
+            histRows += '<td style="color:' + rColor + ';">' + (h.result || '') + '</td>';
+            histRows += '<td>' + (h.inspector_name || h.inspector_unit_id || '') + '</td></tr>';
         }});
 
         var defRows = '';
         defs.forEach(function(d) {{
-            var sColor = d.severity === 'critical' ? '#e53e3e' : (d.severity === 'major' ? '#ecc94b' : '#a0aec0');
-            defRows += '<tr><td style="padding:3px 6px;font-size:11px;color:' + sColor + ';">' + d.severity + '</td>';
-            defRows += '<td style="padding:3px 6px;font-size:11px;">' + (d.description || '') + '</td>';
-            defRows += '<td style="padding:3px 6px;font-size:11px;">' + d.status + '</td></tr>';
+            var sColor = d.severity === 'critical' ? '#e53e3e' : (d.severity === 'major' ? '#ecc94b' : 'var(--text-secondary)');
+            defRows += '<tr><td style="color:' + sColor + ';">' + d.severity + '</td>';
+            defRows += '<td>' + (d.description || '') + '</td>';
+            defRows += '<td>' + d.status + '</td></tr>';
         }});
 
-        var html = '<div style="background:#1a202c;border-radius:6px;padding:12px;margin-bottom:12px;">';
+        var html = '<div class="safety-form-panel" style="margin-bottom:12px;">';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-        html += '<h4 style="margin:0;color:#f6ad55;">' + (a.asset_tag || '') + '</h4>';
-        html += '<button onclick="SAFETY.loadAssets()" style="background:#4a5568;color:#e2e8f0;border:none;padding:3px 10px;border-radius:3px;font-size:11px;cursor:pointer;">Back</button>';
+        html += '<h4 style="margin:0;color:var(--ford-blue,#3b82f6);">' + (a.asset_tag || '') + '</h4>';
+        html += '<button class="btn-secondary" onclick="SAFETY.loadAssets()" style="padding:3px 10px;font-size:11px;">Back</button>';
         html += '</div>';
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">';
-        html += '<div><span style="color:#718096;">Type:</span> ' + (a.type_name || '') + '</div>';
-        html += '<div><span style="color:#718096;">Location:</span> ' + (a.location_name || '') + '</div>';
-        html += '<div><span style="color:#718096;">Serial:</span> ' + (a.serial_number || '—') + '</div>';
-        html += '<div><span style="color:#718096;">Manufacturer:</span> ' + (a.manufacturer || '—') + '</div>';
-        html += '<div><span style="color:#718096;">Install Date:</span> ' + (a.install_date || '—') + '</div>';
-        html += '<div><span style="color:#718096;">Expiration:</span> ' + (a.expiration_date || '—') + '</div>';
-        html += '<div><span style="color:#718096;">Status:</span> ' + (a.status || '') + '</div>';
-        html += '<div><span style="color:#718096;">Next Due:</span> ' + (a.next_inspection_due || '—') + '</div>';
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:var(--text-sm,12px);">';
+        html += '<div><span style="color:var(--text-muted);">Type:</span> ' + (a.type_name || '') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Location:</span> ' + (a.location_name || '') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Serial:</span> ' + (a.serial_number || '\u2014') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Manufacturer:</span> ' + (a.manufacturer || '\u2014') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Install Date:</span> ' + (a.install_date || '\u2014') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Expiration:</span> ' + (a.expiration_date || '\u2014') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Status:</span> ' + (a.status || '') + '</div>';
+        html += '<div><span style="color:var(--text-muted);">Next Due:</span> ' + (a.next_inspection_due || '\u2014') + '</div>';
         html += '</div>';
         if (a.photo_url) html += '<img src="' + a.photo_url + '" style="max-width:120px;margin-top:8px;border-radius:4px;" />';
-        html += '<div style="margin-top:8px;"><button onclick="SAFETY.inspectAsset(' + a.id + ')" style="background:#2b6cb0;color:#fff;border:none;padding:4px 14px;border-radius:4px;font-size:12px;cursor:pointer;">Start Inspection</button></div>';
+        html += '<div style="margin-top:8px;"><button class="btn-primary" onclick="SAFETY.inspectAsset(' + a.id + ')">Start Inspection</button></div>';
         html += '</div>';
 
         if (hist.length > 0) {{
-            html += '<h5 style="margin:8px 0 4px;font-size:12px;color:#a0aec0;">Inspection History</h5>';
-            html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#1a202c;">';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Date</th>';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Template</th>';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Result</th>';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Inspector</th>';
+            html += '<h5 class="safety-section-title" style="margin-top:8px;">Inspection History</h5>';
+            html += '<table class="safety-table"><thead><tr>';
+            html += '<th style="text-align:left;">Date</th>';
+            html += '<th style="text-align:left;">Template</th>';
+            html += '<th style="text-align:left;">Result</th>';
+            html += '<th style="text-align:left;">Inspector</th>';
             html += '</tr></thead><tbody>' + histRows + '</tbody></table>';
         }}
 
         if (defs.length > 0) {{
-            html += '<h5 style="margin:8px 0 4px;font-size:12px;color:#a0aec0;">Deficiencies</h5>';
-            html += '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#1a202c;">';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Severity</th>';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Description</th>';
-            html += '<th style="padding:3px 6px;text-align:left;font-size:10px;color:#718096;">Status</th>';
+            html += '<h5 class="safety-section-title" style="margin-top:8px;">Deficiencies</h5>';
+            html += '<table class="safety-table"><thead><tr>';
+            html += '<th style="text-align:left;">Severity</th>';
+            html += '<th style="text-align:left;">Description</th>';
+            html += '<th style="text-align:left;">Status</th>';
             html += '</tr></thead><tbody>' + defRows + '</tbody></table>';
         }}
 
@@ -736,22 +770,22 @@ SAFETY.viewAsset = function(id) {{
 
 /* ---- Add Asset Form ---- */
 SAFETY.showAddAsset = function() {{
-    var html = '<div style="background:#1a202c;border-radius:6px;padding:12px;">';
-    html += '<h4 style="margin:0 0 10px;font-size:13px;color:#f6ad55;">Add New Asset</h4>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Type</label><select id="sa-type" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;">{types_options}</select></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Location</label><select id="sa-loc" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;"><option value="">None</option>{loc_options}</select></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Asset Tag (auto if blank)</label><input id="sa-tag" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Serial Number</label><input id="sa-serial" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Manufacturer</label><input id="sa-mfg" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Model</label><input id="sa-model" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Install Date</label><input id="sa-install" type="date" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Expiration Date</label><input id="sa-expire" type="date" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
+    var html = '<div class="safety-form-panel">';
+    html += '<h4>Add New Asset</h4>';
+    html += '<div class="safety-form-grid">';
+    html += '<div><label>Type</label><select id="sa-type">{types_options}</select></div>';
+    html += '<div><label>Location</label><select id="sa-loc"><option value="">None</option>{loc_options}</select></div>';
+    html += '<div><label>Asset Tag (auto if blank)</label><input id="sa-tag" /></div>';
+    html += '<div><label>Serial Number</label><input id="sa-serial" /></div>';
+    html += '<div><label>Manufacturer</label><input id="sa-mfg" /></div>';
+    html += '<div><label>Model</label><input id="sa-model" /></div>';
+    html += '<div><label>Install Date</label><input id="sa-install" type="date" /></div>';
+    html += '<div><label>Expiration Date</label><input id="sa-expire" type="date" /></div>';
     html += '</div>';
-    html += '<div style="margin-top:8px;"><label style="font-size:11px;color:#a0aec0;">Notes</label><textarea id="sa-notes" rows="2" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;resize:vertical;"></textarea></div>';
-    html += '<div style="margin-top:10px;display:flex;gap:8px;">';
-    html += '<button onclick="SAFETY.saveAsset()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 16px;border-radius:4px;font-size:12px;cursor:pointer;">Save</button>';
-    html += '<button onclick="SAFETY.loadAssets()" style="background:#4a5568;color:#e2e8f0;border:none;padding:5px 16px;border-radius:4px;font-size:12px;cursor:pointer;">Cancel</button>';
+    html += '<div style="margin-top:var(--space-2,8px);"><label>Notes</label><textarea id="sa-notes" rows="2" style="resize:vertical;"></textarea></div>';
+    html += '<div style="margin-top:var(--space-3,12px);display:flex;gap:var(--space-2,8px);">';
+    html += '<button class="btn-primary" onclick="SAFETY.saveAsset()">Save</button>';
+    html += '<button class="btn-secondary" onclick="SAFETY.loadAssets()">Cancel</button>';
     html += '</div></div>';
     document.getElementById('safety-assets-table').innerHTML = html;
 }};
@@ -797,7 +831,7 @@ SAFETY._showInspectionForm = function(asset, templates, selectedTemplate) {{
     var items = [];
     try {{ items = JSON.parse(selectedTemplate.checklist_items || '[]'); }} catch(e) {{}}
 
-    var tplSelect = '<select id="si-template" onchange="SAFETY._changeTemplate(' + asset.id + ')" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;">';
+    var tplSelect = '<select id="si-template" onchange="SAFETY._changeTemplate(' + asset.id + ')">';
     templates.forEach(function(t) {{
         tplSelect += '<option value="' + t.id + '"' + (t.id === selectedTemplate.id ? ' selected' : '') + '>' + t.name + ' (' + t.tier + ')</option>';
     }});
@@ -806,31 +840,31 @@ SAFETY._showInspectionForm = function(asset, templates, selectedTemplate) {{
     var checklistHtml = '';
     items.forEach(function(item, idx) {{
         if (item.type === 'pass_fail') {{
-            checklistHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #2d3748;">';
-            checklistHtml += '<span style="flex:1;font-size:12px;">' + item.label + (item.required ? ' *' : '') + '</span>';
-            checklistHtml += '<select data-field="' + item.field + '" class="si-response" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:3px 6px;border-radius:3px;font-size:11px;width:80px;">';
-            checklistHtml += '<option value="">—</option><option value="pass">Pass</option><option value="fail">Fail</option>';
+            checklistHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-default,#30363d);">';
+            checklistHtml += '<span style="flex:1;font-size:var(--text-sm,12px);">' + item.label + (item.required ? ' *' : '') + '</span>';
+            checklistHtml += '<select data-field="' + item.field + '" class="si-response" style="width:80px;padding:3px 6px;">';
+            checklistHtml += '<option value="">\u2014</option><option value="pass">Pass</option><option value="fail">Fail</option>';
             checklistHtml += '</select></div>';
         }} else if (item.type === 'date') {{
-            checklistHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #2d3748;">';
-            checklistHtml += '<span style="flex:1;font-size:12px;">' + item.label + '</span>';
-            checklistHtml += '<input data-field="' + item.field + '" class="si-response" type="date" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:3px 6px;border-radius:3px;font-size:11px;width:130px;" />';
+            checklistHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-default,#30363d);">';
+            checklistHtml += '<span style="flex:1;font-size:var(--text-sm,12px);">' + item.label + '</span>';
+            checklistHtml += '<input data-field="' + item.field + '" class="si-response" type="date" style="width:130px;padding:3px 6px;" />';
             checklistHtml += '</div>';
         }}
     }});
 
-    var html = '<div style="background:#1a202c;border-radius:6px;padding:12px;">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
-    html += '<h4 style="margin:0;color:#f6ad55;">Inspect: ' + (asset.asset_tag || '') + '</h4>';
-    html += '<button onclick="SAFETY.loadAssets()" style="background:#4a5568;color:#e2e8f0;border:none;padding:3px 10px;border-radius:3px;font-size:11px;cursor:pointer;">Cancel</button>';
+    var html = '<div class="safety-form-panel">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px);">';
+    html += '<h4 style="margin:0;">Inspect: ' + (asset.asset_tag || '') + '</h4>';
+    html += '<button class="btn-secondary" onclick="SAFETY.loadAssets()" style="padding:3px 10px;font-size:11px;">Cancel</button>';
     html += '</div>';
-    html += '<div style="font-size:11px;color:#a0aec0;margin-bottom:8px;">' + (asset.type_name || '') + ' — ' + (asset.location_name || '') + '</div>';
-    html += '<div style="margin-bottom:10px;">' + tplSelect + '</div>';
+    html += '<div style="font-size:var(--text-xs,11px);color:var(--text-secondary);margin-bottom:var(--space-2,8px);">' + (asset.type_name || '') + ' \u2014 ' + (asset.location_name || '') + '</div>';
+    html += '<div style="margin-bottom:var(--space-3,12px);">' + tplSelect + '</div>';
     html += '<div style="max-height:300px;overflow-y:auto;">' + checklistHtml + '</div>';
-    html += '<div style="margin-top:10px;"><label style="font-size:11px;color:#a0aec0;">Inspector Name</label><input id="si-inspector" value="" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div style="margin-top:6px;"><label style="font-size:11px;color:#a0aec0;">Notes</label><textarea id="si-notes" rows="2" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;resize:vertical;"></textarea></div>';
-    html += '<div style="margin-top:10px;">';
-    html += '<button onclick="SAFETY.submitInspection(' + asset.id + ')" style="background:#48bb78;color:#fff;border:none;padding:6px 20px;border-radius:4px;font-size:12px;cursor:pointer;font-weight:bold;">Submit Inspection</button>';
+    html += '<div style="margin-top:var(--space-3,12px);"><label>Inspector Name</label><input id="si-inspector" value="" /></div>';
+    html += '<div style="margin-top:var(--space-2,8px);"><label>Notes</label><textarea id="si-notes" rows="2" style="resize:vertical;"></textarea></div>';
+    html += '<div style="margin-top:var(--space-3,12px);">';
+    html += '<button class="btn-primary" onclick="SAFETY.submitInspection(' + asset.id + ')" style="font-weight:bold;">Submit Inspection</button>';
     html += '</div></div>';
 
     document.getElementById('safety-assets-table').innerHTML = html;
@@ -875,30 +909,30 @@ SAFETY.submitInspection = function(assetId) {{
 
 /* ---- Pending / History ---- */
 SAFETY.loadPending = function() {{
-    document.getElementById('safety-insp-pending-btn').style.background = '#2b6cb0';
-    document.getElementById('safety-insp-history-btn').style.background = '#4a5568';
+    document.getElementById('safety-insp-pending-btn').className = 'btn-primary';
+    document.getElementById('safety-insp-history-btn').className = 'btn-secondary';
     fetch('/api/safety/inspections/pending?days=30').then(function(r) {{ return r.json(); }}).then(function(data) {{
         if (!data.ok) return;
         var items = data.pending || [];
         var today = new Date().toISOString().slice(0, 10);
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;">';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Asset</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Type</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Location</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Due Date</th>';
-        html += '<th style="padding:4px 8px;width:80px;"></th>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr>';
+        html += '<th style="text-align:left;">Asset</th>';
+        html += '<th style="text-align:left;">Type</th>';
+        html += '<th style="text-align:left;">Location</th>';
+        html += '<th>Due Date</th>';
+        html += '<th style="width:80px;"></th>';
         html += '</tr></thead><tbody>';
-        if (items.length === 0) html += '<tr><td colspan="5" style="text-align:center;padding:16px;color:#888;">No pending inspections</td></tr>';
+        if (items.length === 0) html += '<tr><td colspan="5" class="safety-empty">No pending inspections</td></tr>';
         items.forEach(function(a) {{
             var overdue = a.next_inspection_due && a.next_inspection_due < today;
-            var rowStyle = overdue ? 'border-left:3px solid #e53e3e;background:rgba(229,62,62,0.05);' : 'border-left:3px solid #d69e2e;';
+            var rowStyle = overdue ? 'border-left:3px solid #e53e3e;' : 'border-left:3px solid #d69e2e;';
             html += '<tr style="' + rowStyle + '">';
-            html += '<td style="padding:4px 8px;font-size:12px;font-weight:bold;">' + (a.asset_tag || '') + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (a.type_name || '') + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (a.location_name || '') + '</td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:11px;color:' + (overdue ? '#e53e3e' : '#d69e2e') + ';">' + (a.next_inspection_due || '') + (overdue ? ' OVERDUE' : '') + '</td>';
-            html += '<td style="padding:4px 8px;"><button onclick="SAFETY.inspectAsset(' + a.id + ')" style="background:#2b6cb0;color:#fff;border:none;padding:2px 8px;border-radius:3px;font-size:10px;cursor:pointer;">Inspect</button></td>';
+            html += '<td style="font-weight:bold;">' + (a.asset_tag || '') + '</td>';
+            html += '<td>' + (a.type_name || '') + '</td>';
+            html += '<td>' + (a.location_name || '') + '</td>';
+            html += '<td style="text-align:center;color:' + (overdue ? '#e53e3e' : '#d69e2e') + ';">' + (a.next_inspection_due || '') + (overdue ? ' OVERDUE' : '') + '</td>';
+            html += '<td><button onclick="SAFETY.inspectAsset(' + a.id + ')" class="btn-primary" style="padding:2px 8px;font-size:10px;">Inspect</button></td>';
             html += '</tr>';
         }});
         html += '</tbody></table>';
@@ -907,28 +941,28 @@ SAFETY.loadPending = function() {{
 }};
 
 SAFETY.loadHistory = function() {{
-    document.getElementById('safety-insp-history-btn').style.background = '#2b6cb0';
-    document.getElementById('safety-insp-pending-btn').style.background = '#4a5568';
+    document.getElementById('safety-insp-history-btn').className = 'btn-primary';
+    document.getElementById('safety-insp-pending-btn').className = 'btn-secondary';
     fetch('/api/safety/inspections').then(function(r) {{ return r.json(); }}).then(function(data) {{
         if (!data.ok) return;
         var items = data.inspections || [];
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;">';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Date</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Asset</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Template</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Result</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Inspector</th>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr>';
+        html += '<th style="text-align:left;">Date</th>';
+        html += '<th style="text-align:left;">Asset</th>';
+        html += '<th style="text-align:left;">Template</th>';
+        html += '<th>Result</th>';
+        html += '<th style="text-align:left;">Inspector</th>';
         html += '</tr></thead><tbody>';
-        if (items.length === 0) html += '<tr><td colspan="5" style="text-align:center;padding:16px;color:#888;">No inspection records</td></tr>';
+        if (items.length === 0) html += '<tr><td colspan="5" class="safety-empty">No inspection records</td></tr>';
         items.forEach(function(i) {{
             var rColor = i.result === 'pass' ? '#48bb78' : (i.result === 'partial' ? '#ecc94b' : '#e53e3e');
             html += '<tr>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (i.inspection_date || '') + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;font-weight:bold;">' + (i.asset_tag || '') + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (i.template_name || '') + '</td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:11px;color:' + rColor + ';font-weight:bold;">' + (i.result || '').toUpperCase() + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (i.inspector_name || i.inspector_unit_id || '') + '</td>';
+            html += '<td>' + (i.inspection_date || '') + '</td>';
+            html += '<td style="font-weight:bold;">' + (i.asset_tag || '') + '</td>';
+            html += '<td>' + (i.template_name || '') + '</td>';
+            html += '<td style="text-align:center;color:' + rColor + ';font-weight:bold;">' + (i.result || '').toUpperCase() + '</td>';
+            html += '<td>' + (i.inspector_name || i.inspector_unit_id || '') + '</td>';
             html += '</tr>';
         }});
         html += '</tbody></table>';
@@ -947,28 +981,28 @@ SAFETY.loadDeficiencies = function() {{
     fetch(q).then(function(r) {{ return r.json(); }}).then(function(data) {{
         if (!data.ok) return;
         var defs = data.deficiencies || [];
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;">';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Asset</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Description</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Severity</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Status</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Assigned</th>';
-        html += '<th style="padding:4px 8px;width:120px;"></th>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr>';
+        html += '<th style="text-align:left;">Asset</th>';
+        html += '<th style="text-align:left;">Description</th>';
+        html += '<th>Severity</th>';
+        html += '<th>Status</th>';
+        html += '<th style="text-align:left;">Assigned</th>';
+        html += '<th style="width:120px;"></th>';
         html += '</tr></thead><tbody>';
-        if (defs.length === 0) html += '<tr><td colspan="6" style="text-align:center;padding:16px;color:#888;">No deficiencies found</td></tr>';
+        if (defs.length === 0) html += '<tr><td colspan="6" class="safety-empty">No deficiencies found</td></tr>';
         defs.forEach(function(d) {{
-            var sColor = d.severity === 'critical' ? '#e53e3e' : (d.severity === 'major' ? '#ecc94b' : '#a0aec0');
+            var sColor = d.severity === 'critical' ? '#e53e3e' : (d.severity === 'major' ? '#ecc94b' : 'var(--text-secondary)');
             var stColor = d.status === 'open' ? '#e53e3e' : (d.status === 'in_progress' ? '#ecc94b' : '#48bb78');
             html += '<tr>';
-            html += '<td style="padding:4px 8px;font-size:12px;font-weight:bold;">' + (d.asset_tag || '') + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (d.description || '') + '</td>';
-            html += '<td style="padding:4px 8px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:3px;color:' + sColor + ';">' + d.severity + '</span></td>';
-            html += '<td style="padding:4px 8px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:3px;color:' + stColor + ';">' + d.status + '</span></td>';
-            html += '<td style="padding:4px 8px;font-size:12px;">' + (d.assigned_to || '—') + '</td>';
-            html += '<td style="padding:4px 8px;">';
+            html += '<td style="font-weight:bold;">' + (d.asset_tag || '') + '</td>';
+            html += '<td>' + (d.description || '') + '</td>';
+            html += '<td style="text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:3px;color:' + sColor + ';">' + d.severity + '</span></td>';
+            html += '<td style="text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:3px;color:' + stColor + ';">' + d.status + '</span></td>';
+            html += '<td>' + (d.assigned_to || '\u2014') + '</td>';
+            html += '<td>';
             if (d.status !== 'resolved') {{
-                html += '<select onchange="SAFETY.updateDefStatus(' + d.id + ', this.value)" style="background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:2px 4px;border-radius:3px;font-size:10px;">';
+                html += '<select onchange="SAFETY.updateDefStatus(' + d.id + ', this.value)" style="width:auto;padding:2px 4px;font-size:10px;">';
                 html += '<option value="">Action...</option>';
                 html += '<option value="in_progress">In Progress</option>';
                 html += '<option value="resolved">Resolve</option>';
@@ -1047,25 +1081,25 @@ SAFETY.manualLookup = function() {{
 }};
 
 SAFETY._lookupQR = function(qrCode) {{
-    document.getElementById('safety-scan-result').innerHTML = '<div style="color:#a0aec0;font-size:12px;">Looking up...</div>';
+    document.getElementById('safety-scan-result').innerHTML = '<div style="color:var(--text-secondary);font-size:var(--text-sm,12px);">Looking up...</div>';
     fetch('/api/safety/assets/scan/' + encodeURIComponent(qrCode)).then(function(r) {{ return r.json(); }}).then(function(data) {{
         if (!data.ok) {{
-            document.getElementById('safety-scan-result').innerHTML = '<div style="color:#e53e3e;font-size:12px;">Asset not found for: ' + qrCode + '</div>';
+            document.getElementById('safety-scan-result').innerHTML = '<div style="color:#e53e3e;font-size:var(--text-sm,12px);">Asset not found for: ' + qrCode + '</div>';
             return;
         }}
         var a = data.asset;
-        var html = '<div style="background:#1a202c;border-radius:6px;padding:12px;text-align:left;">';
+        var html = '<div class="safety-form-panel" style="text-align:left;">';
         html += '<h4 style="margin:0 0 8px;color:#48bb78;">Found: ' + a.asset_tag + '</h4>';
-        html += '<div style="font-size:12px;margin-bottom:4px;"><span style="color:#718096;">Type:</span> ' + (a.type_name || '') + '</div>';
-        html += '<div style="font-size:12px;margin-bottom:4px;"><span style="color:#718096;">Location:</span> ' + (a.location_name || '') + '</div>';
-        html += '<div style="font-size:12px;margin-bottom:4px;"><span style="color:#718096;">Status:</span> ' + (a.status || '') + '</div>';
-        html += '<div style="font-size:12px;margin-bottom:8px;"><span style="color:#718096;">Next Due:</span> ' + (a.next_inspection_due || '—') + '</div>';
-        html += '<button onclick="SAFETY.switchTab(\\x27assets\\x27);SAFETY.inspectAsset(' + a.id + ')" style="background:#48bb78;color:#fff;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;font-weight:bold;">Start Inspection</button> ';
-        html += '<button onclick="SAFETY.switchTab(\\x27assets\\x27);SAFETY.viewAsset(' + a.id + ')" style="background:#4a5568;color:#e2e8f0;border:none;padding:6px 16px;border-radius:4px;font-size:12px;cursor:pointer;">View Details</button>';
+        html += '<div style="font-size:var(--text-sm,12px);margin-bottom:4px;"><span style="color:var(--text-muted);">Type:</span> ' + (a.type_name || '') + '</div>';
+        html += '<div style="font-size:var(--text-sm,12px);margin-bottom:4px;"><span style="color:var(--text-muted);">Location:</span> ' + (a.location_name || '') + '</div>';
+        html += '<div style="font-size:var(--text-sm,12px);margin-bottom:4px;"><span style="color:var(--text-muted);">Status:</span> ' + (a.status || '') + '</div>';
+        html += '<div style="font-size:var(--text-sm,12px);margin-bottom:8px;"><span style="color:var(--text-muted);">Next Due:</span> ' + (a.next_inspection_due || '\u2014') + '</div>';
+        html += '<button onclick="SAFETY.switchTab(\\x27assets\\x27);SAFETY.inspectAsset(' + a.id + ')" class="btn-primary" style="font-weight:bold;">Start Inspection</button> ';
+        html += '<button onclick="SAFETY.switchTab(\\x27assets\\x27);SAFETY.viewAsset(' + a.id + ')" class="btn-secondary">View Details</button>';
         html += '</div>';
         document.getElementById('safety-scan-result').innerHTML = html;
     }}).catch(function() {{
-        document.getElementById('safety-scan-result').innerHTML = '<div style="color:#e53e3e;font-size:12px;">Lookup failed</div>';
+        document.getElementById('safety-scan-result').innerHTML = '<div style="color:#e53e3e;font-size:var(--text-sm,12px);">Lookup failed</div>';
     }});
 }};
 
@@ -1074,7 +1108,6 @@ SAFETY.loadLocations = function() {{
     fetch('/api/safety/locations').then(function(r) {{ return r.json(); }}).then(function(data) {{
         if (!data.ok) return;
         var locs = data.locations || [];
-        // Group by building
         var grouped = {{}};
         locs.forEach(function(l) {{
             var bldg = l.building || 'Unassigned';
@@ -1083,35 +1116,35 @@ SAFETY.loadLocations = function() {{
         }});
         var html = '';
         Object.keys(grouped).sort().forEach(function(bldg) {{
-            html += '<div style="margin-bottom:12px;">';
-            html += '<h5 style="margin:0 0 4px;font-size:12px;color:#f6ad55;border-bottom:1px solid #2d3748;padding-bottom:4px;">' + bldg + '</h5>';
+            html += '<div class="safety-loc-group">';
+            html += '<h5>' + bldg + '</h5>';
             grouped[bldg].forEach(function(l) {{
-                html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;">';
-                html += '<span style="font-size:12px;flex:1;">' + l.name + '</span>';
-                html += '<span style="font-size:11px;color:#718096;">' + (l.floor ? 'Floor ' + l.floor : '') + (l.area ? ' / ' + l.area : '') + '</span>';
-                html += '<button onclick="SAFETY.deleteLocation(' + l.id + ')" style="background:none;color:#e53e3e;border:none;font-size:11px;cursor:pointer;">Del</button>';
+                html += '<div class="safety-loc-item">';
+                html += '<span style="flex:1;color:var(--text-primary);">' + l.name + '</span>';
+                html += '<span>' + (l.floor ? 'Floor ' + l.floor : '') + (l.area ? ' / ' + l.area : '') + '</span>';
+                html += '<button class="btn-icon danger" onclick="SAFETY.deleteLocation(' + l.id + ')">Del</button>';
                 html += '</div>';
             }});
             html += '</div>';
         }});
-        if (locs.length === 0) html = '<div style="text-align:center;color:#888;padding:16px;">No locations defined yet.</div>';
+        if (locs.length === 0) html = '<div class="safety-empty">No locations defined yet.</div>';
         document.getElementById('safety-locations-content').innerHTML = html;
     }});
 }};
 
 SAFETY.showAddLocation = function() {{
-    var html = '<div style="background:#1a202c;border-radius:6px;padding:12px;">';
-    html += '<h4 style="margin:0 0 10px;font-size:13px;color:#f6ad55;">Add Location</h4>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Name</label><input id="sl-name" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Building</label><input id="sl-bldg" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Floor</label><input id="sl-floor" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
-    html += '<div><label style="font-size:11px;color:#a0aec0;">Area</label><input id="sl-area" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;" /></div>';
+    var html = '<div class="safety-form-panel">';
+    html += '<h4>Add Location</h4>';
+    html += '<div class="safety-form-grid">';
+    html += '<div><label>Name</label><input id="sl-name" /></div>';
+    html += '<div><label>Building</label><input id="sl-bldg" /></div>';
+    html += '<div><label>Floor</label><input id="sl-floor" /></div>';
+    html += '<div><label>Area</label><input id="sl-area" /></div>';
     html += '</div>';
-    html += '<div style="margin-top:8px;"><label style="font-size:11px;color:#a0aec0;">Notes</label><textarea id="sl-notes" rows="2" style="width:100%;background:#2d3748;color:#e2e8f0;border:1px solid #4a5568;padding:4px;border-radius:4px;font-size:12px;resize:vertical;"></textarea></div>';
-    html += '<div style="margin-top:10px;display:flex;gap:8px;">';
-    html += '<button onclick="SAFETY.saveLocation()" style="background:#2b6cb0;color:#fff;border:none;padding:5px 16px;border-radius:4px;font-size:12px;cursor:pointer;">Save</button>';
-    html += '<button onclick="SAFETY.loadLocations()" style="background:#4a5568;color:#e2e8f0;border:none;padding:5px 16px;border-radius:4px;font-size:12px;cursor:pointer;">Cancel</button>';
+    html += '<div style="margin-top:var(--space-2,8px);"><label>Notes</label><textarea id="sl-notes" rows="2" style="resize:vertical;"></textarea></div>';
+    html += '<div style="margin-top:var(--space-3,12px);display:flex;gap:var(--space-2,8px);">';
+    html += '<button class="btn-primary" onclick="SAFETY.saveLocation()">Save</button>';
+    html += '<button class="btn-secondary" onclick="SAFETY.loadLocations()">Cancel</button>';
     html += '</div></div>';
     document.getElementById('safety-locations-content').innerHTML = html;
 }};
@@ -1140,34 +1173,32 @@ SAFETY.deleteLocation = function(id) {{
 /* ---- Settings ---- */
 SAFETY.loadSettings = function() {{
     fetch('/api/safety/types').then(function(r) {{ return r.json(); }}).then(function(data) {{
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;"><th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Name</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Code</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Interval</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Standard</th></tr></thead><tbody>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr><th style="text-align:left;">Name</th>';
+        html += '<th>Code</th><th>Interval</th>';
+        html += '<th style="text-align:left;">Standard</th></tr></thead><tbody>';
         (data.types || []).forEach(function(t) {{
-            html += '<tr><td style="padding:4px 8px;font-size:12px;">' + t.name + '</td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:11px;"><span style="background:#2d3748;padding:2px 6px;border-radius:3px;">' + t.code + '</span></td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:12px;">' + t.default_interval_days + ' days</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;color:#a0aec0;">' + (t.regulatory_standard || '') + '</td></tr>';
+            html += '<tr><td>' + t.name + '</td>';
+            html += '<td style="text-align:center;"><span style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;">' + t.code + '</span></td>';
+            html += '<td style="text-align:center;">' + t.default_interval_days + ' days</td>';
+            html += '<td style="color:var(--text-secondary);">' + (t.regulatory_standard || '') + '</td></tr>';
         }});
         html += '</tbody></table>';
         document.getElementById('safety-settings-types').innerHTML = html;
     }});
 
     fetch('/api/safety/templates').then(function(r) {{ return r.json(); }}).then(function(data) {{
-        var html = '<table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#1a202c;"><th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Template</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Tier</th>';
-        html += '<th style="padding:4px 8px;text-align:center;font-size:11px;color:#718096;">Items</th>';
-        html += '<th style="padding:4px 8px;text-align:left;font-size:11px;color:#718096;">Reference</th></tr></thead><tbody>';
+        var html = '<table class="safety-table">';
+        html += '<thead><tr><th style="text-align:left;">Template</th>';
+        html += '<th>Tier</th><th>Items</th>';
+        html += '<th style="text-align:left;">Reference</th></tr></thead><tbody>';
         (data.templates || []).forEach(function(t) {{
             var items = [];
             try {{ items = JSON.parse(t.checklist_items || '[]'); }} catch(e) {{}}
-            html += '<tr><td style="padding:4px 8px;font-size:12px;">' + t.name + '</td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:11px;"><span style="background:#2d3748;padding:2px 6px;border-radius:3px;">' + t.tier + '</span></td>';
-            html += '<td style="padding:4px 8px;text-align:center;font-size:12px;">' + items.length + '</td>';
-            html += '<td style="padding:4px 8px;font-size:12px;color:#a0aec0;">' + (t.regulatory_reference || '') + '</td></tr>';
+            html += '<tr><td>' + t.name + '</td>';
+            html += '<td style="text-align:center;"><span style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;">' + t.tier + '</span></td>';
+            html += '<td style="text-align:center;">' + items.length + '</td>';
+            html += '<td style="color:var(--text-secondary);">' + (t.regulatory_reference || '') + '</td></tr>';
         }});
         html += '</tbody></table>';
         document.getElementById('safety-settings-templates').innerHTML = html;
