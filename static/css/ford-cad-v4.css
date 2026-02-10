@@ -527,7 +527,7 @@ a {
    HEADER — Ford Blue Gradient
    ============================================================================ */
 #cad-header {
-    height: var(--header-height);
+    min-height: var(--header-height);
     background: var(--bg-header);
     display: flex;
     align-items: center;
@@ -572,7 +572,7 @@ a {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    text-align: center;
+    text-align: left;
     line-height: 1.1;
 }
 
@@ -621,14 +621,14 @@ a {
 /* Header identity (headshot + 2-line text) */
 .header-identity {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
-    gap: 0.2em;
+    gap: 0.5em;
 }
 
 .header-headshot {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     overflow: hidden;
     border: 1.5px solid rgba(255, 255, 255, 0.5);
@@ -649,7 +649,7 @@ a {
 .header-identity-text {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     line-height: 1.2;
 }
 
