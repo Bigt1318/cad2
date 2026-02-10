@@ -1,48 +1,91 @@
-<!-- Dashboard Modal — KPIs + Charts + Response Table -->
+<!-- Dashboard Modal — Enhanced Analytics with Filters -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal" role="dialog" aria-modal="true" aria-label="Dashboard Analytics" style="max-width:1100px;width:95vw;max-height:90vh;overflow-y:auto;padding:24px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border-radius:12px;font-family:var(--font-sans,system-ui,sans-serif);">
 
   <!-- Header -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
-    <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:var(--text-primary,#fff);">Dashboard</h2>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <button onclick="CAD_MODAL.close()" aria-label="Close dashboard" style="background:none;border:none;color:var(--text-muted,#888);font-size:1.5rem;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">&times;</button>
-      <div id="dash-period-btns" style="display:flex;gap:4px;">
-        <button class="dash-period-btn active" data-period="today" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-active,#2563eb);color:#fff;border-radius:6px;cursor:pointer;font-size:.8rem;">Today</button>
-        <button class="dash-period-btn" data-period="week" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">7 Days</button>
-        <button class="dash-period-btn" data-period="month" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">30 Days</button>
-        <button class="dash-period-btn" data-period="year" style="padding:5px 12px;border:1px solid var(--border-default,#444);background:var(--bg-elevated,#22252b);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.8rem;">Year</button>
-      </div>
-      <span id="dash-refresh-indicator" style="font-size:.7rem;color:var(--text-muted,#666);margin-left:6px;">Auto-refresh: 30s</span>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+    <h2 style="margin:0;font-size:1.35rem;font-weight:700;color:var(--text-primary,#fff);">Dashboard Analytics</h2>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="dash-run-report" onclick="DASH.runAsReport()" style="padding:5px 12px;border:1px solid #2563eb;background:transparent;color:#2563eb;border-radius:6px;cursor:pointer;font-size:.8rem;">Run as Report</button>
+      <button onclick="CAD_MODAL.close()" aria-label="Close" style="background:none;border:none;color:var(--text-muted,#888);font-size:1.5rem;cursor:pointer;padding:2px 8px;line-height:1;" title="Close">&times;</button>
     </div>
   </div>
 
+  <!-- Filter Bar -->
+  <div id="dash-filters" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:10px;background:var(--bg-elevated,#22252b);border-radius:8px;">
+    <!-- Year -->
+    <div style="display:flex;align-items:center;gap:4px;">
+      <label style="font-size:.75rem;color:var(--text-muted,#888);">Year:</label>
+      <select id="dash-year" onchange="DASH.load()" style="padding:4px 8px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border:1px solid var(--border-default,#444);border-radius:4px;font-size:.8rem;"></select>
+    </div>
+    <!-- Month -->
+    <div style="display:flex;align-items:center;gap:4px;">
+      <label style="font-size:.75rem;color:var(--text-muted,#888);">Month:</label>
+      <select id="dash-month" onchange="DASH.load()" style="padding:4px 8px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border:1px solid var(--border-default,#444);border-radius:4px;font-size:.8rem;">
+        <option value="">All</option>
+        <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+        <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+        <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+        <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+      </select>
+    </div>
+    <!-- Type filter -->
+    <div style="display:flex;align-items:center;gap:4px;">
+      <label style="font-size:.75rem;color:var(--text-muted,#888);">Type:</label>
+      <select id="dash-type" onchange="DASH.load()" style="padding:4px 8px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border:1px solid var(--border-default,#444);border-radius:4px;font-size:.8rem;">
+        <option value="">All Types</option>
+      </select>
+    </div>
+    <!-- Shift filter -->
+    <div style="display:flex;align-items:center;gap:4px;">
+      <label style="font-size:.75rem;color:var(--text-muted,#888);">Shift:</label>
+      <select id="dash-shift" onchange="DASH.load()" style="padding:4px 8px;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border:1px solid var(--border-default,#444);border-radius:4px;font-size:.8rem;">
+        <option value="">All Shifts</option>
+        <option value="A">A Shift (07-15)</option>
+        <option value="B">B Shift (15-23)</option>
+        <option value="C">C Shift (23-07)</option>
+      </select>
+    </div>
+    <!-- Quick periods -->
+    <div id="dash-period-btns" style="display:flex;gap:4px;margin-left:auto;">
+      <button class="dash-period-btn" data-period="today" style="padding:4px 10px;border:1px solid var(--border-default,#444);background:var(--bg-surface,#1a1d23);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.75rem;">Today</button>
+      <button class="dash-period-btn" data-period="week" style="padding:4px 10px;border:1px solid var(--border-default,#444);background:var(--bg-surface,#1a1d23);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.75rem;">7 Days</button>
+      <button class="dash-period-btn" data-period="month" style="padding:4px 10px;border:1px solid var(--border-default,#444);background:var(--bg-surface,#1a1d23);color:var(--text-secondary,#aaa);border-radius:6px;cursor:pointer;font-size:.75rem;">30 Days</button>
+      <button class="dash-period-btn active" data-period="year" style="padding:4px 10px;border:1px solid var(--border-default,#444);background:var(--bg-active,#2563eb);color:#fff;border-radius:6px;cursor:pointer;font-size:.75rem;">Year</button>
+    </div>
+    <span id="dash-refresh-indicator" style="font-size:.65rem;color:var(--text-muted,#555);">Auto-refresh: 30s</span>
+  </div>
+
   <!-- KPI Cards -->
-  <div id="dash-kpi-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;">
-    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #2563eb;">
-      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Total Incidents</div>
-      <div id="kpi-total" style="font-size:1.8rem;font-weight:700;color:#2563eb;margin-top:4px;">--</div>
+  <div id="dash-kpi-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;">
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #2563eb;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Total Incidents</div>
+      <div id="kpi-total" style="font-size:1.6rem;font-weight:700;color:#2563eb;margin-top:2px;">--</div>
     </div>
-    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #f59e0b;">
-      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Active Incidents</div>
-      <div id="kpi-active" style="font-size:1.8rem;font-weight:700;color:#f59e0b;margin-top:4px;">--</div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #ef4444;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">A Shift</div>
+      <div id="kpi-shift-a" style="font-size:1.6rem;font-weight:700;color:#ef4444;margin-top:2px;">--</div>
     </div>
-    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #10b981;">
-      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Avg Response</div>
-      <div id="kpi-response" style="font-size:1.8rem;font-weight:700;color:#10b981;margin-top:4px;">--</div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #f59e0b;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">B Shift</div>
+      <div id="kpi-shift-b" style="font-size:1.6rem;font-weight:700;color:#f59e0b;margin-top:2px;">--</div>
     </div>
-    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #8b5cf6;">
-      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Units Available</div>
-      <div id="kpi-units" style="font-size:1.8rem;font-weight:700;color:#8b5cf6;margin-top:4px;">--</div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #22c55e;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">C Shift</div>
+      <div id="kpi-shift-c" style="font-size:1.6rem;font-weight:700;color:#22c55e;margin-top:2px;">--</div>
     </div>
-    <div class="dash-kpi" style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px 16px;border-left:4px solid #ef4444;">
-      <div style="font-size:.75rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Transports</div>
-      <div id="kpi-transports" style="font-size:1.8rem;font-weight:700;color:#ef4444;margin-top:4px;">--</div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #10b981;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Avg Response</div>
+      <div id="kpi-response" style="font-size:1.6rem;font-weight:700;color:#10b981;margin-top:2px;">--</div>
+    </div>
+    <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:12px 14px;border-left:4px solid #8b5cf6;">
+      <div style="font-size:.7rem;color:var(--text-muted,#888);text-transform:uppercase;letter-spacing:.5px;">Transports</div>
+      <div id="kpi-transports" style="font-size:1.6rem;font-weight:700;color:#8b5cf6;margin-top:2px;">--</div>
     </div>
   </div>
 
   <!-- Charts 2x2 grid -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
     <div style="background:var(--bg-elevated,#22252b);border-radius:10px;padding:14px;">
       <div style="font-size:.8rem;font-weight:600;color:var(--text-secondary,#ccc);margin-bottom:8px;">Incident Timeline</div>
       <canvas id="chart-timeline" height="180"></canvas>
@@ -70,6 +113,7 @@
           <tr style="border-bottom:1px solid var(--border-default,#333);">
             <th style="text-align:left;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Type</th>
             <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Count</th>
+            <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Shift</th>
             <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg D&rarr;E</th>
             <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg E&rarr;A</th>
             <th style="text-align:right;padding:6px 10px;color:var(--text-muted,#888);font-weight:600;">Avg Total</th>
@@ -77,7 +121,7 @@
           </tr>
         </thead>
         <tbody id="dash-response-tbody">
-          <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted,#666);">Loading...</td></tr>
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted,#666);">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -85,26 +129,57 @@
 </div>
 
 <script>
-(function() {
-  // Chart instances for cleanup
-  let charts = {};
-  let refreshTimer = null;
-  let currentPeriod = 'today';
+window.DASH = (function() {
+  var charts = {};
+  var refreshTimer = null;
+  var incidentTypes = [];
+
+  // Populate year dropdown
+  function initFilters() {
+    var yearSel = document.getElementById('dash-year');
+    var now = new Date();
+    var curYear = now.getFullYear();
+    for (var y = curYear; y >= curYear - 3; y--) {
+      var opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
+    }
+    yearSel.value = curYear;
+
+    // Set current month
+    document.getElementById('dash-month').value = '';
+
+    // Load incident types for filter
+    fetch('/api/analytics?period=year').then(function(r) { return r.json(); }).then(function(d) {
+      var typeSel = document.getElementById('dash-type');
+      (d.type_labels || []).forEach(function(t) {
+        if (t && t !== 'Unknown') {
+          var opt = document.createElement('option');
+          opt.value = t; opt.textContent = t;
+          typeSel.appendChild(opt);
+          incidentTypes.push(t);
+        }
+      });
+    }).catch(function(){});
+  }
 
   // Period button wiring
-  const periodBtns = document.querySelectorAll('.dash-period-btn');
+  var periodBtns = document.querySelectorAll('.dash-period-btn');
   periodBtns.forEach(function(btn) {
     btn.addEventListener('click', function() {
       periodBtns.forEach(function(b) {
-        b.style.background = 'var(--bg-elevated,#22252b)';
+        b.style.background = 'var(--bg-surface,#1a1d23)';
         b.style.color = 'var(--text-secondary,#aaa)';
         b.classList.remove('active');
       });
       btn.style.background = 'var(--bg-active,#2563eb)';
       btn.style.color = '#fff';
       btn.classList.add('active');
-      currentPeriod = btn.dataset.period;
-      loadDashboard(currentPeriod);
+
+      // Clear year/month when using quick period
+      document.getElementById('dash-year').value = new Date().getFullYear();
+      document.getElementById('dash-month').value = '';
+      DASH.load(btn.dataset.period);
     });
   });
 
@@ -122,17 +197,50 @@
     });
   }
 
-  function renderKPIs(stats, analytics) {
+  function buildQueryParams(overridePeriod) {
+    var year = document.getElementById('dash-year').value;
+    var month = document.getElementById('dash-month').value;
+    var type = document.getElementById('dash-type').value;
+    var shift = document.getElementById('dash-shift').value;
+
+    // If a quick period button is active and no override, use it
+    var activeBtn = document.querySelector('.dash-period-btn.active');
+    var period = overridePeriod || (activeBtn ? activeBtn.dataset.period : 'year');
+
+    // If year/month are set, use custom date range
+    if (month) {
+      var m = parseInt(month);
+      var fromDate = year + '-' + String(m).padStart(2, '0') + '-01';
+      var endMonth = m === 12 ? 1 : m + 1;
+      var endYear = m === 12 ? parseInt(year) + 1 : year;
+      var toDate = endYear + '-' + String(endMonth).padStart(2, '0') + '-01';
+      // Use day before next month
+      var d = new Date(endYear, endMonth - 1, 0);
+      toDate = year + '-' + String(m).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      return 'period=custom&from_date=' + fromDate + '&to_date=' + toDate
+        + (type ? '&type=' + encodeURIComponent(type) : '')
+        + (shift ? '&shift=' + encodeURIComponent(shift) : '');
+    }
+
+    // Quick period with optional filters
+    return 'period=' + period
+      + (type ? '&type=' + encodeURIComponent(type) : '')
+      + (shift ? '&shift=' + encodeURIComponent(shift) : '');
+  }
+
+  function renderKPIs(analytics) {
     document.getElementById('kpi-total').textContent = analytics.total_incidents != null ? analytics.total_incidents : '--';
-    document.getElementById('kpi-active').textContent = stats.active_count != null ? stats.active_count : '--';
 
-    var resp = stats.avg_response_min;
-    document.getElementById('kpi-response').textContent = (resp != null && resp > 0) ? (resp + ' min') : '--';
+    // Shift breakdowns
+    var sd = analytics.shift_data || [];
+    var sl = analytics.shift_labels || [];
+    var aIdx = sl.indexOf('A'), bIdx = sl.indexOf('B'), cIdx = sl.indexOf('C');
+    document.getElementById('kpi-shift-a').textContent = aIdx >= 0 ? sd[aIdx] : '0';
+    document.getElementById('kpi-shift-b').textContent = bIdx >= 0 ? sd[bIdx] : '0';
+    document.getElementById('kpi-shift-c').textContent = cIdx >= 0 ? sd[cIdx] : '0';
 
-    document.getElementById('kpi-units').textContent = (stats.units_available != null)
-      ? stats.units_available + '/' + stats.units_total
-      : '--';
-
+    var resp = analytics.avg_response_time;
+    document.getElementById('kpi-response').textContent = (resp != null && resp > 0) ? fmtSec(resp) : '--';
     document.getElementById('kpi-transports').textContent = analytics.total_transports != null ? analytics.total_transports : '--';
   }
 
@@ -151,7 +259,7 @@
 
     // Timeline (line)
     var ctxTL = document.getElementById('chart-timeline');
-    if (ctxTL) {
+    if (ctxTL && (data.timeline_data || []).length > 0) {
       charts.timeline = new Chart(ctxTL, {
         type: 'line',
         data: {
@@ -160,9 +268,7 @@
             data: data.timeline_data || [],
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37,99,235,0.15)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 3,
+            fill: true, tension: 0.3, pointRadius: 3,
             pointBackgroundColor: '#2563eb'
           }]
         },
@@ -172,7 +278,7 @@
 
     // Types (doughnut)
     var ctxTy = document.getElementById('chart-types');
-    if (ctxTy) {
+    if (ctxTy && (data.type_data || []).length > 0) {
       var typeColors = ['#2563eb','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
       charts.types = new Chart(ctxTy, {
         type: 'doughnut',
@@ -185,15 +291,8 @@
           }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: true,
-              position: 'right',
-              labels: { color: '#aaa', font: { size: 10 }, boxWidth: 12, padding: 8 }
-            }
-          }
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'right', labels: { color: '#aaa', font: { size: 10 }, boxWidth: 12, padding: 8 } } }
         }
       });
     }
@@ -201,8 +300,8 @@
     // By Shift (bar)
     var ctxSh = document.getElementById('chart-shift');
     if (ctxSh) {
-      var shiftLabels = data.shift_labels || ['A','B','C','D'];
-      var shiftColors = ['#2563eb','#f59e0b','#10b981','#8b5cf6'];
+      var shiftLabels = data.shift_labels || ['A','B','C'];
+      var shiftColors = ['#ef4444','#f59e0b','#22c55e'];
       charts.shift = new Chart(ctxSh, {
         type: 'bar',
         data: {
@@ -221,7 +320,7 @@
     var ctxH = document.getElementById('chart-hourly');
     if (ctxH) {
       var hourLabels = [];
-      for (var i = 0; i < 24; i++) hourLabels.push(i + ':00');
+      for (var i = 0; i < 24; i++) hourLabels.push(String(i).padStart(2,'0') + ':00');
       charts.hourly = new Chart(ctxH, {
         type: 'bar',
         data: {
@@ -235,32 +334,6 @@
         options: chartDefaults
       });
     }
-
-    // Unit utilization (horizontal bar, top 10)
-    var ctxU = document.getElementById('chart-units');
-    if (ctxU) {
-      charts.units = new Chart(ctxU, {
-        type: 'bar',
-        data: {
-          labels: (data.unit_labels || []).slice(0, 10),
-          datasets: [{
-            data: (data.unit_data || []).slice(0, 10),
-            backgroundColor: 'rgba(139,92,246,0.6)',
-            borderRadius: 3
-          }]
-        },
-        options: {
-          indexAxis: 'y',
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' }, beginAtZero: true },
-            y: { ticks: { color: '#ccc', font: { size: 10 } }, grid: { display: false } }
-          }
-        }
-      });
-    }
   }
 
   function renderResponseTable(data) {
@@ -268,7 +341,7 @@
     if (!tbody) return;
     var rows = data.response_by_type || [];
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--text-muted,#666);">No response data for this period</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-muted,#666);">No response data for this period</td></tr>';
       return;
     }
     var html = '';
@@ -276,6 +349,7 @@
       html += '<tr style="border-bottom:1px solid var(--border-light,#2a2d33);">'
         + '<td style="padding:6px 10px;color:var(--text-primary,#e0e0e0);">' + (r.type || 'Unknown') + '</td>'
         + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + r.count + '</td>'
+        + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + (r.shift || '--') + '</td>'
         + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_dispatch_to_enroute) + '</td>'
         + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_enroute_to_arrived) + '</td>'
         + '<td style="text-align:right;padding:6px 10px;color:var(--text-secondary,#aaa);">' + fmtSec(r.avg_total) + '</td>'
@@ -285,14 +359,10 @@
     tbody.innerHTML = html;
   }
 
-  function loadDashboard(period) {
-    Promise.all([
-      fetch('/api/dashboard/stats').then(function(r) { return r.json(); }),
-      fetch('/api/analytics?period=' + encodeURIComponent(period)).then(function(r) { return r.json(); })
-    ]).then(function(results) {
-      var stats = results[0];
-      var analytics = results[1];
-      renderKPIs(stats, analytics);
+  function load(overridePeriod) {
+    var params = buildQueryParams(overridePeriod);
+    fetch('/api/analytics?' + params).then(function(r) { return r.json(); }).then(function(analytics) {
+      renderKPIs(analytics);
       renderCharts(analytics);
       renderResponseTable(analytics);
     }).catch(function(err) {
@@ -300,40 +370,40 @@
     });
   }
 
-  // Load Chart.js dynamically if not already present
+  function runAsReport() {
+    // Open reporting modal pre-populated
+    CAD_MODAL.open('/modals/reports');
+  }
+
+  // Chart.js loader
   function ensureChartJS(cb) {
     if (typeof Chart !== 'undefined') { cb(); return; }
     var s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js';
     s.onload = cb;
     s.onerror = function() {
-      // Fallback to local copy
       var s2 = document.createElement('script');
       s2.src = '/static/vendor/chart.umd.min.js';
       s2.onload = cb;
-      s2.onerror = function() { console.error('[Dashboard] Failed to load Chart.js from CDN and local fallback'); };
+      s2.onerror = function() { console.error('[Dashboard] Failed to load Chart.js'); };
       document.head.appendChild(s2);
     };
     document.head.appendChild(s);
   }
 
-  // Auto-refresh (30s)
+  // Auto-refresh
   function startAutoRefresh() {
     stopAutoRefresh();
-    refreshTimer = setInterval(function() {
-      loadDashboard(currentPeriod);
-    }, 30000);
+    refreshTimer = setInterval(function() { load(); }, 30000);
   }
-
   function stopAutoRefresh() {
     if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
   }
 
-  // Cleanup when modal is removed from DOM
+  // Cleanup observer
   var modalContainer = document.getElementById('ford-cad-modal-container') || document.getElementById('fordcad-modal-container');
   if (modalContainer) {
-    var observer = new MutationObserver(function(mutations) {
-      // If our chart canvases are gone, the modal was closed
+    var observer = new MutationObserver(function() {
       if (!document.getElementById('chart-timeline')) {
         stopAutoRefresh();
         destroyCharts();
@@ -344,9 +414,12 @@
   }
 
   // Init
+  initFilters();
   ensureChartJS(function() {
-    loadDashboard(currentPeriod);
+    load('year');  // Default to year view so there's data
     startAutoRefresh();
   });
+
+  return { load: load, runAsReport: runAsReport };
 })();
 </script>

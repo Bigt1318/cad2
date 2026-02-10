@@ -288,6 +288,27 @@ async def root_view(request: Request):
     if shift_letter and shift_effective not in ("A", "B"):
         shift_effective = ("A" if shift_letter in ("A", "C") else "B")
 
+    # Always resolve display name and headshot from DB (session may be stale)
+    display_name = request.session.get("display_name") or ""
+    if not display_name:
+        try:
+            conn = get_conn()
+            r = conn.execute("SELECT name FROM Units WHERE unit_id = ?", (unit,)).fetchone()
+            if r:
+                display_name = (r["name"] or "").strip()
+                if display_name:
+                    request.session["display_name"] = display_name
+            conn.close()
+        except Exception:
+            pass
+    display_name = display_name or user
+
+    headshot = request.session.get("headshot") or ""
+    if not headshot or headshot.endswith("_default.png"):
+        headshot = _resolve_headshot(display_name)
+        if headshot and not headshot.endswith("_default.png"):
+            request.session["headshot"] = headshot
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -298,8 +319,8 @@ async def root_view(request: Request):
             "shift_effective": shift_effective,
             "unit": unit,
             "user": user,
-            "display_name": request.session.get("display_name") or user,
-            "headshot": request.session.get("headshot") or _resolve_headshot(request.session.get("display_name") or user),
+            "display_name": display_name,
+            "headshot": headshot,
             "is_admin": bool(request.session.get("is_admin") or False),
         }
     )
@@ -11942,11 +11963,14 @@ async def analytics_page(request: Request):
 async def get_analytics(
     period: str = "week",
     from_date: str = None,
-    to_date: str = None
+    to_date: str = None,
+    type: str = None,
+    shift: str = None
 ):
     """
     Get analytics data for the dashboard.
     Period: today, week, month, year, custom
+    Filters: type (incident type), shift (A/B/C by hour)
     """
     ensure_phase3_schema()
     conn = get_conn()
@@ -11955,7 +11979,7 @@ async def get_analytics(
     # Calculate date range
     now = datetime.datetime.now()
     if period == "today":
-        start_date = now.replace(hour=0, minute=0, second=0).isoformat()
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     elif period == "week":
         start_date = (now - datetime.timedelta(days=7)).isoformat()
     elif period == "month":
@@ -11969,38 +11993,54 @@ async def get_analytics(
 
     end_date = to_date + "T23:59:59" if to_date else now.isoformat()
 
+    # Build optional WHERE clauses for type and shift filters
+    type_filter = ""
+    type_params = []
+    if type:
+        type_filter = " AND type = ?"
+        type_params = [type]
+
+    # Shift filter: A=07-15, B=15-23, C=23-07
+    shift_filter = ""
+    if shift == "A":
+        shift_filter = " AND CAST(substr(created, 12, 2) AS INTEGER) >= 7 AND CAST(substr(created, 12, 2) AS INTEGER) < 15"
+    elif shift == "B":
+        shift_filter = " AND CAST(substr(created, 12, 2) AS INTEGER) >= 15 AND CAST(substr(created, 12, 2) AS INTEGER) < 23"
+    elif shift == "C":
+        shift_filter = " AND (CAST(substr(created, 12, 2) AS INTEGER) >= 23 OR CAST(substr(created, 12, 2) AS INTEGER) < 7)"
+
+    base_where = "incident_number IS NOT NULL AND created >= ? AND created <= ?" + type_filter + shift_filter
+    base_params = [start_date, end_date] + type_params
+
     # Total incidents
-    total_row = c.execute("""
+    total_row = c.execute(f"""
         SELECT COUNT(*) as total
         FROM Incidents
-        WHERE incident_number IS NOT NULL
-          AND created >= ? AND created <= ?
-    """, (start_date, end_date)).fetchone()
+        WHERE {base_where}
+    """, base_params).fetchone()
     total_incidents = total_row["total"] if total_row else 0
 
     # Incidents by type
-    type_rows = c.execute("""
+    type_rows = c.execute(f"""
         SELECT type, COUNT(*) as count
         FROM Incidents
-        WHERE incident_number IS NOT NULL
-          AND created >= ? AND created <= ?
+        WHERE {base_where}
         GROUP BY type
         ORDER BY count DESC
         LIMIT 8
-    """, (start_date, end_date)).fetchall()
+    """, base_params).fetchall()
 
     type_labels = [r["type"] or "Unknown" for r in type_rows]
     type_data = [r["count"] for r in type_rows]
 
     # Incidents by hour
     hourly_data = [0] * 24
-    hour_rows = c.execute("""
+    hour_rows = c.execute(f"""
         SELECT substr(created, 12, 2) as hour, COUNT(*) as count
         FROM Incidents
-        WHERE incident_number IS NOT NULL
-          AND created >= ? AND created <= ?
+        WHERE {base_where}
         GROUP BY hour
-    """, (start_date, end_date)).fetchall()
+    """, base_params).fetchall()
 
     for r in hour_rows:
         try:
@@ -12012,33 +12052,31 @@ async def get_analytics(
 
     # Timeline data (group by day or hour depending on period)
     if period == "today":
-        # Group by hour
-        timeline_rows = c.execute("""
+        timeline_rows = c.execute(f"""
             SELECT substr(created, 12, 2) as period, COUNT(*) as count
             FROM Incidents
-            WHERE incident_number IS NOT NULL
-              AND created >= ? AND created <= ?
+            WHERE {base_where}
             GROUP BY period
             ORDER BY period
-        """, (start_date, end_date)).fetchall()
+        """, base_params).fetchall()
         timeline_labels = [f"{r['period']}:00" for r in timeline_rows]
     else:
-        # Group by day
-        timeline_rows = c.execute("""
+        timeline_rows = c.execute(f"""
             SELECT substr(created, 1, 10) as period, COUNT(*) as count
             FROM Incidents
-            WHERE incident_number IS NOT NULL
-              AND created >= ? AND created <= ?
+            WHERE {base_where}
             GROUP BY period
             ORDER BY period
-        """, (start_date, end_date)).fetchall()
+        """, base_params).fetchall()
         timeline_labels = [r["period"] for r in timeline_rows]
 
     timeline_data = [r["count"] for r in timeline_rows]
 
     # Response times calculation
+    rt_type_filter = " AND i.type = ?" if type else ""
+    rt_type_params = [type] if type else []
     response_times = []
-    rt_rows = c.execute("""
+    rt_rows = c.execute(f"""
         SELECT ua.dispatched, ua.enroute, ua.arrived,
                i.type
         FROM UnitAssignments ua
@@ -12047,7 +12085,8 @@ async def get_analytics(
           AND i.created >= ? AND i.created <= ?
           AND ua.dispatched IS NOT NULL
           AND ua.arrived IS NOT NULL
-    """, (start_date, end_date)).fetchall()
+          {rt_type_filter}{shift_filter.replace('created', 'i.created') if shift_filter else ''}
+    """, [start_date, end_date] + rt_type_params).fetchall()
 
     for r in rt_rows:
         try:
@@ -12144,14 +12183,16 @@ async def get_analytics(
     unit_data = [r["runs"] for r in unit_rows]
 
     # Incidents by shift (based on hour: A=07-15, B=15-23, C=23-07)
+    # Use base_params but without shift filter for shift breakdown
+    shift_base_where = "incident_number IS NOT NULL AND created >= ? AND created <= ?" + type_filter
+    shift_base_params = [start_date, end_date] + type_params
     shift_counts = {"A": 0, "B": 0, "C": 0}
-    shift_rows = c.execute("""
+    shift_rows = c.execute(f"""
         SELECT substr(created, 12, 2) as hour, COUNT(*) as count
         FROM Incidents
-        WHERE incident_number IS NOT NULL
-          AND created >= ? AND created <= ?
+        WHERE {shift_base_where}
         GROUP BY hour
-    """, (start_date, end_date)).fetchall()
+    """, shift_base_params).fetchall()
     for sr in shift_rows:
         try:
             h = int(sr["hour"])
