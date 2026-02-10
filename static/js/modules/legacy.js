@@ -4,7 +4,7 @@
 // ============================================================================
 // Purpose:
 //   • Provide backwards-compatible global functions for older inline handlers
-//   • MUST NOT mutate frozen / non-extensible global objects (ex: window.BOSK)
+//   • MUST NOT mutate frozen / non-extensible global objects (ex: window.FORD_CAD)
 //   • MUST NOT throw during import (boot must continue)
 //
 // This fixes:
@@ -47,10 +47,10 @@ function dispositionIncident(incidentId) {
   const id = Number(incidentId);
   if (!id) return;
 
-  // Prefer whatever the app exposes (some builds mount to window.BOSK.disposition)
-  const boskOpen = globalThis?.BOSK?.disposition?.open;
-  if (typeof boskOpen === "function") {
-    boskOpen(id);
+  // Prefer whatever the app exposes (some builds mount to window.FORD_CAD.disposition)
+  const cadOpen = globalThis?.FORD_CAD?.disposition?.open;
+  if (typeof cadOpen === "function") {
+    cadOpen(id);
     return;
   }
 
@@ -87,13 +87,13 @@ globalThis.iawClose = iawClose;
 globalThis.uawOpen = uawOpen;
 
 // -----------------------------
-// Attempt (non-fatal) BOSK namespace exposure
+// Attempt (non-fatal) FORD_CAD namespace exposure
 //   - ONLY if possible without throwing
 // -----------------------------
-safeAttach(globalThis.BOSK, "dispositionIncident", dispositionIncident);
-safeAttach(globalThis.BOSK, "iawOpen", iawOpen);
-safeAttach(globalThis.BOSK, "iawClose", iawClose);
-safeAttach(globalThis.BOSK, "uawOpen", uawOpen);
+safeAttach(globalThis.FORD_CAD, "dispositionIncident", dispositionIncident);
+safeAttach(globalThis.FORD_CAD, "iawOpen", iawOpen);
+safeAttach(globalThis.FORD_CAD, "iawClose", iawClose);
+safeAttach(globalThis.FORD_CAD, "uawOpen", uawOpen);
 
 
 export default {};

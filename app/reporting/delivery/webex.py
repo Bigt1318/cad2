@@ -107,13 +107,15 @@ class WebexDelivery(DeliveryChannel):
         webhook_url = get_config("webex_webhook_url", "").strip()
 
         if not webhook_url:
-            logger.error("Webex webhook URL not configured")
+            logger.info(
+                "Webex disabled — would send to=%s subject=%r body_len=%d",
+                recipient or "(webex-space)", subject, len(body_text),
+            )
             return DeliveryResult(
                 success=False,
                 recipient=recipient or "(webex-space)",
                 channel=self.channel_name,
-                error="Webex webhook URL not configured. "
-                      "Set 'webex_webhook_url' in reporting config.",
+                error="Webex webhook URL not configured — delivery skipped (logged)",
             )
 
         # Build the message with a subject header

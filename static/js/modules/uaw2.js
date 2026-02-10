@@ -2231,7 +2231,7 @@ export const UAW = {
           await CAD_UTIL.postJSON("/api/cli/dispatch", {
             units,
             incident_id: Number(newId),
-            mode: "D"
+            mode: "SI"
           });
         } catch (dispatchErr) {
           // Dispatch may fail if unit is already assigned; don't abort the save

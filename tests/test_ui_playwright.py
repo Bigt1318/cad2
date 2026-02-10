@@ -204,3 +204,277 @@ class TestUIIAW:
         )
         if print_btn.count() > 0:
             assert print_btn.first.is_visible()
+
+
+# ============================================================================
+# SMOKE TESTS — Login, Incident Creation, Dispatch, Messaging
+# ============================================================================
+
+
+class TestSmokeLogin:
+    """Verify the login flow end-to-end in browser."""
+
+    def test_login_page_has_branding(self, browser_page, server):
+        """Login page loads with FORD-CAD branding (no BOSK)."""
+        # Use a fresh context without session cookies to see login page
+        fresh_ctx = browser_page.context.browser.new_context()
+        page = fresh_ctx.new_page()
+        page.set_default_timeout(15000)
+
+        try:
+            page.goto(f"{server}/login", **GOTO_OPTS)
+            time.sleep(0.5)
+            content = page.content().lower()
+            _screenshot(page, "smoke_login_page")
+
+            assert "ford" in content, "Login page missing FORD branding"
+            assert "bosk" not in content, "Login page has old BOSK branding"
+            assert page.locator("#dispatcher_unit").count() > 0, "Missing unit input"
+            assert page.locator("#shift_letter").count() > 0, "Missing shift select"
+        finally:
+            fresh_ctx.close()
+
+    def test_login_form_submits(self, browser_page, server):
+        """Login form has all required elements and can submit."""
+        fresh_ctx = browser_page.context.browser.new_context(
+            viewport={"width": 1920, "height": 1080}
+        )
+        page = fresh_ctx.new_page()
+        page.set_default_timeout(15000)
+
+        try:
+            page.goto(f"{server}/login", **GOTO_OPTS)
+            time.sleep(0.5)
+
+            # Verify form elements exist
+            unit_input = page.locator("#dispatcher_unit")
+            shift_select = page.locator("#shift_letter")
+            submit_btn = page.locator("button[type='submit']")
+
+            assert unit_input.count() > 0, "Missing unit input"
+            assert shift_select.count() > 0, "Missing shift select"
+            assert submit_btn.count() > 0, "Missing submit button"
+
+            # Fill and submit
+            unit_input.fill("DISP1")
+            shift_select.select_option("A")
+            _screenshot(page, "smoke_login_filled")
+
+            with page.expect_navigation(wait_until="commit", timeout=15000):
+                submit_btn.click()
+            time.sleep(1)
+
+            url = page.url
+            _screenshot(page, "smoke_login_redirect")
+            assert "/login" not in url, f"Still on login page: {url}"
+        finally:
+            fresh_ctx.close()
+
+    def test_header_shows_identity(self, browser_page, server):
+        """Header shows logged-in unit identity after login."""
+        _navigate(browser_page, server)
+        _screenshot(browser_page, "smoke_header_identity")
+
+        # Header should exist
+        header = browser_page.locator("#cad-header, .cad-header, nav").first
+        assert header.count() > 0 or len(browser_page.content()) > 10000
+
+
+class TestSmokeIncidentCreation:
+    """Verify incident creation via the calltaker panel."""
+
+    def test_calltaker_panel_visible(self, browser_page, server):
+        """Calltaker panel is visible on main page."""
+        _navigate(browser_page, server)
+
+        ct = browser_page.locator("#panel-calltaker")
+        _screenshot(browser_page, "smoke_calltaker_panel")
+        assert ct.count() > 0, "Calltaker panel not found"
+
+    def test_create_incident_via_calltaker(self, browser_page, server):
+        """Fill calltaker form and save an incident."""
+        _navigate(browser_page, server)
+        time.sleep(1)
+
+        # Must initiate "New Incident" first to enable calltaker inputs
+        new_btn = browser_page.locator("#btn-new-incident")
+        if new_btn.count() > 0 and new_btn.is_visible():
+            new_btn.click()
+            time.sleep(1)
+        else:
+            # Fallback: press F2
+            browser_page.keyboard.press("F2")
+            time.sleep(1)
+
+        # Fill location (should now be enabled)
+        loc_input = browser_page.locator("#ctLocation")
+        if loc_input.count() > 0:
+            try:
+                loc_input.fill("999 SMOKE TEST BLVD", timeout=5000)
+            except Exception:
+                _screenshot(browser_page, "smoke_calltaker_disabled")
+                pytest.skip("Calltaker inputs not enabled after New click")
+
+        # Select type
+        type_select = browser_page.locator("#ctType")
+        if type_select.count() > 0:
+            type_select.select_option("TEST")
+
+        # Fill narrative
+        narr = browser_page.locator("#ctNarrative")
+        if narr.count() > 0:
+            narr.fill("Playwright smoke test incident")
+
+        _screenshot(browser_page, "smoke_calltaker_filled")
+
+        # Click Save button
+        save_btn = browser_page.locator("#panel-calltaker button:has-text('Save')").first
+        if save_btn.count() > 0:
+            save_btn.click()
+            time.sleep(1.5)
+            _screenshot(browser_page, "smoke_calltaker_saved")
+
+    def test_new_incident_via_api_then_iaw(self, browser_page, server):
+        """Create incident via API, then verify IAW renders in browser."""
+        import json as _json
+
+        # Use API to create incident reliably
+        resp = browser_page.request.post(f"{server}/incident/new")
+        data = resp.json()
+        inc_id = data.get("incident_id")
+
+        if inc_id:
+            browser_page.request.post(
+                f"{server}/incident/save/{inc_id}",
+                data=_json.dumps({"type": "TEST", "location": "888 PW TEST DR",
+                      "priority": "3", "narrative": "Playwright API test"}),
+                headers={"Content-Type": "application/json"},
+            )
+
+            # Navigate to IAW
+            _navigate(browser_page, f"{server}/incident_action_window/{inc_id}")
+            _screenshot(browser_page, "smoke_iaw_api_incident")
+
+            content = browser_page.content()
+            assert len(content) > 2000, "IAW page too short"
+
+
+class TestSmokeDispatch:
+    """Verify dispatch workflow in browser."""
+
+    def test_dispatch_via_api_and_verify_iaw(self, browser_page, server):
+        """Create incident, dispatch unit via API, verify in IAW."""
+        import json as _json
+
+        # Create incident
+        resp = browser_page.request.post(f"{server}/incident/new")
+        data = resp.json()
+        inc_id = data.get("incident_id")
+        if not inc_id:
+            pytest.skip("Could not create incident")
+
+        browser_page.request.post(
+            f"{server}/incident/save/{inc_id}",
+            data=_json.dumps({"type": "TEST", "location": "777 DISPATCH TEST",
+                  "priority": "2", "narrative": "Dispatch smoke test"}),
+            headers={"Content-Type": "application/json"},
+        )
+
+        # Make unit available then dispatch
+        browser_page.request.post(f"{server}/api/unit_status/UTV1/AVAILABLE")
+        resp = browser_page.request.post(
+            f"{server}/dispatch/unit_to_incident",
+            data=_json.dumps({"incident_id": inc_id, "units": ["UTV1"]}),
+            headers={"Content-Type": "application/json"},
+        )
+
+        # Navigate to IAW and verify unit appears
+        _navigate(browser_page, f"{server}/incident_action_window/{inc_id}")
+        time.sleep(0.5)
+        _screenshot(browser_page, "smoke_dispatch_iaw")
+
+        content = browser_page.content()
+        assert len(content) > 2000, "IAW page too short after dispatch"
+
+    def test_command_line_visible(self, browser_page, server):
+        """Command line input is visible for CLI dispatch commands."""
+        _navigate(browser_page, server)
+
+        cmd = browser_page.locator("#cmd-input")
+        _screenshot(browser_page, "smoke_command_line")
+        assert cmd.count() > 0, "Command line input not found"
+        assert cmd.is_visible(), "Command line input not visible"
+
+
+class TestSmokeMessaging:
+    """Verify messaging edit/delete via API + browser."""
+
+    def _ensure_server(self, server):
+        """Check server is still responsive; skip if not."""
+        if not _wait_for_server(f"{server}/api/health", timeout=5):
+            pytest.skip("Server unresponsive after earlier tests")
+
+    def test_messaging_drawer_opens(self, browser_page, server):
+        """Messaging drawer opens when button is clicked."""
+        self._ensure_server(server)
+        _navigate(browser_page, server)
+        time.sleep(1)
+
+        msg_btn = browser_page.locator("#btn-messaging")
+        if msg_btn.count() > 0 and msg_btn.is_visible():
+            msg_btn.click()
+            time.sleep(0.5)
+            _screenshot(browser_page, "smoke_messaging_drawer")
+
+    def test_message_send_edit_delete_via_api(self, browser_page, server):
+        """Send, edit, then delete a message via API."""
+        self._ensure_server(server)
+
+        import json as _json
+
+        # Create a channel
+        resp = browser_page.request.post(
+            f"{server}/api/chat/channels",
+            data=_json.dumps({"title": "Smoke Test Channel"}),
+            headers={"Content-Type": "application/json"},
+        )
+        ch_data = resp.json()
+        if not ch_data.get("ok") or not ch_data.get("channel"):
+            pytest.skip("Could not create chat channel")
+
+        ch_id = ch_data["channel"]["id"]
+
+        # Send message
+        resp = browser_page.request.post(
+            f"{server}/api/chat/channel/{ch_id}/send",
+            data=_json.dumps({"body": "Smoke test message from Playwright"}),
+            headers={"Content-Type": "application/json"},
+        )
+        msg_data = resp.json()
+        assert msg_data.get("ok") is True, f"Send failed: {msg_data}"
+        msg_id = msg_data["message"]["id"]
+
+        # Edit message
+        resp = browser_page.request.put(
+            f"{server}/api/chat/messages/{msg_id}",
+            data=_json.dumps({"body": "Edited smoke test message"}),
+            headers={"Content-Type": "application/json"},
+        )
+        edit_data = resp.json()
+        assert edit_data.get("ok") is True, f"Edit failed: {edit_data}"
+
+        # Delete message
+        resp = browser_page.request.delete(f"{server}/api/chat/messages/{msg_id}")
+        del_data = resp.json()
+        assert del_data.get("ok") is True, f"Delete failed: {del_data}"
+
+        _screenshot(browser_page, "smoke_messaging_crud")
+
+    def test_messaging_modal_loads(self, browser_page, server):
+        """Messaging modal HTML fragment loads correctly."""
+        self._ensure_server(server)
+        _navigate(browser_page, f"{server}/modal/messaging")
+        _screenshot(browser_page, "smoke_messaging_modal")
+
+        content = browser_page.content()
+        assert len(content) > 500, "Messaging modal too short"

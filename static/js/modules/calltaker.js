@@ -430,7 +430,7 @@ export const CALLTAKER = {
 window.CALLTAKER = CALLTAKER;
 
 // Legacy global alias for backward compatibility (canon requirement)
-window.__BOSK_CALLTAKER = CALLTAKER;
+window.__FORD_CALLTAKER = CALLTAKER;
 
 Object.freeze(CALLTAKER);
 

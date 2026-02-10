@@ -20,7 +20,10 @@ const DEBUG = false;  // Set to true to enable boot logging
 
     const keyFromPath = (p) => {
         try {
-            const file = String(p).split("/").pop() || "";
+            let file = String(p).split("/").pop() || "";
+            // Strip query params (?v=...) before extracting key
+            const qIdx = file.indexOf("?");
+            if (qIdx > -1) file = file.substring(0, qIdx);
             return file.replace(".js", "");
         } catch {
             return String(p);

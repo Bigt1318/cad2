@@ -29,6 +29,14 @@ const MessagingUI = {
     _mentionActive: false,
     _mentionQuery: '',
     _mentionStartPos: -1,
+    _settingsOpen: false,
+    _preferences: {},
+    _prefsLoaded: false,
+    _prefsSaveTimeout: null,
+    _dndEnabled: false,
+    _browserNotifyEnabled: true,
+    _mentionSoundEnabled: true,
+    _soundEnabled: true,
 
     // =========================================================================
     // INITIALIZATION
@@ -40,6 +48,7 @@ const MessagingUI = {
         this.loadChannels();
         this.restoreOfflineQueue();
         this._initVisibilityReconnect();
+        this.loadPreferences();
         console.log('[Chat] Initialized for user:', userId);
     },
 
@@ -191,7 +200,7 @@ const MessagingUI = {
     },
 
     _playTone(freq, duration, type) {
-        if (this._chatMuted) return;
+        if (this._chatMuted || this._dndEnabled || !this._soundEnabled) return;
         const ctx = this._getAudioCtx();
         if (!ctx) return;
         try {
@@ -229,11 +238,17 @@ const MessagingUI = {
 
     toggleMute() {
         this._chatMuted = !this._chatMuted;
+        this._soundEnabled = !this._chatMuted;
         const muteBtn = document.getElementById('chat-mute-btn');
         if (muteBtn) {
             muteBtn.textContent = this._chatMuted ? '\u{1F507}' : '\u{1F50A}';
             muteBtn.title = this._chatMuted ? 'Unmute chat' : 'Mute chat';
         }
+        // Persist and sync settings panel checkbox
+        this._preferences['sound_enabled'] = this._soundEnabled ? 'true' : 'false';
+        this._schedulePrefsSave();
+        const cb = document.getElementById('pref-sound-enabled');
+        if (cb) cb.checked = this._soundEnabled;
         return this._chatMuted;
     },
 
@@ -315,17 +330,17 @@ const MessagingUI = {
         }
 
         // Audio notification — only when tab not focused or chat not visible
-        if (this._shouldNotify() && msg.sender_id !== this.userId) {
+        if (this._shouldNotify() && msg.sender_id !== this.userId && !this._dndEnabled && !this.isChannelMuted(channelId)) {
             const body = (msg.body || msg.content || '').toLowerCase();
             const isMention = body.includes('@' + (this.userId || '').toLowerCase()) ||
                               body.includes('@all') || body.includes('@everyone');
-            if (isMention) {
+            if (isMention && this._mentionSoundEnabled) {
                 this.playMentionBeep();
             } else {
                 this.playMessageBeep();
             }
             // Browser notification for chat
-            if (typeof LAYOUT !== 'undefined' && LAYOUT.browserNotify) {
+            if (this._browserNotifyEnabled && typeof LAYOUT !== 'undefined' && LAYOUT.browserNotify) {
                 LAYOUT.browserNotify(
                     `Chat: ${msg.sender_id || 'Unknown'}`,
                     (msg.body || msg.content || '').substring(0, 100),
@@ -413,6 +428,7 @@ const MessagingUI = {
                         this.drawerOpen = true;
                         document.getElementById('chat-drawer')?.classList.add('open');
                         this._injectMuteButton();
+                        this._injectSettingsButton();
                         this.loadChannels();
                     }, 50);
                 });
@@ -768,6 +784,7 @@ const MessagingUI = {
                         ${msg.require_ack && !isMine ? `<button class="chat-ack-btn" onclick="MessagingUI.ackMessage(${msg.id})">ACK</button>` : ''}
                     </div>
                 </div>
+                ${isMine ? `<button class="chat-msg-delete-btn" onclick="MessagingUI.deleteMessageDirect(${msg.id})" title="Delete message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>` : ''}
             </div>`;
         }
 
@@ -1632,6 +1649,259 @@ const MessagingUI = {
 
         if (dropdown) dropdown.style.display = 'none';
         this._mentionActive = false;
+    },
+
+    // =========================================================================
+    // SETTINGS PANEL
+    // =========================================================================
+
+    async openSettings() {
+        const container = document.getElementById('chat-settings-container');
+        if (!container) return;
+
+        try {
+            const res = await fetch('/api/chat/settings/fragment');
+            const html = await res.text();
+            container.innerHTML = html;
+            container.style.display = 'flex';
+            this._settingsOpen = true;
+
+            // Populate UI from loaded prefs
+            await this.loadPreferences();
+            this.applyPreferencesToUI();
+            this.renderChannelMuteList();
+            this.renderClearChannelList();
+        } catch (e) {
+            console.error('[Chat] Failed to open settings:', e);
+        }
+    },
+
+    closeSettings() {
+        const container = document.getElementById('chat-settings-container');
+        if (container) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+        }
+        this._settingsOpen = false;
+        // Flush any pending pref saves
+        if (this._prefsSaveTimeout) {
+            clearTimeout(this._prefsSaveTimeout);
+            this._prefsSaveTimeout = null;
+            this.savePreferences();
+        }
+    },
+
+    async loadPreferences() {
+        if (this._prefsLoaded) return;
+        try {
+            const res = await fetch('/api/chat/preferences');
+            const data = await res.json();
+            if (data.ok) {
+                this._preferences = data.preferences || {};
+                this._prefsLoaded = true;
+                this._applyPrefsToFlags();
+            }
+        } catch (e) {
+            console.error('[Chat] Failed to load preferences:', e);
+        }
+    },
+
+    async savePreferences() {
+        try {
+            await fetch('/api/chat/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ preferences: this._preferences })
+            });
+        } catch (e) {
+            console.error('[Chat] Failed to save preferences:', e);
+        }
+    },
+
+    _schedulePrefsSave() {
+        if (this._prefsSaveTimeout) clearTimeout(this._prefsSaveTimeout);
+        this._prefsSaveTimeout = setTimeout(() => {
+            this._prefsSaveTimeout = null;
+            this.savePreferences();
+        }, 1000);
+    },
+
+    _applyPrefsToFlags() {
+        this._soundEnabled = this._preferences['sound_enabled'] !== 'false';
+        this._browserNotifyEnabled = this._preferences['browser_notify'] !== 'false';
+        this._mentionSoundEnabled = this._preferences['mention_sound'] !== 'false';
+        this._dndEnabled = this._preferences['dnd'] === 'true';
+        // Sync mute button state
+        this._chatMuted = !this._soundEnabled;
+        const muteBtn = document.getElementById('chat-mute-btn');
+        if (muteBtn) {
+            muteBtn.textContent = this._chatMuted ? '\u{1F507}' : '\u{1F50A}';
+            muteBtn.title = this._chatMuted ? 'Unmute chat' : 'Mute chat';
+        }
+        // Sync presence dropdown if DND
+        if (this._dndEnabled) {
+            const statusSelect = document.getElementById('chat-my-status');
+            if (statusSelect) statusSelect.value = 'dnd';
+        }
+    },
+
+    applyPreferencesToUI() {
+        const p = this._preferences;
+        const set = (id, key, def) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = p[key] !== undefined ? p[key] === 'true' : def;
+        };
+        set('pref-sound-enabled', 'sound_enabled', true);
+        set('pref-browser-notify', 'browser_notify', true);
+        set('pref-mention-sound', 'mention_sound', true);
+        set('pref-dnd', 'dnd', false);
+
+        // Sync presence dropdown
+        const statusSelect = document.getElementById('pref-status');
+        const drawerStatus = document.getElementById('chat-my-status');
+        if (statusSelect && drawerStatus) {
+            statusSelect.value = drawerStatus.value;
+        }
+    },
+
+    onPrefChange(key, value) {
+        const strVal = value ? 'true' : 'false';
+        this._preferences[key] = strVal;
+        this._applyPrefsToFlags();
+
+        // Special handling for DND: also update presence
+        if (key === 'dnd' && value) {
+            this.setMyStatus('dnd');
+            const statusSelect = document.getElementById('pref-status');
+            if (statusSelect) statusSelect.value = 'dnd';
+            const drawerStatus = document.getElementById('chat-my-status');
+            if (drawerStatus) drawerStatus.value = 'dnd';
+        }
+
+        // Sync mute button when sound toggled
+        if (key === 'sound_enabled') {
+            this._chatMuted = !value;
+            const muteBtn = document.getElementById('chat-mute-btn');
+            if (muteBtn) {
+                muteBtn.textContent = this._chatMuted ? '\u{1F507}' : '\u{1F50A}';
+                muteBtn.title = this._chatMuted ? 'Unmute chat' : 'Mute chat';
+            }
+        }
+
+        this._schedulePrefsSave();
+    },
+
+    onStatusChange(status) {
+        this.setMyStatus(status);
+        const drawerStatus = document.getElementById('chat-my-status');
+        if (drawerStatus) drawerStatus.value = status;
+        // If switching away from DND, clear dnd pref
+        if (status !== 'dnd' && this._dndEnabled) {
+            this._preferences['dnd'] = 'false';
+            this._dndEnabled = false;
+            const dndCb = document.getElementById('pref-dnd');
+            if (dndCb) dndCb.checked = false;
+            this._schedulePrefsSave();
+        }
+        // If switching to DND, set dnd pref
+        if (status === 'dnd' && !this._dndEnabled) {
+            this._preferences['dnd'] = 'true';
+            this._dndEnabled = true;
+            const dndCb = document.getElementById('pref-dnd');
+            if (dndCb) dndCb.checked = true;
+            this._schedulePrefsSave();
+        }
+    },
+
+    onChannelMuteChange(channelId, muted) {
+        const key = `${channelId}:muted`;
+        this._preferences[key] = muted ? 'true' : 'false';
+        this._schedulePrefsSave();
+    },
+
+    isChannelMuted(channelId) {
+        return this._preferences[`${channelId}:muted`] === 'true';
+    },
+
+    renderChannelMuteList() {
+        const container = document.getElementById('chat-settings-channel-mutes');
+        if (!container) return;
+        const channels = this._channelsCache || [];
+        if (!channels.length) {
+            container.innerHTML = '<div class="chat-empty-state"><p>No channels</p></div>';
+            return;
+        }
+        container.innerHTML = channels.map(ch => {
+            const name = this.getChannelDisplayName(ch);
+            const muted = this.isChannelMuted(ch.id);
+            return `<div class="chat-settings-row">
+                <label>${this.escapeHtml(name)}</label>
+                <label class="chat-toggle-switch">
+                    <input type="checkbox" ${muted ? 'checked' : ''}
+                           onchange="MessagingUI.onChannelMuteChange(${ch.id}, this.checked)">
+                    <span class="chat-toggle-slider"></span>
+                </label>
+            </div>`;
+        }).join('');
+    },
+
+    renderClearChannelList() {
+        const container = document.getElementById('chat-settings-clear-list');
+        if (!container) return;
+        const channels = this._channelsCache || [];
+        if (!channels.length) {
+            container.innerHTML = '<div class="chat-empty-state"><p>No channels</p></div>';
+            return;
+        }
+        container.innerHTML = channels.map(ch => {
+            const name = this.getChannelDisplayName(ch);
+            return `<div class="chat-settings-row">
+                <label>${this.escapeHtml(name)}</label>
+                <button class="chat-settings-clear-btn" onclick="MessagingUI.clearChannelHistory(${ch.id})">Clear History</button>
+            </div>`;
+        }).join('');
+    },
+
+    async clearChannelHistory(channelId) {
+        if (!confirm('Clear all messages in this conversation? This cannot be undone.')) return;
+        try {
+            const res = await fetch(`/api/chat/channel/${channelId}/messages`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.ok) {
+                window.TOAST?.success?.(`Cleared ${data.cleared} messages`);
+                // Refresh thread if currently viewing
+                if (this.currentChannelId === channelId) {
+                    this.openChannel(channelId);
+                }
+            }
+        } catch (e) {
+            console.error('[Chat] Clear history failed:', e);
+            window.TOAST?.error?.('Failed to clear history');
+        }
+    },
+
+    async deleteMessageDirect(msgId) {
+        if (!confirm('Delete this message?')) return;
+        try {
+            const res = await fetch(`/api/chat/messages/${msgId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.ok) {
+                const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+                if (el) {
+                    const body = el.querySelector('.chat-msg-body');
+                    if (body) body.textContent = 'This message was deleted';
+                    el.style.opacity = '0.5';
+                    const delBtn = el.querySelector('.chat-msg-delete-btn');
+                    if (delBtn) delBtn.remove();
+                }
+            }
+        } catch (e) {
+            console.error('[Chat] Delete failed:', e);
+        }
+    },
+
+    _injectSettingsButton() {
+        // Settings button is already in the drawer.html template, no runtime injection needed
     },
 
     // =========================================================================

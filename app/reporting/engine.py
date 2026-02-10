@@ -3617,6 +3617,11 @@ class ReportEngine:
         )
         run_id = RunRepository.create(run)
 
+        logger.info(
+            "REPORT_GENERATED run_id=%d template=%s formats=%s created_by=%s",
+            run_id, template_key, formats, created_by,
+        )
+
         try:
             # 2. Extract data.
             extractor = get_extractor(template_key)
@@ -3771,6 +3776,11 @@ class ReportEngine:
         results: List[Dict[str, Any]] = []
         success_count = 0
         fail_count = 0
+
+        logger.info(
+            "DELIVER_REPORT run_id=%d channels=%d triggered_by=%s title=%r",
+            run_id, len(channels), triggered_by, run.title,
+        )
 
         for ch in channels:
             channel_type = ch.get("channel", "email")

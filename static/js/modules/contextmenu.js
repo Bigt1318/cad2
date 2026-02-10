@@ -307,6 +307,12 @@ async function _executeAction(action, value) {
         }
         break;
 
+      case "view_profile":
+        if (unitId && window.CAD_MODAL?.open) {
+          window.CAD_MODAL.open(`/modals/employee_profile?unit_id=${encodeURIComponent(unitId)}`);
+        }
+        break;
+
       case "view_incident":
         if (incidentId && window.IAW?.open) {
           window.IAW.open(incidentId);
@@ -917,6 +923,11 @@ function getUnitMenuItems(unitId, context = {}) {
   items.push({
     label: "View Details",
     action: "view_details"
+  });
+
+  items.push({
+    label: "View Profile",
+    action: "view_profile"
   });
 
   return items;

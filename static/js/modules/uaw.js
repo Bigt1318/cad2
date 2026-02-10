@@ -12,8 +12,8 @@
 //   ONE action → ONE backend call → ONE IAW reopen → ONE panel refresh
 // ============================================================================
 
-import { BOSK_MODAL } from "./modal.js";
-import { BOSK_UTIL } from "./utils.js";
+import { CAD_MODAL } from "./modal.js";
+import { CAD_UTIL } from "./utils.js";
 
 export const UAW = {};
 
@@ -24,7 +24,7 @@ export const UAW = {};
 
 // Open UAW for a unit
 UAW.open = function (unit_id) {
-    BOSK_MODAL.open(`/unit/${unit_id}/uaw`);
+    CAD_MODAL.open(`/unit/${unit_id}/uaw`);
 };
 
 
@@ -34,7 +34,7 @@ UAW.open = function (unit_id) {
 
 // View the incident this unit is currently assigned to
 UAW.viewIncident = async function (incident_id) {
-    await BOSK_MODAL.open(`/incident/${incident_id}/iaw`);
+    await CAD_MODAL.open(`/incident/${incident_id}/iaw`);
 };
 
 
@@ -44,29 +44,29 @@ UAW.viewIncident = async function (incident_id) {
 
 // ARRIVE
 UAW.arriveUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
+    await CAD_UTIL.postJSON(
         `/incident/${incident_id}/unit/${unit_id}/arrive`
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
+    CAD_UTIL.refreshPanels();
+    await CAD_UTIL.reopenIAW(incident_id);
 };
 
 // OPERATE
 UAW.operateUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
+    await CAD_UTIL.postJSON(
         `/incident/${incident_id}/unit/${unit_id}/operate`
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
+    CAD_UTIL.refreshPanels();
+    await CAD_UTIL.reopenIAW(incident_id);
 };
 
 // CLEAR (ACTION — NOT STATUS)
 UAW.clearUnit = async function (incident_id, unit_id) {
-    await BOSK_UTIL.postJSON(
+    await CAD_UTIL.postJSON(
         `/incident/${incident_id}/unit/${unit_id}/clear`
     );
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
+    CAD_UTIL.refreshPanels();
+    await CAD_UTIL.reopenIAW(incident_id);
 };
 
 
@@ -83,8 +83,8 @@ UAW.dispositionUnit = async function (incident_id, unit_id, disposition) {
         { method: "POST", body: form }
     );
 
-    BOSK_UTIL.refreshPanels();
-    await BOSK_UTIL.reopenIAW(incident_id);
+    CAD_UTIL.refreshPanels();
+    await CAD_UTIL.reopenIAW(incident_id);
 };
 
 
@@ -94,7 +94,7 @@ UAW.dispositionUnit = async function (incident_id, unit_id, disposition) {
 
 // Open remark modal with unit preselected
 UAW.addRemark = function (incident_id, unit_id) {
-    BOSK_MODAL.open(
+    CAD_MODAL.open(
         `/incident/${incident_id}/remark?unit_id=${unit_id}`
     );
 };

@@ -104,13 +104,15 @@ class SignalDelivery(DeliveryChannel):
         webhook_url = get_config("signal_webhook_url", "").strip()
 
         if not webhook_url:
-            logger.error("Signal webhook URL not configured")
+            logger.info(
+                "Signal disabled — would send to=%s subject=%r body_len=%d",
+                recipient, subject, len(body_text),
+            )
             return DeliveryResult(
                 success=False,
                 recipient=recipient,
                 channel=self.channel_name,
-                error="Signal webhook URL not configured. "
-                      "Set 'signal_webhook_url' in reporting config.",
+                error="Signal webhook URL not configured — delivery skipped (logged)",
             )
 
         # Resolve recipient: use provided number, fall back to config default

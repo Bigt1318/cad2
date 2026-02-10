@@ -99,8 +99,18 @@ function confirmAction(msg) {
 // ---------------------------------------------------------------------------
 const REFRESH_EVENT = "cad:refresh-panels";
 
-// Prevent overlapping refresh calls
+// Semantic event types for targeted refresh
+const EVENTS = {
+  UNITS_CHANGED:     "cad:units_changed",
+  INCIDENTS_CHANGED: "cad:incidents_changed",
+  HELD_CHANGED:      "cad:held_changed",
+  SETTINGS_CHANGED:  "cad:settings_changed",
+  REFRESH_ALL:       REFRESH_EVENT,
+};
+
+// Prevent overlapping refresh calls — with queued deferred refresh
 let _refreshInProgress = false;
+let _refreshQueued = false;
 
 // Drag guard (prevents HTMX swap errors mid-drag)
 if (typeof window !== "undefined" && !window.__CAD_DRAG_GUARD_INSTALLED) {
@@ -115,11 +125,15 @@ if (typeof window !== "undefined" && !window.__CAD_DRAG_GUARD_INSTALLED) {
 function refreshPanels(detail = null, opts = {}) {
   const force = !!opts.force;
 
-  if (_refreshInProgress) return;
-
   // If a drag is in progress, defer refresh slightly unless forced
   if (!force && window.__CAD_DRAG_ACTIVE) {
     setTimeout(() => refreshPanels(detail, { force: true }), 200);
+    return;
+  }
+
+  // If refresh is already running, queue one more instead of dropping
+  if (_refreshInProgress) {
+    _refreshQueued = true;
     return;
   }
 
@@ -131,14 +145,28 @@ function refreshPanels(detail = null, opts = {}) {
       _doRefresh();
     } finally {
       // Release lock after htmx requests have been queued
-      setTimeout(() => { _refreshInProgress = false; }, 300);
+      setTimeout(() => {
+        _refreshInProgress = false;
+        // If a refresh was requested while we were busy, run it now
+        if (_refreshQueued) {
+          _refreshQueued = false;
+          refreshPanels(null, { force: true });
+        }
+      }, 300);
     }
   }, 50);
 }
 
-function _doRefresh() {
-  // 1) If PANELS module is present, use it (single call — no double-firing)
+function _doRefresh(panels_list) {
+  // 1) If PANELS module is present, use it
   const panels = window.CAD?.panels || window.PANELS;
+
+  // Targeted refresh if specific panels requested
+  if (panels_list && panels && typeof panels.refreshTargeted === "function") {
+    try { panels.refreshTargeted(panels_list); } catch (err) { console.warn("[UTIL] panels.refreshTargeted failed:", err); }
+    return;
+  }
+
   if (panels && typeof panels.refreshAll === "function") {
     try { panels.refreshAll(); } catch (err) { console.warn("[UTIL] panels.refreshAll failed:", err); }
     return;
@@ -169,6 +197,28 @@ function _doRefresh() {
   refresh(first("#panel-units"), "/panel/units");
 }
 
+// Emit a semantic event — dispatches CustomEvent + triggers appropriate panel refresh
+function emitCADEvent(eventType, detail = null) {
+  try {
+    document.dispatchEvent(new CustomEvent(eventType, { detail: detail, bubbles: true }));
+  } catch (e) { /* ignore */ }
+
+  // Map event types to panel targets for targeted refresh
+  switch (eventType) {
+    case EVENTS.UNITS_CHANGED:
+      refreshPanels({ source: eventType, panels: ["units", "active"] });
+      break;
+    case EVENTS.INCIDENTS_CHANGED:
+      refreshPanels({ source: eventType, panels: ["active", "open"] });
+      break;
+    case EVENTS.HELD_CHANGED:
+      refreshPanels({ source: eventType, panels: ["active"] });
+      break;
+    default:
+      refreshPanels({ source: eventType });
+  }
+}
+
 // Legacy alias
 function emitIncidentUpdated(detail = null) {
   refreshPanels(detail);
@@ -194,9 +244,11 @@ export const CAD_UTIL = {
   notify,
   confirm: confirmAction,
   refreshPanels,
+  emitCADEvent,
   emitIncidentUpdated,
   reopenIAW,
   REFRESH_EVENT,
+  EVENTS,
 };
 
 export default CAD_UTIL;
@@ -209,4 +261,8 @@ window.refreshUnitsPanel = () => refreshPanels({ source: "legacy-units" });
 window.refreshActivePanel = () => refreshPanels({ source: "legacy-active" });
 window.refreshOpenPanel = () => refreshPanels({ source: "legacy-open" });
 window.refreshHeldPanel = () => refreshPanels({ source: "legacy-held" });
+
+// Semantic event bus — global exposure for inline scripts / templates
+window.emitCADEvent = emitCADEvent;
+window.CAD_EVENTS = EVENTS;
 

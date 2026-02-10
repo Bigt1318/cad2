@@ -119,11 +119,15 @@ class EmailDelivery(DeliveryChannel):
         from_name = get_config("from_name", "FORD CAD System")
 
         if not api_key:
+            logger.info(
+                "SendGrid disabled — would send email to=%s subject=%r body_len=%d",
+                recipient, subject, len(body_text),
+            )
             return DeliveryResult(
                 success=False,
                 recipient=recipient,
                 channel="email",
-                error="SendGrid API key not configured",
+                error="SendGrid API key not configured — delivery skipped (logged)",
             )
 
         # Build content
@@ -203,11 +207,15 @@ class EmailDelivery(DeliveryChannel):
         from_name = get_config("from_name", "FORD CAD System")
 
         if not user or not password:
+            logger.info(
+                "SMTP disabled — would send email to=%s subject=%r body_len=%d",
+                recipient, subject, len(body_text),
+            )
             return DeliveryResult(
                 success=False,
                 recipient=recipient,
                 channel="email",
-                error="SMTP not configured",
+                error="SMTP not configured — delivery skipped (logged)",
             )
 
         try:

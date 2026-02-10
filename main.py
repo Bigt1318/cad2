@@ -156,6 +156,18 @@ except ImportError as e:
 except Exception as e:
     print(f"[MAIN] Themes module error: {e}")
 
+# ================================================================
+# CALENDAR MODULE (Google Calendar Integration)
+# ================================================================
+try:
+    from app.calendar import register_calendar_routes
+    register_calendar_routes(app)
+    print("[MAIN] Calendar module loaded")
+except ImportError as e:
+    print(f"[MAIN] Calendar module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Calendar module error: {e}")
+
 # ------------------------------------------------
 # Middleware: guarantee every mutation is written to MasterLog
 # ------------------------------------------------
@@ -287,7 +299,7 @@ async def root_view(request: Request):
             "unit": unit,
             "user": user,
             "display_name": request.session.get("display_name") or user,
-            "headshot": request.session.get("headshot") or "",
+            "headshot": request.session.get("headshot") or _resolve_headshot(request.session.get("display_name") or user),
             "is_admin": bool(request.session.get("is_admin") or False),
         }
     )
@@ -1160,6 +1172,14 @@ def sync_units_table():
                 (unit_id, name, unit_type, final_status, _ts(), icon, is_apparatus, is_command, is_mutual_aid)
             )
 
+        # Phase-3: seed UserAccounts so every UnitLog personnel has a minimal account row
+        _now = _ts()
+        _acct_role = "ADMIN" if unit_id in ADMIN_UNITS else ("COMMAND" if is_command else "")
+        c.execute("""
+            INSERT OR IGNORE INTO UserAccounts (unit_id, display_name, role, is_admin, require_password, created, updated)
+            VALUES (?, ?, ?, ?, 0, ?, ?)
+        """, (unit_id, name, _acct_role, 1 if unit_id in ADMIN_UNITS else 0, _now, _now))
+
     conn.commit()
     conn.close()
 
@@ -1725,6 +1745,10 @@ def ensure_phase3_schema():
     _add_col("ALTER TABLE Incidents ADD COLUMN location TEXT")
     _add_col("ALTER TABLE Incidents ADD COLUMN node TEXT")
     _add_col("ALTER TABLE Incidents ADD COLUMN pole TEXT")
+    _add_col("ALTER TABLE Incidents ADD COLUMN pole_alpha TEXT")
+    _add_col("ALTER TABLE Incidents ADD COLUMN pole_alpha_dec TEXT")
+    _add_col("ALTER TABLE Incidents ADD COLUMN pole_number TEXT")
+    _add_col("ALTER TABLE Incidents ADD COLUMN pole_number_dec TEXT")
 
     _add_col("ALTER TABLE Incidents ADD COLUMN priority INTEGER")
     _add_col("ALTER TABLE Incidents ADD COLUMN caller_name TEXT")
@@ -2290,6 +2314,50 @@ def ensure_phase3_schema():
     """)
     _create_index("CREATE INDEX IF NOT EXISTS idx_contacts_unit ON Contacts(unit_id)")
 
+    # ALTER Contacts: add extended fields (idempotent)
+    for col, typedef in [
+        ("department_id", "INTEGER"),
+        ("signal_contact", "TEXT"),
+        ("webex_contact", "TEXT"),
+        ("photo_url", "TEXT"),
+        ("title", "TEXT"),
+        ("notes", "TEXT"),
+        ("address", "TEXT"),
+        ("emergency_contact_name", "TEXT"),
+        ("emergency_contact_phone", "TEXT"),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE Contacts ADD COLUMN {col} {typedef}")
+        except Exception:
+            pass  # column already exists
+
+    # --------------------------------------------------
+    # CONTACT DEPARTMENTS
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS ContactDepartments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            display_order INTEGER DEFAULT 0,
+            shift_model TEXT DEFAULT '8h',
+            is_active INTEGER DEFAULT 1
+        )
+    """)
+
+    # --------------------------------------------------
+    # CONTACT SHIFT ASSIGNMENTS
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS ContactShiftAssignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contact_id INTEGER NOT NULL,
+            department_id INTEGER NOT NULL,
+            shift_label TEXT,
+            FOREIGN KEY (contact_id) REFERENCES Contacts(contact_id),
+            FOREIGN KEY (department_id) REFERENCES ContactDepartments(id)
+        )
+    """)
+
     # --------------------------------------------------
     # HISTORY MODULE TABLES (Call History Viewer)
     # --------------------------------------------------
@@ -2328,6 +2396,68 @@ def ensure_phase3_schema():
     """)
     _create_index("CREATE INDEX IF NOT EXISTS idx_incident_deliveries_incident ON incident_deliveries(incident_id)")
 
+    # --------------------------------------------------
+    # EMPLOYEE PROFILES
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmployeeProfiles (
+            unit_id TEXT PRIMARY KEY,
+            employee_number TEXT,
+            rank TEXT,
+            hire_date TEXT,
+            dob TEXT,
+            personal_phone TEXT,
+            personal_email TEXT,
+            address_line1 TEXT,
+            address_line2 TEXT,
+            address_city TEXT,
+            address_state TEXT,
+            address_zip TEXT,
+            blood_type TEXT,
+            notes TEXT,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+
+    # --------------------------------------------------
+    # EMERGENCY CONTACTS (for employee profiles)
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmergencyContacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit_id TEXT NOT NULL,
+            name TEXT,
+            relationship TEXT,
+            phone TEXT,
+            email TEXT,
+            is_primary INTEGER DEFAULT 0,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+    _create_index("CREATE INDEX IF NOT EXISTS idx_emergency_contacts_unit ON EmergencyContacts(unit_id)")
+
+    # --------------------------------------------------
+    # EMPLOYEE CERTIFICATIONS
+    # --------------------------------------------------
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS EmployeeCertifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit_id TEXT NOT NULL,
+            cert_name TEXT,
+            issuing_authority TEXT,
+            cert_number TEXT,
+            issue_date TEXT,
+            expiration_date TEXT,
+            status TEXT DEFAULT 'ACTIVE',
+            notes TEXT,
+            created TEXT,
+            updated TEXT
+        )
+    """)
+    _create_index("CREATE INDEX IF NOT EXISTS idx_employee_certs_unit ON EmployeeCertifications(unit_id)")
+
     conn.commit()
     conn.close()
     _SCHEMA_INIT_DONE = True
@@ -2347,25 +2477,59 @@ async def create_incident(request: Request):
     if not require_role(request, "CALLTAKER"):
         return JSONResponse(status_code=403, content={"ok": False, "error": "Insufficient role: CALLTAKER required"})
 
+    # Accept optional JSON body to prefill draft fields
+    prefill = {}
+    try:
+        body = await request.body()
+        if body:
+            prefill = await request.json()
+    except Exception:
+        prefill = {}
+
     ts = _ts()
+
+    # Build prefill columns/values from allowed fields
+    prefill_fields = [
+        "type", "priority", "location", "node", "pole", "narrative",
+        "caller_name", "caller_phone", "address", "cross_street", "nature",
+        "shift", "status",
+    ]
+    extra_cols = []
+    extra_vals = []
+    for field in prefill_fields:
+        val = prefill.get(field)
+        if val is not None:
+            val_str = str(val).strip() if isinstance(val, str) else val
+            extra_cols.append(field)
+            extra_vals.append(val_str)
 
     conn = get_conn()
     c = conn.cursor()
 
-    c.execute("""
-        INSERT INTO Incidents (
-            is_draft,
-            status,
-            created,
-            updated
+    if extra_cols:
+        col_list = ", ".join(["is_draft", "status", "created", "updated"] + extra_cols)
+        placeholders = ", ".join(["?"] * (4 + len(extra_cols)))
+        # Use prefill status if provided, else 'OPEN'
+        status = prefill.get("status", "OPEN") or "OPEN"
+        c.execute(
+            f"INSERT INTO Incidents ({col_list}) VALUES ({placeholders})",
+            [1, status, ts, ts] + extra_vals,
         )
-        VALUES (
-            1,
-            'OPEN',
-            ?,
-            ?
-        )
-    """, (ts, ts))
+    else:
+        c.execute("""
+            INSERT INTO Incidents (
+                is_draft,
+                status,
+                created,
+                updated
+            )
+            VALUES (
+                1,
+                'OPEN',
+                ?,
+                ?
+            )
+        """, (ts, ts))
 
     incident_id = c.lastrowid
 
@@ -2464,12 +2628,14 @@ async def save_incident(request: Request, incident_id: int):
         or (data.get("callerPhone") or "").strip()
     )
 
+    # Parse pole sub-fields and store them separately
+    pa = (data.get("pole_alpha") or "").strip()
+    pad = (data.get("pole_alpha_dec") or "").strip()
+    pn = (data.get("pole_number") or data.get("pole_num") or "").strip()
+    pnd = (data.get("pole_number_dec") or data.get("pole_num_dec") or "").strip()
+
     pole = (data.get("pole") or "").strip()
     if not pole:
-        pa = (data.get("pole_alpha") or "").strip()
-        pad = (data.get("pole_alpha_dec") or "").strip()
-        pn = (data.get("pole_number") or data.get("pole_num") or "").strip()
-        pnd = (data.get("pole_number_dec") or data.get("pole_num_dec") or "").strip()
         # Build alpha part with dot separator: "A" + "2" → "A.2"
         alpha_part = pa
         if pad:
@@ -2543,6 +2709,10 @@ async def save_incident(request: Request, incident_id: int):
                 location=?,
                 node=?,
                 pole=?,
+                pole_alpha=?,
+                pole_alpha_dec=?,
+                pole_number=?,
+                pole_number_dec=?,
                 shift=?,
                 caller_name=?,
                 caller_phone=?,
@@ -2560,6 +2730,10 @@ async def save_incident(request: Request, incident_id: int):
                 data.get("location"),
                 data.get("node"),
                 pole,
+                pa,
+                pad,
+                pn,
+                pnd,
                 shift,
                 caller_name,
                 caller_phone,
@@ -3418,14 +3592,14 @@ def _get_user_account(unit_id: str) -> dict | None:
 
 
 def _resolve_headshot(display_name: str) -> str:
-    """Return URL path to headshot image if it exists on disk, else empty string."""
+    """Return URL path to headshot image if it exists on disk, else default silhouette."""
     if not display_name:
-        return ""
+        return "/static/images/headshots/_default.png"
     slug = "".join(ch for ch in display_name.lower() if ch.isalpha())
     path = os.path.join("static", "images", "headshots", f"{slug}.jpg")
     if os.path.isfile(path):
         return f"/static/images/headshots/{slug}.jpg"
-    return ""
+    return "/static/images/headshots/_default.png"
 
 
 def _upsert_user_account(unit_id: str, display_name: str, is_admin: bool, require_password: bool, password: str | None) -> dict:
@@ -6462,8 +6636,10 @@ def dispatch_units_to_incident(incident_id: int, units: list[str], user: str, fo
                 return False
 
             if not unit_is_dispatchable(unit):
-                skipped.append(f"{unit_id} (not available)")
-                return False
+                if not force:
+                    skipped.append(f"{unit_id} (not available)")
+                    return False
+                # force=True: continue to assignment logic (will auto-clear old assignment below)
 
             if _is_committed_elsewhere_tx(unit_id):
                 if force:
@@ -6932,7 +7108,8 @@ async def incident_edit_data(request: Request, incident_id: int):
             "time": time_str,
             "location": data.get("location") or "",
             "node": data.get("node") or "",
-            "pole_alpha": data.get("pole_alpha") or data.get("pole") or "",
+            "pole": data.get("pole") or "",
+            "pole_alpha": data.get("pole_alpha") or "",
             "pole_alpha_dec": data.get("pole_alpha_dec") or "",
             "pole_number": data.get("pole_number") or "",
             "pole_number_dec": data.get("pole_number_dec") or "",
@@ -8610,11 +8787,14 @@ async def api_clear_all_and_close(incident_id: int, request: Request):
     except Exception:
         payload = {}
 
-    disposition = (payload.get("disposition") or "").strip()
+    disposition = (payload.get("disposition") or "").strip().upper()
     comment = (payload.get("comment") or "").strip()
 
     if not disposition:
         raise HTTPException(status_code=400, detail="Disposition required")
+
+    if disposition not in VALID_EVENT_DISPO:
+        raise HTTPException(status_code=400, detail=f"Invalid disposition code: {disposition}")
 
     user = request.session.get("user", "Dispatcher")
 
@@ -9241,6 +9421,7 @@ async def uaw_clear_unit(request: Request):
     unit_id = (data.get("unit_id") or "").strip()
     disposition = (data.get("disposition") or "").strip()
     comment = (data.get("comment") or data.get("remark") or "").strip()
+    force = bool(data.get("force", False))
 
     if not incident_id or not unit_id:
         return {"ok": False, "error": "incident_id and unit_id required"}
@@ -9275,7 +9456,8 @@ async def uaw_clear_unit(request: Request):
                 pass
 
     # Re-check disposition requirement after potentially saving one
-    if requires and not disposition and not _assignment_has_disposition_tx(c, incident_id, unit_id):
+    # force=True skips disposition requirement (used by self-initiate auto-clear)
+    if not force and requires and not disposition and not _assignment_has_disposition_tx(c, incident_id, unit_id):
         conn.close()
         return {
             "ok": False,
@@ -9297,12 +9479,21 @@ async def uaw_clear_unit(request: Request):
     except Exception:
         pass
 
-    # If you have finalize logic, keep it
-    try:
-        finalize_incident_if_clear(incident_id)
-    except Exception:
-        pass
+    # Check if all units are now cleared — prompt for event disposition
+    conn2 = get_conn()
+    c2 = conn2.cursor()
+    remaining = c2.execute(
+        "SELECT COUNT(*) FROM UnitAssignments WHERE incident_id = ? AND cleared IS NULL",
+        (incident_id,)
+    ).fetchone()[0]
+    conn2.close()
 
+    if remaining == 0:
+        return {
+            "ok": True, "requires_disposition": False,
+            "requires_event_disposition": True, "last_unit_cleared": True,
+            "incident_id": incident_id, "disposition": disposition
+        }
     return {"ok": True, "requires_disposition": False, "disposition": disposition}
 
 
@@ -9389,12 +9580,13 @@ async def uaw_clear_all(request: Request):
 
     incident_history(incident_id, "CLEAR_ALL", user=user, details="All units cleared")
 
-    try:
-        finalize_incident_if_clear(incident_id)
-    except Exception:
-        pass
-
-    return {"ok": True, "requires_disposition": False}
+    return {
+        "ok": True,
+        "requires_disposition": False,
+        "requires_event_disposition": True,
+        "last_unit_cleared": True,
+        "incident_id": incident_id
+    }
 
 # ================================================================
 # PANEL DATA LOADERS (FILTERED — DRAFT SAFE)
@@ -10027,16 +10219,10 @@ async def shift_coverage_modal(request: Request):
 
 @app.get("/modals/calendar", response_class=HTMLResponse)
 async def calendar_modal(request: Request):
-    """Calendar modal for scheduling and shift management."""
-    import datetime
-    today = datetime.date.today()
+    """Calendar modal with Google Calendar integration."""
     return templates.TemplateResponse(
         "modals/calendar_modal.html",
-        {
-            "request": request,
-            "current_month": today.strftime("%B %Y"),
-            "today": today.isoformat(),
-        },
+        {"request": request},
     )
 
 
@@ -10079,9 +10265,10 @@ async def roster_modal(request: Request):
 @app.get("/modals/contacts", response_class=HTMLResponse)
 async def contacts_modal(request: Request):
     """Contacts directory modal."""
+    is_admin = bool(request.session.get("is_admin"))
     return templates.TemplateResponse(
         "modals/contacts_modal.html",
-        {"request": request},
+        {"request": request, "is_admin": is_admin},
     )
 
 
@@ -10338,7 +10525,7 @@ async def export_nfirs_data(request: Request, incident_id: int):
     nfirs_export = {
         "header": {
             "state": "KY",  # Configure as needed
-            "fdid": "BOSK",  # BlueOval SK Fire Department ID
+            "fdid": "FORD",  # Ford Fire Department ID
             "incident_number": incident.get("incident_number"),
             "exposure": 0,
         },
@@ -11731,6 +11918,12 @@ async def admin_response_plans_page(request: Request):
         {"request": request}
     )
 
+@app.get("/admin/response-plans", response_class=HTMLResponse)
+async def admin_response_plans_redirect(request: Request):
+    """Redirect hyphenated URL to canonical underscore route."""
+    from starlette.responses import RedirectResponse
+    return RedirectResponse("/admin/response_plans", status_code=301)
+
 
 # ------------------------------------------------------
 # ANALYTICS DASHBOARD
@@ -11950,6 +12143,29 @@ async def get_analytics(
     unit_labels = [r["unit_id"] for r in unit_rows]
     unit_data = [r["runs"] for r in unit_rows]
 
+    # Incidents by shift (based on hour: A=07-15, B=15-23, C=23-07)
+    shift_counts = {"A": 0, "B": 0, "C": 0}
+    shift_rows = c.execute("""
+        SELECT substr(created, 12, 2) as hour, COUNT(*) as count
+        FROM Incidents
+        WHERE incident_number IS NOT NULL
+          AND created >= ? AND created <= ?
+        GROUP BY hour
+    """, (start_date, end_date)).fetchall()
+    for sr in shift_rows:
+        try:
+            h = int(sr["hour"])
+            if 7 <= h < 15:
+                shift_counts["A"] += sr["count"]
+            elif 15 <= h < 23:
+                shift_counts["B"] += sr["count"]
+            else:
+                shift_counts["C"] += sr["count"]
+        except:
+            pass
+    shift_labels = list(shift_counts.keys())
+    shift_data = list(shift_counts.values())
+
     # Active units count
     active_units = c.execute("SELECT COUNT(*) FROM Units WHERE status != 'UNAVAILABLE'").fetchone()[0]
 
@@ -11980,7 +12196,9 @@ async def get_analytics(
         "response_distribution": response_distribution,
         "unit_labels": unit_labels,
         "unit_data": unit_data,
-        "response_by_type": response_by_type_list
+        "response_by_type": response_by_type_list,
+        "shift_labels": shift_labels,
+        "shift_data": shift_data
     }
 
 
@@ -12687,25 +12905,23 @@ def api_admin_units_list(user: str = "DISPATCH"):
     if not _is_admin(user):
         return JSONResponse({"ok": False, "error": "Admin access required"}, status_code=403)
 
-    conn = get_conn()
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute("""
-        SELECT unit_id, name, unit_type, status, icon,
-               is_apparatus, is_command, is_mutual_aid,
-               display_order, aliases, last_updated
-        FROM Units
-        ORDER BY
-            CASE WHEN is_apparatus = 1 THEN 1
-                 WHEN is_command = 1 THEN 2
-                 ELSE 3 END,
-            display_order ASC,
-            unit_id ASC
-    """).fetchall()
-    conn.close()
+    # Use canonical ordering: command → personnel → apparatus → mutual aid → other
+    ordered = get_units_for_panel()
+
+    # Extract admin-relevant fields
+    admin_fields = [
+        "unit_id", "name", "unit_type", "status", "icon",
+        "is_apparatus", "is_command", "is_mutual_aid",
+        "display_order", "aliases", "last_updated",
+    ]
+    units_out = []
+    for u in ordered:
+        entry = {k: u.get(k) for k in admin_fields}
+        units_out.append(entry)
 
     return {
         "ok": True,
-        "units": [dict(r) for r in rows]
+        "units": units_out
     }
 
 
@@ -13349,15 +13565,17 @@ async def search_modal(request: Request):
 
 @app.get("/api/roster")
 async def api_roster_list():
-    """List all personnel from UnitRoster + PersonnelAssignments."""
+    """List all personnel from UnitRoster + PersonnelAssignments, with display_name/headshot."""
     ensure_phase3_schema()
     conn = get_conn()
     try:
-        # Get unit roster entries
+        # Get unit roster entries with display names
         roster = conn.execute("""
-            SELECT unit_id, shift_letter, home_shift_letter, updated
-            FROM UnitRoster
-            ORDER BY unit_id
+            SELECT r.unit_id, r.shift_letter, r.home_shift_letter, r.updated,
+                   COALESCE(ua.display_name, r.unit_id) AS display_name
+            FROM UnitRoster r
+            LEFT JOIN UserAccounts ua ON UPPER(r.unit_id) = UPPER(ua.unit_id)
+            ORDER BY r.unit_id
         """).fetchall()
 
         # Get personnel assignments
@@ -13367,19 +13585,42 @@ async def api_roster_list():
             ORDER BY apparatus_id, personnel_id
         """).fetchall()
 
-        # Get apparatus (units)
-        apparatus = conn.execute("""
-            SELECT unit_id, status, unit_type, department
+        # Get all active units
+        all_units = conn.execute("""
+            SELECT unit_id, status, unit_type, department,
+                   COALESCE(is_apparatus, 0) AS is_apparatus,
+                   COALESCE(is_mutual_aid, 0) AS is_mutual_aid,
+                   name
             FROM Units
             WHERE status != 'INACTIVE'
             ORDER BY unit_id
         """).fetchall()
 
+        # Separate into units (personnel) and apparatus
+        units_list = []
+        apparatus_list = []
+        for u in all_units:
+            ud = dict(u)
+            # Resolve headshot for non-apparatus units
+            if not ud.get("is_apparatus"):
+                ud["headshot"] = _resolve_headshot(ud.get("name") or ud["unit_id"])
+                units_list.append(ud)
+            else:
+                apparatus_list.append(ud)
+
+        # Enrich roster with headshots
+        roster_out = []
+        for r in roster:
+            rd = dict(r)
+            rd["headshot"] = _resolve_headshot(rd.get("display_name") or rd["unit_id"])
+            roster_out.append(rd)
+
         return {
             "ok": True,
-            "roster": [dict(r) for r in roster],
+            "roster": roster_out,
             "personnel": [dict(r) for r in personnel],
-            "apparatus": [dict(r) for r in apparatus],
+            "apparatus": apparatus_list,
+            "units": units_list,
         }
     finally:
         conn.close()
@@ -13945,17 +14186,31 @@ async def api_crew_get(apparatus_id: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/contacts")
-async def api_contacts_list():
-    """List all contacts."""
+async def api_contacts_list(department_id: int | None = None, shift: str | None = None):
+    """List all contacts, optionally filtered by department and shift."""
     ensure_phase3_schema()
     conn = get_conn()
     try:
-        rows = conn.execute("""
-            SELECT contact_id, unit_id, name, email, phone, carrier,
-                   signal_number, role, is_active, receive_reports
-            FROM Contacts
-            ORDER BY name, unit_id
-        """).fetchall()
+        sql = """
+            SELECT c.contact_id, c.unit_id, c.name, c.email, c.phone, c.carrier,
+                   c.signal_number, c.role, c.is_active, c.receive_reports,
+                   c.department_id, c.title, c.photo_url, c.signal_contact, c.webex_contact,
+                   d.name AS department_name
+            FROM Contacts c
+            LEFT JOIN ContactDepartments d ON c.department_id = d.id
+        """
+        params = []
+        wheres = []
+        if department_id is not None:
+            wheres.append("c.department_id = ?")
+            params.append(department_id)
+        if shift:
+            wheres.append("c.contact_id IN (SELECT contact_id FROM ContactShiftAssignments WHERE shift_label = ?)")
+            params.append(shift)
+        if wheres:
+            sql += " WHERE " + " AND ".join(wheres)
+        sql += " ORDER BY c.name, c.unit_id"
+        rows = conn.execute(sql, params).fetchall()
         contacts = [dict(r) for r in rows]
         return {"ok": True, "contacts": contacts}
     finally:
@@ -13993,6 +14248,15 @@ async def api_contact_create(request: Request):
     role = str(data.get("role", "")).strip() or None
     is_active = 1 if data.get("is_active", True) else 0
     receive_reports = 1 if data.get("receive_reports", False) else 0
+    department_id = data.get("department_id") or None
+    title = str(data.get("title", "")).strip() or None
+    photo_url = str(data.get("photo_url", "")).strip() or None
+    signal_contact = str(data.get("signal_contact", "")).strip() or None
+    webex_contact = str(data.get("webex_contact", "")).strip() or None
+    notes = str(data.get("notes", "")).strip() or None
+    address = str(data.get("address", "")).strip() or None
+    emergency_contact_name = str(data.get("emergency_contact_name", "")).strip() or None
+    emergency_contact_phone = str(data.get("emergency_contact_phone", "")).strip() or None
 
     ts = _ts()
 
@@ -14000,9 +14264,13 @@ async def api_contact_create(request: Request):
     try:
         c = conn.execute("""
             INSERT INTO Contacts
-            (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports, created, updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports, ts, ts))
+            (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports,
+             department_id, title, photo_url, signal_contact, webex_contact, notes, address,
+             emergency_contact_name, emergency_contact_phone, created, updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports,
+              department_id, title, photo_url, signal_contact, webex_contact, notes, address,
+              emergency_contact_name, emergency_contact_phone, ts, ts))
         conn.commit()
         return {"ok": True, "contact_id": c.lastrowid}
     finally:
@@ -14020,20 +14288,30 @@ async def api_contact_update(contact_id: int, request: Request):
         existing = conn.execute("SELECT * FROM Contacts WHERE contact_id=?", (contact_id,)).fetchone()
         if not existing:
             return {"ok": False, "error": "Contact not found"}
+        ex = dict(existing)
 
-        unit_id = str(data.get("unit_id", existing["unit_id"] or "")).strip() or None
-        name = str(data.get("name", existing["name"] or "")).strip()
-        email = str(data.get("email", existing["email"] or "")).strip() or None
-        phone = str(data.get("phone", existing["phone"] or "")).strip() or None
-        carrier = str(data.get("carrier", existing["carrier"] or "")).strip() or None
-        signal_number = str(data.get("signal_number", existing["signal_number"] or "")).strip() or None
-        role = str(data.get("role", existing["role"] or "")).strip() or None
+        unit_id = str(data.get("unit_id", ex.get("unit_id") or "")).strip() or None
+        name = str(data.get("name", ex.get("name") or "")).strip()
+        email = str(data.get("email", ex.get("email") or "")).strip() or None
+        phone = str(data.get("phone", ex.get("phone") or "")).strip() or None
+        carrier = str(data.get("carrier", ex.get("carrier") or "")).strip() or None
+        signal_number = str(data.get("signal_number", ex.get("signal_number") or "")).strip() or None
+        role = str(data.get("role", ex.get("role") or "")).strip() or None
+        title = str(data.get("title", ex.get("title") or "")).strip() or None
+        photo_url = str(data.get("photo_url", ex.get("photo_url") or "")).strip() or None
+        signal_contact = str(data.get("signal_contact", ex.get("signal_contact") or "")).strip() or None
+        webex_contact = str(data.get("webex_contact", ex.get("webex_contact") or "")).strip() or None
+        notes = str(data.get("notes", ex.get("notes") or "")).strip() or None
+        address = str(data.get("address", ex.get("address") or "")).strip() or None
+        emergency_contact_name = str(data.get("emergency_contact_name", ex.get("emergency_contact_name") or "")).strip() or None
+        emergency_contact_phone = str(data.get("emergency_contact_phone", ex.get("emergency_contact_phone") or "")).strip() or None
+        department_id = data.get("department_id", ex.get("department_id")) or None
 
-        is_active = existing["is_active"]
+        is_active = ex.get("is_active", 1)
         if "is_active" in data:
             is_active = 1 if data["is_active"] else 0
 
-        receive_reports = existing["receive_reports"]
+        receive_reports = ex.get("receive_reports", 0)
         if "receive_reports" in data:
             receive_reports = 1 if data["receive_reports"] else 0
 
@@ -14042,9 +14320,13 @@ async def api_contact_update(contact_id: int, request: Request):
         conn.execute("""
             UPDATE Contacts
             SET unit_id=?, name=?, email=?, phone=?, carrier=?, signal_number=?, role=?,
-                is_active=?, receive_reports=?, updated=?
+                is_active=?, receive_reports=?, department_id=?, title=?, photo_url=?,
+                signal_contact=?, webex_contact=?, notes=?, address=?,
+                emergency_contact_name=?, emergency_contact_phone=?, updated=?
             WHERE contact_id=?
-        """, (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports, ts, contact_id))
+        """, (unit_id, name, email, phone, carrier, signal_number, role, is_active, receive_reports,
+              department_id, title, photo_url, signal_contact, webex_contact, notes, address,
+              emergency_contact_name, emergency_contact_phone, ts, contact_id))
         conn.commit()
         return {"ok": True}
     finally:
@@ -14062,6 +14344,143 @@ async def api_contact_delete(contact_id: int):
         return {"ok": True}
     finally:
         conn.close()
+
+
+# ---- Contact Departments ----
+
+@app.get("/api/contacts/departments")
+async def api_contact_departments_list():
+    """List all contact departments."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM ContactDepartments WHERE is_active=1 ORDER BY display_order, name").fetchall()
+        return {"ok": True, "departments": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/contacts/departments")
+async def api_contact_department_create(request: Request):
+    """Create a contact department (admin)."""
+    ensure_phase3_schema()
+    data = await request.json()
+    name = str(data.get("name", "")).strip()
+    if not name:
+        return {"ok": False, "error": "Name is required"}
+    shift_model = str(data.get("shift_model", "8h")).strip()
+    display_order = int(data.get("display_order", 0))
+    conn = get_conn()
+    try:
+        c = conn.execute(
+            "INSERT INTO ContactDepartments (name, display_order, shift_model) VALUES (?, ?, ?)",
+            (name, display_order, shift_model)
+        )
+        conn.commit()
+        return {"ok": True, "id": c.lastrowid}
+    finally:
+        conn.close()
+
+
+@app.put("/api/contacts/departments/{dept_id}")
+async def api_contact_department_update(dept_id: int, request: Request):
+    """Update a contact department (admin)."""
+    ensure_phase3_schema()
+    data = await request.json()
+    conn = get_conn()
+    try:
+        existing = conn.execute("SELECT * FROM ContactDepartments WHERE id=?", (dept_id,)).fetchone()
+        if not existing:
+            return {"ok": False, "error": "Department not found"}
+        name = str(data.get("name", existing["name"])).strip()
+        shift_model = str(data.get("shift_model", existing["shift_model"])).strip()
+        display_order = int(data.get("display_order", existing["display_order"]))
+        conn.execute(
+            "UPDATE ContactDepartments SET name=?, shift_model=?, display_order=? WHERE id=?",
+            (name, shift_model, display_order, dept_id)
+        )
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/contacts/departments/{dept_id}")
+async def api_contact_department_delete(dept_id: int):
+    """Delete (deactivate) a contact department."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        conn.execute("UPDATE ContactDepartments SET is_active=0 WHERE id=?", (dept_id,))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.get("/api/contacts/{contact_id}/card")
+async def api_contact_card(contact_id: int):
+    """Full contact card with all fields including department info."""
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        row = conn.execute("""
+            SELECT c.*, d.name AS department_name, d.shift_model
+            FROM Contacts c
+            LEFT JOIN ContactDepartments d ON c.department_id = d.id
+            WHERE c.contact_id=?
+        """, (contact_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "Contact not found"}
+        card = dict(row)
+        # Get shift assignments
+        shifts = conn.execute("""
+            SELECT csa.shift_label, d.name AS department_name
+            FROM ContactShiftAssignments csa
+            JOIN ContactDepartments d ON csa.department_id = d.id
+            WHERE csa.contact_id=?
+        """, (contact_id,)).fetchall()
+        card["shift_assignments"] = [dict(s) for s in shifts]
+        return {"ok": True, "contact": card}
+    finally:
+        conn.close()
+
+
+@app.post("/api/contacts/{contact_id}/send")
+async def api_contact_send(contact_id: int, request: Request):
+    """Send message via email/sms/signal/webex."""
+    ensure_phase3_schema()
+    data = await request.json()
+    message = str(data.get("message", "")).strip()
+    channel = str(data.get("channel", "email")).strip().lower()
+    if not message:
+        return {"ok": False, "error": "Message is required"}
+
+    conn = get_conn()
+    try:
+        contact = conn.execute("SELECT * FROM Contacts WHERE contact_id=?", (contact_id,)).fetchone()
+        if not contact:
+            return {"ok": False, "error": "Contact not found"}
+        contact = dict(contact)
+    finally:
+        conn.close()
+
+    try:
+        import reports
+        if channel == "email" and contact.get("email"):
+            success = reports.send_email(to=contact["email"], subject=f"CAD Message", body_text=message)
+            return {"ok": success, "channel": "email"}
+        elif channel == "sms" and contact.get("phone"):
+            success = reports.send_sms(contact["phone"], contact.get("carrier", ""), message)
+            return {"ok": success, "channel": "sms"}
+        elif channel == "signal" and (contact.get("signal_contact") or contact.get("signal_number")):
+            num = contact.get("signal_contact") or contact.get("signal_number")
+            success = reports.send_signal(num, message)
+            return {"ok": success, "channel": "signal"}
+        else:
+            return {"ok": False, "error": f"Contact missing {channel} info"}
+    except ImportError:
+        return {"ok": False, "error": "Reports module not available"}
 
 
 @app.post("/api/contacts/{contact_id}/message")
@@ -14108,6 +14527,419 @@ async def api_contact_send_message(contact_id: int, request: Request):
 
     except ImportError:
         return {"ok": False, "error": "Reports module not available"}
+
+
+# ================================================================
+# EMPLOYEE PROFILE SYSTEM
+# ================================================================
+
+@app.get("/modals/employee_profile", response_class=HTMLResponse)
+async def employee_profile_modal(request: Request, unit_id: str = ""):
+    """Render the employee profile modal."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not unit_id:
+        unit_id = user
+    is_own_profile = (unit_id.upper() == user)
+    return templates.TemplateResponse(
+        "modals/employee_profile_modal.html",
+        {"request": request, "unit_id": unit_id, "is_admin": is_admin, "is_own_profile": is_own_profile}
+    )
+
+
+@app.post("/api/employees/{unit_id}/photo")
+async def api_employee_photo_upload(unit_id: str, request: Request):
+    """Upload a headshot photo for an employee. Saves to static/images/headshots/."""
+    from starlette.datastructures import UploadFile as StarletteUpload
+    import shutil
+
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    is_own = (unit_id.upper() == user)
+    if not is_admin and not is_own:
+        return {"ok": False, "error": "Permission denied"}
+
+    form = await request.form()
+    photo = form.get("photo")
+    if not photo or not hasattr(photo, "read"):
+        return {"ok": False, "error": "No photo uploaded"}
+
+    # Resolve the slug for this unit
+    ensure_phase3_schema()
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT display_name FROM UserAccounts WHERE UPPER(unit_id)=UPPER(?)", (unit_id,)).fetchone()
+        display_name = row["display_name"] if row else unit_id
+    finally:
+        conn.close()
+
+    slug = "".join(ch for ch in display_name.lower() if ch.isalpha())
+    if not slug:
+        slug = "".join(ch for ch in unit_id.lower() if ch.isalnum())
+
+    headshots_dir = os.path.join("static", "images", "headshots")
+    os.makedirs(headshots_dir, exist_ok=True)
+    dest = os.path.join(headshots_dir, f"{slug}.jpg")
+
+    contents = await photo.read()
+    with open(dest, "wb") as f:
+        f.write(contents)
+
+    url = f"/static/images/headshots/{slug}.jpg"
+    # Update session headshot if own profile
+    if is_own:
+        request.session["headshot"] = url
+
+    return {"ok": True, "headshot": url}
+
+
+@app.get("/my-profile", response_class=HTMLResponse)
+async def my_profile_page(request: Request):
+    """Standalone self-service profile page."""
+    shift_letter = (request.session.get("shift_letter") or request.session.get("shift") or "").strip().upper()
+    if not shift_letter:
+        return RedirectResponse(url="/login", status_code=302)
+    user = (request.session.get("user") or "").strip() or "Dispatcher"
+    unit = (request.session.get("dispatcher_unit") or request.session.get("unit") or "").strip() or user
+    is_admin = bool(request.session.get("is_admin"))
+    return templates.TemplateResponse(
+        "my_profile.html",
+        {"request": request, "unit_id": unit, "is_admin": is_admin, "user": user}
+    )
+
+
+@app.get("/api/me")
+async def api_me(request: Request):
+    """Return current session user's profile summary."""
+    user = (request.session.get("user") or "").upper()
+    if not user:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Not logged in"})
+
+    display_name = request.session.get("display_name") or user
+    headshot = request.session.get("headshot") or _resolve_headshot(display_name)
+    shift = request.session.get("shift_letter") or ""
+    is_admin = bool(request.session.get("is_admin"))
+    role = request.session.get("role") or ""
+
+    return {
+        "ok": True,
+        "unit_id": user,
+        "display_name": display_name,
+        "headshot": headshot,
+        "shift_letter": shift,
+        "is_admin": is_admin,
+        "role": role
+    }
+
+
+@app.get("/api/employees/{unit_id}")
+async def api_employee_get(unit_id: str, request: Request):
+    """Get full employee profile (joins UserAccounts + EmployeeProfiles + headshot + assignment + shift)."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not user:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Not logged in"})
+    is_own = (unit_id.upper() == user)
+    can_see_sensitive = is_admin or is_own
+
+    conn = get_conn()
+    try:
+        # UserAccounts
+        acct = conn.execute("SELECT * FROM UserAccounts WHERE unit_id = ?", (unit_id,)).fetchone()
+        acct = dict(acct) if acct else {}
+
+        # EmployeeProfiles
+        prof = conn.execute("SELECT * FROM EmployeeProfiles WHERE unit_id = ?", (unit_id,)).fetchone()
+        prof = dict(prof) if prof else {}
+
+        # Units table for name/type
+        unit_row = conn.execute("SELECT * FROM Units WHERE unit_id = ?", (unit_id,)).fetchone()
+        unit_info = dict(unit_row) if unit_row else {}
+
+        # Current shift from UnitRoster
+        roster = conn.execute("SELECT shift_letter, home_shift_letter FROM UnitRoster WHERE unit_id = ?", (unit_id,)).fetchone()
+        shift_info = dict(roster) if roster else {}
+
+        # Current assignment
+        assignment = conn.execute(
+            "SELECT incident_id, assigned FROM UnitAssignments WHERE unit_id = ? AND cleared IS NULL ORDER BY assigned DESC LIMIT 1",
+            (unit_id,)
+        ).fetchone()
+        assign_info = dict(assignment) if assignment else {}
+
+        # Headshot
+        headshot = _resolve_headshot(acct.get("display_name") or unit_info.get("name") or unit_id)
+
+        return {
+            "ok": True,
+            "profile": {
+                "unit_id": unit_id,
+                "display_name": acct.get("display_name") or unit_info.get("name") or unit_id,
+                "employee_number": prof.get("employee_number", ""),
+                "rank": prof.get("rank", ""),
+                "hire_date": prof.get("hire_date", ""),
+                "dob": prof.get("dob", "") if can_see_sensitive else "",
+                "personal_phone": prof.get("personal_phone", "") if can_see_sensitive else "",
+                "personal_email": prof.get("personal_email", "") if can_see_sensitive else "",
+                "address_line1": prof.get("address_line1", "") if can_see_sensitive else "",
+                "address_line2": prof.get("address_line2", "") if can_see_sensitive else "",
+                "address_city": prof.get("address_city", "") if can_see_sensitive else "",
+                "address_state": prof.get("address_state", "") if can_see_sensitive else "",
+                "address_zip": prof.get("address_zip", "") if can_see_sensitive else "",
+                "blood_type": prof.get("blood_type", ""),
+                "notes": prof.get("notes", ""),
+                "unit_type": unit_info.get("unit_type", ""),
+                "status": unit_info.get("status", ""),
+                "shift_letter": shift_info.get("shift_letter", ""),
+                "home_shift_letter": shift_info.get("home_shift_letter", ""),
+                "current_incident": assign_info.get("incident_id"),
+                "headshot": headshot,
+                "role": acct.get("role", ""),
+            }
+        }
+    finally:
+        conn.close()
+
+
+@app.get("/api/employees/{unit_id}/activity")
+async def api_employee_activity(unit_id: str, request: Request):
+    """Return last 20 dispatch/incident events for the unit."""
+    user = (request.session.get("user") or "").upper()
+    if not user:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "Not logged in"})
+
+    conn = get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT ua.incident_id, ua.assigned, ua.enroute, ua.arrived, ua.cleared,
+                   i.type, i.location, i.priority, i.status as incident_status
+            FROM UnitAssignments ua
+            LEFT JOIN Incidents i ON ua.incident_id = i.id
+            WHERE ua.unit_id = ?
+            ORDER BY ua.assigned DESC LIMIT 20
+        """, (unit_id,)).fetchall()
+        return {"ok": True, "activity": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}")
+async def api_employee_upsert(unit_id: str, request: Request):
+    """Create or update employee profile (upsert)."""
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        existing = conn.execute("SELECT unit_id FROM EmployeeProfiles WHERE unit_id = ?", (unit_id,)).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE EmployeeProfiles SET
+                    employee_number=?, rank=?, hire_date=?, dob=?,
+                    personal_phone=?, personal_email=?,
+                    address_line1=?, address_line2=?, address_city=?, address_state=?, address_zip=?,
+                    blood_type=?, notes=?, updated=?
+                WHERE unit_id=?
+            """, (
+                data.get("employee_number", ""), data.get("rank", ""), data.get("hire_date", ""), data.get("dob", ""),
+                data.get("personal_phone", ""), data.get("personal_email", ""),
+                data.get("address_line1", ""), data.get("address_line2", ""),
+                data.get("address_city", ""), data.get("address_state", ""), data.get("address_zip", ""),
+                data.get("blood_type", ""), data.get("notes", ""), now, unit_id
+            ))
+        else:
+            conn.execute("""
+                INSERT INTO EmployeeProfiles
+                    (unit_id, employee_number, rank, hire_date, dob,
+                     personal_phone, personal_email,
+                     address_line1, address_line2, address_city, address_state, address_zip,
+                     blood_type, notes, created, updated)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (
+                unit_id,
+                data.get("employee_number", ""), data.get("rank", ""), data.get("hire_date", ""), data.get("dob", ""),
+                data.get("personal_phone", ""), data.get("personal_email", ""),
+                data.get("address_line1", ""), data.get("address_line2", ""),
+                data.get("address_city", ""), data.get("address_state", ""), data.get("address_zip", ""),
+                data.get("blood_type", ""), data.get("notes", ""), now, now
+            ))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# --- Emergency Contacts ---
+
+@app.get("/api/employees/{unit_id}/emergency_contacts")
+async def api_emergency_contacts_list(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM EmergencyContacts WHERE unit_id=? ORDER BY is_primary DESC, name", (unit_id,)).fetchall()
+        return {"ok": True, "contacts": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}/emergency_contacts")
+async def api_emergency_contact_add(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            INSERT INTO EmergencyContacts (unit_id, name, relationship, phone, email, is_primary, created, updated)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (unit_id, data.get("name",""), data.get("relationship",""), data.get("phone",""),
+              data.get("email",""), int(data.get("is_primary", 0)), now, now))
+        conn.commit()
+        return {"ok": True, "id": conn.execute("SELECT last_insert_rowid()").fetchone()[0]}
+    finally:
+        conn.close()
+
+
+@app.put("/api/employees/{unit_id}/emergency_contacts/{contact_id}")
+async def api_emergency_contact_update(unit_id: str, contact_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            UPDATE EmergencyContacts SET name=?, relationship=?, phone=?, email=?, is_primary=?, updated=?
+            WHERE id=? AND unit_id=?
+        """, (data.get("name",""), data.get("relationship",""), data.get("phone",""),
+              data.get("email",""), int(data.get("is_primary", 0)), now, contact_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/employees/{unit_id}/emergency_contacts/{contact_id}")
+async def api_emergency_contact_delete(unit_id: str, contact_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM EmergencyContacts WHERE id=? AND unit_id=?", (contact_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+# --- Employee Certifications ---
+
+@app.get("/api/employees/{unit_id}/certifications")
+async def api_certifications_list(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        rows = conn.execute("SELECT * FROM EmployeeCertifications WHERE unit_id=? ORDER BY expiration_date", (unit_id,)).fetchall()
+        return {"ok": True, "certifications": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/employees/{unit_id}/certifications")
+async def api_certification_add(unit_id: str, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            INSERT INTO EmployeeCertifications
+                (unit_id, cert_name, issuing_authority, cert_number, issue_date, expiration_date, status, notes, created, updated)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (unit_id, data.get("cert_name",""), data.get("issuing_authority",""), data.get("cert_number",""),
+              data.get("issue_date",""), data.get("expiration_date",""),
+              data.get("status","ACTIVE"), data.get("notes",""), now, now))
+        conn.commit()
+        return {"ok": True, "id": conn.execute("SELECT last_insert_rowid()").fetchone()[0]}
+    finally:
+        conn.close()
+
+
+@app.put("/api/employees/{unit_id}/certifications/{cert_id}")
+async def api_certification_update(unit_id: str, cert_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    data = await request.json()
+    now = datetime.datetime.now().isoformat()
+    conn = get_conn()
+    try:
+        conn.execute("""
+            UPDATE EmployeeCertifications SET
+                cert_name=?, issuing_authority=?, cert_number=?, issue_date=?, expiration_date=?, status=?, notes=?, updated=?
+            WHERE id=? AND unit_id=?
+        """, (data.get("cert_name",""), data.get("issuing_authority",""), data.get("cert_number",""),
+              data.get("issue_date",""), data.get("expiration_date",""),
+              data.get("status","ACTIVE"), data.get("notes",""), now, cert_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
+
+
+@app.delete("/api/employees/{unit_id}/certifications/{cert_id}")
+async def api_certification_delete(unit_id: str, cert_id: int, request: Request):
+    ensure_phase3_schema()
+    user = (request.session.get("user") or "").upper()
+    is_admin = bool(request.session.get("is_admin"))
+    if not is_admin and unit_id.upper() != user:
+        return JSONResponse(status_code=403, content={"ok": False, "error": "Access denied"})
+
+    conn = get_conn()
+    try:
+        conn.execute("DELETE FROM EmployeeCertifications WHERE id=? AND unit_id=?", (cert_id, unit_id))
+        conn.commit()
+        return {"ok": True}
+    finally:
+        conn.close()
 
 
 # ------------------------------------------------------
@@ -14533,7 +15365,8 @@ async def api_incident_edit(incident_id: int, request: Request):
 
     editable_fields = [
         "location", "address", "caller_name", "caller_phone", "type", "priority", "notes",
-        "node", "pole", "shift", "determinant_code", "nature", "cross_street",
+        "node", "pole", "pole_alpha", "pole_alpha_dec", "pole_number", "pole_number_dec",
+        "shift", "determinant_code", "nature", "cross_street",
     ]
     updates = {}
     for field in editable_fields:

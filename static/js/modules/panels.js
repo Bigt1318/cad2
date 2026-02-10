@@ -43,6 +43,24 @@ const PANELS = {
       PANELS.refreshAll();
     });
 
+    // Semantic events — targeted panel refresh
+    var EVT = CAD_UTIL.EVENTS || {};
+    if (EVT.UNITS_CHANGED) {
+      document.addEventListener(EVT.UNITS_CHANGED, function () {
+        PANELS.refreshTargeted(["units", "active"]);
+      });
+    }
+    if (EVT.INCIDENTS_CHANGED) {
+      document.addEventListener(EVT.INCIDENTS_CHANGED, function () {
+        PANELS.refreshTargeted(["active", "open"]);
+      });
+    }
+    if (EVT.HELD_CHANGED) {
+      document.addEventListener(EVT.HELD_CHANGED, function () {
+        PANELS.refreshTargeted(["active"]);
+      });
+    }
+
     // -------------------------------------------------------------
     // Delegated clicks (single-bind)
     // -------------------------------------------------------------
@@ -85,42 +103,61 @@ const PANELS = {
   },
 
   _refreshing: false,
+  _refreshQueued: false,
 
   refreshAll() {
     // Prevent overlapping refresh calls (htmx outerHTML swaps are async)
-    if (this._refreshing) return;
+    if (this._refreshing) {
+      this._refreshQueued = true;
+      return;
+    }
     this._refreshing = true;
 
-    var activeEl = document.querySelector("#panel-active");
-    var openEl = document.querySelector("#panel-open");
-    var unitsEl = document.querySelector("#panel-units");
+    this._doSwap(["active", "open", "units"]);
 
-    // IMPORTANT:
-    // In ES modules, referencing bare `htmx` is NOT reliable.
-    // Use window.htmx explicitly.
+    // Release lock after htmx has time to swap DOM, then run queued refresh
+    setTimeout(() => {
+      this._refreshing = false;
+      if (this._refreshQueued) {
+        this._refreshQueued = false;
+        this.refreshAll();
+      }
+    }, 500);
+  },
+
+  // Targeted refresh — only update specific panels
+  refreshTargeted(panelNames) {
+    if (!panelNames || !panelNames.length) {
+      this.refreshAll();
+      return;
+    }
+    this._doSwap(panelNames);
+  },
+
+  _doSwap(panelNames) {
     var hx = window.htmx;
     if (!hx || typeof hx.ajax !== "function") {
-      console.warn("[PANELS] refreshAll() skipped — window.htmx not available");
+      console.warn("[PANELS] refresh skipped — window.htmx not available");
       this._refreshing = false;
       return;
     }
 
+    var map = {
+      active: { sel: "#panel-active", url: "/panel/active" },
+      open:   { sel: "#panel-open",   url: "/panel/open" },
+      units:  { sel: "#panel-units",  url: "/panel/units" },
+    };
+
     try {
-      if (activeEl) {
-        hx.ajax("GET", "/panel/active", { target: activeEl, swap: "outerHTML" });
-      }
-      if (openEl) {
-        hx.ajax("GET", "/panel/open", { target: openEl, swap: "outerHTML" });
-      }
-      if (unitsEl) {
-        hx.ajax("GET", "/panel/units", { target: unitsEl, swap: "outerHTML" });
+      for (var name of panelNames) {
+        var cfg = map[name];
+        if (!cfg) continue;
+        var el = document.querySelector(cfg.sel);
+        if (el) hx.ajax("GET", cfg.url, { target: el, swap: "outerHTML" });
       }
     } catch (err3) {
-      console.warn("[PANELS] refreshAll() failed:", err3);
+      console.warn("[PANELS] refresh failed:", err3);
     }
-
-    // Release lock after htmx has time to swap DOM
-    setTimeout(() => { this._refreshing = false; }, 500);
   },
 
   // -------------------------------------------------------------------------

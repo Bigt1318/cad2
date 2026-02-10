@@ -1,4 +1,4 @@
-<!-- Roster Management Modal — DB-Driven CRUD -->
+<!-- Roster Management Modal — Enhanced with headshots, separated units/apparatus -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal roster-modal" role="dialog" aria-modal="true" aria-label="Roster Management">
     <div class="cad-modal-header">
@@ -37,7 +37,7 @@
                 <div class="form-row">
                     <input type="text" id="rf-role" placeholder="Role (e.g. Driver, Officer)">
                     <select id="rf-shift">
-                        <option value="">— Shift —</option>
+                        <option value="">-- Shift --</option>
                         <option value="A">A Shift</option>
                         <option value="B">B Shift</option>
                         <option value="C">C Shift</option>
@@ -62,116 +62,92 @@
 </div>
 
 <style>
-.roster-modal { min-width: 680px; max-height: 80vh; }
+.roster-modal { min-width: 700px; max-height: 85vh; }
 .roster-container { display: flex; flex-direction: column; gap: var(--space-3); }
 .roster-tabs {
-    display: flex;
-    gap: var(--space-1);
-    border-bottom: 1px solid var(--border-default);
-    padding-bottom: var(--space-2);
+    display: flex; gap: var(--space-1);
+    border-bottom: 1px solid var(--border-default); padding-bottom: var(--space-2);
 }
 .roster-tab {
-    padding: var(--space-2) var(--space-3);
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    font-weight: 600;
-    cursor: pointer;
+    padding: var(--space-2) var(--space-3); background: transparent; border: none;
+    color: var(--text-secondary); font-weight: 600; cursor: pointer;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 .roster-tab.active { background: var(--bg-elevated); color: var(--ford-blue); }
 .roster-tab:hover { color: var(--text-primary); }
 .roster-search input {
-    width: 100%;
-    padding: var(--space-2);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
+    width: 100%; padding: var(--space-2); background: var(--bg-elevated);
+    border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-primary);
 }
 .roster-form {
-    padding: var(--space-3);
-    background: var(--bg-elevated);
-    border: 1px solid var(--ford-blue);
-    border-radius: var(--radius-md);
+    padding: var(--space-3); background: var(--bg-elevated);
+    border: 1px solid var(--ford-blue); border-radius: var(--radius-md);
 }
 .roster-form .form-title { font-weight: 700; margin-bottom: var(--space-2); color: var(--text-primary); }
 .roster-form .form-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
-.roster-form .form-row input,
-.roster-form .form-row select {
-    flex: 1; padding: var(--space-2);
-    background: var(--bg-surface); border: 1px solid var(--border-default);
-    border-radius: var(--radius-md); color: var(--text-primary); font-size: var(--text-sm);
+.roster-form .form-row input, .roster-form .form-row select {
+    flex: 1; padding: var(--space-2); background: var(--bg-surface);
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    color: var(--text-primary); font-size: var(--text-sm);
 }
 .roster-form .form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
-.roster-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.roster-table th,
-.roster-table td {
-    padding: var(--space-2);
-    text-align: left;
-    border-bottom: 1px solid var(--border-light);
+.roster-table { width: 100%; border-collapse: collapse; }
+.roster-table th, .roster-table td {
+    padding: var(--space-2); text-align: left; border-bottom: 1px solid var(--border-light);
 }
 .roster-table th {
-    font-size: var(--text-sm);
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--text-secondary);
+    font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; color: var(--text-secondary);
 }
-.roster-content { max-height: 360px; overflow-y: auto; }
+.roster-content { max-height: 400px; overflow-y: auto; }
 .status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: var(--radius-full);
-    font-size: var(--text-xs);
-    font-weight: 600;
+    display: inline-block; padding: 2px 8px; border-radius: var(--radius-full);
+    font-size: var(--text-xs); font-weight: 600;
 }
 .status-badge.status-available { background: #22c55e20; color: #22c55e; }
 .status-badge.status-busy { background: #ef444420; color: #ef4444; }
 .status-badge.status-dispatched { background: #3b82f620; color: #3b82f6; }
 .status-badge.status-oos { background: #64748b20; color: #64748b; }
-.btn-icon {
-    padding: var(--space-1);
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-}
+.btn-icon { padding: var(--space-1); background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); }
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 .btn-icon.danger:hover { color: #ef4444; }
 .roster-empty { text-align: center; padding: var(--space-4); color: var(--text-muted); }
+.roster-profile-link { color: var(--ford-blue); text-decoration: none; font-weight: 600; cursor: pointer; }
+.roster-profile-link:hover { text-decoration: underline; }
+.roster-headshot {
+    width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: inline-flex;
+    align-items: center; justify-content: center; vertical-align: middle; margin-right: 6px;
+    flex-shrink: 0; background: var(--bg-elevated); border: 1px solid var(--border-light);
+}
+.roster-headshot img { width: 100%; height: 100%; object-fit: cover; }
+.roster-unit-card {
+    display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2);
+    background: var(--bg-elevated); border: 1px solid var(--border-light);
+    border-radius: var(--radius-md); margin-bottom: var(--space-1);
+}
+.roster-unit-card .roster-unit-name { font-weight: 600; color: var(--text-primary); flex: 1; }
+.roster-unit-card .roster-unit-meta { font-size: var(--text-xs); color: var(--text-secondary); }
 .shift-group-header {
-    font-weight: 700;
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    margin: var(--space-2) 0 var(--space-1) 0;
-    color: var(--ford-blue);
+    font-weight: 700; padding: var(--space-2) var(--space-3);
+    background: var(--bg-elevated); border-radius: var(--radius-md);
+    margin: var(--space-2) 0 var(--space-1) 0; color: var(--ford-blue);
 }
 </style>
 
 <script>
 window.ROSTER = (() => {
-    let rosterData = { roster: [], personnel: [], apparatus: [] };
+    let rosterData = { roster: [], personnel: [], apparatus: [], units: [] };
     let activeTab = 'personnel';
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
 
     async function loadRoster() {
         const contentEl = document.getElementById('roster-content');
         try {
             const res = await fetch('/api/roster');
             const data = await res.json();
-            if (data.ok) {
-                rosterData = data;
-                renderTab();
-            } else {
-                contentEl.innerHTML = '<div class="roster-empty">Failed to load roster</div>';
-            }
-        } catch (e) {
-            contentEl.innerHTML = '<div class="roster-empty">Error loading roster</div>';
-        }
+            if (data.ok) { rosterData = data; renderTab(); }
+            else { contentEl.innerHTML = '<div class="roster-empty">Failed to load roster</div>'; }
+        } catch (e) { contentEl.innerHTML = '<div class="roster-empty">Error loading roster</div>'; }
     }
 
     function renderTab() {
@@ -181,40 +157,79 @@ window.ROSTER = (() => {
         else if (activeTab === 'shifts') renderShifts(search);
     }
 
+    function headshotHtml(url) {
+        if (!url || url.includes('_default')) {
+            return `<span class="roster-headshot"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>`;
+        }
+        return `<span class="roster-headshot"><img src="${esc(url)}" alt=""></span>`;
+    }
+
     function renderPersonnel(search) {
         const contentEl = document.getElementById('roster-content');
-        let items = rosterData.personnel || [];
+        // Show actual units (personnel, not apparatus) with headshots
+        let units = rosterData.units || [];
+        let personnel = rosterData.personnel || [];
+
         if (search) {
-            items = items.filter(p =>
+            units = units.filter(u =>
+                u.unit_id.toLowerCase().includes(search) ||
+                (u.name || '').toLowerCase().includes(search) ||
+                (u.department || '').toLowerCase().includes(search)
+            );
+        }
+
+        // Also show personnel assignments
+        let filteredPers = personnel;
+        if (search) {
+            filteredPers = filteredPers.filter(p =>
                 p.personnel_id.toLowerCase().includes(search) ||
                 p.apparatus_id.toLowerCase().includes(search) ||
                 (p.role || '').toLowerCase().includes(search)
             );
         }
-        if (items.length === 0) {
-            contentEl.innerHTML = '<div class="roster-empty">No personnel found</div>';
-            return;
+
+        let html = '';
+
+        // Personnel units section
+        if (units.length > 0) {
+            html += '<div style="margin-bottom:var(--space-2);font-weight:700;color:var(--text-secondary);font-size:var(--text-sm);text-transform:uppercase">Personnel Units</div>';
+            for (const u of units) {
+                const hs = headshotHtml(u.headshot);
+                html += `<div class="roster-unit-card">
+                    ${hs}
+                    <a href="javascript:void(0)" class="roster-profile-link" onclick="CAD_MODAL.open('/modals/employee_profile?unit_id='+encodeURIComponent('${esc(u.unit_id)}'))">${esc(u.name || u.unit_id)}</a>
+                    <span class="roster-unit-name"></span>
+                    <span class="roster-unit-meta">${esc(u.unit_id)}${u.department ? ' &mdash; ' + esc(u.department) : ''}</span>
+                </div>`;
+            }
         }
-        let html = `<table class="roster-table"><thead><tr>
-            <th>Name/ID</th><th>Apparatus</th><th>Role</th><th>Shift</th><th>Actions</th>
-        </tr></thead><tbody>`;
-        for (const p of items) {
-            html += `<tr>
-                <td>${esc(p.personnel_id)}</td>
-                <td>${esc(p.apparatus_id)}</td>
-                <td>${esc(p.role || '—')}</td>
-                <td>${esc(p.shift || '—')}</td>
-                <td>
-                    <button class="btn-icon" title="Edit" onclick="ROSTER.editPersonnel('${esc(p.apparatus_id)}','${esc(p.personnel_id)}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                    </button>
-                    <button class="btn-icon danger" title="Remove" onclick="ROSTER.deletePersonnel('${esc(p.apparatus_id)}','${esc(p.personnel_id)}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
-                    </button>
-                </td>
-            </tr>`;
+
+        // Personnel assignments section
+        if (filteredPers.length > 0) {
+            html += '<div style="margin:var(--space-2) 0;font-weight:700;color:var(--text-secondary);font-size:var(--text-sm);text-transform:uppercase">Assignments</div>';
+            html += `<table class="roster-table"><thead><tr>
+                <th>Name/ID</th><th>Apparatus</th><th>Role</th><th>Shift</th><th>Actions</th>
+            </tr></thead><tbody>`;
+            for (const p of filteredPers) {
+                html += `<tr>
+                    <td><a href="javascript:void(0)" class="roster-profile-link" onclick="CAD_MODAL.open('/modals/employee_profile?unit_id='+encodeURIComponent('${esc(p.apparatus_id)}'))">${esc(p.personnel_id)}</a></td>
+                    <td>${esc(p.apparatus_id)}</td>
+                    <td>${esc(p.role || '—')}</td>
+                    <td>${esc(p.shift || '—')}</td>
+                    <td>
+                        <button class="btn-icon" title="Edit" onclick="ROSTER.editPersonnel('${esc(p.apparatus_id)}','${esc(p.personnel_id)}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                        </button>
+                        <button class="btn-icon danger" title="Remove" onclick="ROSTER.deletePersonnel('${esc(p.apparatus_id)}','${esc(p.personnel_id)}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
         }
-        html += '</tbody></table>';
+
+        if (!html) html = '<div class="roster-empty">No personnel found</div>';
         contentEl.innerHTML = html;
     }
 
@@ -224,7 +239,7 @@ window.ROSTER = (() => {
         if (search) {
             items = items.filter(a =>
                 a.unit_id.toLowerCase().includes(search) ||
-                (a.station || '').toLowerCase().includes(search) ||
+                (a.department || '').toLowerCase().includes(search) ||
                 (a.unit_type || '').toLowerCase().includes(search)
             );
         }
@@ -233,7 +248,7 @@ window.ROSTER = (() => {
             return;
         }
         let html = `<table class="roster-table"><thead><tr>
-            <th>Unit ID</th><th>Type</th><th>Station</th><th>Status</th>
+            <th>Unit ID</th><th>Name</th><th>Type</th><th>Department</th><th>Status</th>
         </tr></thead><tbody>`;
         for (const a of items) {
             const sc = (a.status || '').toLowerCase().replace(/\s+/g, '-');
@@ -242,8 +257,9 @@ window.ROSTER = (() => {
                           sc === 'dispatched' ? 'status-dispatched' : 'status-busy';
             html += `<tr>
                 <td><strong>${esc(a.unit_id)}</strong></td>
+                <td>${esc(a.name || '—')}</td>
                 <td>${esc(a.unit_type || '—')}</td>
-                <td>${esc(a.station || '—')}</td>
+                <td>${esc(a.department || '—')}</td>
                 <td><span class="status-badge ${badge}">${esc(a.status || '—')}</span></td>
             </tr>`;
         }
@@ -257,10 +273,10 @@ window.ROSTER = (() => {
         if (search) {
             items = items.filter(r =>
                 r.unit_id.toLowerCase().includes(search) ||
+                (r.display_name || '').toLowerCase().includes(search) ||
                 (r.shift_letter || '').toLowerCase().includes(search)
             );
         }
-        // Group by shift letter
         const groups = {};
         for (const r of items) {
             const key = r.shift_letter || '?';
@@ -273,13 +289,15 @@ window.ROSTER = (() => {
         }
         let html = '';
         for (const [shift, members] of Object.entries(groups).sort()) {
-            html += `<div class="shift-group-header">Shift ${shift} (${members.length} units)</div>`;
+            html += `<div class="shift-group-header">Shift ${esc(shift)} (${members.length} units)</div>`;
             html += `<table class="roster-table"><thead><tr>
-                <th>Unit</th><th>Current Shift</th><th>Home Shift</th>
+                <th></th><th>Unit</th><th>Name</th><th>Current Shift</th><th>Home Shift</th>
             </tr></thead><tbody>`;
             for (const m of members) {
                 html += `<tr>
+                    <td>${headshotHtml(m.headshot)}</td>
                     <td><strong>${esc(m.unit_id)}</strong></td>
+                    <td>${esc(m.display_name || m.unit_id)}</td>
                     <td>${esc(m.shift_letter)}</td>
                     <td>${esc(m.home_shift_letter)}</td>
                 </tr>`;
@@ -289,12 +307,6 @@ window.ROSTER = (() => {
         contentEl.innerHTML = html;
     }
 
-    function esc(s) {
-        const d = document.createElement('div');
-        d.textContent = String(s);
-        return d.innerHTML;
-    }
-
     // Init
     loadRoster();
     document.getElementById('roster-search-input')?.addEventListener('input', () => renderTab());
@@ -302,30 +314,21 @@ window.ROSTER = (() => {
     return {
         switchTab(tab) {
             activeTab = tab;
-            document.querySelectorAll('.roster-tab').forEach(t => {
-                t.classList.toggle('active', t.dataset.tab === tab);
-            });
+            document.querySelectorAll('.roster-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
             const addBtn = document.getElementById('roster-add-btn');
             if (addBtn) addBtn.style.display = tab === 'personnel' ? '' : 'none';
             renderTab();
         },
-
         showAddForm() {
             document.getElementById('roster-form').style.display = 'block';
             document.getElementById('roster-form-title').textContent = 'Add Personnel';
-            document.getElementById('rf-orig-apparatus').value = '';
-            document.getElementById('rf-orig-personnel').value = '';
-            document.getElementById('rf-personnel-id').value = '';
-            document.getElementById('rf-apparatus-id').value = '';
-            document.getElementById('rf-role').value = '';
+            ['rf-orig-apparatus','rf-orig-personnel','rf-personnel-id','rf-apparatus-id','rf-role'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
             document.getElementById('rf-shift').value = '';
             document.getElementById('rf-personnel-id').focus();
         },
-
-        cancelForm() {
-            document.getElementById('roster-form').style.display = 'none';
-        },
-
+        cancelForm() { document.getElementById('roster-form').style.display = 'none'; },
         editPersonnel(appId, persId) {
             const p = (rosterData.personnel || []).find(x => x.apparatus_id === appId && x.personnel_id === persId);
             if (!p) return;
@@ -338,60 +341,39 @@ window.ROSTER = (() => {
             document.getElementById('rf-role').value = p.role || '';
             document.getElementById('rf-shift').value = p.shift || '';
         },
-
         async saveForm() {
             const persId = document.getElementById('rf-personnel-id').value.trim();
             const appId = document.getElementById('rf-apparatus-id').value.trim();
             if (!persId || !appId) { TOAST?.warning?.('Name and apparatus are required'); return; }
-
             const origApp = document.getElementById('rf-orig-apparatus').value;
             const origPers = document.getElementById('rf-orig-personnel').value;
             const isEdit = origApp && origPers;
-
             const payload = {
-                apparatus_id: appId,
-                personnel_id: persId,
+                apparatus_id: appId, personnel_id: persId,
                 role: document.getElementById('rf-role').value.trim(),
                 shift: document.getElementById('rf-shift').value,
             };
-
             try {
                 const url = isEdit ? `/api/roster/${encodeURIComponent(origApp)}/${encodeURIComponent(origPers)}` : '/api/roster';
                 const method = isEdit ? 'PUT' : 'POST';
-                const res = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
+                const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
                 const data = await res.json();
                 if (data.ok) {
                     TOAST?.success?.(isEdit ? 'Personnel updated' : 'Personnel added');
                     document.getElementById('roster-form').style.display = 'none';
                     loadRoster();
-                } else {
-                    TOAST?.error?.(data.error || 'Failed to save');
-                }
-            } catch (e) {
-                TOAST?.error?.('Error saving personnel');
-            }
+                } else { TOAST?.error?.(data.error || 'Failed to save'); }
+            } catch (e) { TOAST?.error?.('Error saving personnel'); }
         },
-
         async deletePersonnel(appId, persId) {
             if (!confirm(`Remove ${persId} from ${appId}?`)) return;
             try {
                 const res = await fetch(`/api/roster/${encodeURIComponent(appId)}/${encodeURIComponent(persId)}`, { method: 'DELETE' });
                 const data = await res.json();
-                if (data.ok) {
-                    TOAST?.success?.('Personnel removed');
-                    loadRoster();
-                } else {
-                    TOAST?.error?.(data.error || 'Failed to remove');
-                }
-            } catch (e) {
-                TOAST?.error?.('Error removing personnel');
-            }
+                if (data.ok) { TOAST?.success?.('Personnel removed'); loadRoster(); }
+                else { TOAST?.error?.(data.error || 'Failed to remove'); }
+            } catch (e) { TOAST?.error?.('Error removing personnel'); }
         },
-
         addNew() { this.showAddForm(); }
     };
 })();
