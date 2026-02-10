@@ -1,0 +1,91 @@
+<!-- ============================================================================
+     FORD-CAD Chat Settings Panel — Notification & Channel Preferences
+     Loaded as fragment into #chat-settings-container
+     ============================================================================ -->
+
+<div class="chat-settings-panel">
+    <!-- HEADER -->
+    <div class="chat-settings-header">
+        <button class="chat-icon-btn" onclick="MessagingUI.closeSettings()" title="Back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"/>
+            </svg>
+        </button>
+        <div class="chat-settings-title">Settings</div>
+        <div style="width:28px"></div>
+    </div>
+
+    <div class="chat-settings-body">
+        <!-- NOTIFICATIONS -->
+        <div class="chat-settings-section">
+            <div class="chat-settings-section-title">Notifications</div>
+
+            <div class="chat-settings-row">
+                <label for="pref-sound-enabled">Message Sounds</label>
+                <label class="chat-toggle-switch">
+                    <input type="checkbox" id="pref-sound-enabled" checked
+                           onchange="MessagingUI.onPrefChange('sound_enabled', this.checked)">
+                    <span class="chat-toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="chat-settings-row">
+                <label for="pref-browser-notify">Browser Notifications</label>
+                <label class="chat-toggle-switch">
+                    <input type="checkbox" id="pref-browser-notify" checked
+                           onchange="MessagingUI.onPrefChange('browser_notify', this.checked)">
+                    <span class="chat-toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="chat-settings-row">
+                <label for="pref-mention-sound">Mention Alerts</label>
+                <label class="chat-toggle-switch">
+                    <input type="checkbox" id="pref-mention-sound" checked
+                           onchange="MessagingUI.onPrefChange('mention_sound', this.checked)">
+                    <span class="chat-toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="chat-settings-row">
+                <label for="pref-dnd">Do Not Disturb</label>
+                <label class="chat-toggle-switch">
+                    <input type="checkbox" id="pref-dnd"
+                           onchange="MessagingUI.onPrefChange('dnd', this.checked)">
+                    <span class="chat-toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- PRESENCE -->
+        <div class="chat-settings-section">
+            <div class="chat-settings-section-title">Presence</div>
+            <div class="chat-settings-row">
+                <label for="pref-status">Status</label>
+                <select id="pref-status" class="chat-settings-select"
+                        onchange="MessagingUI.onStatusChange(this.value)">
+                    <option value="available">Available</option>
+                    <option value="busy">Busy</option>
+                    <option value="on-scene">On Scene</option>
+                    <option value="dnd">Do Not Disturb</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- PER-CHANNEL NOTIFICATIONS -->
+        <div class="chat-settings-section">
+            <div class="chat-settings-section-title">Channel Notifications</div>
+            <div id="chat-settings-channel-mutes" class="chat-settings-channel-list">
+                <div class="chat-empty-state"><p>Loading channels...</p></div>
+            </div>
+        </div>
+
+        <!-- MESSAGE MANAGEMENT -->
+        <div class="chat-settings-section">
+            <div class="chat-settings-section-title">Message Management</div>
+            <div id="chat-settings-clear-list" class="chat-settings-channel-list">
+                <div class="chat-empty-state"><p>Loading channels...</p></div>
+            </div>
+        </div>
+    </div>
+</div>

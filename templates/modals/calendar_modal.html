@@ -1,4 +1,4 @@
-<!-- Calendar Modal -->
+<!-- Calendar Modal — Enhanced with Google Calendar Integration -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal calendar-modal" role="dialog" aria-modal="true" aria-label="Calendar">
     <div class="cad-modal-header">
@@ -9,100 +9,344 @@
                 <line x1="8" y1="2" x2="8" y2="6"></line>
                 <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
-            Calendar — {{ current_month }}
+            Calendar
         </div>
         <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
     </div>
+
+    <!-- Connection status bar -->
+    <div id="cal-status-bar" class="cal-status-bar cal-status-checking">
+        <span id="cal-status-text">Checking Google Calendar...</span>
+        <button id="cal-connect-btn" class="btn-sm" style="display:none" onclick="CALENDAR.connectGoogle()">Connect</button>
+        <button id="cal-sync-btn" class="btn-sm" style="display:none" onclick="CALENDAR.forceSync()">Sync Now</button>
+    </div>
+
     <div class="cad-modal-body">
         <div class="calendar-container">
+            <!-- Navigation -->
             <div class="calendar-nav">
-                <button class="btn-secondary" onclick="CALENDAR.prevMonth()">&larr; Prev</button>
-                <span class="calendar-month-title">{{ current_month }}</span>
-                <button class="btn-secondary" onclick="CALENDAR.nextMonth()">Next &rarr;</button>
+                <button class="btn-secondary btn-sm" onclick="CALENDAR.prevMonth()">&larr; Prev</button>
+                <span class="calendar-month-title" id="cal-month-title"></span>
+                <button class="btn-secondary btn-sm" onclick="CALENDAR.nextMonth()">Next &rarr;</button>
             </div>
+
+            <!-- Month grid -->
             <div class="calendar-grid">
                 <div class="calendar-header">
                     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                 </div>
-                <div id="calendar-days" class="calendar-days">
-                    <!-- Days populated by JS -->
-                </div>
+                <div id="calendar-days" class="calendar-days"></div>
             </div>
+
+            <!-- Shift legend -->
             <div class="calendar-legend">
                 <span class="legend-item"><span class="dot shift-a"></span> A Shift</span>
                 <span class="legend-item"><span class="dot shift-b"></span> B Shift</span>
                 <span class="legend-item"><span class="dot shift-c"></span> C Shift</span>
+                <span class="legend-item"><span class="dot dot-event"></span> Event</span>
+            </div>
+
+            <!-- Day detail panel (shown when clicking a day) -->
+            <div id="cal-day-detail" class="cal-day-detail" style="display:none">
+                <div class="cal-day-detail-header">
+                    <strong id="cal-day-detail-title"></strong>
+                    <button class="btn-sm" onclick="CALENDAR.showAddForm()">+ Add Event</button>
+                    <button class="btn-sm btn-secondary" onclick="CALENDAR.closeDayDetail()">&times;</button>
+                </div>
+                <div id="cal-day-events" class="cal-day-events">
+                    <p class="text-muted">No events this day.</p>
+                </div>
+            </div>
+
+            <!-- Event detail / edit panel -->
+            <div id="cal-event-detail" class="cal-event-detail" style="display:none">
+                <div class="cal-event-detail-header">
+                    <strong id="cal-event-title-display"></strong>
+                    <div>
+                        <button class="btn-sm" onclick="CALENDAR.editEvent()">Edit</button>
+                        <button class="btn-sm btn-danger" onclick="CALENDAR.deleteEvent()">Delete</button>
+                        <button class="btn-sm btn-secondary" onclick="CALENDAR.closeEventDetail()">&times;</button>
+                    </div>
+                </div>
+                <div id="cal-event-body" class="cal-event-body"></div>
+            </div>
+
+            <!-- Add/Edit event form -->
+            <div id="cal-event-form" class="cal-event-form" style="display:none">
+                <div class="cal-form-title" id="cal-form-title">Add Event</div>
+                <input type="hidden" id="cal-form-id" value="">
+                <div class="cal-form-row">
+                    <label>Title</label>
+                    <input type="text" id="cal-form-summary" placeholder="Event title">
+                </div>
+                <div class="cal-form-row">
+                    <label>Description</label>
+                    <textarea id="cal-form-description" rows="2" placeholder="Optional description"></textarea>
+                </div>
+                <div class="cal-form-row">
+                    <label>Location</label>
+                    <input type="text" id="cal-form-location" placeholder="Optional location">
+                </div>
+                <div class="cal-form-row cal-form-inline">
+                    <div>
+                        <label>Start</label>
+                        <input type="datetime-local" id="cal-form-start">
+                    </div>
+                    <div>
+                        <label>End</label>
+                        <input type="datetime-local" id="cal-form-end">
+                    </div>
+                </div>
+                <div class="cal-form-row">
+                    <label><input type="checkbox" id="cal-form-allday"> All Day</label>
+                </div>
+                <div class="cal-form-actions">
+                    <button class="btn-primary btn-sm" onclick="CALENDAR.saveEvent()">Save</button>
+                    <button class="btn-secondary btn-sm" onclick="CALENDAR.closeForm()">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
+
     <div class="cad-modal-footer">
         <button class="btn-secondary" onclick="CAD_MODAL.close()">Close</button>
     </div>
 </div>
 
 <style>
-.calendar-modal { min-width: 500px; }
+.calendar-modal { min-width: 560px; max-width: 680px; }
 .calendar-container { padding: var(--space-2); }
+
+/* Status bar */
+.cal-status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px; font-size: var(--text-sm);
+    border-bottom: 1px solid var(--border-default);
+}
+.cal-status-checking { color: var(--text-muted); }
+.cal-status-connected { color: #22c55e; }
+.cal-status-disconnected { color: #f59e0b; }
+
+/* Navigation */
 .calendar-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; justify-content: space-between; align-items: center;
     margin-bottom: var(--space-3);
 }
-.calendar-month-title {
-    font-size: var(--text-lg);
-    font-weight: 700;
-}
-.calendar-grid { margin-bottom: var(--space-3); }
+.calendar-month-title { font-size: var(--text-lg); font-weight: 700; }
+
+/* Grid */
+.calendar-grid { margin-bottom: var(--space-2); }
 .calendar-header {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-    font-weight: 600;
-    font-size: var(--text-sm);
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; font-weight: 600; font-size: var(--text-sm);
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--border-default);
 }
 .calendar-days {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
 }
 .calendar-day {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--text-sm);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
+    min-height: 52px; padding: 4px;
+    display: flex; flex-direction: column; align-items: center;
+    font-size: var(--text-sm); border-radius: var(--radius-sm);
+    cursor: pointer; position: relative;
 }
 .calendar-day:hover { background: var(--bg-hover); }
-.calendar-day.today {
-    background: var(--ford-blue);
-    color: white;
-    font-weight: 700;
-}
+.calendar-day.today { background: var(--ford-blue); color: white; font-weight: 700; }
+.calendar-day.today:hover { background: #1d4ed8; }
 .calendar-day.other-month { color: var(--text-muted); }
+.calendar-day.selected { outline: 2px solid var(--ford-blue); outline-offset: -2px; }
+.calendar-day .day-num { font-weight: 600; }
+.calendar-day .event-dots {
+    display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; margin-top: 2px;
+}
+.calendar-day .event-dots .ev-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #f59e0b;
+}
+
+/* Legend */
 .calendar-legend {
-    display: flex;
-    gap: var(--space-4);
-    font-size: var(--text-sm);
+    display: flex; gap: var(--space-4); font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
 }
 .legend-item { display: flex; align-items: center; gap: var(--space-1); }
-.dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-}
+.dot { width: 12px; height: 12px; border-radius: 50%; }
 .dot.shift-a { background: #ef4444; }
 .dot.shift-b { background: #3b82f6; }
 .dot.shift-c { background: #22c55e; }
+.dot.dot-event { background: #f59e0b; }
+
+/* Day detail */
+.cal-day-detail {
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    padding: var(--space-2); margin-top: var(--space-2);
+    background: var(--bg-secondary, rgba(0,0,0,0.15));
+}
+.cal-day-detail-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: var(--space-2);
+}
+.cal-day-events .cal-event-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px; margin-bottom: 4px; border-radius: var(--radius-sm);
+    background: var(--bg-hover, rgba(255,255,255,0.05)); cursor: pointer;
+    font-size: var(--text-sm);
+}
+.cal-day-events .cal-event-item:hover { background: var(--bg-active, rgba(255,255,255,0.1)); }
+.cal-event-item .ev-time { color: var(--text-muted); font-size: 11px; margin-left: 8px; }
+
+/* Event detail */
+.cal-event-detail {
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    padding: var(--space-2); margin-top: var(--space-2);
+    background: var(--bg-secondary, rgba(0,0,0,0.15));
+}
+.cal-event-detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--space-2);
+}
+.cal-event-body { font-size: var(--text-sm); }
+.cal-event-body p { margin: 4px 0; }
+
+/* Add/Edit form */
+.cal-event-form {
+    border: 1px solid var(--border-default); border-radius: var(--radius-md);
+    padding: var(--space-3); margin-top: var(--space-2);
+    background: var(--bg-secondary, rgba(0,0,0,0.15));
+}
+.cal-form-title { font-weight: 700; margin-bottom: var(--space-2); }
+.cal-form-row { margin-bottom: var(--space-2); }
+.cal-form-row label { display: block; font-size: var(--text-sm); margin-bottom: 2px; }
+.cal-form-row input[type="text"],
+.cal-form-row input[type="datetime-local"],
+.cal-form-row textarea {
+    width: 100%; padding: 6px 8px; font-size: var(--text-sm);
+    background: var(--bg-input, #1a1a2e); color: var(--text-primary, #e0e0e0);
+    border: 1px solid var(--border-default); border-radius: var(--radius-sm);
+}
+.cal-form-inline { display: flex; gap: var(--space-3); }
+.cal-form-inline > div { flex: 1; }
+.cal-form-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; border-radius: var(--radius-sm); cursor: pointer; }
+.btn-danger { background: #ef4444; color: white; border: none; }
+.btn-danger:hover { background: #dc2626; }
 </style>
 
 <script>
 window.CALENDAR = {
     currentDate: new Date(),
+    events: [],
+    selectedDay: null,
+    selectedEvent: null,
+    connected: false,
+
+    async init() {
+        this.updateTitle();
+        await this.checkStatus();
+        await this.loadEvents();
+        this.render();
+    },
+
+    async checkStatus() {
+        try {
+            const r = await fetch('/api/calendar/status');
+            const d = await r.json();
+            const bar = document.getElementById('cal-status-bar');
+            const text = document.getElementById('cal-status-text');
+            const connectBtn = document.getElementById('cal-connect-btn');
+            const syncBtn = document.getElementById('cal-sync-btn');
+            this.connected = d.connected;
+            if (d.connected) {
+                bar.className = 'cal-status-bar cal-status-connected';
+                text.textContent = 'Connected: ' + (d.email || 'Google Calendar');
+                if (d.last_sync) text.textContent += ' | Last sync: ' + new Date(d.last_sync).toLocaleString();
+                connectBtn.style.display = 'none';
+                syncBtn.style.display = '';
+            } else {
+                bar.className = 'cal-status-bar cal-status-disconnected';
+                text.textContent = 'Google Calendar not connected';
+                connectBtn.style.display = '';
+                syncBtn.style.display = 'none';
+            }
+        } catch(e) {
+            const bar = document.getElementById('cal-status-bar');
+            const text = document.getElementById('cal-status-text');
+            bar.className = 'cal-status-bar cal-status-disconnected';
+            text.textContent = 'Calendar status unavailable';
+        }
+    },
+
+    async connectGoogle() {
+        try {
+            const r = await fetch('/api/calendar/auth');
+            const d = await r.json();
+            if (d.auth_url) {
+                window.open(d.auth_url, 'google-auth', 'width=500,height=600');
+                // Listen for success message
+                window.addEventListener('message', async (e) => {
+                    if (e.data === 'calendar-auth-ok') {
+                        await this.checkStatus();
+                        await this.forceSync();
+                    }
+                }, { once: true });
+            } else {
+                alert(d.error || 'Could not start Google auth');
+            }
+        } catch(e) {
+            alert('Failed to connect: ' + e.message);
+        }
+    },
+
+    async forceSync() {
+        const syncBtn = document.getElementById('cal-sync-btn');
+        if (syncBtn) { syncBtn.textContent = 'Syncing...'; syncBtn.disabled = true; }
+        try {
+            const r = await fetch('/api/calendar/sync', { method: 'POST' });
+            const d = await r.json();
+            if (d.error) {
+                alert('Sync error: ' + d.error);
+            } else {
+                await this.loadEvents();
+                this.render();
+                await this.checkStatus();
+            }
+        } catch(e) {
+            alert('Sync failed: ' + e.message);
+        } finally {
+            if (syncBtn) { syncBtn.textContent = 'Sync Now'; syncBtn.disabled = false; }
+        }
+    },
+
+    async loadEvents() {
+        const y = this.currentDate.getFullYear();
+        const m = this.currentDate.getMonth() + 1;
+        try {
+            const r = await fetch(`/api/calendar/events?year=${y}&month=${m}`);
+            const d = await r.json();
+            this.events = d.events || [];
+        } catch(e) {
+            this.events = [];
+        }
+    },
+
+    // Shift rotation: A=Red B=Blue C=Green, 3-day cycle
+    // Ford FD uses a 3-platoon rotating schedule
+    getShift(date) {
+        // Epoch-based 3-day rotation (adjust reference as needed)
+        const ref = new Date(2024, 0, 1); // Jan 1 2024 = A shift start
+        const diff = Math.floor((date - ref) / 86400000);
+        const cycle = ((diff % 3) + 3) % 3;
+        return ['a', 'b', 'c'][cycle];
+    },
+
+    eventsForDay(y, m, d) {
+        const dayStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        return this.events.filter(ev => {
+            const st = (ev.start_time || '').substring(0, 10);
+            return st === dayStr;
+        });
+    },
 
     render() {
         const container = document.getElementById('calendar-days');
@@ -121,44 +365,265 @@ window.CALENDAR = {
         // Previous month padding
         const prevMonth = new Date(year, month, 0);
         for (let i = startPad - 1; i >= 0; i--) {
-            html += `<div class="calendar-day other-month">${prevMonth.getDate() - i}</div>`;
+            html += `<div class="calendar-day other-month"><span class="day-num">${prevMonth.getDate() - i}</span></div>`;
         }
 
         // Current month days
         for (let d = 1; d <= lastDay.getDate(); d++) {
             const isToday = (d === today.getDate() && month === today.getMonth() && year === today.getFullYear());
-            html += `<div class="calendar-day${isToday ? ' today' : ''}">${d}</div>`;
+            const isSelected = (this.selectedDay === d);
+            const date = new Date(year, month, d);
+            const shift = this.getShift(date);
+            const dayEvents = this.eventsForDay(year, month, d);
+
+            let cls = 'calendar-day';
+            if (isToday) cls += ' today';
+            if (isSelected) cls += ' selected';
+
+            let dots = '';
+            if (dayEvents.length > 0) {
+                dots = '<div class="event-dots">';
+                for (let i = 0; i < Math.min(dayEvents.length, 4); i++) {
+                    dots += '<span class="ev-dot"></span>';
+                }
+                dots += '</div>';
+            }
+
+            html += `<div class="${cls}" onclick="CALENDAR.selectDay(${d})" title="Shift ${shift.toUpperCase()}">
+                <span class="day-num">${d}</span>
+                <span class="dot shift-${shift}" style="width:6px;height:6px;margin-top:1px"></span>
+                ${dots}
+            </div>`;
         }
 
         // Next month padding
         const remaining = 42 - (startPad + lastDay.getDate());
         for (let i = 1; i <= remaining; i++) {
-            html += `<div class="calendar-day other-month">${i}</div>`;
+            html += `<div class="calendar-day other-month"><span class="day-num">${i}</span></div>`;
         }
 
         container.innerHTML = html;
     },
 
+    selectDay(d) {
+        this.selectedDay = d;
+        this.closeEventDetail();
+        this.closeForm();
+        this.render();
+
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        const date = new Date(year, month, d);
+        const shift = this.getShift(date);
+        const dayEvents = this.eventsForDay(year, month, d);
+
+        const detail = document.getElementById('cal-day-detail');
+        const title = document.getElementById('cal-day-detail-title');
+        const eventsDiv = document.getElementById('cal-day-events');
+
+        title.textContent = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            + ` (${shift.toUpperCase()} Shift)`;
+
+        if (dayEvents.length === 0) {
+            eventsDiv.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm)">No events this day.</p>';
+        } else {
+            let h = '';
+            dayEvents.forEach(ev => {
+                let timeStr = '';
+                if (ev.all_day) {
+                    timeStr = 'All Day';
+                } else if (ev.start_time && ev.start_time.length > 10) {
+                    const st = new Date(ev.start_time);
+                    timeStr = st.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                }
+                h += `<div class="cal-event-item" onclick="CALENDAR.viewEvent(${ev.id})">
+                    <span>${ev.summary || '(No title)'}</span>
+                    <span class="ev-time">${timeStr}</span>
+                </div>`;
+            });
+            eventsDiv.innerHTML = h;
+        }
+
+        detail.style.display = '';
+    },
+
+    closeDayDetail() {
+        document.getElementById('cal-day-detail').style.display = 'none';
+        this.selectedDay = null;
+        this.render();
+    },
+
+    viewEvent(id) {
+        const ev = this.events.find(e => e.id === id);
+        if (!ev) return;
+        this.selectedEvent = ev;
+
+        document.getElementById('cal-event-title-display').textContent = ev.summary || '(No title)';
+
+        let body = '';
+        if (ev.all_day) {
+            body += `<p><strong>Time:</strong> All Day</p>`;
+        } else {
+            const st = ev.start_time ? new Date(ev.start_time).toLocaleString() : '';
+            const et = ev.end_time ? new Date(ev.end_time).toLocaleString() : '';
+            body += `<p><strong>Start:</strong> ${st}</p>`;
+            body += `<p><strong>End:</strong> ${et}</p>`;
+        }
+        if (ev.location) body += `<p><strong>Location:</strong> ${ev.location}</p>`;
+        if (ev.description) body += `<p><strong>Description:</strong> ${ev.description}</p>`;
+        body += `<p style="color:var(--text-muted);font-size:11px">Source: ${ev.source || 'local'} | Status: ${ev.sync_status || '-'}</p>`;
+
+        document.getElementById('cal-event-body').innerHTML = body;
+        document.getElementById('cal-event-detail').style.display = '';
+    },
+
+    closeEventDetail() {
+        document.getElementById('cal-event-detail').style.display = 'none';
+        this.selectedEvent = null;
+    },
+
+    showAddForm() {
+        this.closeEventDetail();
+        document.getElementById('cal-form-title').textContent = 'Add Event';
+        document.getElementById('cal-form-id').value = '';
+        document.getElementById('cal-form-summary').value = '';
+        document.getElementById('cal-form-description').value = '';
+        document.getElementById('cal-form-location').value = '';
+        document.getElementById('cal-form-allday').checked = false;
+
+        // Default start to selected day at 08:00
+        if (this.selectedDay) {
+            const y = this.currentDate.getFullYear();
+            const m = String(this.currentDate.getMonth() + 1).padStart(2, '0');
+            const d = String(this.selectedDay).padStart(2, '0');
+            document.getElementById('cal-form-start').value = `${y}-${m}-${d}T08:00`;
+            document.getElementById('cal-form-end').value = `${y}-${m}-${d}T09:00`;
+        } else {
+            document.getElementById('cal-form-start').value = '';
+            document.getElementById('cal-form-end').value = '';
+        }
+
+        document.getElementById('cal-event-form').style.display = '';
+    },
+
+    editEvent() {
+        if (!this.selectedEvent) return;
+        const ev = this.selectedEvent;
+        document.getElementById('cal-form-title').textContent = 'Edit Event';
+        document.getElementById('cal-form-id').value = ev.id;
+        document.getElementById('cal-form-summary').value = ev.summary || '';
+        document.getElementById('cal-form-description').value = ev.description || '';
+        document.getElementById('cal-form-location').value = ev.location || '';
+        document.getElementById('cal-form-allday').checked = !!ev.all_day;
+
+        // Format datetime-local
+        if (ev.start_time) {
+            document.getElementById('cal-form-start').value = ev.start_time.substring(0, 16);
+        }
+        if (ev.end_time) {
+            document.getElementById('cal-form-end').value = ev.end_time.substring(0, 16);
+        }
+
+        this.closeEventDetail();
+        document.getElementById('cal-event-form').style.display = '';
+    },
+
+    closeForm() {
+        document.getElementById('cal-event-form').style.display = 'none';
+    },
+
+    async saveEvent() {
+        const id = document.getElementById('cal-form-id').value;
+        const summary = document.getElementById('cal-form-summary').value.trim();
+        if (!summary) { alert('Title is required'); return; }
+
+        const payload = {
+            summary,
+            description: document.getElementById('cal-form-description').value,
+            location: document.getElementById('cal-form-location').value,
+            start_time: document.getElementById('cal-form-start').value,
+            end_time: document.getElementById('cal-form-end').value,
+            all_day: document.getElementById('cal-form-allday').checked,
+        };
+
+        if (!payload.start_time) { alert('Start time is required'); return; }
+        if (!payload.end_time) payload.end_time = payload.start_time;
+
+        try {
+            let r;
+            if (id) {
+                r = await fetch(`/api/calendar/events/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                r = await fetch('/api/calendar/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+            }
+            const d = await r.json();
+            if (d.error) {
+                alert('Save failed: ' + d.error);
+                return;
+            }
+            this.closeForm();
+            await this.loadEvents();
+            this.render();
+            if (this.selectedDay) this.selectDay(this.selectedDay);
+        } catch(e) {
+            alert('Save failed: ' + e.message);
+        }
+    },
+
+    async deleteEvent() {
+        if (!this.selectedEvent) return;
+        if (!confirm('Delete "' + this.selectedEvent.summary + '"?')) return;
+
+        try {
+            const r = await fetch(`/api/calendar/events/${this.selectedEvent.id}`, { method: 'DELETE' });
+            const d = await r.json();
+            if (d.error) {
+                alert('Delete failed: ' + d.error);
+                return;
+            }
+            this.closeEventDetail();
+            await this.loadEvents();
+            this.render();
+            if (this.selectedDay) this.selectDay(this.selectedDay);
+        } catch(e) {
+            alert('Delete failed: ' + e.message);
+        }
+    },
+
     prevMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-        this.render();
+        this.closeDayDetail();
+        this.closeEventDetail();
+        this.closeForm();
         this.updateTitle();
+        this.loadEvents().then(() => this.render());
     },
 
     nextMonth() {
         this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-        this.render();
+        this.closeDayDetail();
+        this.closeEventDetail();
+        this.closeForm();
         this.updateTitle();
+        this.loadEvents().then(() => this.render());
     },
 
     updateTitle() {
-        const title = document.querySelector('.calendar-month-title');
+        const title = document.getElementById('cal-month-title');
         if (title) {
             title.textContent = this.currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         }
     }
 };
 
-// Initialize on load
-CALENDAR.render();
+// Initialize
+CALENDAR.init();
 </script>

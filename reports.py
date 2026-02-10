@@ -59,9 +59,9 @@ CONFIG = {
     # SMTP Settings - Gmail
     "smtp_host": os.getenv("CAD_SMTP_HOST", "smtp.gmail.com"),
     "smtp_port": int(os.getenv("CAD_SMTP_PORT", "587")),
-    "smtp_user": os.getenv("CAD_SMTP_USER", "bosksert@gmail.com"),
+    "smtp_user": os.getenv("CAD_SMTP_USER", "fordcad@gmail.com"),
     "smtp_pass": os.getenv("CAD_SMTP_PASS", ""),  # Set via env or load from config
-    "smtp_from": os.getenv("CAD_SMTP_FROM", "FORD CAD System <bosksert@gmail.com>"),
+    "smtp_from": os.getenv("CAD_SMTP_FROM", "FORD CAD System <fordcad@gmail.com>"),
     "smtp_use_tls": os.getenv("CAD_SMTP_TLS", "true").lower() == "true",
 
     # Signal CLI path (install signal-cli separately)

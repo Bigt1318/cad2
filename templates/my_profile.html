@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile — Ford CAD</title>
+    <link rel="stylesheet" href="/static/css/ford-cad-v4.css">
+    <style>
+        body { background: var(--bg-main); color: var(--text-primary); font-family: var(--font-main); margin: 0; padding: 0; }
+        .profile-page { max-width: 700px; margin: 0 auto; padding: 24px; }
+        .profile-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ford-blue); text-decoration: none; font-weight: 600; margin-bottom: 16px; }
+        .profile-back:hover { text-decoration: underline; }
+        .profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .profile-avatar { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 2px solid var(--border-default); display: flex; align-items: center; justify-content: center; background: var(--bg-surface); color: var(--text-muted); position: relative; }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-upload-btn { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--ford-blue); color: white; border: 2px solid var(--bg-surface); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; }
+        .profile-name { font-size: 1.4em; font-weight: 700; }
+        .profile-unit { font-size: 0.9em; color: var(--text-secondary); }
+        .profile-card { background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
+        .profile-card-title { font-weight: 700; font-size: 0.85em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .profile-field { display: flex; gap: 8px; margin-bottom: 8px; }
+        .profile-field label { font-weight: 600; color: var(--text-secondary); min-width: 120px; font-size: 0.9em; }
+        .profile-field span { color: var(--text-primary); font-size: 0.9em; }
+        .profile-field input, .profile-field select, .profile-field textarea { flex: 1; padding: 6px 10px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-primary); font-size: 0.9em; }
+        .profile-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    </style>
+</head>
+<body>
+    <div class="profile-page">
+        <a href="/" class="profile-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"></polyline></svg>
+            Back to Console
+        </a>
+
+        <div class="profile-header">
+            <div class="profile-avatar" id="prof-avatar">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <label class="photo-upload-btn" title="Upload Photo">
+                    +
+                    <input type="file" accept="image/*" id="photo-input" style="display:none" onchange="MYPROFILE.uploadPhoto(this)">
+                </label>
+            </div>
+            <div>
+                <div class="profile-name" id="prof-name">Loading...</div>
+                <div class="profile-unit" id="prof-unit">{{ unit_id }}</div>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-card-title">Personal Information</div>
+            <div id="prof-info-view">
+                <div class="profile-field"><label>Rank</label><span id="pv-rank">—</span></div>
+                <div class="profile-field"><label>Employee #</label><span id="pv-number">—</span></div>
+                <div class="profile-field"><label>Hire Date</label><span id="pv-hire">—</span></div>
+                <div class="profile-field"><label>Blood Type</label><span id="pv-blood">—</span></div>
+            </div>
+            <div id="prof-info-edit" style="display:none">
+                <div class="profile-field"><label>Rank</label><input type="text" id="pe-rank"></div>
+                <div class="profile-field"><label>Employee #</label><input type="text" id="pe-number"></div>
+                <div class="profile-field"><label>Hire Date</label><input type="date" id="pe-hire"></div>
+                <div class="profile-field"><label>Blood Type</label>
+                    <select id="pe-blood">
+                        <option value="">—</option>
+                        <option value="A+">A+</option><option value="A-">A-</option>
+                        <option value="B+">B+</option><option value="B-">B-</option>
+                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                        <option value="O+">O+</option><option value="O-">O-</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-card-title">Contact Information</div>
+            <div id="prof-contact-view">
+                <div class="profile-field"><label>Phone</label><span id="pv-phone">—</span></div>
+                <div class="profile-field"><label>Email</label><span id="pv-email">—</span></div>
+                <div class="profile-field"><label>Address</label><span id="pv-address">—</span></div>
+            </div>
+            <div id="prof-contact-edit" style="display:none">
+                <div class="profile-field"><label>Phone</label><input type="tel" id="pe-phone"></div>
+                <div class="profile-field"><label>Email</label><input type="email" id="pe-email"></div>
+                <div class="profile-field"><label>Address</label><input type="text" id="pe-addr1"></div>
+                <div class="profile-field"><label>City</label><input type="text" id="pe-city"></div>
+                <div class="profile-field"><label>State</label><input type="text" id="pe-state" maxlength="2"></div>
+                <div class="profile-field"><label>ZIP</label><input type="text" id="pe-zip" maxlength="10"></div>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-card-title">Notes</div>
+            <div id="prof-notes-view"><span id="pv-notes">—</span></div>
+            <div id="prof-notes-edit" style="display:none">
+                <textarea id="pe-notes" rows="3" style="width:100%;padding:6px 10px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);color:var(--text-primary);"></textarea>
+            </div>
+        </div>
+
+        <div class="profile-actions">
+            <button class="btn-primary" id="prof-edit-btn" onclick="MYPROFILE.toggleEdit()">Edit Profile</button>
+        </div>
+    </div>
+
+    <script>
+    window.MYPROFILE = (() => {
+        const UNIT_ID = '{{ unit_id }}';
+        let editing = false;
+        let profileData = {};
+
+        async function loadProfile() {
+            try {
+                const res = await fetch(`/api/employees/${encodeURIComponent(UNIT_ID)}`);
+                const data = await res.json();
+                if (data.ok) { profileData = data.profile; render(); }
+            } catch (e) { console.error('Failed to load profile', e); }
+        }
+
+        function render() {
+            const p = profileData;
+            document.getElementById('prof-name').textContent = p.display_name || p.unit_id;
+            document.getElementById('prof-unit').textContent = p.unit_id + (p.rank ? ' — ' + p.rank : '');
+            if (p.headshot) {
+                document.getElementById('prof-avatar').querySelector('svg')?.remove();
+                const existing = document.getElementById('prof-avatar').querySelector('img');
+                if (existing) { existing.src = p.headshot; }
+                else {
+                    const img = document.createElement('img');
+                    img.src = p.headshot; img.alt = '';
+                    document.getElementById('prof-avatar').prepend(img);
+                }
+            }
+            document.getElementById('pv-rank').textContent = p.rank || '—';
+            document.getElementById('pv-number').textContent = p.employee_number || '—';
+            document.getElementById('pv-hire').textContent = p.hire_date || '—';
+            document.getElementById('pv-blood').textContent = p.blood_type || '—';
+            document.getElementById('pv-phone').textContent = p.personal_phone || '—';
+            document.getElementById('pv-email').textContent = p.personal_email || '—';
+            const addr = [p.address_line1, p.address_line2, [p.address_city, p.address_state].filter(Boolean).join(', '), p.address_zip].filter(Boolean);
+            document.getElementById('pv-address').textContent = addr.join(', ') || '—';
+            document.getElementById('pv-notes').textContent = p.notes || '—';
+        }
+
+        function toggleEdit() {
+            if (!editing) {
+                editing = true;
+                const p = profileData;
+                document.getElementById('pe-rank').value = p.rank || '';
+                document.getElementById('pe-number').value = p.employee_number || '';
+                document.getElementById('pe-hire').value = p.hire_date || '';
+                document.getElementById('pe-blood').value = p.blood_type || '';
+                document.getElementById('pe-phone').value = p.personal_phone || '';
+                document.getElementById('pe-email').value = p.personal_email || '';
+                document.getElementById('pe-addr1').value = p.address_line1 || '';
+                document.getElementById('pe-city').value = p.address_city || '';
+                document.getElementById('pe-state').value = p.address_state || '';
+                document.getElementById('pe-zip').value = p.address_zip || '';
+                document.getElementById('pe-notes').value = p.notes || '';
+                document.getElementById('prof-info-view').style.display = 'none';
+                document.getElementById('prof-info-edit').style.display = '';
+                document.getElementById('prof-contact-view').style.display = 'none';
+                document.getElementById('prof-contact-edit').style.display = '';
+                document.getElementById('prof-notes-view').style.display = 'none';
+                document.getElementById('prof-notes-edit').style.display = '';
+                document.getElementById('prof-edit-btn').textContent = 'Save Profile';
+            } else {
+                saveProfile();
+            }
+        }
+
+        async function saveProfile() {
+            const payload = {
+                rank: document.getElementById('pe-rank').value.trim(),
+                employee_number: document.getElementById('pe-number').value.trim(),
+                hire_date: document.getElementById('pe-hire').value,
+                blood_type: document.getElementById('pe-blood').value,
+                personal_phone: document.getElementById('pe-phone').value.trim(),
+                personal_email: document.getElementById('pe-email').value.trim(),
+                address_line1: document.getElementById('pe-addr1').value.trim(),
+                address_city: document.getElementById('pe-city').value.trim(),
+                address_state: document.getElementById('pe-state').value.trim(),
+                address_zip: document.getElementById('pe-zip').value.trim(),
+                notes: document.getElementById('pe-notes').value.trim(),
+            };
+            try {
+                const res = await fetch(`/api/employees/${encodeURIComponent(UNIT_ID)}`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    editing = false;
+                    await loadProfile();
+                    document.getElementById('prof-info-view').style.display = '';
+                    document.getElementById('prof-info-edit').style.display = 'none';
+                    document.getElementById('prof-contact-view').style.display = '';
+                    document.getElementById('prof-contact-edit').style.display = 'none';
+                    document.getElementById('prof-notes-view').style.display = '';
+                    document.getElementById('prof-notes-edit').style.display = 'none';
+                    document.getElementById('prof-edit-btn').textContent = 'Edit Profile';
+                }
+            } catch (e) { console.error('Save failed', e); }
+        }
+
+        async function uploadPhoto(input) {
+            if (!input.files || !input.files[0]) return;
+            const form = new FormData();
+            form.append('photo', input.files[0]);
+            try {
+                const res = await fetch(`/api/employees/${encodeURIComponent(UNIT_ID)}/photo`, { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.ok) { await loadProfile(); }
+            } catch (e) { console.error('Photo upload failed', e); }
+        }
+
+        loadProfile();
+        return { toggleEdit, uploadPhoto };
+    })();
+    </script>
+</body>
+</html>

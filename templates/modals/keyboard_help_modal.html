@@ -1,4 +1,5 @@
-<div class="modal-content" style="max-width: 600px;">
+<div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
+<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts" style="max-width: 600px;">
   <div class="modal-header">
     <h2>Keyboard Shortcuts</h2>
     <button class="modal-close-btn" onclick="CAD_MODAL.close()" aria-label="Close">&times;</button>
@@ -68,7 +69,7 @@
   <div class="modal-footer">
     <button type="button" class="btn btn-secondary" onclick="CAD_MODAL.close()">Close</button>
   </div>
-</div>
+</div> <!-- .cad-modal -->
 
 <style>
   kbd {

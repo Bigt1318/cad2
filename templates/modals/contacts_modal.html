@@ -1,4 +1,4 @@
-<!-- Contacts Directory Modal — DB-Driven CRUD -->
+<!-- Contacts Directory Modal — Enhanced with Departments, Shifts, Detail Cards -->
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
 <div class="cad-modal contacts-modal" role="dialog" aria-modal="true" aria-label="Contacts Directory">
     <div class="cad-modal-header">
@@ -9,55 +9,114 @@
             </svg>
             Contacts Directory
         </div>
-        <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+        <div style="display:flex;gap:6px;align-items:center;">
+            {% if is_admin %}
+            <button class="btn-icon" title="Manage Departments" onclick="CONTACTS.showDeptMgmt()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"></path>
+                </svg>
+            </button>
+            {% endif %}
+            <button class="cad-modal-close" onclick="CAD_MODAL.close()">&times;</button>
+        </div>
     </div>
     <div class="cad-modal-body">
         <div class="contacts-container">
-            <div class="contacts-search">
-                <input type="text" placeholder="Search contacts..." id="contacts-search-input">
+            <!-- Search + Shift Filter -->
+            <div class="contacts-toolbar">
+                <input type="text" placeholder="Search contacts..." id="contacts-search-input" class="contacts-search-input">
+                <select id="contacts-shift-filter" class="contacts-shift-select" style="display:none">
+                    <option value="">All Shifts</option>
+                </select>
             </div>
 
-            <div class="contacts-categories">
-                <button class="cat-btn active" data-cat="all">All</button>
-                <button class="cat-btn" data-cat="Fire">Fire</button>
-                <button class="cat-btn" data-cat="EMS">EMS</button>
-                <button class="cat-btn" data-cat="Police">Police</button>
-                <button class="cat-btn" data-cat="Utilities">Utilities</button>
-                <button class="cat-btn" data-cat="Hospital">Hospital</button>
+            <!-- Department tabs -->
+            <div class="contacts-dept-tabs" id="contacts-dept-tabs">
+                <button class="dept-tab active" data-dept="all">All</button>
             </div>
 
-            <!-- Add/Edit Form (hidden by default) -->
-            <div class="contact-form" id="contact-form" style="display:none">
-                <div class="form-title" id="contact-form-title">Add Contact</div>
-                <input type="hidden" id="cf-id" value="">
-                <div class="form-row">
-                    <input type="text" id="cf-name" placeholder="Name *" required>
-                    <input type="text" id="cf-phone" placeholder="Phone">
-                </div>
-                <div class="form-row">
-                    <input type="email" id="cf-email" placeholder="Email">
-                    <select id="cf-role">
-                        <option value="">— Category —</option>
-                        <option value="Fire">Fire</option>
-                        <option value="EMS">EMS</option>
-                        <option value="Police">Police</option>
-                        <option value="Utilities">Utilities</option>
-                        <option value="Hospital">Hospital</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <input type="text" id="cf-unit" placeholder="Unit ID (optional)">
-                    <input type="text" id="cf-notes" placeholder="Notes / Signal #">
-                </div>
-                <div class="form-actions">
-                    <button class="btn-primary" onclick="CONTACTS.saveForm()">Save</button>
-                    <button class="btn-secondary" onclick="CONTACTS.cancelForm()">Cancel</button>
-                </div>
-            </div>
+            <!-- Main panels container -->
+            <div class="contacts-panels">
+                <!-- Contact List -->
+                <div class="contacts-list-panel" id="contacts-list-panel">
+                    <!-- Add/Edit Form (hidden by default) -->
+                    <div class="contact-form" id="contact-form" style="display:none">
+                        <div class="form-title" id="contact-form-title">Add Contact</div>
+                        <input type="hidden" id="cf-id" value="">
+                        <div class="form-row">
+                            <input type="text" id="cf-name" placeholder="Name *" required>
+                            <input type="text" id="cf-title" placeholder="Title / Rank">
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="cf-phone" placeholder="Phone">
+                            <input type="email" id="cf-email" placeholder="Email">
+                        </div>
+                        <div class="form-row">
+                            <select id="cf-role">
+                                <option value="">-- Category --</option>
+                                <option value="Fire">Fire</option>
+                                <option value="EMS">EMS</option>
+                                <option value="Police">Police</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Hospital">Hospital</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <select id="cf-department">
+                                <option value="">-- Department --</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="cf-signal" placeholder="Signal #">
+                            <input type="text" id="cf-webex" placeholder="Webex ID">
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="cf-unit" placeholder="Unit ID (optional)">
+                            <input type="text" id="cf-address" placeholder="Address">
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="cf-notes" placeholder="Notes">
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="cf-ec-name" placeholder="Emergency Contact Name">
+                            <input type="text" id="cf-ec-phone" placeholder="Emergency Contact Phone">
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-primary" onclick="CONTACTS.saveForm()">Save</button>
+                            <button class="btn-secondary" onclick="CONTACTS.cancelForm()">Cancel</button>
+                        </div>
+                    </div>
 
-            <div class="contacts-list" id="contacts-list">
-                <div class="search-loading">Loading contacts...</div>
+                    <!-- Dept management panel (hidden) -->
+                    <div id="dept-mgmt-panel" style="display:none">
+                        <div class="form-title">Manage Departments</div>
+                        <div id="dept-mgmt-list"></div>
+                        <div class="form-row" style="margin-top:8px">
+                            <input type="text" id="dept-new-name" placeholder="New department name">
+                            <select id="dept-new-shift">
+                                <option value="8h">8h Shifts</option>
+                                <option value="12h">12h Shifts</option>
+                            </select>
+                            <button class="btn-primary" onclick="CONTACTS.addDept()">Add</button>
+                        </div>
+                        <div class="form-actions" style="margin-top:8px">
+                            <button class="btn-secondary" onclick="CONTACTS.hideDeptMgmt()">Done</button>
+                        </div>
+                    </div>
+
+                    <div class="contacts-list" id="contacts-list">
+                        <div class="search-loading">Loading contacts...</div>
+                    </div>
+                </div>
+
+                <!-- Detail Card Panel (slides in when contact clicked) -->
+                <div class="contacts-detail-panel" id="contacts-detail-panel" style="display:none">
+                    <button class="detail-back-btn" onclick="CONTACTS.closeDetail()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"></polyline></svg>
+                        Back
+                    </button>
+                    <div id="contact-detail-content"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -68,141 +127,203 @@
 </div>
 
 <style>
-.contacts-modal { min-width: 540px; max-height: 80vh; }
-.contacts-container { display: flex; flex-direction: column; gap: var(--space-3); }
-.contacts-search input {
-    width: 100%;
-    padding: var(--space-2);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
+.contacts-modal { min-width: 640px; max-width: 780px; max-height: 85vh; }
+.contacts-container { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.contacts-toolbar { display: flex; gap: var(--space-2); }
+.contacts-search-input {
+    flex: 1; padding: var(--space-2); background: var(--bg-elevated);
+    border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-primary);
 }
-.contacts-categories {
-    display: flex;
-    gap: var(--space-1);
-    flex-wrap: wrap;
+.contacts-shift-select {
+    padding: var(--space-2); background: var(--bg-elevated); border: 1px solid var(--border-default);
+    border-radius: var(--radius-md); color: var(--text-primary); font-size: var(--text-sm); min-width: 100px;
 }
-.cat-btn {
-    padding: var(--space-1) var(--space-2);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--text-secondary);
-    cursor: pointer;
+
+.contacts-dept-tabs { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.dept-tab {
+    padding: var(--space-1) var(--space-2); background: var(--bg-elevated);
+    border: 1px solid var(--border-default); border-radius: var(--radius-full);
+    font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); cursor: pointer;
 }
-.cat-btn.active, .cat-btn:hover {
-    background: var(--ford-blue);
-    color: white;
-    border-color: var(--ford-blue);
+.dept-tab.active, .dept-tab:hover { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
+
+.contacts-panels { position: relative; }
+.contacts-list-panel { transition: opacity 0.15s; }
+.contacts-detail-panel {
+    position: absolute; top: 0; left: 0; right: 0; background: var(--bg-surface);
+    z-index: 2; min-height: 200px;
 }
+.detail-back-btn {
+    display: flex; align-items: center; gap: 4px; padding: 4px 8px;
+    background: transparent; border: none; color: var(--ford-blue); cursor: pointer;
+    font-weight: 600; font-size: var(--text-sm); margin-bottom: var(--space-2);
+}
+.detail-back-btn:hover { text-decoration: underline; }
+
 .contact-form {
-    padding: var(--space-3);
-    background: var(--bg-elevated);
-    border: 1px solid var(--ford-blue);
-    border-radius: var(--radius-md);
+    padding: var(--space-3); background: var(--bg-elevated);
+    border: 1px solid var(--ford-blue); border-radius: var(--radius-md); margin-bottom: var(--space-2);
 }
-.contact-form .form-title {
-    font-weight: 700;
-    margin-bottom: var(--space-2);
-    color: var(--text-primary);
+.contact-form .form-title { font-weight: 700; margin-bottom: var(--space-2); color: var(--text-primary); }
+.contact-form .form-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+.contact-form .form-row input, .contact-form .form-row select {
+    flex: 1; padding: var(--space-2); background: var(--bg-surface); border: 1px solid var(--border-default);
+    border-radius: var(--radius-md); color: var(--text-primary); font-size: var(--text-sm);
 }
-.contact-form .form-row {
-    display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-2);
+.contact-form .form-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+
+#dept-mgmt-panel {
+    padding: var(--space-3); background: var(--bg-elevated);
+    border: 1px solid var(--ford-blue); border-radius: var(--radius-md); margin-bottom: var(--space-2);
 }
-.contact-form .form-row input,
-.contact-form .form-row select {
-    flex: 1;
-    padding: var(--space-2);
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    font-size: var(--text-sm);
+.dept-mgmt-row {
+    display: flex; align-items: center; gap: var(--space-2); padding: 4px 0;
+    border-bottom: 1px solid var(--border-light); font-size: var(--text-sm);
 }
-.contact-form .form-actions {
-    display: flex;
-    gap: var(--space-2);
-    justify-content: flex-end;
-}
-.contacts-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    max-height: 360px;
-    overflow-y: auto;
-}
+.dept-mgmt-row .dept-name { flex: 1; color: var(--text-primary); font-weight: 600; }
+.dept-mgmt-row .dept-shift { color: var(--text-secondary); font-size: var(--text-xs); }
+
+.contacts-list { display: flex; flex-direction: column; gap: var(--space-2); max-height: 380px; overflow-y: auto; }
 .contact-card {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-2) var(--space-3); background: var(--bg-elevated);
+    border: 1px solid var(--border-light); border-radius: var(--radius-md); cursor: pointer;
 }
-.contact-icon {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-md);
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    flex-shrink: 0;
+.contact-card:hover { border-color: var(--ford-blue); }
+.contact-avatar {
+    width: 36px; height: 36px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
 }
-.contact-icon.Fire { background: #ef4444; }
-.contact-icon.EMS { background: #3b82f6; }
-.contact-icon.Police { background: #6366f1; }
-.contact-icon.Hospital { background: #22c55e; }
-.contact-icon.Utilities { background: #f59e0b; }
-.contact-icon.Other { background: #64748b; }
+.contact-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.contact-avatar.Fire { background: #ef4444; }
+.contact-avatar.EMS { background: #3b82f6; }
+.contact-avatar.Police { background: #6366f1; }
+.contact-avatar.Hospital { background: #22c55e; }
+.contact-avatar.Utilities { background: #f59e0b; }
+.contact-avatar.Other, .contact-avatar.default { background: #64748b; }
 .contact-info { flex: 1; min-width: 0; }
 .contact-name { font-weight: 600; color: var(--text-primary); }
+.contact-title-line { font-size: var(--text-xs); color: var(--text-secondary); }
 .contact-detail { font-size: var(--text-sm); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact-actions { display: flex; gap: var(--space-1); }
-.btn-icon {
-    padding: var(--space-1);
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-}
+.btn-icon { padding: var(--space-1); background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); }
 .btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); }
 .btn-icon.danger:hover { color: #ef4444; }
-.contacts-empty {
-    text-align: center;
-    padding: var(--space-4);
-    color: var(--text-muted);
+.contacts-empty { text-align: center; padding: var(--space-4); color: var(--text-muted); }
+
+/* Detail card */
+.detail-card { padding: var(--space-3); }
+.detail-header { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.detail-avatar {
+    width: 64px; height: 64px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: white;
 }
+.detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.detail-name { font-size: 1.2em; font-weight: 700; color: var(--text-primary); }
+.detail-title { font-size: var(--text-sm); color: var(--text-secondary); }
+.detail-dept-badge {
+    display: inline-block; padding: 2px 8px; background: var(--ford-blue); color: white;
+    border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 600; margin-top: 4px;
+}
+.detail-section { margin-bottom: var(--space-3); }
+.detail-section-title {
+    font-weight: 700; font-size: var(--text-xs); text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: var(--space-1); border-bottom: 1px solid var(--border-light); padding-bottom: 4px;
+}
+.detail-row { display: flex; align-items: center; gap: var(--space-2); padding: 4px 0; font-size: var(--text-sm); }
+.detail-label { font-weight: 600; color: var(--text-secondary); min-width: 80px; }
+.detail-value { color: var(--text-primary); }
+.detail-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.detail-action-btn {
+    display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px;
+    border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-elevated);
+    color: var(--text-primary); text-decoration: none;
+}
+.detail-action-btn:hover { border-color: var(--ford-blue); color: var(--ford-blue); }
+.detail-action-btn.primary { background: var(--ford-blue); color: white; border-color: var(--ford-blue); }
+.detail-action-btn.primary:hover { opacity: 0.9; }
 </style>
 
 <script>
 window.CONTACTS = (() => {
+    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
     let allContacts = [];
-    let activeCategory = 'all';
+    let departments = [];
+    let activeDept = 'all';
+    let activeShift = '';
 
+    function esc(s) { const d = document.createElement('div'); d.textContent = String(s || ''); return d.innerHTML; }
+
+    // --- Load departments ---
+    async function loadDepartments() {
+        try {
+            const res = await fetch('/api/contacts/departments');
+            const data = await res.json();
+            if (data.ok) {
+                departments = data.departments || [];
+                renderDeptTabs();
+                populateDeptDropdown();
+            }
+        } catch (e) { console.warn('Failed to load departments', e); }
+    }
+
+    function renderDeptTabs() {
+        const tabs = document.getElementById('contacts-dept-tabs');
+        if (!tabs) return;
+        let html = '<button class="dept-tab active" data-dept="all">All</button>';
+        for (const d of departments) {
+            html += `<button class="dept-tab" data-dept="${d.id}">${esc(d.name)}</button>`;
+        }
+        tabs.innerHTML = html;
+        tabs.querySelectorAll('.dept-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabs.querySelectorAll('.dept-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeDept = btn.dataset.dept;
+                updateShiftFilter();
+                renderContacts();
+            });
+        });
+    }
+
+    function populateDeptDropdown() {
+        const sel = document.getElementById('cf-department');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-- Department --</option>' +
+            departments.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+    }
+
+    function updateShiftFilter() {
+        const sel = document.getElementById('contacts-shift-filter');
+        if (!sel) return;
+        if (activeDept === 'all') { sel.style.display = 'none'; activeShift = ''; return; }
+        const dept = departments.find(d => String(d.id) === String(activeDept));
+        if (!dept) { sel.style.display = 'none'; return; }
+        sel.style.display = '';
+        const model = dept.shift_model || '8h';
+        let opts = '<option value="">All Shifts</option>';
+        if (model === '12h') {
+            opts += '<option value="Day">Day</option><option value="Night">Night</option>';
+        } else {
+            opts += '<option value="A">A Shift</option><option value="B">B Shift</option><option value="C">C Shift</option>';
+        }
+        sel.innerHTML = opts;
+        activeShift = '';
+    }
+
+    // --- Load contacts ---
     async function loadContacts() {
         const listEl = document.getElementById('contacts-list');
         try {
             const res = await fetch('/api/contacts');
             const data = await res.json();
-            if (data.ok) {
-                allContacts = data.contacts || [];
-                renderContacts();
-            } else {
-                listEl.innerHTML = '<div class="contacts-empty">Failed to load contacts</div>';
-            }
-        } catch (e) {
-            listEl.innerHTML = '<div class="contacts-empty">Error loading contacts</div>';
-        }
+            if (data.ok) { allContacts = data.contacts || []; renderContacts(); }
+            else { listEl.innerHTML = '<div class="contacts-empty">Failed to load contacts</div>'; }
+        } catch (e) { listEl.innerHTML = '<div class="contacts-empty">Error loading contacts</div>'; }
     }
 
     function renderContacts() {
@@ -210,14 +331,16 @@ window.CONTACTS = (() => {
         const searchVal = (document.getElementById('contacts-search-input')?.value || '').toLowerCase();
 
         let filtered = allContacts;
-        if (activeCategory !== 'all') {
-            filtered = filtered.filter(c => (c.role || '').toLowerCase() === activeCategory.toLowerCase());
+        if (activeDept !== 'all') {
+            filtered = filtered.filter(c => String(c.department_id) === String(activeDept));
         }
         if (searchVal) {
             filtered = filtered.filter(c =>
                 (c.name || '').toLowerCase().includes(searchVal) ||
                 (c.phone || '').toLowerCase().includes(searchVal) ||
-                (c.email || '').toLowerCase().includes(searchVal)
+                (c.email || '').toLowerCase().includes(searchVal) ||
+                (c.title || '').toLowerCase().includes(searchVal) ||
+                (c.role || '').toLowerCase().includes(searchVal)
             );
         }
 
@@ -227,15 +350,20 @@ window.CONTACTS = (() => {
         }
 
         listEl.innerHTML = filtered.map(c => {
-            const cat = c.role || 'Other';
+            const cat = c.role || 'default';
             const detail = [c.phone, c.email].filter(Boolean).join(' | ');
-            return `<div class="contact-card" data-id="${c.contact_id}" data-cat="${cat}">
-                <div class="contact-icon ${cat}">${cat.substring(0,3).toUpperCase()}</div>
+            const initials = (c.name || '?').substring(0, 2).toUpperCase();
+            const avatarContent = c.photo_url
+                ? `<img src="${esc(c.photo_url)}" alt="">`
+                : initials;
+            return `<div class="contact-card" data-id="${c.contact_id}" onclick="CONTACTS.openDetail(${c.contact_id})">
+                <div class="contact-avatar ${esc(cat)}">${avatarContent}</div>
                 <div class="contact-info">
                     <div class="contact-name">${esc(c.name || 'Unknown')}</div>
-                    <div class="contact-detail">${esc(detail || 'No details')}</div>
+                    ${c.title ? '<div class="contact-title-line">' + esc(c.title) + '</div>' : ''}
+                    <div class="contact-detail">${esc(detail || 'No details')}${c.department_name ? ' &mdash; ' + esc(c.department_name) : ''}</div>
                 </div>
-                <div class="contact-actions">
+                <div class="contact-actions" onclick="event.stopPropagation()">
                     <button class="btn-icon" title="Edit" onclick="CONTACTS.editContact(${c.contact_id})">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                     </button>
@@ -247,112 +375,216 @@ window.CONTACTS = (() => {
         }).join('');
     }
 
-    function esc(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
+    // --- Detail card ---
+    async function openDetail(id) {
+        const panel = document.getElementById('contacts-detail-panel');
+        const content = document.getElementById('contact-detail-content');
+        panel.style.display = '';
+        content.innerHTML = '<div class="search-loading">Loading...</div>';
+
+        try {
+            const res = await fetch(`/api/contacts/${id}/card`);
+            const data = await res.json();
+            if (!data.ok) { content.innerHTML = '<div class="contacts-empty">Error loading contact</div>'; return; }
+            const c = data.contact;
+            const cat = c.role || 'default';
+            const initials = (c.name || '?').substring(0, 2).toUpperCase();
+            const avatarContent = c.photo_url
+                ? `<img src="${esc(c.photo_url)}" alt="">`
+                : initials;
+
+            let html = `<div class="detail-card">
+                <div class="detail-header">
+                    <div class="detail-avatar ${esc(cat)}">${avatarContent}</div>
+                    <div>
+                        <div class="detail-name">${esc(c.name)}</div>
+                        ${c.title ? '<div class="detail-title">' + esc(c.title) + '</div>' : ''}
+                        ${c.department_name ? '<div class="detail-dept-badge">' + esc(c.department_name) + '</div>' : ''}
+                        ${c.role ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + esc(c.role) + '</div>' : ''}
+                    </div>
+                </div>`;
+
+            // Actions
+            html += '<div class="detail-section"><div class="detail-section-title">Quick Actions</div><div class="detail-actions">';
+            if (c.phone) html += `<a class="detail-action-btn primary" href="tel:${esc(c.phone)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"></path></svg> Call</a>`;
+            if (c.phone) html += `<a class="detail-action-btn" href="sms:${esc(c.phone)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path></svg> Text</a>`;
+            if (c.email) html += `<a class="detail-action-btn" href="mailto:${esc(c.email)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg> Email</a>`;
+            if (c.signal_contact || c.signal_number) html += `<span class="detail-action-btn" title="Signal: ${esc(c.signal_contact || c.signal_number)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg> Signal</span>`;
+            if (c.webex_contact) html += `<span class="detail-action-btn" title="Webex: ${esc(c.webex_contact)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> Webex</span>`;
+            html += '</div></div>';
+
+            // Contact Info
+            html += '<div class="detail-section"><div class="detail-section-title">Contact Information</div>';
+            if (c.phone) html += `<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.phone)}</span></div>`;
+            if (c.email) html += `<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${esc(c.email)}</span></div>`;
+            if (c.unit_id) html += `<div class="detail-row"><span class="detail-label">Unit ID</span><span class="detail-value">${esc(c.unit_id)}</span></div>`;
+            if (c.address) html += `<div class="detail-row"><span class="detail-label">Address</span><span class="detail-value">${esc(c.address)}</span></div>`;
+            html += '</div>';
+
+            // Emergency contacts
+            if (c.emergency_contact_name) {
+                html += '<div class="detail-section"><div class="detail-section-title">Emergency Contact</div>';
+                html += `<div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${esc(c.emergency_contact_name)}</span></div>`;
+                if (c.emergency_contact_phone) html += `<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${esc(c.emergency_contact_phone)}</span></div>`;
+                html += '</div>';
+            }
+
+            // Notes
+            if (c.notes) {
+                html += `<div class="detail-section"><div class="detail-section-title">Notes</div><div style="font-size:var(--text-sm);color:var(--text-primary)">${esc(c.notes)}</div></div>`;
+            }
+
+            html += '</div>';
+            content.innerHTML = html;
+        } catch (e) { content.innerHTML = '<div class="contacts-empty">Error loading contact</div>'; }
     }
 
-    // Init: load contacts and wire events
+    function closeDetail() {
+        document.getElementById('contacts-detail-panel').style.display = 'none';
+    }
+
+    // --- CRUD ---
+    function showAddForm() {
+        closeDetail();
+        const form = document.getElementById('contact-form');
+        form.style.display = 'block';
+        document.getElementById('contact-form-title').textContent = 'Add Contact';
+        document.getElementById('cf-id').value = '';
+        ['cf-name','cf-title','cf-phone','cf-email','cf-role','cf-department','cf-unit','cf-signal','cf-webex','cf-address','cf-notes','cf-ec-name','cf-ec-phone'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('cf-name').focus();
+    }
+
+    function editContact(id) {
+        closeDetail();
+        const c = allContacts.find(x => x.contact_id === id);
+        if (!c) return;
+        document.getElementById('contact-form').style.display = 'block';
+        document.getElementById('contact-form-title').textContent = 'Edit Contact';
+        document.getElementById('cf-id').value = c.contact_id;
+        document.getElementById('cf-name').value = c.name || '';
+        document.getElementById('cf-title').value = c.title || '';
+        document.getElementById('cf-phone').value = c.phone || '';
+        document.getElementById('cf-email').value = c.email || '';
+        document.getElementById('cf-role').value = c.role || '';
+        document.getElementById('cf-department').value = c.department_id || '';
+        document.getElementById('cf-unit').value = c.unit_id || '';
+        document.getElementById('cf-signal').value = c.signal_contact || c.signal_number || '';
+        document.getElementById('cf-webex').value = c.webex_contact || '';
+        document.getElementById('cf-address').value = '';
+        document.getElementById('cf-notes').value = '';
+        document.getElementById('cf-ec-name').value = '';
+        document.getElementById('cf-ec-phone').value = '';
+    }
+
+    async function saveForm() {
+        const id = document.getElementById('cf-id').value;
+        const name = document.getElementById('cf-name').value.trim();
+        if (!name) { TOAST?.warning?.('Name is required'); return; }
+        const payload = {
+            name,
+            title: document.getElementById('cf-title').value.trim(),
+            phone: document.getElementById('cf-phone').value.trim(),
+            email: document.getElementById('cf-email').value.trim(),
+            role: document.getElementById('cf-role').value,
+            department_id: document.getElementById('cf-department').value || null,
+            unit_id: document.getElementById('cf-unit').value.trim(),
+            signal_contact: document.getElementById('cf-signal').value.trim(),
+            webex_contact: document.getElementById('cf-webex').value.trim(),
+            address: document.getElementById('cf-address').value.trim(),
+            notes: document.getElementById('cf-notes').value.trim(),
+            emergency_contact_name: document.getElementById('cf-ec-name').value.trim(),
+            emergency_contact_phone: document.getElementById('cf-ec-phone').value.trim(),
+        };
+        try {
+            const url = id ? `/api/contacts/${id}` : '/api/contacts';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (data.ok) {
+                TOAST?.success?.(id ? 'Contact updated' : 'Contact added');
+                document.getElementById('contact-form').style.display = 'none';
+                loadContacts();
+            } else { TOAST?.error?.(data.error || 'Failed to save'); }
+        } catch (e) { TOAST?.error?.('Error saving contact'); }
+    }
+
+    async function deleteContact(id, name) {
+        if (!confirm(`Delete contact "${name}"?`)) return;
+        try {
+            const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.ok) { TOAST?.success?.('Contact deleted'); loadContacts(); }
+            else { TOAST?.error?.(data.error || 'Failed to delete'); }
+        } catch (e) { TOAST?.error?.('Error deleting contact'); }
+    }
+
+    // --- Department management ---
+    async function showDeptMgmt() {
+        document.getElementById('dept-mgmt-panel').style.display = 'block';
+        await renderDeptMgmt();
+    }
+    function hideDeptMgmt() { document.getElementById('dept-mgmt-panel').style.display = 'none'; }
+    async function renderDeptMgmt() {
+        await loadDepartments();
+        const list = document.getElementById('dept-mgmt-list');
+        if (departments.length === 0) {
+            list.innerHTML = '<div class="contacts-empty">No departments</div>';
+            return;
+        }
+        list.innerHTML = departments.map(d => `<div class="dept-mgmt-row">
+            <span class="dept-name">${esc(d.name)}</span>
+            <span class="dept-shift">${esc(d.shift_model)}</span>
+            <button class="btn-icon danger" title="Delete" onclick="CONTACTS.deleteDept(${d.id})">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"></polyline><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+            </button>
+        </div>`).join('');
+    }
+    async function addDept() {
+        const name = document.getElementById('dept-new-name').value.trim();
+        if (!name) return;
+        const shift_model = document.getElementById('dept-new-shift').value;
+        try {
+            const res = await fetch('/api/contacts/departments', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ name, shift_model })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                document.getElementById('dept-new-name').value = '';
+                TOAST?.success?.('Department added');
+                await renderDeptMgmt();
+            } else { TOAST?.error?.(data.error || 'Failed'); }
+        } catch (e) { TOAST?.error?.('Error adding department'); }
+    }
+    async function deleteDept(id) {
+        if (!confirm('Delete this department?')) return;
+        try {
+            const res = await fetch(`/api/contacts/departments/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.ok) { TOAST?.success?.('Department removed'); await renderDeptMgmt(); }
+            else { TOAST?.error?.(data.error || 'Failed'); }
+        } catch (e) { TOAST?.error?.('Error'); }
+    }
+
+    // --- Init ---
+    loadDepartments();
     loadContacts();
 
-    // Search filtering
     document.getElementById('contacts-search-input')?.addEventListener('input', () => renderContacts());
-
-    // Category filtering
-    document.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeCategory = btn.dataset.cat;
-            renderContacts();
-        });
+    document.getElementById('contacts-shift-filter')?.addEventListener('change', (e) => {
+        activeShift = e.target.value;
+        renderContacts();
     });
 
     return {
-        showAddForm() {
-            document.getElementById('contact-form').style.display = 'block';
-            document.getElementById('contact-form-title').textContent = 'Add Contact';
-            document.getElementById('cf-id').value = '';
-            document.getElementById('cf-name').value = '';
-            document.getElementById('cf-phone').value = '';
-            document.getElementById('cf-email').value = '';
-            document.getElementById('cf-role').value = '';
-            document.getElementById('cf-unit').value = '';
-            document.getElementById('cf-notes').value = '';
-            document.getElementById('cf-name').focus();
-        },
-
-        cancelForm() {
-            document.getElementById('contact-form').style.display = 'none';
-        },
-
-        editContact(id) {
-            const c = allContacts.find(x => x.contact_id === id);
-            if (!c) return;
-            document.getElementById('contact-form').style.display = 'block';
-            document.getElementById('contact-form-title').textContent = 'Edit Contact';
-            document.getElementById('cf-id').value = c.contact_id;
-            document.getElementById('cf-name').value = c.name || '';
-            document.getElementById('cf-phone').value = c.phone || '';
-            document.getElementById('cf-email').value = c.email || '';
-            document.getElementById('cf-role').value = c.role || '';
-            document.getElementById('cf-unit').value = c.unit_id || '';
-            document.getElementById('cf-notes').value = c.signal_number || '';
-        },
-
-        async saveForm() {
-            const id = document.getElementById('cf-id').value;
-            const name = document.getElementById('cf-name').value.trim();
-            if (!name) { TOAST?.warning?.('Name is required'); return; }
-
-            const payload = {
-                name,
-                phone: document.getElementById('cf-phone').value.trim(),
-                email: document.getElementById('cf-email').value.trim(),
-                role: document.getElementById('cf-role').value,
-                unit_id: document.getElementById('cf-unit').value.trim(),
-                signal_number: document.getElementById('cf-notes').value.trim(),
-            };
-
-            try {
-                const url = id ? `/api/contacts/${id}` : '/api/contacts';
-                const method = id ? 'PUT' : 'POST';
-                const res = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    TOAST?.success?.(id ? 'Contact updated' : 'Contact added');
-                    document.getElementById('contact-form').style.display = 'none';
-                    loadContacts();
-                } else {
-                    TOAST?.error?.(data.error || 'Failed to save');
-                }
-            } catch (e) {
-                TOAST?.error?.('Error saving contact');
-            }
-        },
-
-        async deleteContact(id, name) {
-            if (!confirm(`Delete contact "${name}"?`)) return;
-            try {
-                const res = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.ok) {
-                    TOAST?.success?.('Contact deleted');
-                    loadContacts();
-                } else {
-                    TOAST?.error?.(data.error || 'Failed to delete');
-                }
-            } catch (e) {
-                TOAST?.error?.('Error deleting contact');
-            }
-        },
-
-        addNew() { this.showAddForm(); }
+        showAddForm, cancelForm() { document.getElementById('contact-form').style.display = 'none'; },
+        editContact, saveForm, deleteContact,
+        openDetail, closeDetail,
+        showDeptMgmt, hideDeptMgmt, addDept, deleteDept,
+        addNew() { showAddForm(); }
     };
 })();
 </script>

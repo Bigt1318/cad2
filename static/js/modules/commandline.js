@@ -1042,10 +1042,14 @@ DISPOSITION CODES
                     await CAD_UTIL.postJSON(`/api/uaw/clear_unit`, {
                         unit_id: unitId,
                         incident_id: currentIncidentId,
-                        disposition: "R"
+                        disposition: "R",
+                        force: true
                     });
                 } catch (clearErr) {
                     console.warn(`[CLI] Auto-clear failed for ${unitId}:`, clearErr);
+                    try {
+                        await CAD_UTIL.postJSON(`/api/unit_status/${encodeURIComponent(unitId)}/AVAILABLE`, {});
+                    } catch (_) {}
                 }
             }
 
@@ -1071,7 +1075,7 @@ DISPOSITION CODES
                 await CAD_UTIL.postJSON("/api/cli/dispatch", {
                     incident_id: newIncidentId,
                     units: [unitId],
-                    mode: "DE"
+                    mode: "SI"
                 });
 
                 CAD_UTIL.refreshPanels();

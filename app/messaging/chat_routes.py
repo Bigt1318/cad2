@@ -428,6 +428,101 @@ def register_chat_routes(app: FastAPI, templates, get_conn):
         return {"ok": ok}
 
     # ================================================================
+    # PREFERENCES & SETTINGS
+    # ================================================================
+
+    @app.get("/api/chat/preferences")
+    async def get_preferences(request: Request):
+        """Load all user preferences from chat_preferences table."""
+        user_id = _user(request)
+        conn = get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT channel_id, pref_key, pref_value FROM chat_preferences WHERE user_id = ?",
+                (user_id,)
+            ).fetchall()
+            prefs = {}
+            for r in rows:
+                ch = r["channel_id"] or 0
+                key = f"{ch}:{r['pref_key']}" if ch != 0 else r["pref_key"]
+                prefs[key] = r["pref_value"]
+            return {"ok": True, "preferences": prefs}
+        except Exception as e:
+            logger.warning(f"[CHAT] Failed to load preferences: {e}")
+            return {"ok": True, "preferences": {}}
+        finally:
+            conn.close()
+
+    @app.post("/api/chat/preferences")
+    async def save_preferences(request: Request):
+        """Batch upsert preferences."""
+        user_id = _user(request)
+        data = await request.json()
+        prefs = data.get("preferences", {})
+        conn = get_conn()
+        try:
+            for key, value in prefs.items():
+                # Keys like "sound_enabled" are global (channel_id=0)
+                # Keys like "5:muted" are per-channel
+                if ":" in key and key.split(":")[0].isdigit():
+                    parts = key.split(":", 1)
+                    channel_id = int(parts[0])
+                    pref_key = parts[1]
+                else:
+                    channel_id = 0
+                    pref_key = key
+                conn.execute(
+                    """INSERT INTO chat_preferences (user_id, channel_id, pref_key, pref_value)
+                       VALUES (?, ?, ?, ?)
+                       ON CONFLICT(user_id, channel_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value""",
+                    (user_id, channel_id, pref_key, str(value))
+                )
+            conn.commit()
+            return {"ok": True}
+        except Exception as e:
+            logger.error(f"[CHAT] Failed to save preferences: {e}")
+            raise HTTPException(500, "Failed to save preferences")
+        finally:
+            conn.close()
+
+    @app.delete("/api/chat/channel/{channel_id}/messages")
+    async def clear_channel_messages(request: Request, channel_id: int):
+        """Soft-delete all messages in a channel for this user."""
+        user_id = _user(request)
+        conn = get_conn()
+        try:
+            # Verify user is a member of the channel
+            member = conn.execute(
+                "SELECT 1 FROM chat_members WHERE channel_id = ? AND member_id = ?",
+                (channel_id, user_id)
+            ).fetchone()
+            if not member:
+                raise HTTPException(403, "Not a member of this channel")
+            now = datetime.now().isoformat()
+            result = conn.execute(
+                "UPDATE chat_messages SET deleted_at = ? WHERE channel_id = ? AND deleted_at IS NULL",
+                (now, channel_id)
+            )
+            conn.commit()
+            count = result.rowcount
+            return {"ok": True, "cleared": count}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"[CHAT] Failed to clear channel messages: {e}")
+            raise HTTPException(500, "Failed to clear messages")
+        finally:
+            conn.close()
+
+    @app.get("/api/chat/settings/fragment", response_class=HTMLResponse)
+    async def chat_settings_fragment(request: Request):
+        """Settings panel HTML fragment."""
+        return templates.TemplateResponse("chat/settings.html", {
+            "request": request,
+            "user_id": _user(request),
+        })
+
+    # ================================================================
     # CHANNEL ADMIN (archive, rename, set topic)
     # ================================================================
 

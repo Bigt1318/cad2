@@ -50,6 +50,8 @@ function _drawerToggle() {
   drawer.classList.contains("is-open") ? _drawerClose() : _drawerOpen();
 }
 
+let _openedFromDrawer = false;
+
 function _wireDrawer() {
   const { openBtn, closeBtn, backdrop } = _drawerEls();
 
@@ -82,22 +84,14 @@ function _wireDrawer() {
     e.preventDefault();
     const action = (el.dataset.drawerAction || "").trim();
 
+    const modalActions = new Set([
+      "dailylog", "held", "history", "reports", "roster",
+      "contacts", "calendar", "dashboard", "keyboard_help"
+    ]);
+    _openedFromDrawer = modalActions.has(action);
+
     try {
       switch (action) {
-        case "home":
-          // Scroll to top / refresh main view
-          window.scrollTo(0, 0);
-          CAD_UTIL.refreshPanels();
-          break;
-        case "calls":
-          // Focus calltaker panel
-          document.getElementById("panel-calltaker")?.scrollIntoView({ behavior: "smooth" });
-          document.getElementById("ctLocation")?.focus();
-          break;
-        case "units":
-          // Focus units panel
-          document.getElementById("panel-units")?.scrollIntoView({ behavior: "smooth" });
-          break;
         case "new_incident":
           window.CALLTAKER?.startNewIncident?.();
           break;
@@ -136,10 +130,19 @@ function _wireDrawer() {
           break;
         case "noop":
         default:
+          _openedFromDrawer = false;
           break;
       }
     } finally {
       _drawerClose();
+    }
+  });
+
+  // Re-open drawer after closing a drawer-launched modal
+  document.addEventListener("cad-modal-closed", () => {
+    if (_openedFromDrawer) {
+      _openedFromDrawer = false;
+      setTimeout(_drawerOpen, 150);
     }
   });
 

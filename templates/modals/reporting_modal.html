@@ -106,17 +106,17 @@
                     </div>
                 </div>
 
-                <!-- Apparatus Checkboxes -->
+                <!-- Units/Apparatus Checkboxes (Grouped) -->
                 <div class="rpt-section">
                     <div class="rpt-section-title">
-                        Apparatus
+                        Units &amp; Apparatus
                         <span class="rpt-section-actions">
                             <button class="rpt-link-btn" onclick="REPORTING.selectAllApparatus()">Select All</button>
                             <span class="rpt-separator">|</span>
                             <button class="rpt-link-btn" onclick="REPORTING.clearAllApparatus()">Clear All</button>
                         </span>
                     </div>
-                    <div class="rpt-apparatus-checks" id="rpt-apparatus-checks">
+                    <div id="rpt-apparatus-checks">
                         <span style="color:#6b7280;font-size:12px;">Loading units...</span>
                     </div>
                 </div>
@@ -606,6 +606,19 @@
     accent-color: var(--ford-blue);
     cursor: pointer;
 }
+/* Grouped unit sections */
+.rpt-unit-group { margin-bottom: 6px; border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; }
+.rpt-unit-group-header {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    background: var(--bg-elevated); cursor: pointer; font-size: 13px; font-weight: 700;
+    color: var(--text-secondary); user-select: none;
+}
+.rpt-unit-group-header:hover { background: var(--bg-surface); }
+.rpt-unit-group-arrow { font-size: 10px; transition: transform 0.15s; }
+.rpt-unit-group.collapsed .rpt-unit-group-arrow { transform: rotate(-90deg); }
+.rpt-unit-group-count { font-weight: 400; color: var(--text-muted); }
+.rpt-unit-group-body { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 10px; }
+.rpt-unit-group.collapsed .rpt-unit-group-body { display: none; }
 
 /* ---- Apparatus checkboxes ---- */
 .reporting-modal .rpt-apparatus-checks {
@@ -1350,10 +1363,30 @@ window.REPORTING = {
             const resp = await fetch('/api/reporting/units');
             const data = await resp.json();
             if (data.ok && data.units && data.units.length > 0) {
-                container.innerHTML = data.units.map(u => {
-                    const label = u.name || u.unit_id;
-                    return `<label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="${u.unit_id}" checked> ${u.unit_id} - ${label}</label>`;
-                }).join('');
+                const groups = { personnel: [], apparatus: [], mutual_aid: [] };
+                for (const u of data.units) {
+                    if (u.is_mutual_aid) groups.mutual_aid.push(u);
+                    else if (u.is_apparatus) groups.apparatus.push(u);
+                    else groups.personnel.push(u);
+                }
+                const renderGroup = (title, units, id) => {
+                    if (units.length === 0) return '';
+                    const checks = units.map(u => {
+                        const label = u.name || u.unit_id;
+                        return `<label class="rpt-check-label"><input type="checkbox" name="rpt-apparatus" value="${u.unit_id}" checked> ${u.unit_id} - ${label}</label>`;
+                    }).join('');
+                    return `<div class="rpt-unit-group">
+                        <div class="rpt-unit-group-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <span class="rpt-unit-group-arrow">&#9660;</span>
+                            ${title} <span class="rpt-unit-group-count">(${units.length})</span>
+                        </div>
+                        <div class="rpt-unit-group-body" id="${id}">${checks}</div>
+                    </div>`;
+                };
+                container.innerHTML =
+                    renderGroup('Units / Personnel', groups.personnel, 'rpt-grp-personnel') +
+                    renderGroup('Apparatus', groups.apparatus, 'rpt-grp-apparatus') +
+                    renderGroup('Mutual Aid', groups.mutual_aid, 'rpt-grp-mutual');
             } else {
                 container.innerHTML = '<span style="color:#6b7280;font-size:12px;">No units found</span>';
             }

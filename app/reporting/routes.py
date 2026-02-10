@@ -688,15 +688,36 @@ async def reporting_units_list():
 
     Used by the reporting modal to populate apparatus filter checkboxes
     with actual unit IDs from the database.
+
+    Canonical order: command → personnel → apparatus → mutual aid → other.
     """
     import sqlite3
     db = get_db()
     db.row_factory = sqlite3.Row
     try:
         rows = db.execute("""
-            SELECT unit_id, name, unit_type, is_apparatus
+            SELECT unit_id, name, unit_type, is_apparatus,
+                   COALESCE(is_command,0) AS is_command,
+                   COALESCE(is_mutual_aid,0) AS is_mutual_aid,
+                   COALESCE(display_order,999) AS display_order
             FROM Units
-            ORDER BY display_order ASC, unit_id ASC
+            ORDER BY
+                CASE WHEN is_command = 1 THEN 0
+                     WHEN unit_type = 'PERSONNEL' OR (length(unit_id) = 2 AND unit_id GLOB '[0-9][0-9]') THEN 1
+                     WHEN is_apparatus = 1 THEN 2
+                     WHEN is_mutual_aid = 1 THEN 3
+                     ELSE 4 END,
+                CASE unit_id
+                    WHEN '1578' THEN 0 WHEN 'Car1' THEN 1
+                    WHEN 'Batt1' THEN 2 WHEN 'Batt2' THEN 3
+                    WHEN 'Batt3' THEN 4 WHEN 'Batt4' THEN 5
+                    WHEN 'Engine2' THEN 10 WHEN 'Medic2' THEN 11
+                    WHEN 'Engine1' THEN 12 WHEN 'Medic1' THEN 13
+                    WHEN 'Tower1' THEN 14 WHEN 'UTV1' THEN 15
+                    WHEN 'UTV2' THEN 16 WHEN 'SQ1' THEN 17
+                    ELSE 99 END,
+                display_order ASC,
+                unit_id ASC
         """).fetchall()
     except Exception:
         # If Units table doesn't exist or schema mismatch, return empty
@@ -708,7 +729,8 @@ async def reporting_units_list():
         "ok": True,
         "units": [
             {"unit_id": r["unit_id"], "name": r["name"],
-             "unit_type": r["unit_type"], "is_apparatus": r["is_apparatus"]}
+             "unit_type": r["unit_type"], "is_apparatus": r["is_apparatus"],
+             "is_command": r["is_command"], "is_mutual_aid": r["is_mutual_aid"]}
             for r in rows
         ],
     }

@@ -100,7 +100,34 @@ export const CAD_MODAL = (() => {
   }
 
   // -------------------------------------------------------------------------
-  // INTERNAL — ENTER SUBMIT + ESC CLOSE (scoped to modal)
+  // INTERNAL — FOCUS TRAP (Tab cycles within modal)
+  // -------------------------------------------------------------------------
+  function _trapFocus(modal, e) {
+    if (e.key !== "Tab") return;
+
+    const focusable = modal.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === first || !modal.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !modal.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // INTERNAL — ENTER SUBMIT + ESC CLOSE + FOCUS TRAP (scoped to modal)
   // -------------------------------------------------------------------------
   function _bindModalKeys(modal, closeFn) {
     if (!modal) return;
@@ -111,6 +138,8 @@ export const CAD_MODAL = (() => {
         closeFn();
         return;
       }
+
+      _trapFocus(modal, e);
 
       if (e.key !== "Enter") return;
 
@@ -396,6 +425,7 @@ export const CAD_MODAL = (() => {
       if (force) {
         _active = false;
         _lockScrollStable(false);
+        document.dispatchEvent(new CustomEvent("cad-modal-closed"));
       }
     }
   };

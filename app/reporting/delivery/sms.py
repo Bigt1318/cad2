@@ -64,11 +64,15 @@ class SMSDelivery(DeliveryChannel):
         from_number = get_config("twilio_from_number")
 
         if not all([account_sid, auth_token, from_number]):
+            logger.info(
+                "Twilio disabled — would send SMS to=%s subject=%r body_len=%d",
+                recipient, subject, len(body_text),
+            )
             return DeliveryResult(
                 success=False,
                 recipient=recipient,
                 channel="sms",
-                error="Twilio not configured",
+                error="Twilio not configured — delivery skipped (logged)",
             )
 
         # Format phone number
