@@ -366,8 +366,8 @@ def _render_safety_modal() -> str:
 
     return f"""
 <div class="cad-modal-overlay" onclick="CAD_MODAL.close()"></div>
-<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections" style="max-width:1000px;width:92vw;max-height:88vh;overflow:hidden;padding:0;background:var(--bg-surface,#1a1d23);color:var(--text-primary,#e0e0e0);border-radius:10px;font-family:var(--font-sans,system-ui,sans-serif);display:flex;flex-direction:column;">
-<div id="safety-modal" style="font-family:'Segoe UI',system-ui,sans-serif;color:#e2e8f0;max-height:82vh;display:flex;flex-direction:column;">
+<div class="cad-modal" role="dialog" aria-modal="true" aria-label="Safety Inspections" style="max-width:1000px;width:92vw;max-height:88vh;overflow:hidden;padding:0;background:#1a1d23;color:#e2e8f0;border-radius:10px;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;">
+<div id="safety-modal" style="color:#e2e8f0;max-height:82vh;display:flex;flex-direction:column;background:#1a1d23;">
     <!-- Header -->
     <div style="padding:12px 16px;border-bottom:1px solid #2d3748;display:flex;justify-content:space-between;align-items:center;">
         <div>

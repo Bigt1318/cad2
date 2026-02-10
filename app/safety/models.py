@@ -182,7 +182,139 @@ def init_safety_schema():
         _seed_inspection_templates(c)
         conn.commit()
 
+    # Migration: insert any new asset types that don't exist yet
+    _migrate_new_types(c)
+    conn.commit()
+
     conn.close()
+
+
+# ================================================================
+# MIGRATION — add new types/templates to existing DB
+# ================================================================
+
+def _migrate_new_types(cursor):
+    """Insert any asset types that don't exist yet + their templates."""
+    new_types = [
+        ("Sprinkler Riser", "RISER", "arrow-up-circle", 30, "NFPA 25"),
+        ("Standpipe", "STPIPE", "git-commit", 30, "NFPA 14"),
+        ("PIV (Post Indicator Valve)", "PIV", "disc", 7, "NFPA 25"),
+        ("Pumphouse", "PUMP", "activity", 7, "NFPA 20"),
+    ]
+    inserted_codes = []
+    for name, code, icon, interval, standard in new_types:
+        exists = cursor.execute(
+            "SELECT id FROM safety_asset_types WHERE code = ?", (code,)
+        ).fetchone()
+        if not exists:
+            cursor.execute("""
+                INSERT INTO safety_asset_types (name, code, icon, default_interval_days, regulatory_standard, is_active)
+                VALUES (?, ?, ?, ?, ?, 1)
+            """, (name, code, icon, interval, standard))
+            inserted_codes.append(code)
+
+    # Seed templates for any newly-inserted types
+    if inserted_codes:
+        _seed_new_type_templates(cursor, inserted_codes)
+
+
+def _seed_new_type_templates(cursor, codes):
+    """Seed inspection templates only for the given type codes."""
+    all_new = _get_new_type_templates()
+    for tpl in all_new:
+        if tpl["asset_type_code"] not in codes:
+            continue
+        row = cursor.execute(
+            "SELECT id FROM safety_asset_types WHERE code = ?",
+            (tpl["asset_type_code"],)
+        ).fetchone()
+        if not row:
+            continue
+        # Check template doesn't already exist
+        existing = cursor.execute(
+            "SELECT id FROM inspection_templates WHERE asset_type_id = ? AND name = ?",
+            (row[0], tpl["name"])
+        ).fetchone()
+        if existing:
+            continue
+        cursor.execute("""
+            INSERT INTO inspection_templates (asset_type_id, name, tier, checklist_items, regulatory_reference, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        """, (row[0], tpl["name"], tpl["tier"], tpl["checklist_items"], tpl["regulatory_reference"]))
+
+
+def _get_new_type_templates():
+    """Templates for newer asset types (RISER, STPIPE, PIV, PUMP)."""
+    return [
+        # Sprinkler Riser — Monthly Visual (NFPA 25)
+        {
+            "asset_type_code": "RISER",
+            "name": "Sprinkler Riser — Monthly Visual",
+            "tier": "monthly",
+            "regulatory_reference": "NFPA 25 §5.3",
+            "checklist_items": json.dumps([
+                {"field": "gauges_normal", "label": "System/riser gauges in normal range", "type": "pass_fail", "required": True},
+                {"field": "main_valve_open", "label": "Main control valve open & sealed/locked", "type": "pass_fail", "required": True},
+                {"field": "no_leaks", "label": "No visible leaks at riser or connections", "type": "pass_fail", "required": True},
+                {"field": "fdc_condition", "label": "FDC caps in place / no damage", "type": "pass_fail", "required": True},
+                {"field": "fdc_accessible", "label": "FDC accessible (not blocked)", "type": "pass_fail", "required": True},
+                {"field": "trim_condition", "label": "Riser trim (alarm valve, retard, drains) OK", "type": "pass_fail", "required": True},
+                {"field": "signage", "label": "Riser room signage visible", "type": "pass_fail", "required": True},
+                {"field": "room_clear", "label": "Riser room clear of storage/obstructions", "type": "pass_fail", "required": True},
+            ]),
+        },
+        # Standpipe — Semi-Annual (NFPA 14)
+        {
+            "asset_type_code": "STPIPE",
+            "name": "Standpipe — Semi-Annual Inspection",
+            "tier": "semi_annual",
+            "regulatory_reference": "NFPA 14 §6.3",
+            "checklist_items": json.dumps([
+                {"field": "hose_connections", "label": "Hose connections accessible & caps in place", "type": "pass_fail", "required": True},
+                {"field": "valve_condition", "label": "Hose valves operate freely", "type": "pass_fail", "required": True},
+                {"field": "no_obstructions", "label": "Standpipe cabinets unobstructed", "type": "pass_fail", "required": True},
+                {"field": "hose_condition", "label": "Hose condition OK (if equipped)", "type": "pass_fail", "required": False},
+                {"field": "nozzle_condition", "label": "Nozzle present and functional", "type": "pass_fail", "required": False},
+                {"field": "pressure_gauge", "label": "Pressure gauge in normal range", "type": "pass_fail", "required": True},
+                {"field": "signage", "label": "Standpipe signage visible", "type": "pass_fail", "required": True},
+                {"field": "no_damage", "label": "No visible damage or corrosion", "type": "pass_fail", "required": True},
+            ]),
+        },
+        # PIV — Weekly (NFPA 25)
+        {
+            "asset_type_code": "PIV",
+            "name": "PIV — Weekly Valve Check",
+            "tier": "weekly",
+            "regulatory_reference": "NFPA 25 §13.5",
+            "checklist_items": json.dumps([
+                {"field": "valve_open", "label": "PIV in full OPEN position", "type": "pass_fail", "required": True},
+                {"field": "accessible", "label": "PIV accessible / not blocked", "type": "pass_fail", "required": True},
+                {"field": "wrench_available", "label": "Operating wrench available", "type": "pass_fail", "required": True},
+                {"field": "tamper_switch", "label": "Tamper switch functional (if installed)", "type": "pass_fail", "required": False},
+                {"field": "no_damage", "label": "No visible damage to valve/post", "type": "pass_fail", "required": True},
+                {"field": "signage", "label": "PIV signage visible", "type": "pass_fail", "required": True},
+            ]),
+        },
+        # Pumphouse — Weekly (NFPA 20)
+        {
+            "asset_type_code": "PUMP",
+            "name": "Pumphouse — Weekly Inspection",
+            "tier": "weekly",
+            "regulatory_reference": "NFPA 20 §8.3",
+            "checklist_items": json.dumps([
+                {"field": "pump_running", "label": "Pump starts and runs (no-flow test)", "type": "pass_fail", "required": True},
+                {"field": "suction_pressure", "label": "Suction pressure reading normal", "type": "pass_fail", "required": True},
+                {"field": "discharge_pressure", "label": "Discharge pressure reading normal", "type": "pass_fail", "required": True},
+                {"field": "power_available", "label": "Power supply available (normal/emergency)", "type": "pass_fail", "required": True},
+                {"field": "room_temp", "label": "Pump room temperature above 40°F", "type": "pass_fail", "required": True},
+                {"field": "no_leaks", "label": "No visible leaks (packing, piping)", "type": "pass_fail", "required": True},
+                {"field": "controller_normal", "label": "Controller in AUTO position, no alarms", "type": "pass_fail", "required": True},
+                {"field": "ventilation", "label": "Ventilation/louvers functioning", "type": "pass_fail", "required": True},
+                {"field": "fuel_level", "label": "Diesel fuel level adequate (if diesel)", "type": "pass_fail", "required": False},
+                {"field": "battery_charger", "label": "Battery charger operational (if diesel)", "type": "pass_fail", "required": False},
+            ]),
+        },
+    ]
 
 
 # ================================================================
@@ -202,6 +334,10 @@ def _seed_asset_types(cursor):
         ("First Aid Kit", "FAK", "briefcase-medical", 30, "OSHA 1910.151"),
         ("Fire Door", "DOOR", "door-closed", 30, "NFPA 80"),
         ("Emergency Shower", "SHOWER", "shower", 7, "ANSI Z358.1"),
+        ("Sprinkler Riser", "RISER", "arrow-up-circle", 30, "NFPA 25"),
+        ("Standpipe", "STPIPE", "git-commit", 30, "NFPA 14"),
+        ("PIV (Post Indicator Valve)", "PIV", "disc", 7, "NFPA 25"),
+        ("Pumphouse", "PUMP", "activity", 7, "NFPA 20"),
     ]
     for name, code, icon, interval, standard in types:
         cursor.execute("""
@@ -382,7 +518,7 @@ def _seed_inspection_templates(cursor):
                 {"field": "signage", "label": "Fire door signage present", "type": "pass_fail", "required": True},
             ]),
         },
-    ]
+    ] + _get_new_type_templates()
 
     for tpl in templates:
         # Look up asset_type_id by code
