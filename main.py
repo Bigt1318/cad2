@@ -168,6 +168,18 @@ except ImportError as e:
 except Exception as e:
     print(f"[MAIN] Calendar module error: {e}")
 
+# ================================================================
+# SAFETY INSPECTION MODULE (Equipment Tracking & Compliance)
+# ================================================================
+try:
+    from app.safety import register_safety_routes
+    register_safety_routes(app)
+    print("[MAIN] Safety Inspection module loaded")
+except ImportError as e:
+    print(f"[MAIN] Safety module not available: {e}")
+except Exception as e:
+    print(f"[MAIN] Safety module error: {e}")
+
 # ------------------------------------------------
 # Middleware: guarantee every mutation is written to MasterLog
 # ------------------------------------------------

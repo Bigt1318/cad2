@@ -25,5 +25,6 @@
   "/static/js/modules/calendar.js?v=20260204b",
   "/static/js/modules/reportconfirm.js?v=20260209a",
   "/static/js/modules/eventstream.js?v=20260207a",
-  "/static/js/modules/playbooks.js?v=20260207a"
+  "/static/js/modules/playbooks.js?v=20260207a",
+  "/static/js/modules/safety.js?v=20260210a"
 ]

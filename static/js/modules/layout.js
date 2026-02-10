@@ -86,7 +86,7 @@ function _wireDrawer() {
 
     const modalActions = new Set([
       "dailylog", "held", "history", "reports", "roster",
-      "contacts", "calendar", "dashboard", "keyboard_help"
+      "contacts", "calendar", "dashboard", "keyboard_help", "safety"
     ]);
     _openedFromDrawer = modalActions.has(action);
 
@@ -127,6 +127,9 @@ function _wireDrawer() {
           break;
         case "keyboard_help":
           CAD_MODAL.open("/modals/keyboard_help");
+          break;
+        case "safety":
+          CAD_MODAL.open("/modals/safety");
           break;
         case "noop":
         default:
